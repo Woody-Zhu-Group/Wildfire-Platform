@@ -1,4 +1,4 @@
-"""FastAPI GPU control service — port 8005. Start/stop the demo Ollama instance."""
+"""Optional EC2/Ollama control service — port 8005."""
 
 from __future__ import annotations
 
@@ -70,9 +70,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Wildfire GPU Control",
+    title="Wildfire Optional GPU Control",
     description=(
-        "Start and stop the demo GPU instance that runs Ollama. "
+        "Start and stop an explicitly configured EC2 instance that runs Ollama. "
         "Does not start the GPU as a side effect of Ask or health polls."
     ),
     version="0.1.0",
