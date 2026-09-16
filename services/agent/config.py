@@ -25,7 +25,7 @@ class AgentSettings:
     provider: str = "openai_compatible"
     model_base_url: str = "http://127.0.0.1:11434/v1"
     model_api_key: str = "ollama"
-    model: str = "qwen3:4b"
+    model: str = "qwen2.5:7b"
     model_runtime: str | None = None
     thinking: str = "off"
     # Constrained synthesis returns tokens reliably; prompt mode often times out.
@@ -40,7 +40,7 @@ class AgentSettings:
     max_synthesis_tokens: int = 1200
     max_tool_steps: int = 5
     max_validation_retries: int = 2
-    # Ollama defaults to 4096 when unset; qwen3:4b supports far more.
+    # Ollama defaults to 4096 when unset; configure more only when needed.
     num_ctx: int = 32768
     synthesis_timeout_seconds: float = 180.0
     seed: int = 42
@@ -62,7 +62,7 @@ class AgentSettings:
                 "AGENT_MODEL_BASE_URL", "http://127.0.0.1:11434/v1"
             ).rstrip("/"),
             model_api_key=os.getenv("AGENT_MODEL_API_KEY", "ollama"),
-            model=os.getenv("AGENT_MODEL", "qwen3:4b"),
+            model=os.getenv("AGENT_MODEL", "qwen2.5:7b"),
             model_runtime=os.getenv("AGENT_MODEL_RUNTIME") or None,
             thinking=os.getenv("AGENT_THINKING", "off").strip().lower(),
             structured_mode=os.getenv(
