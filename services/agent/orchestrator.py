@@ -30,7 +30,7 @@ from services.agent.views import dump_planned, empty_views_payload, plan_views
 
 MODEL_OFFLINE_ANSWER = (
     "The language model is offline. Counts, maps, and rankings still work. "
-    "Start the GPU from the Ask panel to answer open-ended questions."
+    "Restore the configured model backend to answer open-ended questions."
 )
 
 
@@ -1033,13 +1033,26 @@ class AgentOrchestrator:
                     for item in executions
                     if not item.ok and item.error
                 ]
+                correction = ""
+                if any(
+                    str(error.get("code") or "") == "year_not_derived"
+                    for error in errors
+                ):
+                    correction = (
+                        "\nNo year or date range was resolved from the question. "
+                        "Remove year, start_date, and end_date from the corrected "
+                        "tool call. Do not repeat the rejected arguments or infer "
+                        "a plausible year."
+                    )
                 routing_messages = [
                     {
                         "role": "user",
                         "content": (
-                            f"{question}\nPrevious tool call failed. Retry the "
+                            f"/no_think\n{question}\n{slot_hint}"
+                            "Previous tool call failed. Retry the "
                             "needed tool call(s) now with corrected arguments if "
                             f"required. Errors: {json.dumps(errors, default=str)}"
+                            f"{correction}"
                         ),
                     }
                 ]
@@ -1638,10 +1651,31 @@ def _harness_slot_hint(
         payload["year"] is None
         and not payload["years"]
         and not payload["start_date"]
-        and not payload["utilities"]
-        and not payload["county"]
+        and not payload["end_date"]
     ):
-        return ""
+        hint = (
+            "Harness-resolved time: none. The question did not name or clearly "
+            "imply a specific year. Omit year, start_date, and end_date; query "
+            "without a time filter or ask for clarification. Never guess a year.\n"
+        )
+        if payload["utilities"] or payload["county"]:
+            hint += (
+                "Other harness-resolved slots: "
+                + json.dumps(
+                    {
+                        "utilities": payload["utilities"],
+                        "county": payload["county"],
+                    },
+                    default=str,
+                )
+                + "\n"
+            )
+        if county:
+            hint += (
+                f"County filter {county!r} is valid for calfire_incidents, "
+                "cpuc_ignitions, epss_outages, or psps_events — never us_ignitions.\n"
+            )
+        return hint
     hint = (
         "Harness-resolved slots (use these time filters; do not invent years): "
         + json.dumps(payload, default=str)

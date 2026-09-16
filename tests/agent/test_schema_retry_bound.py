@@ -7,7 +7,7 @@ import asyncio
 from services.agent.config import AgentSettings
 from services.agent.orchestrator import AgentOrchestrator
 from services.agent.provider import OpenAICompatibleProvider
-from services.agent.tools import ToolExecutor
+from services.agent.tools import ToolExecution, ToolExecutor
 from services.agent.artifacts import ArtifactStore
 
 
@@ -149,3 +149,115 @@ def test_identical_non_schema_failures_are_bounded():
     ]
     assert len(year_failures) == 2
     assert "year" in answer.lower() or "could not" in answer.lower()
+
+
+class _CorrectsInventedYearProvider(OpenAICompatibleProvider):
+    """Drop the invented year after the targeted harness correction."""
+
+    def __init__(self) -> None:
+        self.settings = AgentSettings.from_env()
+        self.calls = 0
+
+    async def complete(self, **kwargs):  # type: ignore[no-untyped-def]
+        from types import SimpleNamespace
+
+        self.calls += 1
+        prompt = kwargs["messages"][-1]["content"]
+        if self.calls == 1:
+            assert "Harness-resolved time: none" in prompt
+            arguments = (
+                '{"dataset":"cpuc_ignitions","result_mode":"count","year":2023}'
+            )
+        else:
+            assert "Remove year, start_date, and end_date" in prompt
+            assert "Do not repeat the rejected arguments" in prompt
+            arguments = '{"dataset":"cpuc_ignitions","result_mode":"count"}'
+        return SimpleNamespace(
+            content="",
+            tool_calls=[
+                {
+                    "id": f"call_{self.calls}",
+                    "type": "function",
+                    "function": {
+                        "name": "data_query_records",
+                        "arguments": arguments,
+                    },
+                }
+            ],
+            latency_ms=1.0,
+            usage={},
+            raw={"choices": [{"finish_reason": "tool_calls"}]},
+        )
+
+
+class _YearGuardExecutor:
+    async def execute(self, tool, arguments, **kwargs):  # type: ignore[no-untyped-def]
+        if "year" in arguments:
+            return ToolExecution(
+                tool=tool,
+                arguments=arguments,
+                ok=False,
+                summary={},
+                raw=None,
+                error={
+                    "code": "year_not_derived",
+                    "message": "year was not resolved from the question",
+                    "recoverable": False,
+                    "suggested_action": (
+                        "Use only harness-resolved years from the question, "
+                        "or ask for clarification."
+                    ),
+                },
+                artifact=None,
+                latency_ms=0.0,
+            )
+        return ToolExecution(
+            tool=tool,
+            arguments=arguments,
+            ok=True,
+            summary={
+                "dataset": "cpuc_ignitions",
+                "result_mode": "count",
+                "total": 1,
+            },
+            raw={},
+            error=None,
+            artifact=None,
+            latency_ms=0.0,
+        )
+
+
+def test_invented_year_retry_is_told_to_remove_time_filters():
+    settings = AgentSettings.from_env()
+    provider = _CorrectsInventedYearProvider()
+    orchestrator = AgentOrchestrator(
+        settings,
+        provider,
+        _YearGuardExecutor(),  # type: ignore[arg-type]
+    )
+
+    async def _run():
+        return await orchestrator._model_loop(
+            "Why might CPUC and CAL FIRE counts differ in the same year?",
+            "test-request",
+            ["data_query_records"],
+            year=None,
+            years=[],
+            utilities=[],
+            time_resolution={"status": "none"},
+        )
+
+    status, _, executions, trajectory, *_ = asyncio.run(_run())
+    assert status == "tools_ready"
+    assert provider.calls == 2
+    assert [
+        (item.error or {}).get("code")
+        for item in executions
+        if not item.ok
+    ] == ["year_not_derived"]
+    assert executions[-1].ok
+    assert "year" not in executions[-1].arguments
+    assert any(
+        event.get("type") == "routing_history_reset_after_tool_failure"
+        for event in trajectory
+    )

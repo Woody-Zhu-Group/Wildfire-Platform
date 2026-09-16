@@ -95,4 +95,6 @@ def parse_envelope_content(content: str) -> list[dict[str, Any]]:
 
 ROUTING_CONSTRAINED_PROMPT = """Route this wildfire-data question with the provided tools.
 Reply with JSON only, matching {"calls":[{"tool":name,"arguments":{...}}]}.
-Include every call needed. Use exact schema enum values. Do not explain."""
+Include every call needed. Use exact schema enum values. If the question does not name
+or clearly imply a specific year, omit year, start_date, and end_date. Query without a
+time filter or ask for clarification; never guess a plausible year. Do not explain."""
