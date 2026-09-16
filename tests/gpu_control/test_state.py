@@ -43,9 +43,9 @@ def test_eta_only_after_this_process_started_and_while_booting():
 
 def test_model_resident_requires_vram_when_reported():
     assert model_is_resident(
-        [{"name": "qwen3:32b", "size_vram": 20_000_000_000}], "qwen3:32b"
+        [{"name": "test-model", "size_vram": 20_000_000_000}], "test-model"
     )
     assert not model_is_resident(
-        [{"name": "qwen3:32b", "size_vram": 0}], "qwen3:32b"
+        [{"name": "test-model", "size_vram": 0}], "test-model"
     )
-    assert not model_is_resident([{"name": "llama3:8b", "size_vram": 8}], "qwen3:32b")
+    assert not model_is_resident([{"name": "other-model", "size_vram": 8}], "test-model")

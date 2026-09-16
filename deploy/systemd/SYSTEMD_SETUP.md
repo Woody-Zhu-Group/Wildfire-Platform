@@ -1,13 +1,14 @@
 # Systemd units (Ubuntu backend box)
 
-Install these on the always-on t3 (`ubuntu@`, repo at `/home/ubuntu/Wildfire-Services`).
-Do **not** install them on the GPU instance. Ollama already has its own unit; leave it alone.
+Install these on the backend instance (`ubuntu@`, repo at
+`/home/ubuntu/Wildfire-Services`). Ollama on the current CPU model host is
+managed separately.
 
 Units: `wildfire-data-query` (:8000), `wildfire-visualization` (:8002),
-`wildfire-comparison` (:8003), `wildfire-agent` (:8004), `wildfire-gpu-control`
-(:8005), `wildfire-frontend` (:8765). They start in parallel after
-`network-online.target`. Comparison will come up even if it was never running
-in screen.
+`wildfire-comparison` (:8003), `wildfire-agent` (:8004), and
+`wildfire-frontend` (:8765). The legacy `wildfire-gpu-control` (:8005) unit is
+optional and should remain disabled unless a new EC2/Ollama resource is
+explicitly configured. Services start in parallel after `network-online.target`.
 
 ## Stop screen sessions first
 
@@ -40,14 +41,12 @@ sudo systemctl enable --now \
   wildfire-visualization \
   wildfire-comparison \
   wildfire-agent \
-  wildfire-gpu-control \
   wildfire-frontend
 sudo systemctl --no-pager --full status \
   wildfire-data-query \
   wildfire-visualization \
   wildfire-comparison \
   wildfire-agent \
-  wildfire-gpu-control \
   wildfire-frontend
 ```
 
@@ -58,7 +57,6 @@ journalctl -u wildfire-data-query -f
 journalctl -u wildfire-visualization -f
 journalctl -u wildfire-comparison -f
 journalctl -u wildfire-agent -f
-journalctl -u wildfire-gpu-control -f
 journalctl -u wildfire-frontend -f
 ```
 
@@ -68,7 +66,7 @@ journalctl -u wildfire-frontend -f
 considered started as soon as systemd forks uvicorn, and a missing model no
 longer blocks the unit.
 
-If the GPU is up, lifespan still awaits the remote warmup before `:8004`
+If the configured model backend is up, lifespan still awaits remote warmup before `:8004`
 accepts connections. After any reboot, `systemctl is-active wildfire-agent`
 can be `active` for several minutes while `GET :8004/health` still fails.
 That is warmup, not a crashed unit. Do not manually restart the agent in

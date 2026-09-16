@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from services.gpu_control import app as gpu_app
 from services.gpu_control.bringup import reset_pipeline
 
-INSTANCE_ID = "i-09526a2a9268135f2"
+INSTANCE_ID = "i-test"
 
 
 async def _noop_bring_up(settings):  # noqa: ARG001
@@ -40,6 +40,9 @@ def _install_lifecycle(monkeypatch, *, initial="stopped"):
 
 
 def _client(monkeypatch, token=None):
+    monkeypatch.setenv("GPU_INSTANCE_ID", INSTANCE_ID)
+    monkeypatch.setenv("GPU_OLLAMA_URL", "http://ollama.test")
+    monkeypatch.setenv("GPU_MODEL", "test-model")
     if token is None:
         # Empty overrides a token loaded from repo .env (dotenv does not override).
         monkeypatch.setenv("GPU_CONTROL_TOKEN", "")
@@ -50,6 +53,32 @@ def _client(monkeypatch, token=None):
     reset_pipeline()
     monkeypatch.setattr(gpu_app, "bring_up_gpu", _noop_bring_up)
     return TestClient(gpu_app.app)
+
+
+def test_missing_resource_config_disables_status_and_start(monkeypatch):
+    for name in ("GPU_INSTANCE_ID", "GPU_OLLAMA_URL", "GPU_MODEL"):
+        monkeypatch.setenv(name, "")
+    monkeypatch.setenv("GPU_CONTROL_TOKEN", "correct-token")
+    monkeypatch.setattr(
+        gpu_app.aws,
+        "describe_instance",
+        lambda settings: (_ for _ in ()).throw(
+            AssertionError("disabled status must not call EC2")
+        ),
+    )
+    client = TestClient(gpu_app.app)
+
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert health.json()["status"] == "disabled"
+    status = client.get("/gpu/status")
+    assert status.status_code == 200
+    assert status.json()["state"] == "unavailable"
+    started = client.post(
+        "/gpu/start", headers={"X-GPU-Control-Token": "correct-token"}
+    )
+    assert started.status_code == 503
+    assert "GPU control is disabled" in started.json()["detail"]
 
 
 def test_health_and_status_are_unauthenticated(monkeypatch):

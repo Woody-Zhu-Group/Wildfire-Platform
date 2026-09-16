@@ -14,7 +14,7 @@ services/data_query/            # read API over warehouse tables
 services/visualization/         # styled GeoJSON / time series / detail
 services/comparison/            # cross-utility / region / period metrics
 services/agent/                 # local-LLM routing feasibility harness
-services/gpu_control/           # start/stop demo GPU (Ollama) on port 8005
+services/gpu_control/           # optional EC2/Ollama control on port 8005
 services/risk_forecasting/
   models.py                     # HPP / NHPP / cNHPP (do not modify lightly)
   grid_data_prep.py             # grid data loaders (do not modify lightly)
@@ -117,19 +117,19 @@ probe and does not warm the model. The website Ask panel uses SSE
 ranges like `2021 to 2025` / `August 2023 to September 2024` are resolved in
 the harness, not by the model.
 
-### GPU control
+### Optional legacy GPU control
 
-Website start/stop for the demo GPU instance. Not on the agent or data_query.
+The current test deployment uses the CPU model at `AGENT_MODEL_BASE_URL`.
+`gpu_control` remains available for a future explicitly configured EC2/Ollama
+resource; it is not on the agent request path.
 
 ```bash
 uvicorn services.gpu_control.app:app --port 8005 --app-dir .
 ```
 
-`POST /gpu/start` and `POST /gpu/stop` require `X-GPU-Control-Token`. Missing
-`GPU_CONTROL_TOKEN` returns 503 so start is never open. Status is unauthenticated
-and pollable. Concurrent `/gpu/start` is locked: in-progress starts (and any
-state other than `stopped`/`error`) return current status and do not call
-`StartInstances` again. Stopping EC2 does not stop EBS (~$20/month). See
+`GPU_INSTANCE_ID`, `GPU_OLLAMA_URL`, and `GPU_MODEL` have no defaults. When
+they are absent, status reports disabled and EC2 is not called. An explicitly
+configured service also requires `X-GPU-Control-Token` for start/stop. See
 [`services/gpu_control/README.md`](services/gpu_control/README.md).
 
 ### Frontend (Historical Map) and GitHub Pages

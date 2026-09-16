@@ -25,7 +25,7 @@ def test_bring_up_warms_then_prefires(monkeypatch):
         instance_id="i-1",
         region=None,
         ollama_url="http://ollama.test",
-        model="qwen3:32b",
+        model="test-model",
         control_token="t",
         agent_url="http://agent.test",
     )
@@ -75,7 +75,7 @@ def test_bring_up_skips_warmup_when_already_resident():
         instance_id="i-1",
         region=None,
         ollama_url="http://ollama.test",
-        model="qwen3:32b",
+        model="test-model",
         control_token="t",
         agent_url="http://agent.test",
     )
@@ -108,7 +108,7 @@ def test_bring_up_preflight_failure_is_error():
         instance_id="i-1",
         region=None,
         ollama_url="http://ollama.test",
-        model="qwen3:32b",
+        model="test-model",
         control_token="t",
         agent_url="http://agent.test",
     )

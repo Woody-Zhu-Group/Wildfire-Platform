@@ -52,12 +52,18 @@ def _schedule_bring_up(settings: GpuControlSettings) -> None:
 async def lifespan(app: FastAPI):
     settings = GpuControlSettings.from_env()
     token_state = "set" if settings.control_token else "MISSING (POST start/stop return 503)"
-    print(
-        f"[gpu_control] instance={settings.instance_id} "
-        f"region={settings.region or '(boto3 default chain)'} "
-        f"ollama={settings.ollama_url} model={settings.model} "
-        f"token={token_state}"
-    )
+    if settings.configured:
+        print(
+            f"[gpu_control] instance={settings.instance_id} "
+            f"region={settings.region or '(boto3 default chain)'} "
+            f"ollama={settings.ollama_url} model={settings.model} "
+            f"token={token_state}"
+        )
+    else:
+        print(
+            "[gpu_control] disabled; missing "
+            + ", ".join(settings.missing_required)
+        )
     yield
     await _cancel_bring_up()
     print("[gpu_control] Shutdown")
@@ -101,7 +107,34 @@ def _require_token(request: Request, settings: GpuControlSettings) -> None:
         )
 
 
+def _require_configured(settings: GpuControlSettings) -> None:
+    if settings.configured:
+        return
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "GPU control is disabled; configure "
+            + ", ".join(settings.missing_required)
+        ),
+    )
+
+
 async def _status_payload(settings: GpuControlSettings) -> dict[str, Any]:
+    if not settings.configured:
+        return {
+            "state": "unavailable",
+            "ec2_state": None,
+            "ollama_reachable": False,
+            "model_resident": False,
+            "instance_id": settings.instance_id or None,
+            "model": settings.model or None,
+            "ebs_note": EBS_NOTE,
+            "reason": (
+                "GPU control is disabled; missing "
+                + ", ".join(settings.missing_required)
+            ),
+            "preflight": None,
+        }
     try:
         instance = aws.describe_instance(settings)
         ec2_state = instance.get("ec2_state") or ""
@@ -158,9 +191,10 @@ async def _status_payload(settings: GpuControlSettings) -> dict[str, Any]:
 async def health() -> dict[str, Any]:
     settings = _settings()
     return {
-        "status": "ok",
+        "status": "ok" if settings.configured else "disabled",
         "service": "gpu_control",
-        "instance_id": settings.instance_id,
+        "instance_id": settings.instance_id or None,
+        "missing_required": list(settings.missing_required),
         "token_configured": bool(settings.control_token),
     }
 
@@ -174,6 +208,7 @@ async def gpu_status() -> dict[str, Any]:
 async def gpu_start(request: Request) -> dict[str, Any]:
     global _start_requested_at
     settings = _settings()
+    _require_configured(settings)
     _require_token(request, settings)
     async with _start_lock:
         current = await _status_payload(settings)
@@ -193,6 +228,7 @@ async def gpu_start(request: Request) -> dict[str, Any]:
 async def gpu_stop(request: Request) -> dict[str, Any]:
     global _start_requested_at
     settings = _settings()
+    _require_configured(settings)
     _require_token(request, settings)
     await _cancel_bring_up()
     reset_pipeline()

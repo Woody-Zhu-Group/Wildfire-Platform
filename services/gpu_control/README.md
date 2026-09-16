@@ -1,19 +1,22 @@
 # GPU control service
 
-Starts and stops the demo GPU instance that runs Ollama (`qwen3:32b`). This is
-not the agent and not data_query. The agent stays up when the GPU is off so
-counts, maps, and rankings still work.
+Optional legacy service for starting and stopping an EC2 instance that runs
+Ollama. This is not the agent and not data_query. The current test deployment
+uses the CPU-hosted model configured by `AGENT_MODEL_BASE_URL`; it does not
+require this service.
 
-Default instance: `i-09526a2a9268135f2` (g6.xlarge, private `172.31.16.67`).
-Ollama is probed from the backend box at `http://172.31.16.67:11434`. Do not
-widen the GPU security group; 11434 stays open only to `172.31.2.9/32`.
+There are deliberately no instance, Ollama URL, or model defaults. Configure
+`GPU_INSTANCE_ID`, `GPU_OLLAMA_URL`, and `GPU_MODEL` to reactivate it for a new
+resource. Without all three, `/health` reports `disabled`, `/gpu/status` reports
+`unavailable`, and start/stop return 503 without calling EC2.
 
 ## Run
 
 ```bash
 # PowerShell: $env:PYTHONPATH = "."
-# Required on the always-on backend before POST start/stop will work:
-# GPU_CONTROL_TOKEN, GPU_AWS_REGION (or AWS_REGION), instance role credentials
+# Required before POST start/stop will work:
+# GPU_INSTANCE_ID, GPU_OLLAMA_URL, GPU_MODEL, GPU_CONTROL_TOKEN,
+# GPU_AWS_REGION (or AWS_REGION), and instance role credentials
 uvicorn services.gpu_control.app:app --port 8005 --app-dir .
 ```
 
@@ -32,7 +35,8 @@ an in-process lock. If a start is already running, or state is not `stopped` /
 `error`, the handler returns the current status payload and does **not** call
 `StartInstances` again. The lock resets when this process restarts.
 
-`POST /gpu/start` returns immediately after `StartInstances` (`state: starting`)
+When explicitly configured, `POST /gpu/start` returns immediately after
+`StartInstances` (`state: starting`)
 and a background task then:
 
 1. Polls until Ollama answers (same `/api/ps` probe as status).
@@ -69,7 +73,7 @@ resource-level ARNs, so that statement must use `*`.
         "ec2:StartInstances",
         "ec2:StopInstances"
       ],
-      "Resource": "arn:aws:ec2:REGION:ACCOUNT_ID:instance/i-09526a2a9268135f2"
+      "Resource": "arn:aws:ec2:REGION:ACCOUNT_ID:instance/YOUR_INSTANCE_ID"
     },
     {
       "Sid": "DescribeInstancesStarRequiredNoResourceScope",

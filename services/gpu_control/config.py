@@ -12,9 +12,6 @@ from shared.db import REPO_ROOT
 load_dotenv(REPO_ROOT / ".env")
 
 
-DEFAULT_INSTANCE_ID = "i-09526a2a9268135f2"
-DEFAULT_OLLAMA_URL = "http://172.31.16.67:11434"
-DEFAULT_MODEL = "qwen3:32b"
 DEFAULT_AGENT_URL = "http://127.0.0.1:8004"
 START_BUDGET_SECONDS = 190
 
@@ -29,6 +26,19 @@ class GpuControlSettings:
     agent_url: str = DEFAULT_AGENT_URL
     start_budget_seconds: int = START_BUDGET_SECONDS
 
+    @property
+    def missing_required(self) -> tuple[str, ...]:
+        values = {
+            "GPU_INSTANCE_ID": self.instance_id,
+            "GPU_OLLAMA_URL": self.ollama_url,
+            "GPU_MODEL": self.model,
+        }
+        return tuple(name for name, value in values.items() if not value)
+
+    @property
+    def configured(self) -> bool:
+        return not self.missing_required
+
     @classmethod
     def from_env(cls) -> GpuControlSettings:
         load_dotenv(REPO_ROOT / ".env")
@@ -42,14 +52,10 @@ class GpuControlSettings:
         if token is not None:
             token = token.strip() or None
         return cls(
-            instance_id=(
-                os.getenv("GPU_INSTANCE_ID") or DEFAULT_INSTANCE_ID
-            ).strip(),
+            instance_id=(os.getenv("GPU_INSTANCE_ID") or "").strip(),
             region=region.strip() if region else None,
-            ollama_url=(
-                os.getenv("GPU_OLLAMA_URL") or DEFAULT_OLLAMA_URL
-            ).rstrip("/"),
-            model=(os.getenv("GPU_MODEL") or DEFAULT_MODEL).strip(),
+            ollama_url=(os.getenv("GPU_OLLAMA_URL") or "").rstrip("/"),
+            model=(os.getenv("GPU_MODEL") or "").strip(),
             control_token=token,
             agent_url=(
                 os.getenv("GPU_AGENT_URL") or DEFAULT_AGENT_URL
