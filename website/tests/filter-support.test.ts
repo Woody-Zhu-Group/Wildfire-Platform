@@ -27,9 +27,11 @@ test('explicit dataset changes clear only filters the new source cannot support'
 
 test('card notes follow visible time-series datasets and the cited source of agent stat cards', () => {
   assert.deepEqual(panelDatasets('time_series', settings), ['cpuc', 'epss', 'calfire']);
-  assert.equal(datasetCaveats(panelDatasets('time_series', settings)).length, 2);
+  assert.equal(datasetCaveats(panelDatasets('time_series', settings)).length, 3);
   assert.deepEqual(panelDatasets('time_series', {...settings, seriesMode: 'regional'}), ['epss']);
-  assert.deepEqual(datasetCaveats(panelDatasets('time_series', {...settings, seriesMode: 'regional'})), []);
+  assert.match(datasetCaveats(panelDatasets('time_series', {...settings, seriesMode: 'regional'}))[0], /PG&E-only/);
+  assert.match(datasetCaveats(panelDatasets('map', {...settings, dataset: 'epss'}))[0], /PG&E-only/);
+  assert.match(datasetCaveats(panelDatasets('map', {...settings, dataset: 'us_ignitions'}))[0], /FireCastRL classification sample/);
   assert.deepEqual(panelDatasets('time_series', {...settings, dataset: 'calfire', seriesMode: 'seasonal'}), ['calfire']);
   assert.deepEqual(panelDatasets('time_series', {...settings, dataset: 'psps', seriesMode: 'yearly'}), ['cpuc']);
   const stat = {value: 1, label: 'Result', scope: 'Marin', period: '2024', unit: 'events'};
