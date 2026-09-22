@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+import inspect
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Callable
 
 import re
 
-from services.agent.routing import _rank_metric
+from services.agent.routing import _coords, _rank_metric, _wants_risk
 from services.agent.time_resolve import resolve_time
+
+# The router writes this pattern inside _wants_risk. Compile that source
+# instead of keeping a second copy here.
+_RISKIEST_METRIC = re.compile(
+    re.search(r'r"(.*?riskiest.*?)"', inspect.getsource(_wants_risk)).group(1)
+)
+_KNOWN_TIME = {"explicit", "relative_year", "relative_range"}
 
 COUNTY_CAPABLE = {
     "calfire_incidents",
@@ -226,19 +235,24 @@ def derive_outcome(
         return DerivedOutcome(
             "unsupported", None, "unsupported_other_measure", trace, None, {}
         )
-
-    if _yes(facts.asks_risk, threshold) and not _yes(facts.names_risk_metric, threshold):
-        return hit("ambiguous_risk_metric", "asks_risk", "names_risk_metric")
+    if question and _RISKIEST_METRIC.search(question.lower()):
+        trace.append("ambiguous_risk_metric")
+        return DerivedOutcome("clarify", "ambiguous_risk_metric", None, trace, None, {})
     if _yes(facts.vague_proximity, threshold) and not _yes(facts.names_specific_place, threshold):
         return hit("missing_location", "vague_proximity", "names_specific_place")
     if _yes(facts.vague_proximity, threshold):
         return hit("undefined_spatial_scope", "vague_proximity")
     if _yes(facts.broad_region, threshold):
         return hit("undefined_region", "broad_region")
-    if _yes(facts.vague_time, threshold) and not _yes(facts.has_time_scope, threshold):
-        return hit("ambiguous_relative_time", "vague_time", "has_time_scope")
 
     resolved = resolve_time(question, today=today) if question else None
+    if (
+        not _time_known(resolved)
+        and _yes(facts.vague_time, threshold)
+        and not _yes(facts.has_time_scope, threshold)
+    ):
+        return hit("ambiguous_relative_time", "vague_time", "has_time_scope")
+
     if resolved is not None and getattr(resolved, "status", None) == "out_of_coverage":
         trace.append("time_out_of_coverage")
         return DerivedOutcome("clarify", "time_out_of_coverage", None, trace, None, {})
@@ -247,12 +261,12 @@ def derive_outcome(
         or _risk_date_after_coverage(question)
     ):
         return hit("risk_future_date", "asks_risk", "future_time")
-    if _yes(facts.asks_risk, threshold) and not _yes(facts.names_specific_place, threshold):
+    if _yes(facts.asks_risk, threshold) and not _named_place(facts, threshold):
         return hit("risk_missing_place", "asks_risk", "names_specific_place")
-    if _yes(facts.asks_risk, threshold) and not _yes(facts.has_time_scope, threshold):
+    if _yes(facts.asks_risk, threshold) and _lacks_year(facts, resolved, threshold):
         return hit("forecast_missing_date", "asks_risk", "has_time_scope")
 
-    ranking_rule = _ranking_rule(facts, question, threshold)
+    ranking_rule = _ranking_rule(facts, question, threshold, resolved)
     if ranking_rule:
         if ranking_rule.startswith("unsupported"):
             trace.append(ranking_rule)
@@ -283,9 +297,11 @@ def derive_outcome(
         "count": "records_missing_year",
         "records_list": "records_missing_year",
     }
+    coordinate_lookup = intent == "spatial_context" and bool(question) and _coords(question) is not None
     if (
         intent in missing_year
-        and not _yes(facts.has_time_scope, threshold)
+        and not coordinate_lookup
+        and _lacks_year(facts, resolved, threshold)
         and not (intent == "map" and facts.dataset == "hftd")
     ):
         return hit(missing_year[intent], "has_time_scope")
@@ -314,11 +330,48 @@ def _risk_date_after_coverage(question: str) -> bool:
         return False
 
 
-def _ranking_rule(facts: JevFacts, question: str, threshold: float) -> str | None:
+def _time_known(resolved: Any) -> bool:
+    return resolved is not None and getattr(resolved, "status", None) in _KNOWN_TIME
+
+
+def _lacks_year(facts: JevFacts, resolved: Any, threshold: float) -> bool:
+    """True when the year gates should clarify.
+
+    A year resolve_time actually parsed wins over the Noul. A weak Noul yes
+    does not override a question the parser finds no time in. A strong Noul
+    yes still counts.
+    """
+    if _time_known(resolved):
+        return False
+    if not _yes(facts.has_time_scope, threshold):
+        return True
+    if resolved is not None and resolved.status == "none" and facts.has_time_scope < 0.8:
+        return True
+    return False
+
+
+def _named_place(facts: JevFacts, threshold: float) -> bool:
+    if _yes(facts.names_specific_place, threshold):
+        return True
+    return any(_yes(value, threshold) for value in facts.utilities.values())
+
+
+def _ranking_rule(
+    facts: JevFacts,
+    question: str,
+    threshold: float,
+    resolved: Any = None,
+) -> str | None:
     """Mirror _route_ranking using dataset, rank_dimension, and a code-side metric."""
+    dimension = facts.rank_dimension if facts.rank_dimension not in (None, "none") else None
+    if (
+        dimension is not None
+        and _yes(facts.mentions_multiple_datasets, threshold)
+        and facts.intent in {"rank", "multi_intent"}
+    ):
+        return "unsupported_rank_cross_dataset"
     if facts.intent != "rank":
         return None
-    dimension = facts.rank_dimension if facts.rank_dimension not in (None, "none") else None
     dataset = facts.dataset if facts.dataset not in (None, "none", "multiple") else None
     if _yes(facts.mentions_multiple_datasets, threshold) or facts.dataset == "multiple":
         return "unsupported_rank_cross_dataset"
@@ -333,7 +386,7 @@ def _ranking_rule(facts: JevFacts, question: str, threshold: float) -> str | Non
     metric = _rank_metric((question or "").lower(), dataset)
     if (dataset, dimension, metric) not in ALLOWED_RANK_TRIPLES:
         return "unsupported_ranking"
-    if not _yes(facts.has_time_scope, threshold):
+    if _lacks_year(facts, resolved, threshold):
         return "ranking_missing_year"
     if dimension == "county" and facts.county not in (None, "none"):
         return "ranking_county_contradiction"

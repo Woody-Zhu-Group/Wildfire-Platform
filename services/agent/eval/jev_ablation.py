@@ -140,9 +140,12 @@ def _values(unit: dict[str, Any], config: str, answers: dict[str, Answer]) -> di
     dataset = answers.get("dataset")
     tool = answers.get("tool_pick")
     direct_clarify = answers.get("clarify_reason")
-    clarify_reason = outcome.clarify_reason
-    if outcome.disposition == "clarify" and direct_clarify is not None and config == "v3_hybrid":
+    # Score the direct Choice on its own. Gold gating in field_applies still
+    # drops the metric unless the gold disposition is clarify.
+    if config == "v3_hybrid" and direct_clarify is not None:
         clarify_reason = direct_clarify.value
+    else:
+        clarify_reason = outcome.clarify_reason if outcome.disposition == "clarify" else None
     return {
         "disposition": outcome.disposition,
         "intent": None if intent is None else intent.value,
