@@ -12,7 +12,13 @@ from typing import Any, Literal
 
 from pydantic import Field, ValidationError, model_validator
 
-from services.agent.schemas import Metric, StrictModel
+from services.agent.schemas import (
+    MedicalStatMode,
+    MedicalViewId,
+    Metric,
+    SeriesMode,
+    StrictModel,
+)
 from services.agent.tools import ToolExecution
 from services.shared.dataset_registry import (
     COUNT_MAP_DATASETS as _COUNT_MAP_DATASETS,
@@ -96,6 +102,7 @@ class TimeSeriesViewParams(StrictModel):
     utility: str | None = None
     county: str | None = None
     incident_type_mode: Literal["wildfire_default", "all", "untyped"] | None = None
+    series_mode: SeriesMode | None = None
 
     @model_validator(mode="after")
     def validate_series(self) -> "TimeSeriesViewParams":
@@ -155,6 +162,13 @@ class StatCardViewParams(StrictModel):
     period: str
     source_dataset: str
     unit: Literal["events", "risk", "percentile"] | None = "events"
+    stat_mode: MedicalStatMode | None = None
+    view_id: MedicalViewId | None = None
+    year: int | None = Field(None, ge=1900, le=2100)
+    start_date: str | None = None
+    end_date: str | None = None
+    utility: str | None = None
+    county: str | None = None
 
 
 class SpatialContextViewParams(StrictModel):
@@ -222,6 +236,92 @@ def format_view_scope(scope: dict[str, Any]) -> str:
     return ", ".join(bits)
 
 
+def _medical_exposure_views(primary: list[ToolExecution]) -> list[ComponentSpec]:
+    """One EPSS exposure card, grounded on the count that selected the year."""
+    for item in primary:
+        args = item.arguments or {}
+        summary = item.summary or {}
+        if item.tool != "data_query_records":
+            continue
+        dataset = str(summary.get("dataset") or args.get("dataset") or "")
+        if dataset not in {"epss_outages", "epss"}:
+            continue
+        if (summary.get("result_mode") or args.get("result_mode")) != "count":
+            continue
+        if summary.get("total") is None:
+            continue
+        year = _year_from_args(args, summary)
+        ref = (item.artifact or {}).get("ref")
+        params = StatCardViewParams(
+            kind="count",
+            value=float(summary.get("total") or 0),
+            label="EPSS outages",
+            scope=_scope_label(args, summary),
+            period=_period_label(args, summary, year=year),
+            source_dataset="epss_outages",
+            unit="events",
+            stat_mode="medical_exposure",
+            view_id="medical-exposure",
+            year=year,
+            start_date=_date_str(args.get("start_date")),
+            end_date=_date_str(args.get("end_date")),
+            utility=args.get("utility"),
+            county=args.get("county"),
+        )
+        return [
+            ComponentSpec(
+                type="stat_card",
+                params=params.model_dump(mode="json"),
+                evidence_ids=[item.evidence_id],
+                artifact_refs=[ref] if ref else [],
+            )
+        ]
+    return []
+
+
+def _summary_stat_views(primary: list[ToolExecution]) -> list[ComponentSpec]:
+    """One live summary panel, grounded on the count for that dataset and window."""
+    for item in primary:
+        args = item.arguments or {}
+        summary = item.summary or {}
+        if item.tool != "data_query_records":
+            continue
+        dataset = str(summary.get("dataset") or args.get("dataset") or "")
+        if not dataset:
+            continue
+        if (summary.get("result_mode") or args.get("result_mode")) != "count":
+            continue
+        if summary.get("total") is None:
+            continue
+        year = _year_from_args(args, summary)
+        ref = (item.artifact or {}).get("ref")
+        params = StatCardViewParams(
+            kind="count",
+            value=float(summary.get("total") or 0),
+            label="Summary",
+            scope=_scope_label(args, summary),
+            period=_period_label(args, summary, year=year),
+            source_dataset=dataset,
+            unit="events",
+            stat_mode="summary",
+            view_id="summary-stats",
+            year=year,
+            start_date=_date_str(args.get("start_date")),
+            end_date=_date_str(args.get("end_date")),
+            utility=args.get("utility"),
+            county=args.get("county"),
+        )
+        return [
+            ComponentSpec(
+                type="stat_card",
+                params=params.model_dump(mode="json"),
+                evidence_ids=[item.evidence_id],
+                artifact_refs=[ref] if ref else [],
+            )
+        ]
+    return []
+
+
 def plan_views(
     executions: list[ToolExecution],
     *,
@@ -238,6 +338,34 @@ def plan_views(
     if not primary:
         return PlannedViews(views=[], view_status="none", view_scope=scope)
 
+    if slots.get("stat_mode") == "medical_exposure":
+        try:
+            views = _medical_exposure_views(primary)
+            if not views:
+                return PlannedViews(
+                    views=[], view_status="planner_fallback", view_scope=scope
+                )
+            grounded = ground_views(views, executions)
+        except (GroundingError, ValidationError, KeyError, TypeError, ValueError):
+            return PlannedViews(
+                views=[], view_status="planner_fallback", view_scope=scope
+            )
+        return PlannedViews(views=grounded, view_status="applied", view_scope=scope)
+
+    if slots.get("stat_mode") == "summary":
+        try:
+            views = _summary_stat_views(primary)
+            if not views:
+                return PlannedViews(
+                    views=[], view_status="planner_fallback", view_scope=scope
+                )
+            grounded = ground_views(views, executions)
+        except (GroundingError, ValidationError, KeyError, TypeError, ValueError):
+            return PlannedViews(
+                views=[], view_status="planner_fallback", view_scope=scope
+            )
+        return PlannedViews(views=grounded, view_status="applied", view_scope=scope)
+
     try:
         stats: list[ComponentSpec] = []
         visuals: list[ComponentSpec] = []
@@ -250,6 +378,7 @@ def plan_views(
         visuals = _drop_derived_maps_if_conflicting(visuals)
         visuals = _drop_derived_series_if_explicit(visuals)
         visuals = _cap_visuals(visuals)
+        _stamp_series_mode(visuals, slots.get("series_mode"))
         views = stats[:_MAX_STATS] + visuals
         if not views:
             return PlannedViews(views=[], view_status="none", view_scope=scope)
@@ -497,10 +626,33 @@ def _ground_map(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
             raise GroundingError(f"map datasets {leftover} not in cited map tools")
 
 
+_SERIES_MODE_DATASET = {
+    "cumulative_acres": "calfire",
+    "customer_events": "psps",
+    "regional": "epss",
+}
+
+
+def _stamp_series_mode(visuals: list[ComponentSpec], series_mode: Any) -> None:
+    if series_mode not in _SERIES_MODE_DATASET and series_mode not in {
+        "yearly",
+        "seasonal",
+    }:
+        return
+    for spec in visuals:
+        if spec.type == "time_series":
+            spec.params["series_mode"] = series_mode
+
+
 def _ground_time_series(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
     item = cited[0]
     args = item.arguments or {}
     params = spec.params
+    required = _SERIES_MODE_DATASET.get(params.get("series_mode"))
+    if required and params.get("dataset") != required:
+        raise GroundingError(
+            f"series_mode {params.get('series_mode')} requires dataset {required}"
+        )
     if item.tool == "data_query_records":
         ds = (item.summary or {}).get("dataset") or args.get("dataset")
         viz = _DQ_TO_VIZ.get(str(ds), str(ds) if ds else "")

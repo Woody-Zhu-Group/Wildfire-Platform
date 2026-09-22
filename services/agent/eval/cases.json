@@ -1058,5 +1058,303 @@
     ],
     "expected_status": "answer",
     "expected_view_types": []
+  },
+  {
+    "id": "medical_baseline_2024",
+    "question": "show me medical baseline data 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
+  },
+  {
+    "id": "life_support_2024",
+    "question": "life support customers in 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
+  },
+  {
+    "id": "medically_vulnerable_2024",
+    "question": "medically vulnerable customers 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
+  },
+  {
+    "id": "medical_baseline_missing_year",
+    "question": "show me medical baseline data",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "clarification",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "epss_outage_count_2024",
+    "question": "How many EPSS outages were there in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "map_epss_outages_2024",
+    "question": "Map EPSS outages for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "map"
+    ]
+  },
+  {
+    "id": "rank_epss_circuits_2024",
+    "question": "Which EPSS circuits had the most outages in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_rank"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "comparison"
+    ]
+  },
+  {
+    "id": "list_pge_outages_2024",
+    "question": "Show me PG&E outages in 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "record_table"
+    ]
+  },
+  {
+    "id": "series_yearly_cpuc_2024",
+    "question": "Show year over year CPUC ignition totals for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "cpuc_utility_caused"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "series_seasonal_calfire_2024",
+    "question": "Show the seasonal profile of CAL FIRE incidents for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "calfire_missingness"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "series_cumulative_acres_2024",
+    "question": "Show cumulative acres burned over the year for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "calfire_missingness"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "series_customer_events_2024",
+    "question": "Show customers affected over time in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "series_regional_epss_2024",
+    "question": "Show EPSS outages by division in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "guard_monthly_trend_stays_timeline",
+    "question": "Show the monthly CPUC ignition trend for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "cpuc_utility_caused"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "guard_epss_count_stays_filtered_records",
+    "question": "How many EPSS outages were recorded in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "guard_calfire_count_is_not_cumulative_acres",
+    "question": "How many CAL FIRE incidents were there in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "calfire_missingness"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "summary_epss_outages_2024",
+    "question": "summary of EPSS outages in 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
+  },
+  {
+    "id": "guard_pge_count_stays_frozen_stat",
+    "question": "How many PG&E ignitions in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "cpuc_utility_caused",
+      "ignition_definition_pge"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "guard_medical_baseline_not_summary",
+    "question": "show me medical baseline data 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
   }
 ]

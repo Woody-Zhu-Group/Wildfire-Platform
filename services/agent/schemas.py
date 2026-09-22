@@ -586,6 +586,19 @@ class AgentAnswer(StrictModel):
     claims: list[EvidenceClaim] = Field(default_factory=list)
 
 
+# Workspace panel identity for a grounded stat card. The UI applies stat_mode
+# instead of rendering the card as a frozen cited number.
+MedicalStatMode = Literal["medical_exposure", "summary"]
+MedicalViewId = Literal["medical-exposure", "summary-stats"]
+SeriesMode = Literal[
+    "yearly",
+    "seasonal",
+    "cumulative_acres",
+    "customer_events",
+    "regional",
+]
+
+
 class AskRequest(StrictModel):
     question: str = Field(..., min_length=2, max_length=2000)
 

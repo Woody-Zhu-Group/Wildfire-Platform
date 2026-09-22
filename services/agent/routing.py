@@ -1370,6 +1370,43 @@ _CHANGE_OVER_TIME = re.compile(
 )
 
 
+def _asks_medical_exposure(lower: str) -> bool:
+    """True for the EPSS medical-baseline / life-support panel, not a generic outage ask."""
+    return bool(
+        re.search(
+            r"\b(?:medical\s+baseline|life[\s-]support|medically\s+vulnerable)\b",
+            lower,
+        )
+    )
+
+
+def _asks_summary_panel(lower: str) -> bool:
+    """True for a multi-metric summary, not a single how-many total."""
+    return bool(re.search(r"\b(?:summary|overview) of\b", lower))
+
+
+def _series_mode_request(lower: str) -> tuple[str, str | None] | None:
+    """Map a series-panel phrase to (series_mode, fixed warehouse dataset).
+
+    A None dataset means the question must name CPUC, EPSS, or CAL FIRE.
+    """
+    if re.search(r"\bcumulative acres\b|\bacres burned over the year\b", lower):
+        return ("cumulative_acres", "calfire_incidents")
+    if re.search(r"\bcustomer events?\b|\bcustomers affected\b", lower):
+        return ("customer_events", "psps_events")
+    if re.search(r"\bepss\b", lower) and re.search(r"\bby region\b", lower):
+        return ("regional", "epss_outages")
+    if re.search(r"\bby division\b", lower) and re.search(
+        r"\b(?:epss|outages?)\b", lower
+    ):
+        return ("regional", "epss_outages")
+    if re.search(r"\byear over year\b|\bannual totals?\b", lower):
+        return ("yearly", None)
+    if re.search(r"\bseasonal\b|\bby month of year\b", lower):
+        return ("seasonal", None)
+    return None
+
+
 def _asks_ranking(lower: str) -> bool:
     return bool(
         re.search(
@@ -1987,6 +2024,49 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             slots=slots,
         )
 
+    if _asks_medical_exposure(lower):
+        time_args = _time_filter_args(time_resolution)
+        medical_slots = {
+            **slots,
+            "dataset": "epss",
+            "stat_mode": "medical_exposure",
+            "view_id": "medical-exposure",
+        }
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "medical_exposure_missing_year",
+                "Medical exposure panel lacks a time period",
+                answer="What year or date range should I use?",
+                slots=medical_slots,
+            )
+        args: dict[str, Any] = {
+            "dataset": "epss_outages",
+            "result_mode": "count",
+            **time_args,
+        }
+        if utilities:
+            args["utility"] = utilities[0]
+        if county:
+            args["county"] = county
+        tool_calls = [("data_query_records", args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=tool_calls,
+            slots=medical_slots,
+            rule="medical_exposure",
+            reason="Medical baseline or life support asks for the EPSS exposure panel",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "medical_exposure",
+            "Medical baseline or life support asks for the EPSS exposure panel",
+            tool_calls=tool_calls,
+            slots=medical_slots,
+        )
+
     if force_model:
         return RouteDecision(
             "model",
@@ -2400,6 +2480,105 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "Explicit map, dataset, and time filter",
             tool_calls=tool_calls,
             slots=slots,
+        )
+
+    if _asks_summary_panel(lower) and dataset:
+        summary_slots = {**slots, "dataset": dataset, "stat_mode": "summary"}
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "records_missing_year",
+                "Summary panel lacks a time period",
+                answer="What year or date range should I use?",
+                slots=summary_slots,
+            )
+        summary_args: dict[str, Any] = {
+            "dataset": dataset,
+            "result_mode": "count",
+            **time_args,
+        }
+        if utilities:
+            summary_args["utility"] = utilities[0]
+        if county and dataset in _COUNTY_CAPABLE_DATASETS:
+            summary_args["county"] = county
+        summary_calls = [("data_query_records", summary_args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=summary_calls,
+            slots=summary_slots,
+            rule="summary_stats",
+            reason="Summary or overview asks for the live summary panel",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "summary_stats",
+            "Summary or overview asks for the live summary panel",
+            tool_calls=summary_calls,
+            slots=summary_slots,
+        )
+
+    series_request = _series_mode_request(lower)
+    if series_request is not None:
+        series_mode, fixed_dataset = series_request
+        chartable = {"cpuc_ignitions", "epss_outages", "calfire_incidents"}
+        warehouse_dataset = fixed_dataset or (
+            dataset if dataset in chartable else None
+        )
+        mode_slots = {
+            **slots,
+            "dataset": warehouse_dataset,
+            "series_mode": series_mode,
+        }
+        if warehouse_dataset is None:
+            return RouteDecision(
+                "clarification",
+                "series_mode_missing_dataset",
+                "Yearly and seasonal charts need CPUC, EPSS, or CAL FIRE",
+                answer=(
+                    "Which dataset should I chart: CPUC ignitions, "
+                    "EPSS outages, or CAL FIRE incidents?"
+                ),
+                slots=mode_slots,
+            )
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "series_mode_missing_year",
+                "Series panel lacks a time period",
+                answer="What year or date range should I use?",
+                slots=mode_slots,
+            )
+        viz_dataset = _VIZ_DATASET_NAME.get(warehouse_dataset, warehouse_dataset)
+        series_args: dict[str, Any] = {
+            "kind": "time_series",
+            "dataset": viz_dataset,
+            "interval": "monthly",
+            **time_args,
+        }
+        if utilities:
+            series_args["utility"] = utilities[0]
+        if county and warehouse_dataset in _COUNTY_CAPABLE_DATASETS:
+            series_args["county"] = county
+        series_calls = [("visualization_create", series_args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=series_calls,
+            slots=mode_slots,
+            rule=f"series_{series_mode}",
+            reason=f"Series panel {series_mode} for {warehouse_dataset}",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            f"series_{series_mode}",
+            f"Series panel {series_mode} for {warehouse_dataset}",
+            tool_calls=series_calls,
+            slots=mode_slots,
         )
 
     if re.search(r"\b(?:trend|time series|weekly|monthly|daily)\b", lower) and dataset:

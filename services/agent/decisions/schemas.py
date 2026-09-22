@@ -45,6 +45,9 @@ CLARIFY_REASONS = (
     "trend_missing_year",
     "spatial_missing_year",
     "records_missing_year",
+    "medical_exposure_missing_year",
+    "series_mode_missing_year",
+    "series_mode_missing_dataset",
     "ranking_missing_slots",
     "ranking_missing_year",
     "ranking_county_contradiction",
@@ -102,6 +105,9 @@ POLICY_SENTENCES: dict[str, str] = {
     "trend_missing_year": "A time series with no year or date range must be clarified.",
     "spatial_missing_year": "A count inside a territory with no year or date range must be clarified.",
     "records_missing_year": "A count or list that names a dataset but no year or date range must be clarified.",
+    "medical_exposure_missing_year": "Medical baseline, life support, or medically vulnerable customers need a year or date range; otherwise ask for one.",
+    "series_mode_missing_year": "A yearly, seasonal, cumulative-acres, customer-event, or regional series needs a year or date range; otherwise ask for one.",
+    "series_mode_missing_dataset": "A yearly or seasonal chart needs CPUC ignitions, EPSS outages, or CAL FIRE incidents; otherwise ask which dataset.",
     "ranking_missing_slots": "A ranking needs one dataset and one grouping: CPUC county or utility, CAL FIRE county, or EPSS circuit.",
     "ranking_missing_year": "A ranking with no year or date range must be clarified.",
     "ranking_county_contradiction": "Do not rank counties and also filter to one named county; ask which was meant.",
@@ -151,6 +157,98 @@ CONTEXT_DEFERRED_RULES: dict[str, str] = {
 
 DOMAIN_CONTEXT = _CONTEXT_INTRO + "\n" + "\n".join(POLICY_SENTENCES.values()) + "\n"
 
+# Sentences whose only consumer is the topic call (off_topic, rank_dimension,
+# dataset, or the hybrid clarify_reason Choice). Facts, places, and tool pick
+# do not return a field these sentences change.
+_TOPIC_ONLY_POLICIES = frozenset({
+    "medical_exposure_missing_year",
+    "series_mode_missing_year",
+    "series_mode_missing_dataset",
+    "ranking_missing_slots",
+    "unsupported_cpz",
+    "unsupported_cost",
+    "unsupported_optimization",
+    "unsupported_damage",
+    "unsupported_live_web",
+    "unsupported_rank_cross_dataset",
+    "unsupported_rank_us_state",
+    "unsupported_rank_epss_utility",
+    "unsupported_ranking",
+})
+# Tool pick keeps the intro plus the sentences whose removal dropped a scored
+# tool pick. The rest were removed one at a time and the 15 scored cases stayed
+# 15/15. Facts and places are unchanged.
+_TOOL_PICK_POLICIES = frozenset({
+    "ambiguous_risk_metric",
+    "missing_location",
+    "undefined_spatial_scope",
+    "undefined_region",
+    "ambiguous_relative_time",
+    "ambiguous_risk_place",
+    "map_missing_year",
+})
+_FACT_POLICIES = frozenset({
+    "ambiguous_risk_metric",
+    "missing_location",
+    "undefined_spatial_scope",
+    "undefined_region",
+    "ambiguous_relative_time",
+    "time_out_of_coverage",
+    "forecast_missing_date",
+    "risk_future_date",
+    "risk_missing_place",
+    "ambiguous_risk_place",
+    "map_plus_trend_missing_year",
+    "map_missing_year",
+    "trend_missing_year",
+    "spatial_missing_year",
+    "records_missing_year",
+    "ranking_missing_year",
+})
+_PLACE_POLICIES = frozenset({
+    "ambiguous_risk_place",
+    "risk_missing_place",
+    "ranking_county_contradiction",
+    "unexpressed_filter_constraints",
+    "unexpressable_county_filter",
+})
+
+_INTRO_TASK = (
+    "This assistant counts or lists warehouse records, draws a map, charts a time series, ranks inside one dataset, "
+    "compares utilities, regions, or two periods, looks up a point or a count inside a territory, shows a utility boundary or one circuit, "
+    "and scores historical ignition risk for one place on one past day."
+)
+_INTRO_DATASETS = (
+    "cpuc_ignitions are utility-caused. calfire_incidents are the CAL FIRE map feed, not the Redbook census. "
+    "epss_outages are PG&E only. psps_events are shutoffs. us_ignitions is an all-cause sample, not a census. "
+    "circuits are inventory lines. hftd is Tier 2 and Tier 3 only. iou_territories are service polygons."
+)
+_INTRO_UTILITIES = "Utilities are PGE, SCE, SDGE, PACIFICORP, Liberty, and BVES."
+_INTRO_ATTRIBUTE = (
+    "An attribute utility filter and a count inside that territory are different numbers."
+)
+
+
+def context_for_call(call_name: str) -> str:
+    """Policy text for one v3 call. DOMAIN_CONTEXT remains the full string."""
+    if call_name == "topic":
+        keys = set(POLICY_SENTENCES)
+        intro = _CONTEXT_INTRO
+    elif call_name == "facts":
+        keys = set(_FACT_POLICIES)
+        intro = _INTRO_TASK + " House policies:"
+    elif call_name == "places":
+        keys = set(_PLACE_POLICIES)
+        intro = " ".join((_INTRO_TASK, _INTRO_UTILITIES, "House policies:"))
+    elif call_name == "tool_pick":
+        keys = set(_TOOL_PICK_POLICIES)
+        intro = _CONTEXT_INTRO
+    else:
+        keys = set(POLICY_SENTENCES)
+        intro = _CONTEXT_INTRO
+    lines = [POLICY_SENTENCES[key] for key in POLICY_SENTENCES if key in keys]
+    return intro + "\n" + "\n".join(lines) + "\n"
+
 
 def _choice(instructions: str, criteria: dict[str, str]) -> QuestionSpec:
     return QuestionSpec(kind="choice", instructions=instructions, criteria=criteria)
@@ -193,6 +291,9 @@ def routing_questions() -> dict[str, QuestionSpec]:
                 "trend_missing_year": "A time series is requested but no year or date range is given.",
                 "spatial_missing_year": "A count inside a territory is requested but no year or date range is given.",
                 "records_missing_year": "A count or list is requested but no year or date range is given.",
+                "medical_exposure_missing_year": "Medical baseline, life support, or medically vulnerable customers are requested but no year or date range is given.",
+                "series_mode_missing_year": "A series panel is requested but no year or date range is given.",
+                "series_mode_missing_dataset": "A yearly or seasonal chart is requested without CPUC, EPSS, or CAL FIRE.",
                 "ranking_missing_slots": "A ranking is requested without one dataset and one grouping such as county or circuit.",
                 "ranking_missing_year": "A ranking is requested but no year or date range is given.",
                 "ranking_county_contradiction": "The question both names one county and asks to rank counties.",

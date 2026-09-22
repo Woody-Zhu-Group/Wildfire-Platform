@@ -17,6 +17,7 @@ export interface TimeSeriesViewParams extends ScopedParams {
   dataset: string;
   interval?: 'daily' | 'weekly' | 'monthly';
   incident_type_mode?: 'wildfire_default' | 'all' | 'untyped' | null;
+  series_mode?: 'yearly' | 'seasonal' | 'cumulative_acres' | 'customer_events' | 'regional' | null;
 }
 export interface ComparisonViewParams extends Record<string, unknown> {
   kind: 'utilities' | 'regions' | 'periods' | 'ranking';
@@ -52,6 +53,13 @@ export interface StatCardViewParams extends Record<string, unknown> {
   period: string;
   source_dataset: string;
   unit?: 'events' | 'risk' | 'percentile' | null;
+  stat_mode?: 'medical_exposure' | 'summary' | null;
+  view_id?: 'medical-exposure' | 'summary-stats' | null;
+  year?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  utility?: string | null;
+  county?: string | null;
 }
 export interface SpatialContextViewParams extends Record<string, unknown> {
   lat: number;

@@ -627,6 +627,27 @@ def test_policy_sentences_cover_every_clarify_and_refuse_rule():
     for rule_id, sentence in POLICY_SENTENCES.items():
         assert sentence in DOMAIN_CONTEXT
         assert sentence.strip()
+    from services.agent.decisions.schemas import context_for_call
+
+    topic = context_for_call("topic")
+    facts = context_for_call("facts")
+    places = context_for_call("places")
+    tool_pick = context_for_call("tool_pick")
+    for key in (
+        "medical_exposure_missing_year",
+        "series_mode_missing_year",
+        "series_mode_missing_dataset",
+    ):
+        sentence = POLICY_SENTENCES[key]
+        assert sentence in topic
+        assert sentence not in facts
+        assert sentence not in places
+        if key in {
+            "medical_exposure_missing_year",
+            "series_mode_missing_year",
+            "series_mode_missing_dataset",
+        }:
+            assert sentence not in tool_pick
 
 
 def test_api_key_whitespace_is_stripped_without_logging_the_value(monkeypatch, caplog):
