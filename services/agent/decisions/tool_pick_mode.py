@@ -44,6 +44,10 @@ _VIZ_DATASET = {
 }
 _SERIES_WORD = r"\b(?:trend|time series|weekly|monthly|daily)\b"
 _INTERVAL_WORD = r"\b(daily|weekly|monthly)\b"
+_MULTI_PRIMARY_RULES = {
+    "multi_intent_count_and_trend",
+    "multi_intent_territory_and_map",
+}
 
 
 @dataclass
@@ -129,6 +133,27 @@ def _span(slots: dict[str, Any]) -> tuple[str, str] | None:
     if year is None:
         return None
     return _range_for_year(int(year))
+
+
+def _planned_primary_count(decision: Any) -> int:
+    return len(getattr(decision, "tool_calls", None) or [])
+
+
+def _is_multi_primary(decision: Any) -> bool:
+    if getattr(decision, "rule", None) in _MULTI_PRIMARY_RULES:
+        return True
+    return _planned_primary_count(decision) > 1
+
+
+def requires_multiple_primary_tools(question: str, decision: Any) -> bool:
+    """True when one tool cannot answer. Includes force_model eval cases."""
+    if _is_multi_primary(decision):
+        return True
+    if getattr(decision, "rule", None) != "forced_eval":
+        return False
+    from services.agent.routing import route_question
+
+    return _is_multi_primary(route_question(question))
 
 
 def arguments_for_tool(

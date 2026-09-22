@@ -341,13 +341,28 @@ class AgentOrchestrator:
             else:
                 jev_ready = None
                 if self.settings.jev_mode == "tool_pick":
-                    jev_ready = await self._jev_selected_tools(
-                        question=question,
-                        request_id=request_id,
-                        decision=decision,
-                        on_event=on_event,
-                        cancel_event=cancel_event,
+                    from services.agent.decisions.tool_pick_mode import (
+                        ToolPickDecision,
+                        log_tool_pick,
+                        requires_multiple_primary_tools,
                     )
+
+                    if requires_multiple_primary_tools(question, decision):
+                        log_tool_pick(
+                            self.settings,
+                            question,
+                            ToolPickDecision(
+                                None, None, "qwen", "multiple_primary_tools"
+                            ),
+                        )
+                    else:
+                        jev_ready = await self._jev_selected_tools(
+                            question=question,
+                            request_id=request_id,
+                            decision=decision,
+                            on_event=on_event,
+                            cancel_event=cancel_event,
+                        )
                 if jev_ready is None:
                     (
                         answer_status,

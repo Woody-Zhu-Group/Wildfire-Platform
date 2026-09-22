@@ -94,7 +94,7 @@ Set `AGENT_JEV_MODE=tool_pick` and restart. Leave `AGENT_JEV_TOOL_PICK_MIN_CONFI
 - `visualization_create` needs a dataset, a year or date range, and one explicit kind: a map word, or a trend/time-series word with daily, weekly, or monthly. Both kinds at once, or neither, falls back.
 - `comparison_run` needs a named metric plus either two utilities and one year, one utility and two years, or both HFTD tiers and one year.
 
-A missing required slot falls back to the qwen routing loop. So do a confidence below the threshold, a timeout, an error, a tool outside the candidate list, and a failed tool call. One pick runs one tool. Qwen still writes the prose after a successful tool. Shadow mode stays identical to off for anything a user or the eval suite observes, aside from timings and request ids.
+A missing required slot falls back to the qwen routing loop. So do a confidence below the threshold, a timeout, an error, a tool outside the candidate list, a failed tool call, and any question that needs more than one primary tool. That includes route rule `multi_intent_count_and_trend`, including when eval forces the model path. One pick does not answer a two-part question. Qwen still writes the prose after a successful tool. Shadow mode stays identical to off for anything a user or the eval suite observes, aside from timings and request ids.
 
 ## Not implemented
 

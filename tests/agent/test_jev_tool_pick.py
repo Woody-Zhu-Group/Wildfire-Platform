@@ -211,6 +211,74 @@ def test_off_mode_does_not_ask_jev(tmp_path, monkeypatch):
     assert result.response["status"] == "answer"
 
 
+def test_count_plus_trend_uses_qwen(tmp_path, monkeypatch):
+    _assert_two_part_uses_qwen(
+        tmp_path,
+        monkeypatch,
+        "Give me the PGE ignition count and its monthly trend for 2024.",
+    )
+
+
+def test_holdout_count_trend_uses_qwen(tmp_path, monkeypatch):
+    _assert_two_part_uses_qwen(
+        tmp_path,
+        monkeypatch,
+        "Give me the SCE ignition count and its weekly trend for 2023.",
+    )
+
+
+def _assert_two_part_uses_qwen(tmp_path, monkeypatch, question: str) -> None:
+    def boom(*args, **kwargs):
+        raise AssertionError("Jev picked a tool for a two-part question")
+
+    monkeypatch.setattr(
+        "services.agent.decisions.tool_pick_mode.decide_tool_pick", boom
+    )
+    phases: list[str | None] = []
+
+    class Provider:
+        async def complete(self, **kwargs):
+            phases.append(kwargs.get("phase"))
+            if kwargs.get("phase") != "synthesis":
+                return ModelReply(
+                    content="",
+                    tool_calls=[
+                        {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {
+                                "name": "data_query_records",
+                                "arguments": '{"dataset":"cpuc_ignitions","result_mode":"count","year":2024}',
+                            },
+                        }
+                    ],
+                    raw={},
+                    latency_ms=1.0,
+                    usage={},
+                )
+            return ModelReply(
+                content=(
+                    '{"status":"answer","answer":"3 ignitions.",'
+                    '"claims":[{"text":"3 ignitions","evidence_ids":["evidence_test"]}]}'
+                ),
+                tool_calls=[],
+                raw={},
+                latency_ms=1.0,
+                usage={},
+            )
+
+    result = asyncio.run(
+        AgentOrchestrator(_settings(tmp_path), Provider(), _Executor()).ask(
+            question, force_model=True
+        )
+    )
+    assert None in phases
+    assert result.response["status"] == "answer"
+    record = json.loads((tmp_path / "jev.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert record["path"] == "qwen"
+    assert record["reason"] == "multiple_primary_tools"
+
+
 def _slots(question: str) -> dict:
     from services.agent.routing import route_question
 
