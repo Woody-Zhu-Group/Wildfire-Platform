@@ -1,10 +1,12 @@
 # Jev shadow mode
 
-Jev is a TypeSafe System One model. In this build it only runs in the background. It does not change answers, tool calls, caveats, view specs, SSE events, `/health`, or eval scores.
+Jev is a TypeSafe System One model. `off` and `shadow` do not change answers, tool calls, caveats, view specs, SSE events, `/health`, or eval scores. `tool_pick` is the only mode that changes which tool runs, and only on the model path.
 
 `AGENT_JEV_MODE=off` is the default. That path never constructs the shadow runner and never imports `typesafe_sdk`.
 
 `AGENT_JEV_MODE=shadow` logs Jev's decisions next to the regex router. A timeout, exception, missing key, missing package, or bad response is a warning plus a log line. The user request does not wait.
+
+`AGENT_JEV_MODE=tool_pick` lets Jev choose the tool on the model path. It is off unless you set it. Qwen still writes the prose. If Jev's tool_pick confidence is below `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (default 0.8), or the call times out or errors, the normal qwen tool loop runs. Every decision is a `tool_pick_decision` line in the shadow log with the confidence and `path` `jev` or `qwen`.
 
 `verify`, `fallback`, and `route` are reserved names. Setting them aborts startup. They are not implemented.
 
@@ -12,7 +14,8 @@ Jev is a TypeSafe System One model. In this build it only runs in the background
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AGENT_JEV_MODE` | `off` | `off` or `shadow` |
+| `AGENT_JEV_MODE` | `off` | `off`, `shadow`, or `tool_pick` |
+| `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` | `0.8` | Use Jev's tool only at or above this confidence |
 | `AGENT_JEV_BACKEND` | `typesafe` | Only `typesafe` exists |
 | `AGENT_JEV_MODEL` | `jev-latest` | Model route. Logs record the concrete version the API returns |
 | `AGENT_JEV_TIMEOUT_SECONDS` | `3` | Per call. SDK retries are disabled so this is the whole budget |
@@ -74,11 +77,24 @@ AGENT_JEV_MODE=off    .venv/bin/python -m services.agent.eval.runner --models qw
 AGENT_JEV_MODE=off    .venv/bin/python -m services.agent.eval.runner --models qwen2.5:7b --thinking off --modes constrained --run-tag jev-off-2
 AGENT_JEV_MODE=shadow .venv/bin/python -m services.agent.eval.runner --models qwen2.5:7b --thinking off --modes constrained --run-tag jev-shadow
 .venv/bin/python -m services.agent.eval.jev_noop_diff jev-off jev-shadow --baseline-tag jev-off-2
-.venv/bin/python -m services.agent.eval.jev_vs_qwen jev-shadow
+.venv/bin/python -m services.agent.eval.jev_vs_qwen jev-shadow --log services/agent/logs/jev_shadow.jsonl
 ```
+
+`jev_vs_qwen` reads qwen tools from each trajectory event, not from `response.tool_calls`. It joins Jev on the question text. The shadow log is `AGENT_JEV_LOG_PATH`. It is not a file inside the run folder. On this host that file is `services/agent/logs/jev_shadow.jsonl` in `/home/ubuntu/Wildfire-Services`. Pass `--log` when the eval checkout is a different directory.
 
 A field that differs between off and shadow, and also between the two off runs, is `llm_variance`. Only a difference that appears in the shadow run alone is a shadow effect. `AGENT_JEV_DAILY_CALL_CAP` counts user questions. One question may send several Jev calls. `AGENT_JEV_ABLATION` selects the shadow question layout.
 
+
+## Turning on tool_pick
+
+Set `AGENT_JEV_MODE=tool_pick` and restart. Leave `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` at `0.8` unless you want a different gate. Jev returns a tool name. This harness fills arguments from slots the router already resolved:
+
+- `data_query_records` needs a dataset and a year or date range.
+- `data_query_spatial` needs one utility plus that time span, or a coordinate pair.
+- `visualization_create` needs a dataset, a year or date range, and one explicit kind: a map word, or a trend/time-series word with daily, weekly, or monthly. Both kinds at once, or neither, falls back.
+- `comparison_run` needs a named metric plus either two utilities and one year, one utility and two years, or both HFTD tiers and one year.
+
+A missing required slot falls back to the qwen routing loop. So do a confidence below the threshold, a timeout, an error, a tool outside the candidate list, and a failed tool call. One pick runs one tool. Qwen still writes the prose after a successful tool. Shadow mode stays identical to off for anything a user or the eval suite observes, aside from timings and request ids.
 
 ## Not implemented
 
@@ -86,6 +102,4 @@ Later phases, not built here:
 
 - `verify`: check the model-path tool pick before it runs
 - `fallback`: use Jev when the local model fails
-- `route`: let Jev choose the model-path tool
-
-Shadow mode must stay byte-for-byte identical to off for anything a user or the eval suite observes, aside from timings and request ids.
+- `route`: reserved name. Use `tool_pick` instead.

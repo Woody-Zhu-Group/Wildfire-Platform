@@ -339,29 +339,52 @@ class AgentOrchestrator:
                 answer = _render_deterministic(executions)
                 need_synthesis = False
             else:
-                (
-                    answer_status,
-                    answer,
-                    executions,
-                    trajectory,
-                    model_latency,
-                    direct_without_tool,
-                    model_turns,
-                    model_raw,
-                    _model_qualifications,
-                    _model_caveat_error,
-                ) = await self._model_loop(
-                    question,
-                    request_id,
-                    decision.slots["candidate_tools"],
-                    year=decision.slots.get("year"),
-                    years=decision.slots.get("years") or [],
-                    utilities=decision.slots.get("utilities") or [],
-                    county=decision.slots.get("county"),
-                    time_resolution=decision.slots.get("time_resolution"),
-                    on_event=on_event,
-                    cancel_event=cancel_event,
-                )
+                jev_ready = None
+                if self.settings.jev_mode == "tool_pick":
+                    jev_ready = await self._jev_selected_tools(
+                        question=question,
+                        request_id=request_id,
+                        decision=decision,
+                        on_event=on_event,
+                        cancel_event=cancel_event,
+                    )
+                if jev_ready is None:
+                    (
+                        answer_status,
+                        answer,
+                        executions,
+                        trajectory,
+                        model_latency,
+                        direct_without_tool,
+                        model_turns,
+                        model_raw,
+                        _model_qualifications,
+                        _model_caveat_error,
+                    ) = await self._model_loop(
+                        question,
+                        request_id,
+                        decision.slots["candidate_tools"],
+                        year=decision.slots.get("year"),
+                        years=decision.slots.get("years") or [],
+                        utilities=decision.slots.get("utilities") or [],
+                        county=decision.slots.get("county"),
+                        time_resolution=decision.slots.get("time_resolution"),
+                        on_event=on_event,
+                        cancel_event=cancel_event,
+                    )
+                else:
+                    (
+                        answer_status,
+                        answer,
+                        executions,
+                        trajectory,
+                        model_latency,
+                        direct_without_tool,
+                        model_turns,
+                        model_raw,
+                        _model_qualifications,
+                        _model_caveat_error,
+                    ) = jev_ready
                 raw_log.extend(model_raw)
                 raw_log.extend(_raw_execution(item) for item in executions)
                 has_primary = any(
@@ -729,6 +752,92 @@ class AgentOrchestrator:
             },
         )
         return result
+
+    async def _jev_selected_tools(
+        self,
+        *,
+        question: str,
+        request_id: str,
+        decision: RouteDecision,
+        on_event: ProgressCallback | None,
+        cancel_event: asyncio.Event | None,
+    ):
+        """Run Jev's tool when it is confident. None means use the qwen loop."""
+        from services.agent.decisions.tool_pick_mode import (
+            ToolPickDecision,
+            arguments_for_tool,
+            decide_tool_pick,
+            log_tool_pick,
+        )
+
+        candidates = list(decision.slots.get("candidate_tools") or [])
+        picked = decide_tool_pick(question, candidates, self.settings)
+        if picked.path != "jev" or not picked.tool:
+            log_tool_pick(self.settings, question, picked)
+            return None
+        args = arguments_for_tool(picked.tool, decision.slots, question)
+        if args is None:
+            log_tool_pick(
+                self.settings,
+                question,
+                ToolPickDecision(
+                    picked.tool,
+                    picked.confidence,
+                    "qwen",
+                    "arguments_unavailable",
+                    picked.latency_ms,
+                ),
+            )
+            return None
+        trajectory: list[dict[str, Any]] = [
+            {
+                "type": "tool_pick_decision",
+                "path": "jev",
+                "tool": picked.tool,
+                "confidence": picked.confidence,
+                "reason": picked.reason,
+            }
+        ]
+        execution = await self._execute_with_repair(
+            picked.tool,
+            args,
+            request_id=request_id,
+            start_attempt=1,
+            year=decision.slots.get("year"),
+            years=decision.slots.get("years") or [],
+            utilities=decision.slots.get("utilities") or [],
+            time_resolution=decision.slots.get("time_resolution"),
+            trajectory=trajectory,
+            on_event=on_event,
+            cancel_event=cancel_event,
+        )
+        if not execution.ok:
+            log_tool_pick(
+                self.settings,
+                question,
+                ToolPickDecision(
+                    picked.tool,
+                    picked.confidence,
+                    "qwen",
+                    "tool_failed",
+                    picked.latency_ms,
+                ),
+            )
+            return None
+        log_tool_pick(self.settings, question, picked)
+        trajectory.append(_execution_event(execution))
+        return (
+            "tools_ready",
+            "",
+            [execution],
+            trajectory,
+            float(picked.latency_ms or 0.0),
+            0,
+            0,
+            [],
+            [],
+            None,
+        )
 
     async def _model_loop(
         self,

@@ -64,6 +64,7 @@ class AgentSettings:
     jev_log_path: str = "services/agent/logs/jev_shadow.jsonl"
     jev_log_max_mb: float = 50.0
     jev_ablation: str = "v3_hybrid"
+    jev_tool_pick_min_confidence: float = 0.8
 
     @classmethod
     def from_env(cls) -> "AgentSettings":
@@ -129,6 +130,9 @@ class AgentSettings:
             ),
             jev_log_max_mb=float(os.getenv("AGENT_JEV_LOG_MAX_MB", "50")),
             jev_ablation=os.getenv("AGENT_JEV_ABLATION", "v3_hybrid").strip(),
+            jev_tool_pick_min_confidence=float(
+                os.getenv("AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE", "0.8")
+            ),
         )
         value.validate()
         return value
@@ -147,10 +151,12 @@ class AgentSettings:
         if self.jev_mode in {"verify", "fallback", "route"}:
             raise ValueError(
                 f"AGENT_JEV_MODE={self.jev_mode} is reserved and not implemented. "
-                "Use off or shadow."
+                "Use off, shadow, or tool_pick."
             )
-        if self.jev_mode not in {"off", "shadow"}:
-            raise ValueError("AGENT_JEV_MODE must be off or shadow")
+        if self.jev_mode not in {"off", "shadow", "tool_pick"}:
+            raise ValueError("AGENT_JEV_MODE must be off, shadow, or tool_pick")
+        if not 0 <= self.jev_tool_pick_min_confidence <= 1:
+            raise ValueError("AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE must be between 0 and 1")
         if self.jev_backend != "typesafe":
             raise ValueError("AGENT_JEV_BACKEND must be typesafe")
         if self.jev_timeout_seconds <= 0:
