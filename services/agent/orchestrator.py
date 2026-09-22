@@ -340,7 +340,7 @@ class AgentOrchestrator:
                 need_synthesis = False
             else:
                 jev_ready = None
-                if self.settings.jev_mode == "tool_pick":
+                if self.settings.jev_mode in {"tool_pick", "tool_pick_template"}:
                     from services.agent.decisions.tool_pick_mode import (
                         ToolPickDecision,
                         log_tool_pick,
@@ -474,7 +474,21 @@ class AgentOrchestrator:
                     await self._emit(on_event, event, response)
                     return OrchestrationResult(response=response, raw_log=raw_log)
 
-                need_synthesis = True
+                if (
+                    self.settings.jev_mode == "tool_pick_template"
+                    and jev_ready is not None
+                ):
+                    from services.agent.decisions.tool_pick_mode import (
+                        template_can_answer,
+                    )
+
+                    if template_can_answer(question, executions):
+                        answer = _render_deterministic(executions)
+                        need_synthesis = False
+                    else:
+                        need_synthesis = True
+                else:
+                    need_synthesis = True
 
             self._raise_if_cancelled(cancel_event)
             # Single attachment point for every successful-tool path (det, model,

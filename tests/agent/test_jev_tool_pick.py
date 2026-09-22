@@ -37,7 +37,13 @@ class _Executor:
             tool=tool,
             arguments=arguments,
             ok=True,
-            summary={"kind": "summary", "total": 3, "counts": {"ignitions": 3}},
+            summary={
+                "kind": "summary",
+                "result_mode": arguments.get("result_mode", "count"),
+                "dataset": arguments.get("dataset"),
+                "total": 3,
+                "counts": {"ignitions": 3},
+            },
             raw={},
             error=None,
             artifact=None,
@@ -277,6 +283,216 @@ def _assert_two_part_uses_qwen(tmp_path, monkeypatch, question: str) -> None:
     record = json.loads((tmp_path / "jev.jsonl").read_text(encoding="utf-8").splitlines()[-1])
     assert record["path"] == "qwen"
     assert record["reason"] == "multiple_primary_tools"
+
+
+def test_template_count_skips_qwen(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "services.agent.decisions.tool_pick_mode.decide_tool_pick",
+        lambda *args, **kwargs: _decision(confidence=0.86),
+    )
+    monkeypatch.setattr(
+        "services.agent.orchestrator.collect_qualifications",
+        _no_caveats,
+    )
+
+    class Provider:
+        async def complete(self, **kwargs):
+            raise AssertionError("qwen was called for a count template")
+
+    result = asyncio.run(
+        AgentOrchestrator(
+            _settings(tmp_path, jev_mode="tool_pick_template"),
+            Provider(),
+            _Executor(),
+        ).ask("How many EPSS outages occurred in 2024?", force_model=True)
+    )
+    assert result.response["status"] == "answer"
+    assert "count:" in result.response["answer_text"]
+    assert result.response["route"]["answer_origin"] == "model"
+
+
+def test_template_skips_explanation_comparison_and_synthesizes(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "services.agent.decisions.tool_pick_mode.decide_tool_pick",
+        lambda *args, **kwargs: _decision(tool="comparison_run", confidence=0.90),
+    )
+    phases: list[str | None] = []
+
+    class Provider:
+        async def complete(self, **kwargs):
+            phases.append(kwargs.get("phase"))
+            return ModelReply(
+                content=(
+                    '{"status":"answer","answer":"PGE had more than SCE.",'
+                    '"claims":[{"text":"PGE had more than SCE.","evidence_ids":["evidence_test"]}]}'
+                ),
+                tool_calls=[],
+                raw={},
+                latency_ms=1.0,
+                usage={},
+            )
+
+    class Executor(_Executor):
+        async def execute(self, tool, arguments, **kwargs):
+            self.tools.append(tool)
+            return ToolExecution(
+                tool=tool,
+                arguments=arguments,
+                ok=True,
+                summary={
+                    "kind": "utilities",
+                    "metric": "ignition_count",
+                    "results": [
+                        {"key": "PGE", "value": 10},
+                        {"key": "SCE", "value": 4},
+                    ],
+                },
+                raw={},
+                error=None,
+                artifact=None,
+                latency_ms=1.0,
+                evidence_id="evidence_test",
+            )
+
+    question = (
+        "Compare ignition counts for PGE versus SCE in one shared year, 2024 "
+        "and explain the difference"
+    )
+    asyncio.run(
+        AgentOrchestrator(
+            _settings(tmp_path, jev_mode="tool_pick_template"),
+            Provider(),
+            Executor(),
+        ).ask(question, force_model=True)
+    )
+    assert phases == ["synthesis"]
+
+
+def test_plain_comparison_uses_the_template(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "services.agent.decisions.tool_pick_mode.decide_tool_pick",
+        lambda *args, **kwargs: _decision(tool="comparison_run", confidence=0.90),
+    )
+    monkeypatch.setattr(
+        "services.agent.orchestrator.collect_qualifications",
+        _no_caveats,
+    )
+
+    class Provider:
+        async def complete(self, **kwargs):
+            raise AssertionError("qwen was called for a plain comparison")
+
+    class Executor(_Executor):
+        async def execute(self, tool, arguments, **kwargs):
+            self.tools.append(tool)
+            return ToolExecution(
+                tool=tool,
+                arguments=arguments,
+                ok=True,
+                summary={
+                    "kind": "utilities",
+                    "metric": "ignition_count",
+                    "results": [
+                        {"key": "PGE", "value": 10},
+                        {"key": "SCE", "value": 4},
+                    ],
+                },
+                raw={},
+                error=None,
+                artifact=None,
+                latency_ms=1.0,
+                evidence_id="evidence_test",
+            )
+
+    result = asyncio.run(
+        AgentOrchestrator(
+            _settings(tmp_path, jev_mode="tool_pick_template"),
+            Provider(),
+            Executor(),
+        ).ask(
+            "Compare ignition counts for PGE versus SCE in one shared year, 2024",
+            force_model=True,
+        )
+    )
+    assert "comparison:" in result.response["answer_text"]
+
+
+def test_count_plus_trend_runs_both_tools_without_a_model():
+    from services.agent.routing import route_question
+
+    for question, interval in (
+        ("Give me the PGE ignition count and its monthly trend for 2024.", "monthly"),
+        ("Give me the SCE ignition count and its weekly trend for 2023.", "weekly"),
+    ):
+        decision = route_question(question)
+        assert decision.path == "deterministic"
+        assert decision.rule == "multi_intent_count_and_trend"
+        assert [name for name, _ in decision.tool_calls] == [
+            "data_query_records",
+            "visualization_create",
+        ]
+        assert decision.tool_calls[1][1]["interval"] == interval
+
+
+def test_count_plus_trend_ask_does_not_call_the_model(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "services.agent.orchestrator.collect_qualifications",
+        _no_caveats,
+    )
+
+    class Provider:
+        async def complete(self, **kwargs):
+            raise AssertionError("model was called")
+
+    class Executor:
+        def __init__(self) -> None:
+            self.tools: list[str] = []
+
+        async def execute(self, tool, arguments, **kwargs):
+            self.tools.append(tool)
+            if tool == "visualization_create":
+                summary = {
+                    "kind": "time_series",
+                    "dataset": arguments.get("dataset"),
+                    "interval": arguments.get("interval"),
+                    "total_events": 12,
+                }
+            else:
+                summary = {
+                    "kind": "summary",
+                    "result_mode": "count",
+                    "dataset": arguments.get("dataset"),
+                    "total": 3,
+                }
+            return ToolExecution(
+                tool=tool,
+                arguments=arguments,
+                ok=True,
+                summary=summary,
+                raw={},
+                error=None,
+                artifact=None,
+                latency_ms=1.0,
+                evidence_id="evidence_test",
+            )
+
+        async def close(self) -> None:
+            return None
+
+    executor = Executor()
+    result = asyncio.run(
+        AgentOrchestrator(
+            _settings(tmp_path, jev_mode="off"), Provider(), executor
+        ).ask("Give me the SCE ignition count and its weekly trend for 2023.")
+    )
+    assert executor.tools == ["data_query_records", "visualization_create"]
+    assert "count:" in result.response["answer_text"]
+    assert "time series" in result.response["answer_text"]
+    assert result.response["route"]["answer_origin"] == "deterministic"
+
+
+async def _no_caveats(*args, **kwargs):
+    return [], [], None
 
 
 def _slots(question: str) -> dict:

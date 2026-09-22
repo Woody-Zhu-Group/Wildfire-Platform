@@ -2212,6 +2212,53 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
         re.search(r"\b(?:trend|time series|weekly|monthly|daily)\b", lower)
     )
     if has_count_clause and has_trend_clause:
+        time_args = _time_filter_args(time_resolution)
+        viz_dataset = {
+            "cpuc_ignitions": "ignitions",
+            "us_ignitions": "us_ignitions",
+            "epss_outages": "epss",
+            "psps_events": "psps",
+            "calfire_incidents": "calfire",
+        }.get(dataset or "", "")
+        if dataset and time_args and viz_dataset in _TIME_SERIES_VIZ:
+            interval = _default_series_interval(lower, time_resolution)
+            records_args: dict[str, Any] = {
+                "dataset": dataset,
+                "result_mode": "count",
+                **time_args,
+            }
+            series_args: dict[str, Any] = {
+                "kind": "time_series",
+                "dataset": viz_dataset,
+                "interval": interval,
+                **time_args,
+            }
+            if len(utilities) == 1:
+                records_args["utility"] = utilities[0]
+                series_args["utility"] = utilities[0]
+            if county and dataset in _COUNTY_CAPABLE_DATASETS:
+                records_args["county"] = county
+                series_args["county"] = county
+            tool_calls = [
+                ("data_query_records", records_args),
+                ("visualization_create", series_args),
+            ]
+            blocked = _block_unexpressed_constraints(
+                question=text,
+                tool_calls=tool_calls,
+                slots=slots,
+                rule="multi_intent_count_and_trend",
+                reason="Count and time series are both explicit",
+            )
+            if blocked:
+                return blocked
+            return RouteDecision(
+                "deterministic",
+                "multi_intent_count_and_trend",
+                "Question explicitly requires both a scalar read and a time series",
+                tool_calls=tool_calls,
+                slots=slots,
+            )
         return RouteDecision(
             "model",
             "multi_intent_count_and_trend",

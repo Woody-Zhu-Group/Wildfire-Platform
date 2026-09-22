@@ -48,6 +48,18 @@ _MULTI_PRIMARY_RULES = {
     "multi_intent_count_and_trend",
     "multi_intent_territory_and_map",
 }
+_EXPLAIN = re.compile(r"\b(?:why|explain|difference|reason)\b")
+_COUNT_WORD = re.compile(r"\b(?:how many|count|number of|tally|total)\b")
+_LIST_WORD = re.compile(r"\b(?:list|records?)\b")
+_TEMPLATE_INTENTS = {
+    "count",
+    "records_list",
+    "map",
+    "trend",
+    "rank",
+    "spatial_context",
+    "compare",
+}
 
 
 @dataclass
@@ -154,6 +166,42 @@ def requires_multiple_primary_tools(question: str, decision: Any) -> bool:
     from services.agent.routing import route_question
 
     return _is_multi_primary(route_question(question))
+
+
+def template_intent(question: str, executions: list[Any]) -> str | None:
+    """Intent the template can answer. None means qwen still writes the prose."""
+    primary = [
+        item
+        for item in executions
+        if getattr(item, "ok", False) and not getattr(item, "qualification_call", False)
+    ]
+    if len(primary) != 1:
+        return None
+    item = primary[0]
+    summary = item.summary or {}
+    lower = " ".join(question.lower().split())
+    tool = item.tool
+    if tool == "data_query_records":
+        if summary.get("result_mode") == "records" or (
+            _LIST_WORD.search(lower) and not _COUNT_WORD.search(lower)
+        ):
+            return "records_list"
+        if summary.get("result_mode") == "count" and _COUNT_WORD.search(lower):
+            return "count"
+        return None
+    if tool == "visualization_create":
+        return "map" if summary.get("kind") == "map" else "trend"
+    if tool == "data_query_rank":
+        return "rank"
+    if tool == "data_query_spatial":
+        return "spatial_context"
+    if tool == "comparison_run" and not _EXPLAIN.search(lower):
+        return "compare"
+    return None
+
+
+def template_can_answer(question: str, executions: list[Any]) -> bool:
+    return template_intent(question, executions) in _TEMPLATE_INTENTS
 
 
 def arguments_for_tool(
