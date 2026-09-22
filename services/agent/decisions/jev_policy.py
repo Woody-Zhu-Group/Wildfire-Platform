@@ -116,6 +116,9 @@ class JevFacts:
     rank_dimension: str | None = "none"
     mentions_multiple_datasets: float = 0.0
     measure: str | None = None
+    clarify_reason: str | None = None
+    clarify_reason_confidence: float = 0.0
+    live_web_probability: float = 0.0
     threshold: float = 0.5
 
 
@@ -148,6 +151,26 @@ def facts_from_answers(answers: dict[str, Any], *, threshold: float = 0.5) -> Je
         value = raw(name)
         return value if isinstance(value, str) else None
 
+    def probabilities(name: str) -> dict[str, float]:
+        answer = answers.get(name)
+        if answer is None:
+            return {}
+        if isinstance(answer, dict):
+            found = answer.get("probabilities") or {}
+        else:
+            found = getattr(answer, "probabilities", None) or {}
+        return {str(key): float(value) for key, value in found.items()}
+
+    def confidence(name: str) -> float:
+        answer = answers.get(name)
+        if answer is None:
+            return 0.0
+        if isinstance(answer, dict):
+            value = answer.get("confidence")
+        else:
+            value = getattr(answer, "confidence", None)
+        return float(value) if isinstance(value, (int, float)) else 0.0
+
     utilities = {
         key.removeprefix("utility_"): noul(key)
         for key in answers
@@ -172,6 +195,9 @@ def facts_from_answers(answers: dict[str, Any], *, threshold: float = 0.5) -> Je
         rank_dimension=choice("rank_dimension") or "none",
         mentions_multiple_datasets=noul("mentions_multiple_datasets"),
         measure=choice("measure"),
+        clarify_reason=choice("clarify_reason"),
+        clarify_reason_confidence=confidence("clarify_reason"),
+        live_web_probability=probabilities("off_topic").get("live_or_web", 0.0),
         threshold=threshold,
     )
 
@@ -213,6 +239,8 @@ def derive_outcome(
 
     if _yes(facts.prompt_injection, threshold):
         return hit("prompt_injection", "prompt_injection")
+    if facts.off_topic == "live_or_web" and _live_web_is_missing_location(facts, threshold):
+        return hit("missing_location", "vague_proximity", "names_specific_place")
     topic_rule = OFF_TOPIC_RULES.get(facts.off_topic or "")
     if topic_rule:
         trace.append(topic_rule)
@@ -328,6 +356,19 @@ def _risk_date_after_coverage(question: str) -> bool:
         return date.fromisoformat(end) > RISK_COVERAGE_END
     except ValueError:
         return False
+
+
+def _live_web_is_missing_location(facts: JevFacts, threshold: float) -> bool:
+    """A near-me question, or a weak live-web label contradicted by the clarify Choice."""
+    near_unplaced = _yes(facts.vague_proximity, threshold) and not _yes(
+        facts.names_specific_place, threshold
+    )
+    choice_says_missing = (
+        facts.clarify_reason == "missing_location"
+        and facts.clarify_reason_confidence >= 0.7
+        and facts.live_web_probability < 0.85
+    )
+    return near_unplaced or choice_says_missing
 
 
 def _time_known(resolved: Any) -> bool:

@@ -438,6 +438,67 @@ def test_cross_dataset_rank_does_not_require_intent_rank():
     assert "unsupported_rank_cross_dataset" not in trend.trace
 
 
+def test_near_me_is_not_a_live_web_refusal():
+    outcome = derive_outcome(
+        JevFacts(
+            off_topic="live_or_web",
+            live_web_probability=0.82,
+            vague_proximity=0.91,
+            names_specific_place=0.02,
+            vague_time=0.99,
+            clarify_reason="missing_location",
+            clarify_reason_confidence=0.89,
+        ),
+        question="Show recent fires near me.",
+    )
+    assert outcome.disposition == "clarify"
+    assert outcome.clarify_reason == "missing_location"
+
+
+def test_which_fires_overrides_a_weak_live_web_label():
+    outcome = derive_outcome(
+        JevFacts(
+            off_topic="live_or_web",
+            live_web_probability=0.72,
+            vague_proximity=0.13,
+            names_specific_place=0.03,
+            clarify_reason="missing_location",
+            clarify_reason_confidence=0.75,
+        ),
+        question="Which fires should I look at?",
+    )
+    assert outcome.disposition == "clarify"
+    assert outcome.clarify_reason == "missing_location"
+
+
+def test_fires_burning_right_now_still_refuse():
+    outcome = derive_outcome(
+        JevFacts(
+            off_topic="live_or_web",
+            live_web_probability=0.95,
+            vague_proximity=0.1,
+            names_specific_place=0.05,
+            clarify_reason="not_applicable",
+            clarify_reason_confidence=0.9,
+        ),
+        question="What fires are burning right now?",
+    )
+    assert outcome.disposition == "unsupported"
+    assert outcome.unsupported_topic == "unsupported_live_web"
+    strong = derive_outcome(
+        JevFacts(
+            off_topic="live_or_web",
+            live_web_probability=0.9,
+            vague_proximity=0.1,
+            names_specific_place=0.05,
+            clarify_reason="missing_location",
+            clarify_reason_confidence=0.8,
+        ),
+        question="What fires are burning right now?",
+    )
+    assert strong.unsupported_topic == "unsupported_live_web"
+
+
 def test_hftd_map_does_not_need_a_year():
     outcome = derive_outcome(JevFacts(intent="map", dataset="hftd", has_time_scope=0.0))
     assert outcome.disposition == "answer"
