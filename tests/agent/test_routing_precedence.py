@@ -316,6 +316,41 @@ def test_bear_valley_fills_the_utility_slot():
     assert decision.slots["dataset"] == "cpuc_ignitions"
 
 
+def test_live_phrasing_is_unsupported_and_history_is_not():
+    live = route_question("Are there any PSPS outages right now?")
+    assert live.path == "unsupported"
+    assert live.rule == "unsupported_live_web"
+    weather = route_question("What is today's weather in Sonoma County?")
+    assert weather.rule == "unsupported_live_web"
+    assert route_question("What is the current wildfire risk near San Jose?").rule == (
+        "unsupported_live_web"
+    )
+    assert route_question("Are any fires live in Sonoma County?").rule == (
+        "unsupported_live_web"
+    )
+
+    recent = route_question("What were recent ignitions for SCE?")
+    assert recent.rule == "ambiguous_relative_time"
+    last_year = route_question("How many PGE ignitions were there last year?")
+    assert last_year.rule != "unsupported_live_web"
+    assert last_year.path == "deterministic"
+    this_year = route_question("How many PGE ignitions were there this year?")
+    assert this_year.rule != "unsupported_live_web"
+    assert this_year.rule != "risk_future_date"
+
+
+def test_future_phrasing_uses_the_future_date_refusal():
+    for question in (
+        "How many ignitions will there be tomorrow?",
+        "How many CAL FIRE incidents next summer?",
+        "How many ignitions next year?",
+        "How many ignitions in future years?",
+    ):
+        decision = route_question(question)
+        assert decision.path == "clarification", question
+        assert decision.rule == "risk_future_date", question
+
+
 def test_early_returns_keep_the_dataset_slot():
     near = route_question("How many CAL FIRE incidents happened near San Jose?")
     assert near.path == "clarification"
