@@ -1125,7 +1125,7 @@
     "kind": "label_rule",
     "written_by": "Michael",
     "date": "2026-09-23",
-    "text": "Rule F, written label decisions. hv3_029: answer, because the comparison tool returns PG&E values with null plus reason for other utilities. hv3_005 and hv3_036: clarify / unexpressable_county_filter, because the US ignitions endpoint cannot filter by state. hv3_053, hv3_059, hv3_062: unsupported / unsupported_future_prediction. The same future label applies to ho_056, ho_065, hv2_050, hv2_057, and hv2_062 in the holdout files on jev-multi-tool. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set.",
+    "text": "Rule F, written label decisions. hv3_029: answer, because the comparison tool returns PG&E values with null plus reason for other utilities. hv3_005 and hv3_036: clarify / unexpressable_county_filter, because the US ignitions endpoint cannot filter by state. hv3_053, hv3_059, hv3_062: unsupported / unsupported_future_prediction. The same future label applies to ho_056, ho_065, hv2_050, hv2_057, and hv2_062 in the holdout files on jev-multi-tool. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set. Michael's decision on 2026-09-23: needs_human_review is cleared on every row rule F decided, in jev_holdout_v3.json, jev_holdout.json, and jev_holdout_v2.json on jev-multi-tool.",
     "applied_rows": [
       5,
       29,
@@ -1143,6 +1143,19 @@
     ],
     "left_unchanged": [
       "ho_061"
+    ],
+    "needs_human_review_cleared": [
+      "hv3_029",
+      "hv3_005",
+      "hv3_036",
+      "hv3_053",
+      "hv3_059",
+      "hv3_062",
+      "ho_056",
+      "ho_065",
+      "hv2_050",
+      "hv2_057",
+      "hv2_062"
     ]
   }
 ]
