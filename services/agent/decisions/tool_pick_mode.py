@@ -9,7 +9,7 @@ from typing import Any
 
 from services.agent.config import AgentSettings
 from services.agent.decisions.integrity import question_hash
-from services.agent.decisions.v3 import state_for, tool_glossary, tool_pick_questions
+from services.agent.decisions.v3 import tool_pick_call
 from services.agent.routing import (
     _COUNTY_CAPABLE_DATASETS,
     _asks_map_view,
@@ -85,9 +85,15 @@ def decide_tool_pick(
             model=settings.jev_model,
             timeout_seconds=settings.jev_timeout_seconds,
         )
+        call = tool_pick_call(
+            question,
+            date.today().isoformat(),
+            list(candidates),
+            settings.jev_ablation,
+        )
         result = backend.evaluate(
-            state_for(question, date.today().isoformat(), tool_glossary(candidates)),
-            tool_pick_questions(list(candidates)),
+            call["state"],
+            call["questions"],
             request_id="tool-pick",
             question_hash=question_hash(question),
         )

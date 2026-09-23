@@ -6,7 +6,7 @@ Jev is a TypeSafe System One model. `off` and `shadow` do not change answers, to
 
 `AGENT_JEV_MODE=shadow` logs Jev's decisions next to the regex router. A timeout, exception, missing key, missing package, or bad response is a warning plus a log line. The user request does not wait.
 
-`AGENT_JEV_MODE=tool_pick` lets Jev choose the tool on the model path. It is off unless you set it. Qwen still writes the prose. If Jev's tool_pick confidence is below `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (default 0.8), or the call times out or errors, the normal qwen tool loop runs. Every decision is a `tool_pick_decision` line in the shadow log with the confidence and `path` `jev` or `qwen`.
+`AGENT_JEV_MODE=tool_pick` lets Jev choose the tool on the model path. It is off unless you set it. Qwen still writes the prose. The tool_pick request is the same call the offline `v3_hybrid` ablation sends, including the policy glossary. A context change is scored on that live payload, and the report includes the label and its confidence. If Jev's tool_pick confidence is below `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (default 0.8), or the call times out or errors, the normal qwen tool loop runs. Every decision is a `tool_pick_decision` line in the shadow log with the confidence and `path` `jev` or `qwen`.
 
 `AGENT_JEV_MODE=tool_pick_template` uses that same gate, slot fill, and multi-tool refusal. After the tool succeeds, a template writes the answer for count, records list, map, trend, rank, spatial context, and a single comparison that does not ask why, explain, difference, or reason. Anything else, including an overview, still goes to qwen synthesis.
 

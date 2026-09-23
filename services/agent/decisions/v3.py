@@ -238,6 +238,61 @@ def calls_for(
     return calls
 
 
+def calls_for_config(
+    question: str,
+    today: str,
+    tools: list[str] | None,
+    config: str,
+) -> list[dict]:
+    """The calls shadow and the offline ablation send for one ablation config."""
+    from services.agent.decisions.schemas import (
+        DOMAIN_CONTEXT,
+        routing_questions,
+        tool_pick_questions as v2_tool_pick_questions,
+    )
+
+    if config == "v2_full":
+        questions = dict(routing_questions())
+        if tools:
+            questions.update(v2_tool_pick_questions(tools))
+        return [
+            {
+                "name": "v2",
+                "state": {"question": question, "today": today, "context": DOMAIN_CONTEXT},
+                "questions": questions,
+            }
+        ]
+    mode = {
+        "v3_split": "per_call",
+        "v3_single": "concatenated",
+        "v3_no_glossary": "none",
+        "v3_policy_context": "policy",
+        "v3_hybrid": "policy",
+    }[config]
+    return calls_for(
+        question,
+        today,
+        include_tools=tools,
+        glossary_mode=mode,
+        policy_context=DOMAIN_CONTEXT if config in {"v3_policy_context", "v3_hybrid"} else None,
+        include_direct_clarify=config == "v3_hybrid",
+    )
+
+
+def tool_pick_call(
+    question: str,
+    today: str,
+    candidates: list[str],
+    config: str = "v3_hybrid",
+) -> dict:
+    """The single tool_pick request. v3_hybrid matches the offline 15/15 payload."""
+    calls = calls_for_config(question, today, list(candidates), config)
+    for call in calls:
+        if call["name"] == "tool_pick":
+            return call
+    return calls[0]
+
+
 # Re-exported so callers can confirm the intent label space did not shrink.
 assert set(INTENTS) <= set(topic_questions()["intent"].criteria or {})
 assert set(COMPARISON_KINDS) <= set(
