@@ -63,20 +63,8 @@ def tool_glossary(tools: list[str]) -> str:
     return "Tools:\n" + "\n".join(lines)
 
 
-PLAN_NOULS = {
-    "wants_count": "The question asks for a numeric total.",
-    "wants_list": "The question asks for individual records.",
-    "wants_time_series": "The question asks for values across time, such as each month or each year.",
-    "wants_map": "The question asks for a map.",
-    "wants_ranking": "The question asks for an ordered top group.",
-    "wants_comparison": "The question asks to set two or more things side by side.",
-    "is_multi_part": "The question asks for more than one result, such as a count and a chart.",
-}
-
-
 def fact_questions() -> dict[str, QuestionSpec]:
     questions = {name: _noul(text) for name, text in FACT_NOULS.items()}
-    questions.update({name: _noul(text) for name, text in PLAN_NOULS.items()})
     questions["breakdown"] = _choice(
         "If the question asks for a breakdown, what is the split?",
         {
@@ -88,6 +76,22 @@ def fact_questions() -> dict[str, QuestionSpec]:
             "by_utility": "One value per utility.",
             "by_cause": "One value per cause.",
         },
+    )
+    # Intent already names the main result. This Choice is only for a question
+    # whose intent is multi-part or otherwise not one of those results.
+    questions["output_form"] = _choice(
+        "If the question is not already one result, what is the main result?",
+        {
+            "single_number": "One numeric total.",
+            "record_list": "A list of individual records.",
+            "time_series": "Values across time, such as each month.",
+            "map": "A map.",
+            "ranking": "An ordered ranking.",
+            "comparison": "A side-by-side comparison.",
+        },
+    )
+    questions["also_chart"] = _noul(
+        "Besides the main result, the question also asks for a chart."
     )
     return questions
 

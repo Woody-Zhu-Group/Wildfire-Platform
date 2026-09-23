@@ -8,13 +8,29 @@ The first holdout has been read. Do not report its disposition as a clean number
 
 ## Facts
 
-Reuse `intent`, `dataset`, and `rank_dimension` when they already say what is asked. Add these on the facts call, not on the tool_pick call, so the existing tool_pick payload hash does not change:
+The plan is built from choices, not from overlapping yes/no facts. `intent`, `dataset`, and `rank_dimension` already live on the topic call. `breakdown` stays on the facts call. The `wants_*` Nouls and `is_multi_part` were removed: a count per year is both a count and a series, so those facts sat in the 0.2 to 0.8 band and the all-facts gate blocked the plan. How many years, utilities, or counties are named comes from router slots, not from Jev.
 
-- Nouls: `wants_count`, `wants_list`, `wants_time_series`, `wants_map`, `wants_ranking`, `wants_comparison`
-- Choice `breakdown`: `none`, `by_month`, `by_week`, `by_year`, `by_county`, `by_utility`, `by_cause`
-- Noul `is_multi_part`: the question asks for more than one result, such as a count and a chart
+Two additions, only where intent plus breakdown cannot pick one plan:
 
-Roughly 200 extra input tokens per question, all on the facts call. Six short Nouls are about 20 tokens each, and the breakdown Choice is about 80 tokens.
+- Choice `output_form`, on the facts call: `single_number`, `record_list`, `time_series`, `map`, `ranking`, `comparison`. Used only when `intent` is `multi_intent`, `other`, or `exploratory_overview`. A normal count, list, trend, map, rank, or comparison already names the form, so those plans do not gate on this Choice.
+- Noul `also_chart`: "Besides the main result, the question also asks for a chart." Used only when the main form is a number or a comparison. A trend, map, rank, or list is already the chart or is not a chart, so those plans do not gate on it. Confidence is `max(p, 1-p)`. A low probability is a confident no.
+
+The gate uses confidence in the chosen side, and only for facts that plan depends on:
+
+| Plan | Facts |
+| --- | --- |
+| per-year counts | intent, dataset, breakdown, also_chart |
+| per-utility counts | intent, dataset, breakdown, also_chart |
+| per-county counts | intent, dataset, breakdown, also_chart |
+| monthly or weekly series | intent, dataset, breakdown |
+| rank | intent, dataset, breakdown, rank_dimension |
+| count plus chart | intent, dataset, breakdown, also_chart |
+| list | intent, dataset, breakdown |
+| comparison | intent, dataset, breakdown, also_chart |
+| single count | intent, dataset, breakdown, also_chart |
+| map | intent, dataset, breakdown |
+
+`breakdown` is on every row because `by_month` and `none` are different plans. `also_chart` is not on a series, map, rank, or list. `output_form` is added to the dependency list only when intent does not already name the form. `comparison_run` periods is still only for exactly two years. Three or more years are one count per year.
 
 ## Slots the router resolves today
 
