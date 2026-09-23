@@ -73,8 +73,38 @@ Measure when it lands: if the threshold changes, one pass on dev, v1, and v2: th
 
 What: the combined decider (router hard backstops first, then Jev's disposition, then the router's slots and tools) exists only as offline scoring in `services/agent/eval/_v3_gap_score.py` and the rescoring recorded in `jev_holdout_v3_independent_score.json`. On the 65 certain v3 rows, tuned, it scored 56 of 65 against 51 for Jev alone and 45 for the router alone. There is no `AGENT_JEV_MODE` value that runs it.
 
-Why deferred: main accepts only `off` and `shadow` until `jev-shadow` (tool_pick, tool_pick_template) and `jev-multi-tool` (plan) merge. A runtime mode also needs decisions that offline scoring skips: the confidence gate on the disposition, the 3 second Jev timeout and what happens on a timeout or error, and the null backend fallback.
+Why deferred: main accepts `off`, `shadow`, `tool_pick`, and `tool_pick_template` since PR 43; `plan` arrives with `jev-multi-tool`. None of those is the Jev-first decider. A runtime mode also needs decisions that offline scoring skips: the confidence gate on the disposition, the 3 second Jev timeout and what happens on a timeout or error, and the null backend fallback.
 
 Motivating rows: the whole v3 rescoring, plus the dev rows where the intent-gated measure policy restored six answers.
 
 Measure when it lands: first in shadow, the agreement between the offline combined decider and the production outcome on shadow logs. Then, with the mode on, label accuracy on dev, v1, and v2 through the runtime path, which must hash the same as the offline calls. Report p95 latency, the Jev error and timeout rate, and the share of requests where the disposition confidence fell below the gate. Route reports are unchanged because the router does not change.
+
+## 8. A five-repeat check of clarify_reason on holdout v1
+
+What: rerun the clarify_reason field on holdout v1 with `--repeats 5` under the current payload and report the majority-vote accuracy, the flip rate, and the mean confidence next to the 5-repeat holdout_final numbers (0.708 accuracy, 0.125 flip rate, 0.674 confidence).
+
+Why deferred: the one-pass context report for PR 43 measured 0.583 on the same 24 rows, three rows lower, with no label change on that field. clarify_reason is the field with the highest recorded flip rate, so one pass cannot say whether the PR 26 context change moved it or the pass landed on the noisy side. Nothing else in that report moved on seen data without a label change.
+
+Motivating rows: the 24 holdout v1 rows where clarify_reason applies (`services/agent/eval/runs/context_report_pr43.json`, holdout_v1, clarify_reason).
+
+Measure when it lands: five repeats on v1 only (about 63 questions times five passes), majority accuracy and flip rate against holdout_final, mean confidence, and the per-row list of the rows that changed. If the drop holds, compare the per-call policy subset for the topic call against the full context on those rows before changing anything.
+
+## 9. A scorer mapping from the router's unsupported topics to Jev's other_off_topic
+
+What: in the eval scorers, treat a router-specific unsupported topic that Jev cannot name (`unsupported_air_quality`, `unsupported_evacuation`, `unsupported_translation`, `unsupported_personnel`, `unsupported_satellite`, `unsupported_leadership`, and `unsupported_future_prediction`) as matched when Jev returns `other_off_topic` with disposition unsupported, and report both the strict and the mapped accuracy.
+
+Why deferred: it is a scoring change, not a Jev change, but it changes reported numbers, so it should land on its own with both columns shown. The `REGEX_ONLY` table in `jev_policy.py` already records that v3 groups these router keywords under other_off_topic; the scorers do not use that table.
+
+Motivating rows: the 43 dev cases added by PRs 22 and 26, where unsupported_topic scored 0.588 of 17 in the PR 43 context report because the new router refusal cases name topics Jev files under other_off_topic; holdout v2 rows hv2_050, hv2_057, hv2_062, relabeled to `unsupported_future_prediction` by rule F.
+
+Measure when it lands: no Jev calls; rescore the stored PR 43 rows and report strict and mapped unsupported_topic accuracy on dev, v1, and v2. Disposition accuracy must not change.
+
+## 10. The unsupported_future_prediction option in the unsupported_topic Choice
+
+What: add `unsupported_future_prediction` as an option of the `unsupported_topic` Choice, with its policy sentence (item 1), so Jev can name the refusal the router already makes and the rule E and F labels stop being guaranteed misses for Jev alone.
+
+Why deferred: it is a change to a Jev question's wording, which needs `--repeats 5` on the topic call, and it changes the context, which needs the accuracy and confidence report. Until then the router refuses these questions before Jev runs, and item 9 keeps the scorers honest.
+
+Motivating rows: hv3_053, hv3_054, hv3_059, hv3_062, hv3_064 (v3, frozen), ho_056, ho_065 (v1), hv2_050, hv2_057, hv2_062 (v2).
+
+Measure when it lands: five repeats on the topic call with the flip rate for the new option; label accuracy and mean confidence on dev, v1, and v2 before and after; the hash test; and the strict unsupported_topic accuracy on the rows above, which should rise without item 9's mapping.
