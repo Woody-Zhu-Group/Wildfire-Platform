@@ -341,6 +341,26 @@ class AgentOrchestrator:
                         return OrchestrationResult(
                             response=response, raw_log=raw_log
                         )
+                    outside = _city_point_outside_coverage(decision, execution)
+                    if outside:
+                        response = self._response(
+                            request_id=request_id,
+                            decision=decision,
+                            status="clarification",
+                            answer=outside,
+                            executions=executions,
+                            qualifications=[],
+                            trajectory=trajectory,
+                            started=started,
+                            model_latency=0,
+                            direct_without_tool=0,
+                            model_turns=0,
+                            synthesis_fallback=False,
+                        )
+                        await self._emit(on_event, "answer", response)
+                        return OrchestrationResult(
+                            response=response, raw_log=raw_log
+                        )
                 answer = _render_deterministic(executions)
                 need_synthesis = False
             else:
@@ -2659,6 +2679,38 @@ def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> s
     if rendered:
         line += ": " + ", ".join(rendered)
     return line + "."
+
+
+def _city_point_outside_coverage(
+    decision: RouteDecision, execution: ToolExecution
+) -> str | None:
+    """Clarification when a city center point has no county or grid cell.
+
+    Some internal points (Coronado) fall outside the county polygons and the
+    model grid. Ask for a place inside coverage instead of calling risk with
+    no cell or reporting an empty county.
+    """
+    if not decision.rule.startswith("city_point"):
+        return None
+    if execution.tool != "data_query_spatial" or execution.summary.get("kind") != "point":
+        return None
+    city = decision.slots.get("city_point") or {}
+    grid = execution.summary.get("grid_cell") or {}
+    missing = []
+    if not execution.summary.get("county"):
+        missing.append("county")
+    if grid.get("cell_id") is None:
+        missing.append("model grid cell")
+    if not missing:
+        return None
+    name = city.get("name") or "This city"
+    return (
+        f"{name}'s Census center point ({city.get('lat'):.4f}, "
+        f"{city.get('lon'):.4f}) is not inside any {' or '.join(missing)} in "
+        "the warehouse, so I can't answer from it. Which latitude and longitude "
+        "on land in California should I use, or which county or utility "
+        "territory?"
+    )
 
 
 def _render_deterministic(executions: list[ToolExecution]) -> str:

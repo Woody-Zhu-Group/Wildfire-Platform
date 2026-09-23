@@ -63,8 +63,12 @@ Point reads at a few city internal points:
 - Paradise's internal point is outside Tier 3 by about 67 m and returns no
   tier, although the area around it is Tier 3. This is the clearest case for
   the boundary work below.
-- Coronado's internal point returns no county and no grid cell. A Coronado
-  risk question fails loudly at the risk call rather than guessing.
+- Coronado's internal point (32.6567, -117.1564, in San Diego Bay) returns
+  no county and no grid cell. When a city center point has no county or no
+  grid cell, the orchestrator stops after the point read and asks for
+  coordinates on land, a county, or a utility territory. It never calls
+  risk with no cell and never reports an empty county. Explicit coordinates
+  keep their existing path.
 - Both `wildfire.hftd_tiers` rows fail `ST_IsValid`. Point containment gave
   the same Paradise answer after `ST_MakeValid`, but polygon overlays need
   valid geometry.

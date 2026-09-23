@@ -295,3 +295,75 @@ def test_orchestrator_answers_a_city_risk_question_with_the_caveat():
     ids = {item["id"] for item in response["qualifications"]}
     assert "city_center_point" in ids
     assert "cnhpp_grid_resolution" in ids
+
+
+_CORONADO_POINT = {
+    "kind": "point",
+    "lat": 32.656721,
+    "lon": -117.156376,
+    "iou": {"utility": "SDGE", "utility_name": "San Diego Gas & Electric"},
+    "hftd_tier": None,
+    "grid_cell": {"cell_id": None, "row": None, "col": None},
+    "county": None,
+    "metadata": {},
+}
+
+
+def _run_with_point(question, point_summary):
+    calls = []
+
+    class FakeExecutor:
+        async def execute(self, tool, arguments, **kwargs):
+            calls.append((tool, dict(arguments)))
+            if tool == "data_query_spatial":
+                return _execution(tool, arguments, point_summary)
+            return _execution(
+                tool,
+                arguments,
+                {"cell_id": arguments.get("cell_id"), "date": arguments.get("date"),
+                 "risk": 0.02, "scope": {}},
+            )
+
+    class NoModel:
+        async def complete(self, **kwargs):
+            raise AssertionError("must not call the model")
+
+    orchestrator = AgentOrchestrator(
+        AgentSettings(),
+        NoModel(),  # type: ignore[arg-type]
+        FakeExecutor(),  # type: ignore[arg-type]
+    )
+    return asyncio.run(orchestrator.ask(question)).response, calls
+
+
+def test_city_point_outside_grid_clarifies_before_the_risk_call():
+    question = "What was the ignition risk in Coronado, California on 2023-08-01?"
+    assert route_question(question).rule == "city_point_risk_chain"
+    response, calls = _run_with_point(question, _CORONADO_POINT)
+    assert response["status"] == "clarification"
+    assert [tool for tool, _ in calls] == ["data_query_spatial"]
+    text = response["answer_text"]
+    assert "Coronado" in text and "32.6567" in text
+    assert "county or model grid cell" in text
+    assert "latitude and longitude" in text
+
+
+def test_city_point_context_without_a_county_clarifies():
+    question = "What IOU territory is Coronado, California in?"
+    assert route_question(question).rule == "city_point_context"
+    response, calls = _run_with_point(question, _CORONADO_POINT)
+    assert response["status"] == "clarification"
+    assert len(calls) == 1
+    only_county = dict(_CORONADO_POINT, grid_cell={"cell_id": 700})
+    response, _ = _run_with_point(question, only_county)
+    assert response["status"] == "clarification"
+    assert "not inside any county in" in response["answer_text"]
+
+
+def test_explicit_coordinates_outside_coverage_keep_their_behavior():
+    # The check is for city center points only; explicit coordinates are the
+    # user's own choice and keep the existing path.
+    question = "Which HFTD tier is 32.6567, -117.1564 in?"
+    assert route_question(question).rule == "coordinate_context"
+    response, _ = _run_with_point(question, _CORONADO_POINT)
+    assert response["status"] == "answer"
