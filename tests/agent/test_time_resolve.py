@@ -260,3 +260,23 @@ def test_apostrophe_years_outside_coverage_clarify_in_either_century():
     late = resolve_time("ignitions in '75", today=TODAY)
     assert late.status == "out_of_coverage"
     assert late.year == 1975
+
+
+def test_bare_1900s_year_clarifies_as_out_of_coverage():
+    for question, year in (
+        ("How many ignitions were there in 1999?", 1999),
+        ("CPUC ignitions from 1999 to 2005", 1999),
+        ("PG&E ignitions since 1985", 1985),
+        ("ignitions in March 1999", 1999),
+    ):
+        result = resolve_time(question, today=TODAY)
+        assert result.status == "out_of_coverage", question
+        assert result.year == year
+        assert f"Year {year} is outside warehouse coverage" in result.reason
+
+
+def test_numbers_that_are_not_1900s_years_are_ignored():
+    assert resolve_time("fires near 38.1985, -121.4944", today=TODAY).status == "none"
+    assert resolve_time("fires over 1950 acres in 2024", today=TODAY).year == 2024
+    assert resolve_time("fires larger than 1,950 acres", today=TODAY).status == "none"
+    assert resolve_time("circuit 043371102 outages in 2024", today=TODAY).year == 2024
