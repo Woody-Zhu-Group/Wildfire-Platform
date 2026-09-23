@@ -215,21 +215,147 @@ def _span_resolution(
     )
 
 
+_APOSTROPHE_YEAR = re.compile(r"(?<!\d)'(\d{2})\b")
+# Same pivot as Python's %y: '00-'68 are the 2000s, '69-'99 the 1900s.
+_APOSTROPHE_PIVOT = 69
+
+
+def _apostrophe_century_year(digits: str) -> int:
+    value = int(digits)
+    return (1900 if value >= _APOSTROPHE_PIVOT else 2000) + value
+
+
 def expand_apostrophe_year(text: str) -> str:
-    """Turn a written '24 into 2024. The digits are in the question; this is not a guess."""
+    """Turn a written '24 into 2024 and '99 into 1999.
+
+    The digits are in the question; this is not a guess. A year outside
+    coverage in either century (like '99) is left to the coverage clarify.
+    """
 
     def replace(match: re.Match[str]) -> str:
-        return str(2000 + int(match.group(1)))
+        return str(_apostrophe_century_year(match.group(1)))
 
-    return re.sub(r"(?<!\d)'(\d{2})\b", replace, text)
+    return _APOSTROPHE_YEAR.sub(replace, text)
+
+
+def _pre_2000_apostrophe_year(text: str) -> tuple[int, str] | None:
+    """The first '69-'99 year written in the question, as (year, phrase)."""
+    for match in _APOSTROPHE_YEAR.finditer(text):
+        year = _apostrophe_century_year(match.group(1))
+        if year < 2000:
+            return year, match.group(0)
+    return None
+
+
+_START_EXPR = (
+    rf"(?P<start>20\d{{2}}-\d{{2}}-\d{{2}}"
+    rf"|(?:{_MONTH_ALT})\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+20\d{{2}}"
+    rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+(?:{_MONTH_ALT})\s+20\d{{2}}"
+    rf"|(?:{_MONTH_ALT})\s+(?:of\s+)?20\d{{2}}"
+    rf"|20\d{{2}})"
+)
+_OPEN_END = (
+    r"(?:up\s+(?:to|until|till|through)|to|through|thru|until|till|til|\u2013|\u2014|-)\s*"
+    r"(?:today|now|the\s+present(?:\s+day)?|present(?:\s+day)?|date)\b"
+)
+_OPEN_RANGE_WITH_END = re.compile(
+    rf"(?:\b(?:from|since)\s+)?(?<![\w-]){_START_EXPR}\s*{_OPEN_END}"
+)
+_SINCE_START = re.compile(rf"\bsince\s+{_START_EXPR}(?![\w-])")
+_BOUNDED_END_AHEAD = re.compile(
+    rf"\s*(?:to|through|thru|until|till|\u2013|\u2014|-)\s*(?:{_MONTH_ALT}|20\d{{2}})"
+)
+
+
+def _open_range_start(phrase: str) -> date | None:
+    """First day named by an open range start: a day, a month, or a year."""
+    day = explicit_calendar_day(phrase)
+    if day is not None:
+        return day
+    month_year = re.fullmatch(rf"({_MONTH_ALT})\s+(?:of\s+)?(20\d{{2}})", phrase)
+    if month_year:
+        return date(int(month_year.group(2)), MONTHS[month_year.group(1)], 1)
+    if re.fullmatch(r"20\d{2}", phrase):
+        return date(int(phrase), 1, 1)
+    return None
+
+
+def open_ended_range(lower: str, *, today: date) -> TimeResolution | None:
+    """``from January 2024 up to today`` / ``since March 2023`` / ``2021 to date``.
+
+    The end is today, capped at the end of warehouse coverage. A ``since``
+    start followed by a named end (``since 2020 to 2022``) is a bounded range
+    and is left to the bounded parsers.
+    """
+    match = _OPEN_RANGE_WITH_END.search(lower)
+    if match is None:
+        match = _SINCE_START.search(lower)
+        if match is None or _BOUNDED_END_AHEAD.match(lower, match.end()):
+            return None
+    start = _open_range_start(match.group("start"))
+    if start is None:
+        return None
+    phrase = match.group(0).strip()
+    data_max = today.year
+    end = min(today, date(data_max, 12, 31))
+    if start.year < DATA_YEAR_MIN:
+        return TimeResolution(
+            status="out_of_coverage",
+            years=tuple(range(start.year, end.year + 1)),
+            source="relative",
+            phrase=phrase,
+            reason=(
+                f"Year {start.year} is outside warehouse coverage "
+                f"{DATA_YEAR_MIN}-{data_max}"
+            ),
+        )
+    if start > end:
+        return TimeResolution(
+            status="out_of_coverage",
+            year=start.year,
+            years=(start.year,),
+            source="relative",
+            phrase=phrase,
+            reason=(
+                f"The range starts {start.isoformat()}, after the end of "
+                f"warehouse coverage {end.isoformat()}"
+            ),
+        )
+    years = tuple(range(start.year, end.year + 1))
+    return TimeResolution(
+        status="relative_range",
+        year=years[0] if len(years) == 1 else None,
+        years=years,
+        start_date=start.isoformat(),
+        end_date=end.isoformat(),
+        source="relative",
+        phrase=phrase,
+    )
 
 
 def resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     """Resolve explicit or relative time. Never guess vague phrases."""
     ref = today or date.today()
+    data_max = ref.year
+    early = _pre_2000_apostrophe_year(text)
+    if early is not None:
+        year, written = early
+        return TimeResolution(
+            status="out_of_coverage",
+            year=year,
+            years=(year,),
+            source="explicit",
+            phrase=written,
+            reason=(
+                f"Year {year} is outside warehouse coverage "
+                f"{DATA_YEAR_MIN}-{data_max}"
+            ),
+        )
     text = expand_apostrophe_year(text)
     lower = " ".join(text.lower().split())
-    data_max = ref.year
+    open_range = open_ended_range(lower, today=ref)
+    if open_range is not None:
+        return open_range
     month_hit = month_from_text(lower)
     day = explicit_calendar_day(text)
     if day is not None:
