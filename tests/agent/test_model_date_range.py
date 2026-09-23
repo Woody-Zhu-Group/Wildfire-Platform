@@ -207,3 +207,58 @@ def test_executor_leaves_router_calls_alone(capsys):
     assert requests
     assert requests[0].url.params.get("year") == "2023"
     assert "harness_time_correction" not in capsys.readouterr().out
+
+
+def test_enumerated_years_keep_one_call_per_year():
+    question = "PG&E ignitions in 2021, 2022, and 2023"
+    assert _slot(question)["per_year"] is True
+    for year in (2021, 2022, 2023):
+        filled, error, corrections = _hold(
+            {"dataset": "cpuc_ignitions", "utility": "PGE", "year": year}, question
+        )
+        assert error is None
+        assert filled == {"dataset": "cpuc_ignitions", "utility": "PGE", "year": year}
+        assert corrections == []
+
+
+def test_each_year_in_a_range_keeps_one_call_per_year():
+    question = "PG&E ignitions each year from 2018 to 2020"
+    slot = _slot(question)
+    assert slot["per_year"] is True
+    assert (slot["start_date"], slot["end_date"]) == ("2018-01-01", "2020-12-31")
+    for year in (2018, 2019, 2020):
+        filled, error, corrections = _hold(
+            {"dataset": "cpuc_ignitions", "utility": "PGE", "year": year}, question
+        )
+        assert error is None
+        assert filled == {"dataset": "cpuc_ignitions", "utility": "PGE", "year": year}
+        assert corrections == []
+
+
+def test_per_year_question_still_corrects_years_outside_it():
+    question = "PG&E ignitions each year from 2018 to 2020"
+    outside, error, corrections = _hold({"dataset": "cpuc_ignitions", "year": 2017}, question)
+    assert error is None
+    assert "year" not in outside
+    assert (outside["start_date"], outside["end_date"]) == ("2018-01-01", "2020-12-31")
+    assert corrections == []
+    _, error, _ = _hold({"dataset": "cpuc_ignitions", "year": 2030}, question)
+    assert error is not None
+
+
+def test_breakdown_words_set_per_year():
+    for question in (
+        "ignitions per year 2018 to 2020",
+        "ignitions by year from 2018 through 2020",
+        "annual ignitions 2018-2020",
+        "yearly ignitions between 2018 and 2020",
+        "every year from 2018 to 2020",
+        "year over year ignitions 2018 to 2020",
+    ):
+        assert _slot(question)["per_year"] is True, question
+    for question in (
+        "How many SCE ignitions 2021 to 2025?",
+        "How many PG&E ignitions in 2024?",
+        "How many PG&E ignitions were there from January 2024 up to today?",
+    ):
+        assert _slot(question)["per_year"] is False, question

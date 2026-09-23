@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import calendar
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Any
 
@@ -69,6 +69,9 @@ class TimeResolution:
     source: str | None = None
     phrase: str | None = None
     reason: str | None = None
+    # The question names separate years or asks for a per-year breakdown, so
+    # one tool call per year is correct and must not be widened to the span.
+    per_year: bool = False
 
     def as_slot(self) -> dict[str, Any]:
         return {
@@ -80,6 +83,7 @@ class TimeResolution:
             "source": self.source,
             "phrase": self.phrase,
             "reason": self.reason,
+            "per_year": self.per_year,
         }
 
 
@@ -352,8 +356,33 @@ def open_ended_range(lower: str, *, today: date) -> TimeResolution | None:
     )
 
 
+_PER_YEAR_WORDS = re.compile(
+    r"\b(?:(?:each|every|per)\s+year|by\s+year|year[\s-]+(?:by|over)[\s-]+year|"
+    r"per-year|annual|annually|yearly)\b"
+)
+
+
+def _asks_per_year(text: str, resolution: TimeResolution) -> bool:
+    """Breakdown words, or years named apart from the span's own endpoints."""
+    lower = " ".join(expand_apostrophe_year(text).lower().split())
+    if _PER_YEAR_WORDS.search(lower):
+        return True
+    named = {int(value) for value in re.findall(r"\b(20\d{2})\b", lower)}
+    if resolution.start_date and resolution.end_date:
+        endpoints = {int(resolution.start_date[:4]), int(resolution.end_date[:4])}
+        return bool(named - endpoints)
+    return len(named) > 1
+
+
 def resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     """Resolve explicit or relative time. Never guess vague phrases."""
+    resolution = _resolve_time(text, today=today)
+    if _asks_per_year(text, resolution):
+        return replace(resolution, per_year=True)
+    return resolution
+
+
+def _resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     ref = today or date.today()
     data_max = ref.year
     early = _pre_2000_year(text)
@@ -697,8 +726,13 @@ def _hold_resolved_window(
 
     The model may not narrow ``2021 to 2025`` to one year, or ``from January
     2024 up to today`` to one month. A span that is one full calendar year is
-    written as ``year=`` so a single-year question stays single-year.
+    written as ``year=`` so a single-year question stays single-year. A
+    question that names separate years or asks for a per-year breakdown
+    (``per_year``) keeps its per-year calls; years outside it still fall to
+    the override and rejection rules.
     """
+    if time_resolution.get("per_year"):
+        return filled
     resolved = _resolved_window(time_resolution)
     if resolved is None:
         return filled
