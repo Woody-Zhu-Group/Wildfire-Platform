@@ -44,11 +44,23 @@ def risk_client() -> httpx.Client:
             f"risk API not reachable at {RISK_BASE_URL}: {exc}. "
             "Start with: uvicorn services.risk_forecasting.app:app --port 8001 --app-dir ."
         )
-    if r.status_code != 200:
-        # degraded (model missing) still returns 200 with model_loaded=false
-        if r.status_code >= 500:
-            pytest.fail(f"risk /health -> {r.status_code}: {r.text}")
+    if r.status_code == 503 and _risk_reports_not_loaded(r):
+        # Startup check failed (params, covariates, or trial prediction). Return
+        # the client so each test reports its own "model not loaded" message.
+        return client
+    if r.status_code >= 500:
+        pytest.fail(f"risk /health -> {r.status_code}: {r.text}")
     return client
+
+
+def _risk_reports_not_loaded(response: httpx.Response) -> bool:
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and (
+        body.get("ready") is False or body.get("model_loaded") is False
+    )
 
 
 @pytest.fixture(scope="session")

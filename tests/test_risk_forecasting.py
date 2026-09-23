@@ -106,7 +106,6 @@ def test_place_resolution_county_utility_point(db_conn):
 
 def test_health_model_loaded(risk_api):
     r = risk_api.get("/health")
-    assert r.status_code == 200
     body = r.json()
     if not body.get("model_loaded"):
         pytest.fail(
@@ -114,6 +113,10 @@ def test_health_model_loaded(risk_api):
             f"Params file exists={PARAMS.is_file()} size="
             f"{PARAMS.stat().st_size if PARAMS.is_file() else 'n/a'}"
         )
+    assert r.status_code == 200, (
+        f"risk /health -> {r.status_code}, failed_stage={body.get('failed_stage')}: "
+        f"{body.get('detail')}"
+    )
     assert body["status"] == "ok"
 
 
