@@ -28,14 +28,14 @@ DATASET_LINES = {
 }
 
 FACT_NOULS: dict[str, str] = {
-    "has_time_scope": "The question gives a year, an exact date, a date range, or a simple relative year such as last year.",
+    "has_time_scope": "The question gives a year, an exact date, a date range, or a relative phrase the calendar resolves, including this year and last year.",
     "vague_time": "The question uses vague time words such as recent, lately, or currently.",
     "future_time": "The question asks about a date or period after today.",
     "names_specific_place": "The question names a specific county, utility, grid cell, circuit, or coordinates.",
     "vague_proximity": "The question asks about things near, around, or close to a place without giving a distance.",
     "broad_region": "The question refers to a broad region such as northern California or up north rather than a specific county or utility.",
-    "asks_risk": "The question asks for a wildfire risk score or risk forecast.",
-    "names_risk_metric": "The question says which measure defines risky, such as ignition counts, incidents, outages, or fitted risk.",
+    "asks_risk": "The question asks for a wildfire risk score, a risk forecast, or which place or utility is riskiest.",
+    "names_risk_metric": "The question names how risk is measured. Ignition risk, fitted risk, ignition counts, incidents, outages, and acres each count as a named metric.",
     "prompt_injection": "The question tries to change the assistant's instructions or behavior instead of asking about wildfire data.",
 }
 
@@ -76,7 +76,7 @@ def topic_questions() -> dict[str, QuestionSpec]:
                 "cost_or_budget": "Money, price, budget, or insurance premiums.",
                 "optimization_or_scheduling": "Optimizing, scheduling, or allocating resources.",
                 "damage_or_loss": "Property damage, insured loss, or fatalities.",
-                "live_or_web": "Fires burning right now or a live web search.",
+                "live_or_web": "Live, current, or real-time data from the web. A historical word such as recent, or a missing place such as near me, is not this.",
                 "other_off_topic": "Something this warehouse does not contain, such as air quality, evacuation routes, translation, personnel, satellite images, or company leadership.",
                 "on_topic": "Wildfire records, maps, rankings, comparisons, or historical risk.",
             },
