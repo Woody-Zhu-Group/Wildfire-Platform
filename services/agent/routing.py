@@ -588,8 +588,20 @@ _CITY_CUE_BEFORE = re.compile(
     r")\s+$",
     re.I,
 )
-# Orange is a county and a color. Bare "orange" is not the county.
-_COUNTY_REQUIRES_QUALIFIER = frozenset({"orange"})
+# Orange is a county and a color, and Kings, Lake, Mono, Trinity, Glenn, and
+# Alpine are ordinary words or parts of other place names. These need the word
+# County to count as the county.
+_COUNTY_REQUIRES_QUALIFIER = frozenset(
+    {"orange", "kings", "lake", "mono", "trinity", "glenn", "alpine"}
+)
+# A bare county name followed by a place noun is part of a longer place name
+# (Kings Canyon, Trinity Alps, Mono Basin, Lake Tahoe), not the county.
+_COUNTY_PLACE_NOUN_AFTER = re.compile(
+    r"\s+(?:canyon|river|creek|basin|alps|valley|peak|mountains?|forest|"
+    r"national\s+(?:park|forest)|park|tahoe|lake|reservoir|island|beach|"
+    r"pass|bay)\b",
+    re.I,
+)
 
 
 def _city_match(lower: str):
@@ -713,8 +725,23 @@ _PAST_FORECAST = re.compile(
     r"\b(?:forecast|predict)(?:ed|ion|ing|s)?\s+(?:was|were)\b",
     re.I,
 )
+# Advice: a utility or the CPUC is the subject of should or recommend
+# ("the CPUC should", "should PG&E", "recommend that SCE"), a strategy for a
+# utility, or the CPUC penalizing one. "Should I use", "would you recommend
+# for SCE", and "should I expect" are data questions.
+_ADVICE_SUBJECT = (
+    r"(?:the\s+)?(?:cpuc|commission|utilit(?:y|ies)|pge|pg\s*&\s*e|sce|sdge|"
+    r"sdg\s*&\s*e|pacificorp|liberty|bear\s+valley|bves|"
+    r"pacific\s+gas|southern\s+california\s+edison|san\s+diego\s+gas)"
+)
 _ADVICE = re.compile(
-    r"\b(?:should|recommend(?:s|ed)?|penali[sz]e[sd]?|best\s+strategy)\b",
+    rf"\b{_ADVICE_SUBJECT}\b(?:\s+\w+){{0,3}}?\s+(?:should|ought\s+to|must)\b"
+    r"(?!\s+(?:i|we|you|one)\b)|"
+    rf"\b(?:should|must)\s+{_ADVICE_SUBJECT}\b|"
+    rf"\brecommend(?:s|ed)?\s+(?:that\s+)?{_ADVICE_SUBJECT}\b|"
+    rf"\b(?:best|optimal|right)\s+strateg(?:y|ies)\s+for\s+{_ADVICE_SUBJECT}\b|"
+    rf"\bpenali[sz]e[sd]?\s+{_ADVICE_SUBJECT}\b|"
+    rf"\b{_ADVICE_SUBJECT}\b(?:\s+\w+){{0,3}}?\s+penali[sz]e[sd]?\b",
     re.I,
 )
 # The asked object is modeled risk. Predict and forecast alone are not risk
@@ -856,8 +883,13 @@ def _counties(text: str) -> list[str]:
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
         if name.lower() in _COUNTY_REQUIRES_QUALIFIER:
             continue
-        if re.search(rf"\b{re.escape(name.lower())}\b", scrubbed) and name not in found:
+        if name in found:
+            continue
+        for match in re.finditer(rf"\b{re.escape(name.lower())}\b", scrubbed):
+            if _COUNTY_PLACE_NOUN_AFTER.match(scrubbed[match.end():]):
+                continue
             found.append(name)
+            break
     return found
 
 
@@ -1225,18 +1257,13 @@ def _future_refusal_phrase(text: str, lower: str) -> str | None:
 
 
 def _asks_for_advice(text: str) -> bool:
-    """What a utility or the CPUC should do. Quoted 'should' does not count."""
-    bare = _strip_quotes(text)
-    if not _ADVICE.search(bare):
-        return False
-    return bool(
-        re.search(
-            r"\b(?:cpuc|utilit(?:y|ies)|pge|pg\s*&\s*e|sce|sdge|pacificorp|"
-            r"liberty|bear valley|bves)\b",
-            bare,
-            re.I,
-        )
-    )
+    """What a utility or the CPUC should do. Quoted 'should' does not count.
+
+    The utility or the CPUC must be the subject of should or recommend. A
+    question where the analyst is the subject ("should I use", "would you
+    recommend for SCE") is a data question and routes normally.
+    """
+    return bool(_ADVICE.search(_strip_quotes(text)))
 
 
 def _forward_relative_phrase(lower: str) -> str | None:
@@ -1600,9 +1627,12 @@ def _asks_territory_boundary(lower: str) -> bool:
         r"\b(?:ignitions?|outages?|incidents?|epss|psps|cal\s*fire)\b", lower
     ):
         return False
-    # Boundary asks: territory alone, or "territory map/boundary/geometry".
-    if re.search(r"\b(?:boundary|polygon|geometry|footprint|service area|service-area|outline)\b", lower):
-        return True
+    # Boundary asks: "territory map", "show ... territory", "what is the
+    # territory", or a bare territory with no dataset word. A boundary noun
+    # (polygon, outline, service area) only ever appears here next to the
+    # word territory, and those questions already match the rules below, so
+    # a separate noun check was dead code (issue 32). Service-area phrasing
+    # without the word territory never reaches this function.
     if re.search(r"\b(?:map|show|display|draw)\b.*\bterritor|\bterritor\w*\b.*\b(?:map|layer)\b", lower):
         return True
     # "What is the SCE territory?" / "SCE utility territory"
@@ -1769,6 +1799,13 @@ def _route_ranking(
 
     group_by = _rank_dimension(lower)
     named = _datasets(text)
+    # "Tier 3 circuits" names the HFTD constraint, not the circuits table and
+    # not the grouping, so a tier ranking keeps its real dataset and dimension.
+    tier_constraint = _hftd_constraint_unavailable(lower)
+    if tier_constraint:
+        named = [item for item in named if item != "circuits"]
+        if group_by is None:
+            group_by = _rank_dimension(re.sub(r"\bcircuits?\b", " ", lower))
     # "circuit" is the grouping dimension, not the circuits inventory table.
     if group_by == "circuit":
         named = [item for item in named if item != "circuits"]
@@ -1850,6 +1887,21 @@ def _route_ranking(
             "unsupported_ranking",
             "That dataset and grouping cannot be ranked",
             answer=UNSUPPORTED_ANSWERS["ranking"],
+            slots=slots,
+        )
+
+    # An allowed ranking restricted to an HFTD tier: no tool applies the tier
+    # to a ranking, so ask rather than rank statewide and drop it.
+    if _hftd_constraint_unavailable(lower):
+        return RouteDecision(
+            "clarification",
+            "hftd_constraint_unavailable",
+            "No tool restricts a ranking to an HFTD tier",
+            answer=(
+                f"I can rank {group_by} groups in that dataset statewide, but no "
+                "tool restricts a ranking to an HFTD tier. Rank statewide, or map "
+                "one HFTD tier?"
+            ),
             slots=slots,
         )
 
@@ -2086,7 +2138,9 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 "should I use? I will not answer with a statewide or county layer."
             ),
         )
-    if _hftd_constraint_unavailable(lower):
+    # A ranking that mentions a tier reaches _route_ranking first, where an
+    # unsupported ranking is refused before the tier constraint is considered.
+    if _hftd_constraint_unavailable(lower) and not _asks_ranking(lower):
         return RouteDecision(
             "clarification",
             "hftd_constraint_unavailable",

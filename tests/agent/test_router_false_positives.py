@@ -5,6 +5,9 @@ not produce. Each expected route is the one platform/main gives, or the
 intended fix where main was also wrong (two counties, a change ranking).
 """
 
+import json
+from pathlib import Path
+
 import pytest
 
 from services.agent.routing import route_question
@@ -202,3 +205,192 @@ def test_a_series_plus_a_total_defers_instead_of_one_series_panel(question):
 def test_a_yearly_totals_series_alone_still_opens_the_series_panel():
     decision = route_question("Show year over year CPUC ignition totals for 2024.")
     assert decision.rule == "series_yearly"
+
+
+# ---------------------------------------------------------------------------
+# Router follow-ups: issues 30, 31, 32, 42, 47, and the router items of 41.
+# ---------------------------------------------------------------------------
+
+
+_EVAL = Path(__file__).resolve().parents[2] / "services" / "agent" / "eval"
+_SNAPSHOT = Path(__file__).resolve().parent / "fixtures" / "route_snapshot.json"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Which PG&E circuits should I look at for 2023 outages?",
+        "Which dataset would you recommend for SCE ignitions?",
+        "Should I use the spatial or attribute definition for PG&E ignitions in 2024?",
+        "How many SCE ignitions should I expect to see in the 2021 data?",
+        "Which SCE county should I start with for 2022 ignitions?",
+    ],
+)
+def test_issue_30_the_analyst_as_subject_of_should_is_a_data_question(question):
+    decision = route_question(question)
+    assert decision.rule != "unsupported_optimization", question
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Which utility should the CPUC penalize based on its wildfire record?",
+        "Can you recommend which utility should change its wildfire mitigation strategy?",
+        "What is the best strategy for PG&E in Tier 3?",
+        "Should PG&E expand EPSS to more circuits?",
+        "What would you recommend the CPUC do about SCE ignitions?",
+        "The commission should fine SCE for its 2021 ignitions, right?",
+    ],
+)
+def test_issue_30_a_utility_or_the_cpuc_as_subject_of_should_is_advice(question):
+    decision = route_question(question)
+    assert decision.path == "unsupported", question
+    assert decision.rule == "unsupported_optimization", question
+
+
+def test_issue_31_a_tier_ranking_reaches_the_ranking_refusals_first():
+    epss_by_utility = route_question("Rank utilities by EPSS outages on Tier 3 circuits in 2023.")
+    assert epss_by_utility.rule == "unsupported_rank_epss_utility"
+    cells = route_question("Rank grid cells in Tier 3 by ignition risk in 2024.")
+    assert cells.rule == "unsupported_ranking"
+
+
+def test_issue_31_an_allowed_ranking_with_a_tier_asks_instead_of_dropping_the_tier():
+    for question in (
+        "Rank EPSS circuits in Tier 3 by outages in 2023.",
+        "Which counties had the most CAL FIRE incidents on Tier 2 circuits in 2022?",
+    ):
+        decision = route_question(question)
+        assert decision.path == "clarification", question
+        assert decision.rule == "hftd_constraint_unavailable", question
+        assert decision.tool_calls == [], question
+        assert "statewide" in (decision.answer or ""), question
+
+
+def test_issue_31_a_tier_ranking_still_answers_without_the_tier():
+    decision = route_question("Rank EPSS circuits by outages in 2023.")
+    assert decision.path == "deterministic"
+    assert decision.rule == "ranked_records"
+
+
+@pytest.mark.parametrize(
+    "question,rule",
+    [
+        ("Show the SCE utility territory boundary", "utility_territory"),
+        ("Map SCE territory", "utility_territory"),
+        ("Show the PG&E territory polygon", "utility_territory"),
+        ("Show me the SCE territory footprint", "utility_territory"),
+        ("What is the SCE territory?", "utility_territory"),
+    ],
+)
+def test_issue_32_territory_boundary_phrasings_still_route_to_the_boundary(question, rule):
+    assert route_question(question).rule == rule, question
+
+
+def test_issue_32_service_area_phrasing_without_territory_keeps_its_route():
+    # The removed regex never matched these: they carry no "territory" word,
+    # which _asks_territory_boundary requires first. This pins that behavior.
+    for question in (
+        "Draw the Southern California Edison service-area outline.",
+        "What is the SDG&E service area?",
+    ):
+        decision = route_question(question)
+        assert decision.path == "model", question
+        assert decision.rule == "open_ended", question
+
+
+@pytest.mark.parametrize(
+    "question,county",
+    [
+        ("How many CAL FIRE incidents were there in Kings Canyon National Park in Fresno County in 2020?", "Fresno"),
+        ("How many PSPS events hit the Lake Tahoe basin in El Dorado County in 2021?", "El Dorado"),
+        ("How many CAL FIRE incidents were there in the Trinity Alps in Shasta County in 2021?", "Shasta"),
+        ("How many CPUC ignitions were there along the Kings River in Tulare County in 2019?", "Tulare"),
+        ("How many CAL FIRE incidents were there in Mono Basin in Inyo County in 2020?", "Inyo"),
+        ("How many CAL FIRE incidents were there near Glenn Ranch in Butte County in 2019?", "Butte"),
+    ],
+)
+def test_issue_42_a_place_name_beside_a_qualified_county_is_not_a_second_county(question, county):
+    decision = route_question(question)
+    if decision.path == "deterministic":
+        assert decision.slots["county"] == county, question
+    assert decision.slots["counties"] == [county], question
+    assert decision.rule != "multi_entity_deferred", question
+
+
+def test_issue_42_short_county_names_still_count_with_the_word_county():
+    alone = route_question("How many CAL FIRE incidents were there in Kings County in 2020?")
+    assert alone.slots["county"] == "Kings"
+    two = route_question("How many CAL FIRE incidents were there in Lake County and Napa County in 2020?")
+    assert set(two.slots["counties"]) == {"Lake", "Napa"}
+    assert two.slots["county"] is None
+    bare = route_question("How many CAL FIRE incidents were there by the lake in 2020?")
+    assert bare.slots["counties"] == []
+
+
+def _eval_questions():
+    rows = []
+    for name in ("cases.json", "jev_paraphrases.json", "jev_holdout.json"):
+        for row in json.loads((_EVAL / name).read_text(encoding="utf-8")):
+            if "question" in row:
+                rows.append((name, str(row.get("id")), row["question"]))
+    return rows
+
+
+def test_issue_47_every_route_decision_carries_the_slots_dict():
+    keys = {"utilities", "year", "years", "dataset", "coords", "county", "counties", "time_resolution", "start_date", "end_date"}
+    for name, case_id, question in _eval_questions():
+        decision = route_question(question)
+        assert isinstance(decision.slots, dict), (name, case_id)
+        assert keys <= set(decision.slots), (name, case_id, keys - set(decision.slots))
+
+
+def test_issue_41_several_counties_never_collapse_to_one_county_slot():
+    for question in (
+        "How many CAL FIRE incidents were there in Napa and Sonoma County in 2020?",
+        "Map CPUC ignitions in Butte County and Napa County for 2021.",
+        "Show the monthly CAL FIRE incident trend for Sonoma County and Napa County in 2022.",
+        "List EPSS outages in Kern County and Fresno County in 2023.",
+    ):
+        decision = route_question(question)
+        assert len(decision.slots["counties"]) == 2, question
+        assert decision.slots["county"] is None, question
+        assert not any("county" in args for _, args in decision.tool_calls), question
+
+
+@pytest.mark.parametrize(
+    "rule,question",
+    [
+        ("unsupported_live_web", "How many CPUC ignitions are in the current dataset for 2024?"),
+        ("unsupported_future_prediction", "Will you show me a map of 2024 CPUC ignitions?"),
+        ("risk_future_date", "What is the risk forecast for cell 100 on 2024-08-01?"),
+        ("unsupported_optimization", "Which PG&E circuits should I look at for 2023 outages?"),
+        ("city_needs_place", "What was the fitted risk at 38.55, -121.74 (Davis) on 2024-08-01?"),
+        ("hftd_constraint_unavailable", "How many EPSS events occurred on PG&E circuits in Tier 3 HFTD areas in 2023?"),
+        ("unsupported_translation", "Which grid cell does 38.5, -121.5 translate to?"),
+        ("unsupported_personnel", "How many CAL FIRE incidents involved firefighters in 2020?"),
+        ("unsupported_satellite", "Show the satellite basemap with CAL FIRE incidents in 2020."),
+        ("unsupported_cost", "How many EPSS outages were there in 2023 on circuits with costly repairs?"),
+        ("unsupported_damage", "How many CAL FIRE incidents damaged more than 100 acres in 2021?"),
+    ],
+)
+def test_issue_41_every_backstop_has_an_in_scope_question_it_must_not_catch(rule, question):
+    decision = route_question(question)
+    assert decision.rule != rule, (rule, question, decision.rule)
+
+
+def test_issue_41_route_snapshot_matches_the_committed_fixture():
+    """Routes for every dev and holdout v1 question, pinned.
+
+    A router change that moves a route fails here until the fixture is
+    regenerated, which is the route report CLAUDE.md requires:
+    python -m tests.agent.route_snapshot > tests/agent/fixtures/route_snapshot.json
+    """
+    expected = json.loads(_SNAPSHOT.read_text(encoding="utf-8"))
+    actual = {}
+    for name, case_id, question in _eval_questions():
+        decision = route_question(question)
+        actual[f"{name}:{case_id}"] = [decision.path, decision.rule]
+    moved = {k: (expected.get(k), v) for k, v in actual.items() if expected.get(k) != v}
+    missing = sorted(set(expected) - set(actual))
+    assert not moved and not missing, {"moved": moved, "missing": missing}
