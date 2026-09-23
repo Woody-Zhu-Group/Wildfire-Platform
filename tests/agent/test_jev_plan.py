@@ -123,13 +123,87 @@ def test_plan_over_the_call_limit_falls_back():
     assert reason == "over_limit"
 
 
+def test_month_plus_yearly_total_plans_both_or_falls_back():
+    calls, reason = plan_calls(
+        _facts(breakdown="by_month", wants_count=0.95, wants_time_series=0.95),
+        {"dataset": "epss_outages", "year": 2023, "utilities": ["PGE"]},
+    )
+    if calls is None:
+        assert reason == "partial_plan"
+        return
+    names = [name for name, _ in calls]
+    assert "visualization_create" in names
+    assert "data_query_records" in names
+    assert any(args.get("interval") == "monthly" for name, args in calls if name == "visualization_create")
+    assert any(
+        args.get("result_mode") == "count"
+        for name, args in calls
+        if name == "data_query_records"
+    )
+
+
+def test_three_named_years_are_counts_not_a_period_comparison():
+    calls, reason = plan_calls(
+        _facts(wants_count=0.95, wants_comparison=0.95),
+        {
+            "dataset": "cpuc_ignitions",
+            "years": [2019, 2020, 2021],
+            "utilities": ["PACIFICORP"],
+        },
+    )
+    assert reason == "planned"
+    assert [name for name, _ in calls] == ["data_query_records"] * 3
+    assert [args["year"] for _, args in calls] == [2019, 2020, 2021]
+
+
+def test_a_list_question_is_one_records_call():
+    calls, reason = plan_calls(
+        _facts(wants_list=0.92),
+        {"dataset": "psps_events", "year": 2019, "utilities": ["PGE"]},
+    )
+    assert reason == "planned"
+    assert len(calls) == 1
+    assert calls[0][0] == "data_query_records"
+    assert calls[0][1]["result_mode"] == "records"
+
+
+def test_several_counties_plan_one_count_each():
+    calls, reason = plan_calls(
+        _facts(wants_count=0.91),
+        {
+            "dataset": "calfire_incidents",
+            "year": 2018,
+            "counties": ["Butte", "Napa", "Sonoma", "Lake"],
+            "utilities": [],
+        },
+    )
+    assert reason == "planned"
+    assert [args["county"] for _, args in calls] == ["Butte", "Napa", "Sonoma", "Lake"]
+
+
+def test_uncertain_yes_falls_back_but_a_confident_no_does_not():
+    uncertain, uncertain_reason = plan_calls(
+        _facts(wants_count=0.6, breakdown="by_month"),
+        {"dataset": "epss_outages", "year": 2023, "utilities": []},
+    )
+    assert uncertain is None
+    assert uncertain_reason == "gate"
+    calls, reason = plan_calls(
+        _facts(wants_count=0.08, breakdown="by_month"),
+        {"dataset": "epss_outages", "year": 2023, "utilities": ["SCE"]},
+    )
+    assert reason == "planned"
+    assert calls is not None
+    assert calls[0][0] == "visualization_create"
+
+
 def test_low_confidence_breakdown_falls_back():
     calls, reason = plan_calls(
         _facts(breakdown="by_month", breakdown_confidence=0.4),
         {"dataset": "epss_outages", "year": 2023, "utilities": []},
     )
     assert calls is None
-    assert reason == "low_confidence"
+    assert reason == "gate"
 
 
 def test_plan_facts_use_the_facts_call():

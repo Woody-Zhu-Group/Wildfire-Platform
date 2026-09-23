@@ -1908,6 +1908,16 @@ def _route_ranking(
     )
 
 
+_LIVE_NOW = re.compile(
+    r"\b(?:right now|today(?:'s)?(?:\s+weather)?|current|live)\b",
+    re.I,
+)
+_FUTURE_DATE = re.compile(
+    r"\b(?:tomorrow|next\s+summer|next\s+year|future\s+years?)\b",
+    re.I,
+)
+
+
 def route_question(question: str, *, force_model: bool = False) -> RouteDecision:
     text = " ".join(question.strip().split())
     lower = text.lower()
@@ -1932,6 +1942,32 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
         "start_date": time_resolution.start_date,
         "end_date": time_resolution.end_date,
     }
+
+    if _LIVE_NOW.search(lower):
+        return RouteDecision(
+            "unsupported",
+            "unsupported_live_web",
+            "No read-only backend service provides the requested information",
+            answer=UNSUPPORTED_ANSWERS.get(
+                "live_web",
+                (
+                    "This system cannot answer that question with its available "
+                    "read-only wildfire services."
+                ),
+            ),
+        )
+    future = _FUTURE_DATE.search(lower)
+    if future:
+        phrase = future.group(0)
+        return RouteDecision(
+            "clarification",
+            "risk_future_date",
+            "Fitted risk has no forecast ingestion for a forward date",
+            answer=(
+                f"{_RISK_COVERAGE_LIMIT}, so I can't answer about {phrase}. "
+                "Which past date should I score?"
+            ),
+        )
 
     for key, pattern in UNSUPPORTED.items():
         if re.search(pattern, lower, re.I):
