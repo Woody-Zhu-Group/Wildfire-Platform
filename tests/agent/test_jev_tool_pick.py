@@ -453,6 +453,81 @@ def test_live_tool_pick_payload_matches_the_offline_hybrid_call():
         )
 
 
+def _jev_wire_bodies(backend_name: str, call: dict, monkeypatch) -> tuple[list[dict], list[str]]:
+    """Send one v3 call through a backend on a mock transport; return wire bodies and URLs."""
+    import httpx2
+
+    from services.agent.decisions.typesafe_backend import make_backend, reset_for_tests
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test-key")
+    monkeypatch.delenv("TYPESAFE_BASE_URL", raising=False)
+    urls: list[str] = []
+
+    def reply(request):  # type: ignore[no-untyped-def]
+        urls.append(str(request.url))
+        answers = {}
+        for name, spec in call["questions"].items():
+            if spec.kind == "choice":
+                first = next(iter(spec.criteria))
+                answers[name] = {"type": "choice", "choice": first, "confidence": 0.9, "probabilities": {first: 0.9}}
+            else:
+                answers[name] = {"type": "noul", "noul": 0.9}
+        return httpx2.Response(
+            200,
+            json={"model": "jev-test", "answers": answers, "usage": {"input_tokens": 10, "output_tokens": 1}},
+        )
+
+    reset_for_tests()
+    backend = make_backend(backend_name, model="jev-latest", timeout_seconds=3)
+    backend._transport = httpx2.MockTransport(reply)
+    captured: list[bytes] = []
+    result = backend.evaluate(
+        call["state"],
+        call["questions"],
+        request_id="parity",
+        question_hash="parity",
+        capture=captured,
+    )
+    reset_for_tests()
+    assert result is not None and result.error is None, result and result.error
+    assert result.extra["backend"] == backend_name
+    return [json.loads(body) for body in captured], urls
+
+
+def test_openrouter_jev_request_carries_the_same_state_questions_and_options(monkeypatch):
+    """Both backends must put identical state, questions, and options on the wire."""
+    from services.agent.decisions.canonical import payload_hash
+    from services.agent.decisions.shadow import _payload
+    from services.agent.decisions.v3 import calls_for_config
+    from services.agent.routing import candidate_tools
+
+    today = "2026-09-22"
+    questions = [
+        "How many EPSS outages occurred in 2024?",
+        "Show a weekly CPUC ignition time series for 2024.",
+        "How many ignitions were there?",
+    ]
+    for question in questions:
+        for call in calls_for_config(question, today, candidate_tools(question), "v3_hybrid"):
+            typesafe, ts_urls = _jev_wire_bodies("typesafe", call, monkeypatch)
+            openrouter, or_urls = _jev_wire_bodies("openrouter", call, monkeypatch)
+            assert ts_urls == ["https://api.typesafe.ai/v1/systemone"]
+            assert or_urls == ["https://openrouter.ai/api/v1/systemone"]
+            assert len(typesafe) == len(openrouter) == 1
+            ts_body, or_body = typesafe[0], openrouter[0]
+            assert or_body["state"] == ts_body["state"] == call["state"], call["name"]
+            assert or_body["questions"] == ts_body["questions"], call["name"]
+            # Options are the criteria inside each question; compare them explicitly too.
+            for name in ts_body["questions"]:
+                assert or_body["questions"][name].get("criteria") == ts_body["questions"][name].get("criteria")
+            # Same model on both sides means the whole body, not just parts, must match,
+            # and it must match the payload the shadow log hashes.
+            assert or_body == ts_body
+            expected = _payload(call["state"], call["questions"], "jev-latest")
+            assert payload_hash(or_body) == payload_hash(expected)
+
+
 def test_count_plus_trend_runs_both_tools_without_a_model():
     from services.agent.routing import route_question
 

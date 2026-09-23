@@ -18,7 +18,7 @@ Jev is a TypeSafe System One model. `off` and `shadow` do not change answers, to
 |---|---|---|
 | `AGENT_JEV_MODE` | `off` | `off`, `shadow`, `tool_pick`, or `tool_pick_template` |
 | `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` | `0.8` | Use Jev's tool only at or above this confidence |
-| `AGENT_JEV_BACKEND` | `typesafe` | Only `typesafe` exists |
+| `AGENT_JEV_BACKEND` | `typesafe` | `typesafe` or `openrouter` (same request body, see `docs/OPENROUTER.md`) |
 | `AGENT_JEV_MODEL` | `jev-latest` | Model route. Logs record the concrete version the API returns |
 | `AGENT_JEV_TIMEOUT_SECONDS` | `3` | Per call. SDK retries are disabled so this is the whole budget |
 | `AGENT_JEV_SAMPLE_RATE` | `1.0` | Fraction of questions sent to Jev |

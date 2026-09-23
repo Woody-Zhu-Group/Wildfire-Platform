@@ -79,9 +79,10 @@ def decide_tool_pick(
 ) -> ToolPickDecision:
     """Ask Jev which tool to call. Any failure returns a qwen fallback."""
     try:
-        from services.agent.decisions.typesafe_backend import TypeSafeBackend
+        from services.agent.decisions.typesafe_backend import make_backend
 
-        backend = TypeSafeBackend(
+        backend = make_backend(
+            settings.jev_backend,
             model=settings.jev_model,
             timeout_seconds=settings.jev_timeout_seconds,
         )

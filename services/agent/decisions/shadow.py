@@ -636,9 +636,10 @@ def get_runner(settings: AgentSettings) -> ShadowRunner:
     global _RUNNER
     with _RUNNER_LOCK:
         if _RUNNER is None:
-            from services.agent.decisions.typesafe_backend import TypeSafeBackend
+            from services.agent.decisions.typesafe_backend import make_backend
 
-            backend = TypeSafeBackend(
+            backend = make_backend(
+                settings.jev_backend,
                 model=settings.jev_model,
                 timeout_seconds=settings.jev_timeout_seconds,
             )

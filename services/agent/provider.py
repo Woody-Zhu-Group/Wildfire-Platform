@@ -12,6 +12,7 @@ import httpx
 
 from services.agent.config import AgentSettings
 from services.agent.constrained import call_envelope_schema, parse_envelope_content
+from services.agent.pricing import cost_usd
 from services.agent.schemas import AgentAnswer
 
 
@@ -46,6 +47,18 @@ def agent_answer_format_schema() -> dict[str, Any]:
         },
         "required": ["status", "answer", "claims"],
     }
+
+
+def strict_agent_answer_schema() -> dict[str, Any]:
+    """The same answer schema, closed for OpenAI strict structured outputs.
+
+    Strict mode requires additionalProperties false on every object; the fields
+    and required lists (including evidence_ids) are unchanged.
+    """
+    schema = agent_answer_format_schema()
+    schema["additionalProperties"] = False
+    schema["properties"]["claims"]["items"]["additionalProperties"] = False
+    return schema
 
 
 async def _cancellable_post(
@@ -132,6 +145,7 @@ class OpenAICompatibleProvider:
             transport=transport,
         )
         self.effective_num_ctx: int | None = None
+        self.hosted = settings.hosted_llm
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -148,6 +162,15 @@ class OpenAICompatibleProvider:
     async def ensure_context_loaded(self) -> dict[str, Any]:
         """Unload any stale 4096 load and warm the model with configured num_ctx."""
         model = self.settings.request_model
+        if self.hosted:
+            # Hosted models have no native Ollama endpoint or num_ctx to pin.
+            return {
+                "configured_num_ctx": None,
+                "effective_num_ctx": None,
+                "warmup_latency_ms": 0.0,
+                "model": model,
+                "provider": self.settings.llm_provider,
+            }
         try:
             await self._native_client.post(
                 "/api/generate",
@@ -213,7 +236,7 @@ class OpenAICompatibleProvider:
         )
         request_model = model or self.settings.request_model
 
-        if self.effective_num_ctx is None:
+        if self.effective_num_ctx is None and not self.hosted:
             try:
                 await self.ensure_context_loaded()
             except Exception as exc:  # noqa: BLE001
@@ -228,6 +251,19 @@ class OpenAICompatibleProvider:
                 )
 
         async def _run() -> ModelReply:
+            if self.hosted:
+                return await self._complete_hosted_with_fallback(
+                    messages=messages,
+                    tools=tools,
+                    max_tokens=max_tokens,
+                    structured_response=structured_response,
+                    tool_routing=constrained_tool_routing,
+                    candidate_tools=candidate_tools or [],
+                    cancel_event=cancel_event,
+                    phase=phase,
+                    thinking=use_thinking,
+                    model=request_model,
+                )
             if constrained_tool_routing:
                 return await self._complete_native_tool_envelope(
                     messages=messages,
@@ -340,6 +376,136 @@ class OpenAICompatibleProvider:
             raw=raw,
             latency_ms=latency_ms,
             usage=raw.get("usage") or {},
+        )
+
+    async def _complete_hosted_with_fallback(
+        self,
+        *,
+        model: str,
+        phase: str,
+        **kwargs: Any,
+    ) -> ModelReply:
+        """One hosted request; a failed primary request retries once on the fallback."""
+        try:
+            return await self._complete_hosted(model=model, phase=phase, **kwargs)
+        except (httpx.HTTPError, ValueError) as exc:
+            fallback = self.settings.llm_fallback_model
+            if not fallback or fallback == model:
+                raise
+            print(
+                json.dumps(
+                    {
+                        "event": "llm_fallback",
+                        "phase": phase,
+                        "from_model": model,
+                        "to_model": fallback,
+                        "error": type(exc).__name__,
+                    }
+                )
+            )
+            return await self._complete_hosted(model=fallback, phase=phase, **kwargs)
+
+    async def _complete_hosted(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int | None,
+        structured_response: bool,
+        tool_routing: bool,
+        candidate_tools: list[str],
+        cancel_event: asyncio.Event | None,
+        phase: str,
+        thinking: bool,
+        model: str,
+    ) -> ModelReply:
+        """OpenRouter chat completion with native tool_choice and strict outputs.
+
+        Replaces two Ollama workarounds: the JSON call envelope used because
+        Ollama has no tool_choice, and native /api/chat format for synthesis.
+        """
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "stream": False,
+            "seed": self.settings.seed,
+            "reasoning": {"effort": "medium" if thinking else "none"},
+            # Route only to hosts that honor tool_choice and response_format.
+            "provider": {"require_parameters": True},
+        }
+        if tool_routing:
+            allowed = set(candidate_tools)
+            payload["tools"] = [
+                tool
+                for tool in tools
+                if not allowed or tool.get("function", {}).get("name") in allowed
+            ]
+            # "required" forces at least one call, as the envelope schema did.
+            payload["tool_choice"] = "required"
+            payload["max_tokens"] = max_tokens or self.settings.max_routing_tokens
+        else:
+            payload["max_tokens"] = max_tokens or self.settings.max_synthesis_tokens
+            if tools:
+                payload["tools"] = tools
+        if structured_response and not tool_routing:
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "agent_answer",
+                    "strict": True,
+                    "schema": strict_agent_answer_schema(),
+                },
+            }
+
+        started = time.perf_counter()
+        response = await _cancellable_post(
+            self._client,
+            "/chat/completions",
+            json_payload=payload,
+            cancel_event=cancel_event,
+            phase=phase,
+        )
+        latency_ms = (time.perf_counter() - started) * 1000
+        response.raise_for_status()
+        raw = response.json()
+        choices = raw.get("choices") or []
+        if not choices:
+            raise ValueError("model response has no choices")
+        message = choices[0].get("message") or {}
+        content = message.get("content") or ""
+        tool_calls = message.get("tool_calls") or []
+        for call in tool_calls:
+            function = call.get("function") or {}
+            if isinstance(function.get("arguments"), dict):
+                function["arguments"] = json.dumps(function["arguments"])
+        usage = dict(raw.get("usage") or {})
+        input_tokens = int(usage.get("prompt_tokens") or 0)
+        output_tokens = int(usage.get("completion_tokens") or 0)
+        served_model = str(raw.get("model") or model)
+        computed = cost_usd(model, input_tokens, output_tokens)
+        usage["computed_cost_usd"] = computed
+        usage["model"] = served_model
+        print(
+            json.dumps(
+                {
+                    "event": "llm_usage",
+                    "provider": self.settings.llm_provider,
+                    "phase": phase,
+                    "model": served_model,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cost_usd": computed,
+                    "reported_cost_usd": usage.get("cost"),
+                    "latency_ms": round(latency_ms, 2),
+                }
+            )
+        )
+        return ModelReply(
+            content=content,
+            tool_calls=tool_calls,
+            raw=raw,
+            latency_ms=latency_ms,
+            usage=usage,
         )
 
     async def _complete_native_structured(

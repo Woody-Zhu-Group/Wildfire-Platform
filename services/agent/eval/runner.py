@@ -43,7 +43,11 @@ class EvalCell:
 
     @property
     def key(self) -> str:
-        return f"{self.model}__thinking-{self.thinking}__{self.mode}".replace(":", "-")
+        return (
+            f"{self.model}__thinking-{self.thinking}__{self.mode}"
+            .replace(":", "-")
+            .replace("/", "-")
+        )
 
 
 async def preflight(settings: AgentSettings) -> None:

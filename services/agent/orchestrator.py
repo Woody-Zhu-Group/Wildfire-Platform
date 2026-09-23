@@ -628,6 +628,16 @@ class AgentOrchestrator:
         if cancel_event is not None and cancel_event.is_set():
             raise asyncio.CancelledError()
 
+    def _turn_model(self, attempt: int, primary: str) -> str:
+        """Hosted retries after a failed first turn escalate to the fallback model.
+
+        Ollama keeps the same model on every turn, as before.
+        """
+        fallback = getattr(self.settings, "llm_fallback_model", None)
+        if attempt > 1 and getattr(self.settings, "hosted_llm", False) and fallback:
+            return fallback
+        return primary
+
     async def _execute_with_repair(
         self,
         tool: str,
@@ -955,7 +965,7 @@ class AgentOrchestrator:
                     candidate_tools=candidates,
                     cancel_event=cancel_event,
                     thinking=False,
-                    model=self.settings.request_model,
+                    model=self._turn_model(step, self.settings.request_model),
                 )
             except asyncio.CancelledError:
                 raise
@@ -1498,7 +1508,7 @@ class AgentOrchestrator:
                     phase="synthesis",
                     timeout_seconds=self.settings.synthesis_timeout_seconds,
                     thinking=synthesis_thinking,
-                    model=synthesis_model,
+                    model=self._turn_model(attempt, synthesis_model),
                 )
             except asyncio.CancelledError:
                 trajectory.append(
