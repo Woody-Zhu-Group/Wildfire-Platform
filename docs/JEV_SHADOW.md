@@ -98,6 +98,23 @@ Set `AGENT_JEV_MODE=tool_pick` and restart. Leave `AGENT_JEV_TOOL_PICK_MIN_CONFI
 
 A missing required slot falls back to the qwen routing loop. So do a confidence below the threshold, a timeout, an error, a tool outside the candidate list, a failed tool call, and any question that needs more than one primary tool. Eval can still force `multi_intent_count_and_trend` onto the model path. A normal Ask with a dataset and a year runs that rule deterministically: the records count and the time series both, then the template, with no model call. One Jev pick does not answer a two-part question. Qwen still writes the prose when the template does not apply. Shadow mode stays identical to off for anything a user or the eval suite observes, aside from timings and request ids.
 
+## detect_partial_200 tool_pick tie
+
+`detect_partial_200` is the model-path question "Map the 2024 US ignition sample." Gold tool is `visualization_create`. On `jev-1.13.0` the tool_pick call sits near a tie with `clarify`. A wording probe on 2026-09-22, five repeats, same candidate set (`visualization_create` only), mean `visualization_create` probability:
+
+| Wording | Mean visualization_create |
+|---|---:|
+| Map the 2024 US ignition sample. | 0.54 |
+| Map the US ignition sample for 2024. | 0.55 |
+| Map the 2024 US ignitions. | 0.68 |
+| Map US ignitions for 2024. | 0.76 |
+
+The word "sample" costs 14 points when the year stays in front (0.54 to 0.68) and 21 points when the year stays at the end (0.55 to 0.76). Year position does not matter: the two sample wordings are 0.54 and 0.55.
+
+In `services/agent/eval/runs/jev_hybrid_raw_20260922T204748Z.json`, 12 of 14 model-path questions have a minimum top-two gap from 0.28 to 0.95. This case stays at 0.01 to 0.07. Confidence on the original wording was 0.25 to 0.37, so the default 0.8 gate falls back to the qwen tool loop (`below_threshold`).
+
+The glossary line in the tool_pick context says "us_ignitions is an all-cause sample, not a census." That line may be priming the clarify option when the question also says "sample." Question text and policy were left unchanged.
+
 ## Not implemented
 
 Later phases, not built here:
