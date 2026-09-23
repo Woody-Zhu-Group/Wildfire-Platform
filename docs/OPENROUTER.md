@@ -3,6 +3,26 @@
 Both switches default off. With no new env vars set, the agent runs exactly as before:
 Qwen on the local Ollama host and Jev on api.typesafe.ai.
 
+## Production switch
+
+Add these lines to the backend host's `.env` (or the systemd EnvironmentFile for
+`wildfire-agent`), then restart the service:
+
+    AGENT_LLM_PROVIDER=openrouter
+    AGENT_ALLOW_REMOTE_PROVIDER=true
+    OPENROUTER_API_KEY=<key from the OpenRouter dashboard>
+
+Luna and Sol are the defaults, so `AGENT_LLM_MODEL` and `AGENT_LLM_FALLBACK_MODEL` can stay
+unset. Jev stays on TypeSafe unless `AGENT_JEV_BACKEND=openrouter` is also set. The key goes
+only in that file on the host, never in git, logs, or chat.
+
+Check the switch took: `GET /health` reports model `openai/gpt-6-luna`, and every model call
+prints an `llm_usage` line with that model.
+
+Once the agent runs on OpenRouter it makes no calls to the Ollama model host (172.31.6.133),
+so that host can be stopped. Keep it only if something else still needs local Qwen, such as
+a qwen eval run.
+
 ## LLM: `AGENT_LLM_PROVIDER`
 
 | Variable | Default | Meaning |
