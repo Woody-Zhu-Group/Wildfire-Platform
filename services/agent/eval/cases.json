@@ -1356,5 +1356,122 @@
     "expected_view_types": [
       "stat_card"
     ]
+  },
+  {
+    "id": "hdw_map_cpuc_2024",
+    "question": "Map CPUC ignitions with HDW for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "map"
+    ]
+  },
+  {
+    "id": "hdw_map_fire_weather_epss_2023",
+    "question": "Show fire weather with EPSS outages in 2023.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2023,
+    "expected_view_types": [
+      "map"
+    ]
+  },
+  {
+    "id": "hdw_map_missing_year",
+    "question": "Map CAL FIRE incidents with HDW",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "clarification",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "risk_surface_county_date",
+    "question": "Show the modeled ignition risk surface for Sacramento County on 2024-08-15.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "risk_forecast"
+    ],
+    "required_caveats": [
+      "cnhpp_grid_resolution",
+      "cnhpp_contagion_tie"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "stat_card",
+      "stat_card",
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "residual_map_county_date",
+    "question": "Show the residual map for Sacramento County on 2024-08-15.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "risk_forecast"
+    ],
+    "required_caveats": [
+      "cnhpp_grid_resolution",
+      "cnhpp_contagion_tie"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "stat_card",
+      "stat_card",
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "risk_surface_missing_date",
+    "question": "Show the risk surface for Sacramento County",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "clarification",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "timeline_three_datasets_2024",
+    "question": "Show CPUC ignitions, EPSS outages, and CAL FIRE incidents over time in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create",
+      "visualization_create",
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only",
+      "calfire_missingness"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "timeline_missing_year",
+    "question": "Trend of CPUC ignitions and EPSS outages",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "clarification",
+    "expected_view_types": [],
+    "expected_view_status": "none"
   }
 ]

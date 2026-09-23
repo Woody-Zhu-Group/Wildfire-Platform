@@ -12,12 +12,16 @@ export interface MapViewParams extends ScopedParams {
   highlight_ids?: string[];
   show_territory?: boolean;
   show_hftd?: boolean;
+  show_hdw?: boolean;
+  map_mode?: 'events' | 'risk' | 'residual';
+  risk_date?: string | null;
 }
 export interface TimeSeriesViewParams extends ScopedParams {
   dataset: string;
   interval?: 'daily' | 'weekly' | 'monthly';
   incident_type_mode?: 'wildfire_default' | 'all' | 'untyped' | null;
-  series_mode?: 'yearly' | 'seasonal' | 'cumulative_acres' | 'customer_events' | 'regional' | null;
+  series_mode?: 'yearly' | 'seasonal' | 'cumulative_acres' | 'customer_events' | 'regional' | 'timeline' | null;
+  datasets?: string[] | null;
 }
 export interface ComparisonViewParams extends Record<string, unknown> {
   kind: 'utilities' | 'regions' | 'periods' | 'ranking';

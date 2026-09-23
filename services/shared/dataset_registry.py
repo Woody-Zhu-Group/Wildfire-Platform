@@ -38,6 +38,9 @@ IOU_STYLE = {
 }
 STATEWIDE_CENTER = [37.6, -120.8]
 
+# Years with a daily HDW playback file under docs/assets/data/weather_anim.
+HDW_YEARS = frozenset(range(2020, 2026))
+
 # comparison/metrics.py
 REASON_EPSS_PGE_ONLY = "EPSS is PG&E-only in this warehouse"
 REASON_NO_COUNTY = "No county attribute/polygon for this metric in the warehouse"

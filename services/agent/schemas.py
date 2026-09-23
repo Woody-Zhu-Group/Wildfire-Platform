@@ -596,7 +596,10 @@ SeriesMode = Literal[
     "cumulative_acres",
     "customer_events",
     "regional",
+    "timeline",
 ]
+# Map canvas mode. risk and residual draw the cNHPP grid for one historical day.
+MapMode = Literal["events", "risk", "residual"]
 
 
 class AskRequest(StrictModel):

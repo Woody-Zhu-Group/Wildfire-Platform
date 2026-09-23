@@ -8,6 +8,7 @@ from datetime import date
 from typing import Any
 
 from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
+from services.shared.dataset_registry import HDW_YEARS
 
 
 @dataclass
@@ -1407,6 +1408,51 @@ def _series_mode_request(lower: str) -> tuple[str, str | None] | None:
     return None
 
 
+def _asks_hdw(lower: str) -> bool:
+    """True for the Hot-Dry-Windy playback overlay, the only weather layer on the map."""
+    return bool(
+        re.search(r"\bhdw\b|\bhot[\s-]+dry[\s-]+windy\b|\bfire[\s-]weather\b", lower)
+    )
+
+
+def _asks_residual(lower: str) -> bool:
+    """Observed minus modeled ignitions on the cNHPP grid."""
+    return bool(
+        re.search(
+            r"\bresiduals?\b|\b(?:observed|actual)\s+(?:vs\.?|versus)\s+"
+            r"(?:expected|predicted|modell?ed)\b",
+            lower,
+        )
+    )
+
+
+def _risk_map_mode(lower: str) -> str | None:
+    """Grid map for a risk question: the residual map or the risk surface."""
+    if _asks_residual(lower):
+        return "residual"
+    # Bare "where" is not enough here; it reads as advice as often as a map ask.
+    if re.search(r"\b(?:surface|maps?|mapped|heat\s*map)\b", lower):
+        return "risk"
+    return None
+
+
+_HDW_EVENT_DATASETS = frozenset(
+    {"cpuc_ignitions", "epss_outages", "psps_events", "calfire_incidents"}
+)
+# Datasets the workspace timeline can overlay on one axis.
+_TIMELINE_DATASETS = ("cpuc_ignitions", "epss_outages", "calfire_incidents")
+
+
+def _timeline_datasets(text: str, lower: str) -> list[str] | None:
+    """Two or more chartable datasets named in one trend ask, else None."""
+    if not re.search(r"\b(?:trends?|time series|timeline|over time)\b", lower):
+        return None
+    named = _datasets(text)
+    if len(named) < 2 or any(item not in _TIMELINE_DATASETS for item in named):
+        return None
+    return named
+
+
 def _asks_ranking(lower: str) -> bool:
     return bool(
         re.search(
@@ -2137,8 +2183,16 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             slots=slots,
         )
 
+    # A residual map is scored like risk: one place and one past day. Every
+    # branch below returns, so the grid slot never leaks into a non-risk route.
+    risk_asked = _wants_risk(lower) or _asks_residual(lower)
+    if risk_asked:
+        grid_mode = _risk_map_mode(lower)
+        if grid_mode:
+            slots = {**slots, "map_mode": grid_mode}
+
     # Fixed two-step coordinate → cell → risk chain.
-    if coords and _wants_risk(lower):
+    if coords and risk_asked:
         on_date = _single_risk_date(text, time_resolution)
         if (
             _forward_relative_phrase(lower)
@@ -2182,7 +2236,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
 
     # Risk by explicit cell and date.
     cell_match = re.search(r"\bcell(?:_id)?\s*(\d{1,3})\b", lower)
-    wants_risk = _wants_risk(lower)
+    wants_risk = risk_asked
     if wants_risk and cell_match:
         on_date = _single_risk_date(text, time_resolution)
         if (
@@ -2273,11 +2327,63 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "risk_missing_place",
             "Fitted risk needs a cell, county, utility, or coordinates",
             answer=(
-                "Which place should I score? Fitted ignition risk accepts "
+                (
+                    "The map draws every grid cell for one day, but the answer "
+                    "scores one place. "
+                    if slots.get("map_mode")
+                    else ""
+                )
+                + "Which place should I score? Fitted ignition risk accepts "
                 "a grid cell, a county, a utility territory (PGE, SCE, or SDGE), "
                 "or latitude/longitude, plus one historical calendar day."
             ),
             slots=slots,
+        )
+
+    timeline = _timeline_datasets(text, lower)
+    if timeline and not utilities and not county and not has_count_clause:
+        timeline_slots = {
+            **slots,
+            "series_mode": "timeline",
+            "timeline_datasets": [_VIZ_DATASET_NAME[item] for item in timeline],
+        }
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "trend_missing_year",
+                "Multi-dataset timeline lacks a year",
+                answer="What year should I chart?",
+                slots=timeline_slots,
+            )
+        interval = _default_series_interval(lower, time_resolution)
+        timeline_calls = [
+            (
+                "visualization_create",
+                {
+                    "kind": "time_series",
+                    "dataset": _VIZ_DATASET_NAME[item],
+                    "interval": interval,
+                    **time_args,
+                },
+            )
+            for item in timeline
+        ]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=timeline_calls,
+            slots=timeline_slots,
+            rule="series_timeline",
+            reason="Trend names several chartable datasets",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "series_timeline",
+            "Trend names several chartable datasets",
+            tool_calls=timeline_calls,
+            slots=timeline_slots,
         )
 
     # Explicit comparisons.
@@ -2381,6 +2487,78 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "open_comparison",
             "Comparison is not a single fully specified backend comparison",
             slots=slots,
+        )
+
+    # HDW exists only as a playback overlay on one California event layer.
+    # With no named layer this falls through rather than picking one.
+    if (
+        _asks_hdw(lower)
+        and dataset in _HDW_EVENT_DATASETS
+        and not has_count_clause
+        and not re.search(r"\b(?:trend|time series)\b", lower)
+    ):
+        hdw_slots = {**slots, "show_hdw": True}
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "map_missing_year",
+                "HDW map lacks a year",
+                answer=(
+                    "What year should I map with HDW? Daily HDW covers "
+                    f"{min(HDW_YEARS)} through {max(HDW_YEARS)}."
+                ),
+                slots=hdw_slots,
+            )
+        window_years = {
+            int(value[:4])
+            for value in (time_args.get("start_date"), time_args.get("end_date"))
+            if value
+        } or {int(time_args["year"])}
+        if len(window_years) > 1:
+            return RouteDecision(
+                "clarification",
+                "map_missing_year",
+                "HDW playback runs one year at a time",
+                answer="HDW plays one year at a time. Which year should I map?",
+                slots=hdw_slots,
+            )
+        if not window_years <= HDW_YEARS:
+            return RouteDecision(
+                "clarification",
+                "time_out_of_coverage",
+                "No HDW playback file for that year",
+                answer=(
+                    f"Daily HDW covers {min(HDW_YEARS)} through {max(HDW_YEARS)}. "
+                    "Which year in that range should I map?"
+                ),
+                slots=hdw_slots,
+            )
+        hdw_args: dict[str, Any] = {
+            "kind": "map",
+            "dataset": _VIZ_DATASET_NAME[dataset],
+            **time_args,
+        }
+        if utilities:
+            hdw_args["utility"] = utilities[0]
+        if county and dataset in _COUNTY_CAPABLE_DATASETS:
+            hdw_args["county"] = county
+        hdw_calls = [("visualization_create", hdw_args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=hdw_calls,
+            slots=hdw_slots,
+            rule="hdw_map",
+            reason="HDW overlay on a named event layer and year",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "hdw_map",
+            "HDW overlay on a named event layer and year",
+            tool_calls=hdw_calls,
+            slots=hdw_slots,
         )
 
     # Explicit map / trend.

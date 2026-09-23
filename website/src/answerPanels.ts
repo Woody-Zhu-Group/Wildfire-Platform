@@ -66,11 +66,72 @@ function rankingComparison(view: NonNullable<AgentAnswer['views']>[number]): Ans
   };
 }
 
+type View = NonNullable<AgentAnswer['views']>[number];
+
+function hasEvidence(view: View, count = 1): boolean {
+  const evidence = view.evidence_ids;
+  return Array.isArray(evidence) && evidence.length >= count && evidence.every(id => typeof id === 'string' && id.length > 0);
+}
+
+const GRID_PANEL_NAMES = {risk: 'Modeled ignition risk surface', residual: 'Model residual map'} as const;
+
+// Risk surface or residual grid for the one day the cited risk_forecast scored.
+function riskGridMap(view: View): AnswerPanel | null {
+  const p = view.params;
+  if (view.type !== 'map' || (p.map_mode !== 'risk' && p.map_mode !== 'residual')) return null;
+  if (!hasEvidence(view) || !Array.isArray(p.datasets) || p.datasets.length !== 0) return null;
+  const day = p.risk_date;
+  if (typeof day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  const parsed = new Date(`${day}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== day) return null;
+  return {
+    type: 'map',
+    name: GRID_PANEL_NAMES[p.map_mode],
+    settings: {
+      mapMode: p.map_mode, riskDate: day, overlays: [], filterMode: 'override',
+      filters: {start: day, end: day, utility: '', county: ''},
+    },
+  };
+}
+
+function chartDataset(id: unknown) {
+  return CHART_DATASETS.find(d => d.api === id || d.id === id || d.query === id);
+}
+
+// One timeline only when every named dataset arrived with its own evidence.
+function timelineSeries(view: View): AnswerPanel | null {
+  const p = view.params;
+  if (view.type !== 'time_series' || p.series_mode !== 'timeline') return null;
+  const ids = p.datasets;
+  if (!Array.isArray(ids) || ids.length < 2 || !hasEvidence(view, ids.length) || view.evidence_ids!.length !== ids.length) return null;
+  const datasets = ids.map(chartDataset);
+  if (datasets.some(d => !d) || new Set(datasets.map(d => d!.id)).size !== ids.length) return null;
+  if (datasets[0]!.id !== chartDataset(p.dataset)?.id) return null;
+  const dates = dateWindow(p);
+  if (!dates) return null;
+  const settings: Partial<PanelSettings> = {
+    dataset: datasets[0]!.id, datasets: datasets.map(d => d!.id), seriesMode: 'timeline', filterMode: 'override',
+    filters: {start: dates.start, end: dates.end, utility: utilityLabel(p.utility) ?? '', county: typeof p.county === 'string' ? p.county : ''},
+  };
+  if (['daily', 'weekly', 'monthly'].includes(String(p.interval))) settings.interval = p.interval as 'daily' | 'weekly' | 'monthly';
+  return {type: 'time_series', name: 'Event trends', settings};
+}
+
 // Adapt only contracts supported by the existing workspace components.
 export function panelsFromAnswer(answer: AgentAnswer): AnswerPanel[] {
   const panels: AnswerPanel[] = [];
   for (const view of answer.views ?? []) {
     const p = view.params;
+    if (view.type === 'map' && p.map_mode && p.map_mode !== 'events') {
+      const grid = riskGridMap(view);
+      if (grid) panels.push(grid);
+      continue;
+    }
+    if (view.type === 'time_series' && p.series_mode === 'timeline') {
+      const timeline = timelineSeries(view);
+      if (timeline) panels.push(timeline);
+      continue;
+    }
     if (view.type === 'stat_card' && p.stat_mode === 'summary') {
       const evidence = view.evidence_ids;
       if (!Array.isArray(evidence) || evidence.length === 0 || evidence.some(id => typeof id !== 'string' || id.length === 0)) continue;
@@ -139,7 +200,7 @@ export function panelsFromAnswer(answer: AgentAnswer): AnswerPanel[] {
     if (!Array.isArray(ids) || ids.length !== 1) continue;
     const dataset = DATASETS.find(d => d.api === ids[0] || d.id === ids[0] || d.query === ids[0]);
     const seriesMode = view.type === 'time_series' && typeof view.params.series_mode === 'string' && view.params.series_mode in SERIES_PANEL_NAMES
-      ? view.params.series_mode
+      ? view.params.series_mode as keyof typeof SERIES_PANEL_NAMES
       : null;
     if (seriesMode) {
       const evidence = view.evidence_ids;
@@ -161,12 +222,19 @@ export function panelsFromAnswer(answer: AgentAnswer): AnswerPanel[] {
       overlays: [...(p.show_hftd ? ['hftd'] : []), ...(p.show_territory ? ['territories'] : [])],
     };
     if (['daily', 'weekly', 'monthly'].includes(String(p.interval))) settings.interval = p.interval as 'daily' | 'weekly' | 'monthly';
+    const hdw = view.type === 'map' && p.show_hdw === true;
+    if (hdw) {
+      if (!hasEvidence(view) || typeof p.year !== 'number' || start.slice(0, 4) !== String(p.year) || end.slice(0, 4) !== String(p.year)) continue;
+      settings.overlays = [...(settings.overlays ?? []), 'hdw'];
+      settings.mapMode = 'events';
+      settings.weatherYear = p.year;
+    }
     if (seriesMode) {
       settings.seriesMode = seriesMode;
       if (seriesMode === 'seasonal' && typeof p.year === 'number') settings.seasonYears = [p.year];
       if (seriesMode === 'yearly' && typeof p.year === 'number') settings.comparisonYears = [p.year];
     }
-    const name = seriesMode ? SERIES_PANEL_NAMES[seriesMode] : `${dataset.name} · ${start.slice(0, 4)}`;
+    const name = seriesMode ? SERIES_PANEL_NAMES[seriesMode] : hdw ? 'Fire weather' : `${dataset.name} · ${start.slice(0, 4)}`;
     panels.push({type: view.type as PanelId, name, settings});
   }
   return panels;
