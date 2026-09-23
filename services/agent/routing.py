@@ -865,10 +865,32 @@ _PER_PERIOD_ASK = re.compile(
     re.I,
 )
 _YEAR_RANGE = re.compile(
-    r"\b20\d{2}\s*(?:to|through|until|-|\u2013)\s*20\d{2}\b|"
-    r"\bbetween\s+20\d{2}\s+and\s+20\d{2}\b",
+    r"\b(20\d{2})\s*(?:to|through|until|-|\u2013)\s*(20\d{2})\b|"
+    r"\bbetween\s+(20\d{2})\s+and\s+(20\d{2})\b",
     re.I,
 )
+
+
+def _enumerated_years(lower: str) -> bool:
+    """True when the named years are not exactly one matched range.
+
+    "from 2018 to 2020" is one window. More than two named years, or a named
+    year outside every matched range ("from 2018 to 2020 and in 2022"), is an
+    enumeration that one windowed call would silently drop.
+    """
+    named = sorted({int(item) for item in re.findall(r"\b20\d{2}\b", lower)})
+    if len(named) <= 1:
+        return False
+    if len(named) > 2:
+        return True
+    ranges = []
+    for match in _YEAR_RANGE.finditer(lower):
+        start = int(match.group(1) or match.group(3))
+        end = int(match.group(2) or match.group(4))
+        ranges.append((min(start, end), max(start, end)))
+    if not ranges:
+        return True
+    return any(not any(lo <= year <= hi for lo, hi in ranges) for year in named)
 
 
 def _single_call_would_collapse(
@@ -882,9 +904,9 @@ def _single_call_would_collapse(
     if len(utilities) > 1 or len(counties) > 1:
         return True
     named_years = set(re.findall(r"\b20\d{2}\b", lower))
-    # "from 2018 to 2020" is one window with start and end dates. Only
-    # enumerated years ("2018, 2019, and 2020") or a breakdown word defer.
-    enumerated = len(named_years) > 1 and not _YEAR_RANGE.search(lower)
+    # "from 2018 to 2020" is one window with start and end dates. Enumerated
+    # years, a range plus another year, or a breakdown word defer.
+    enumerated = _enumerated_years(lower)
     # "Which year had the most" over a range is a per-year breakdown.
     per_period = _PER_PERIOD_ASK.search(lower) and len(named_years) > 1
     if kind == "count" and (enumerated or per_period or _BREAKDOWN.search(lower)):
@@ -1334,9 +1356,16 @@ def _has_list_op(lower: str) -> bool:
     return bool(re.search(r"\b(?:list|show me)\b", lower))
 
 
+# The ranking phrase itself names a change: largest increase, biggest drop,
+# most growth, grew the most. A change word elsewhere in the sentence
+# ("after the fast-trip changes") is not a change ranking.
 _CHANGE_OVER_TIME = re.compile(
-    r"\b(?:increases?|increased|decreases?|decreased|changes?|changed|growth|grew|"
-    r"declines?|declined|dropped|drops?|rise|rose|fell|difference|delta)\b",
+    r"\b(?:largest|biggest|greatest|highest|most|smallest|lowest|least|sharpest|"
+    r"fastest|steepest)\s+(?:\w+\s+)?(?:increases?|decreases?|drops?|changes?|"
+    r"growth|declines?|rises?|gains?|jumps?|falls?|reductions?|deltas?|"
+    r"differences?)\b|"
+    r"\b(?:grew|increased|decreased|dropped|declined|rose|fell|changed)\s+"
+    r"(?:the\s+)?(?:most|least|fastest)\b",
     re.I,
 )
 
@@ -1346,11 +1375,11 @@ def _asks_ranking(lower: str) -> bool:
         re.search(
             r"\brank(?:s|ed|ing)?\b|"
             r"\b(?:circuit|count(?:y|ies)|utilit(?:y|ies)|states?|division|cell)s?\s+"
-            r"with\s+the\s+(?:most|highest|largest|greatest)\b|"
+            r"with\s+the\s+(?:most|highest|largest|greatest|biggest)\b|"
             r"\b(?:which|what)\s+(?:circuit|count(?:y|ies)|utilit(?:y|ies)|states?|"
-            r"division|cell)s?\b.{0,60}\b(?:most|highest|largest|greatest|top)\b|"
-            r"\bhad\s+the\s+(?:most|highest|largest|greatest)\b|"
-            r"\b(?:most|highest|largest)\s+(?:\w+\s+){0,4}"
+            r"division|cell)s?\b.{0,60}\b(?:most|highest|largest|greatest|biggest|top)\b|"
+            r"\bhad\s+the\s+(?:most|highest|largest|greatest|biggest)\b|"
+            r"\b(?:most|highest|largest|biggest)\s+(?:\w+\s+){0,4}"
             r"(?:outages?|ignitions?|incidents?|fires?|acres)\b|"
             r"\btop\s+\d+\s+(?:circuit|count(?:y|ies)|utilit|states?)",
             lower,

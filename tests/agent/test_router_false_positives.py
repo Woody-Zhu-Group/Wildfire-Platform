@@ -122,6 +122,46 @@ def test_enumerated_years_and_breakdowns_still_defer():
     )
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        "How many SCE ignitions were there from 2018 to 2020 and in 2022?",
+        "How many SCE ignitions were there in 2018 and from 2020 to 2022?",
+    ],
+)
+def test_a_range_plus_another_year_defers_instead_of_dropping_it(question):
+    decision = route_question(question)
+    assert decision.path == "model", question
+    assert decision.rule == "multi_entity_deferred", question
+    assert decision.tool_calls == []
+
+
+def test_a_plain_range_stays_one_windowed_call():
+    decision = route_question("How many SCE ignitions were there from 2021 to 2023?")
+    assert decision.rule == "filtered_records"
+    name, args = decision.tool_calls[0]
+    assert name == "data_query_records"
+    assert args["start_date"] == "2021-01-01"
+    assert args["end_date"] == "2023-12-31"
+
+
+def test_a_change_word_elsewhere_does_not_make_a_change_ranking():
+    decision = route_question(
+        "Which circuits had the most outages in 2024 after the fast-trip changes?"
+    )
+    assert decision.path == "deterministic"
+    assert decision.rule == "ranked_records"
+    assert decision.tool_calls[0][0] == "data_query_rank"
+
+
+def test_biggest_drop_is_a_change_ranking_and_is_refused():
+    decision = route_question(
+        "Which counties had the biggest drop in ignitions from 2022 to 2023?"
+    )
+    assert decision.path == "unsupported"
+    assert decision.rule == "unsupported_ranking"
+
+
 def test_forward_tokens_and_the_current_year_still_refuse_predictions():
     for question in (
         "Will PG&E have another PSPS event this fall?",
