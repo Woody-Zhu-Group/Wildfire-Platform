@@ -135,6 +135,10 @@ class AgentOrchestrator:
         started = time.perf_counter()
         request_id = uuid.uuid4().hex
         decision = route_question(question, force_model=force_model)
+        if self.settings.slot_plan and not force_model:
+            from services.agent.eval.slot_plan import apply_slot_plan
+
+            decision = apply_slot_plan(decision, question)
         if (
             self.settings.disable_deterministic_routing
             and decision.path == "deterministic"
