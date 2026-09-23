@@ -36,7 +36,11 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "A monthly count across one year is an EPSS time series."
+    "label_rationale": "A monthly count across one year is an EPSS time series.",
+    "gold_plan": [
+      "visualization_create"
+    ],
+    "plan_type": "monthly_series"
   },
   {
     "id": "ho_004",
@@ -62,7 +66,17 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "How an annual count changed across years is a CPUC time series."
+    "label_rationale": "How an annual count changed across years is a CPUC time series.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_year_counts"
   },
   {
     "id": "ho_006",
@@ -75,7 +89,12 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "Two named counties and one year is a regional CAL FIRE comparison."
+    "label_rationale": "Two named counties and one year is a regional CAL FIRE comparison.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_county_counts"
   },
   {
     "id": "ho_007",
@@ -101,7 +120,16 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "Year by year PSPS counts for one utility is a time series."
+    "label_rationale": "Year by year PSPS counts for one utility is a time series.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_year_counts"
   },
   {
     "id": "ho_009",
@@ -153,7 +181,12 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "Two named years for one utility is a period comparison of CPUC counts."
+    "label_rationale": "Two named years for one utility is a period comparison of CPUC counts.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_year_counts"
   },
   {
     "id": "ho_013",
@@ -218,7 +251,11 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "A count in each month of one year is an EPSS time series."
+    "label_rationale": "A count in each month of one year is an EPSS time series.",
+    "gold_plan": [
+      "visualization_create"
+    ],
+    "plan_type": "monthly_series"
   },
   {
     "id": "ho_018",
@@ -231,7 +268,13 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "Three named utilities and one year is a PSPS utility comparison."
+    "label_rationale": "Three named utilities and one year is a PSPS utility comparison.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_utility_counts"
   },
   {
     "id": "ho_019",
@@ -296,7 +339,13 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "Counts in three named years for one utility is a PSPS time series."
+    "label_rationale": "Counts in three named years for one utility is a PSPS time series.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_year_counts"
   },
   {
     "id": "ho_024",
@@ -413,7 +462,17 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "An annual chart for one utility across named years is a CPUC time series."
+    "label_rationale": "An annual chart for one utility across named years is a CPUC time series.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_year_counts"
   },
   {
     "id": "ho_033",
@@ -871,7 +930,13 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "A count and a chart of the same ignitions is two results."
+    "label_rationale": "A count and a chart of the same ignitions is two results.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_utility_counts"
   },
   {
     "id": "ho_068",
@@ -897,7 +962,11 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "Incidents by county in one year is a CAL FIRE county ranking."
+    "label_rationale": "Incidents by county in one year is a CAL FIRE county ranking.",
+    "gold_plan": [
+      "data_query_rank"
+    ],
+    "plan_type": "rank"
   },
   {
     "id": "ho_070",
@@ -913,7 +982,12 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "A map and a circuit list are two results."
+    "label_rationale": "A map and a circuit list are two results.",
+    "gold_plan": [
+      "visualization_create",
+      "data_query_records"
+    ],
+    "plan_type": "other"
   },
   {
     "id": "ho_071",
@@ -1007,7 +1081,17 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "A PSPS yearly series and an EPSS total are two datasets and two results."
+    "label_rationale": "A PSPS yearly series and an EPSS total are two datasets and two results.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_year_counts"
   },
   {
     "id": "ho_078",
@@ -1046,7 +1130,11 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": true,
-    "label_rationale": "EPSS is PG&E only, so a monthly SCE series may be empty rather than a normal trend."
+    "label_rationale": "EPSS is PG&E only, so a monthly SCE series may be empty rather than a normal trend.",
+    "gold_plan": [
+      "visualization_create"
+    ],
+    "plan_type": "monthly_series"
   },
   {
     "id": "ho_081",
@@ -1059,7 +1147,13 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "Three named years in one county is a CAL FIRE time series."
+    "label_rationale": "Three named years in one county is a CAL FIRE time series.",
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "plan_type": "per_year_counts"
   },
   {
     "id": "ho_082",

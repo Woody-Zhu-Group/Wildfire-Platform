@@ -116,6 +116,33 @@ def _plan_covers(
     return True
 
 
+# Facts each plan type gates on. Entity counts come from router slots.
+PLAN_DEPENDENCIES = {
+    "per_year_counts": ("intent", "dataset", "breakdown", "also_chart"),
+    "per_utility_counts": ("intent", "dataset", "breakdown", "also_chart"),
+    "per_county_counts": ("intent", "dataset", "breakdown", "also_chart"),
+    "monthly_series": ("intent", "dataset", "breakdown"),
+    "weekly_series": ("intent", "dataset", "breakdown"),
+    "rank": ("intent", "dataset", "breakdown", "rank_dimension"),
+    "count_plus_chart": ("intent", "dataset", "breakdown", "also_chart"),
+    "list": ("intent", "dataset", "breakdown"),
+    "comparison": ("intent", "dataset", "breakdown", "also_chart"),
+    "single_count": ("intent", "dataset", "breakdown", "also_chart"),
+    "map": ("intent", "dataset", "breakdown"),
+}
+_INTENT_FORM = {
+    "count": "single_number",
+    "records_list": "record_list",
+    "map": "map",
+    "trend": "time_series",
+    "map_plus_trend": "map_plus_trend",
+    "compare": "comparison",
+    "rank": "ranking",
+}
+_AMBIGUOUS_INTENTS = {"multi_intent", "other", "exploratory_overview"}
+_RANK_GROUP = {"county": "county", "utility": "utility", "circuit": "circuit"}
+
+
 def plan_calls(
     facts: Any,
     slots: dict[str, Any],
@@ -123,60 +150,44 @@ def plan_calls(
     min_confidence: float = 0.8,
 ) -> tuple[list[tuple[str, dict[str, Any]]] | None, str]:
     """Return calls, or (None, reason) when the whole question must fall back."""
-    dataset = slots.get("dataset")
     year = slots.get("year")
     years = [int(item) for item in (slots.get("years") or [])]
     if year is not None and int(year) not in years:
         years = [int(year), *years]
     utilities = list(slots.get("utilities") or [])
-    breakdown = getattr(facts, "breakdown", None) or "none"
-    breakdown_confidence = _choice_confidence(facts, "breakdown_confidence")
-    if breakdown_confidence < min_confidence:
-        return None, "gate"
-
-    def confident(name: str) -> bool | None:
-        """True or false when the chosen side is confident. None is unresolved."""
-        return _noul_yes(getattr(facts, name, 0) or 0, min_confidence)
-
-    unresolved = [
-        name
-        for name in (
-            "wants_count",
-            "wants_list",
-            "wants_time_series",
-            "wants_map",
-            "wants_ranking",
-            "wants_comparison",
-        )
-        if confident(name) is None
-    ]
-    if unresolved:
-        return None, "gate"
-
-    wants_count = confident("wants_count") is True
-    wants_list = confident("wants_list") is True
-    wants_series = confident("wants_time_series") is True
-    wants_map = confident("wants_map") is True
-    wants_rank = confident("wants_ranking") is True
-    wants_compare = confident("wants_comparison") is True
     counties = [str(item) for item in (slots.get("counties") or [])]
     if not counties and slots.get("county"):
         counties = [str(slots["county"])]
+
+    intent, intent_reason = _gated_choice(facts, "intent", min_confidence)
+    if intent_reason:
+        return None, intent_reason
+    if not intent:
+        return None, "cannot_express"
+    breakdown, breakdown_reason = _gated_choice(facts, "breakdown", min_confidence)
+    if breakdown_reason:
+        return None, breakdown_reason
+    breakdown = breakdown or "none"
+    dataset, dataset_reason = _resolve_dataset(facts, slots, min_confidence)
+    if dataset_reason:
+        return None, dataset_reason
+
+    form = _INTENT_FORM.get(intent)
+    if intent in _AMBIGUOUS_INTENTS:
+        form, form_reason = _gated_choice(facts, "output_form", min_confidence)
+        if form_reason:
+            return None, form_reason
+        if not form:
+            return None, "cannot_express"
+    if form is None:
+        return None, "cannot_express"
+
+    chart, chart_reason = _extra_chart(facts, form, min_confidence)
+    if chart_reason:
+        return None, chart_reason
+
     viz = _VIZ.get(dataset or "", dataset)
     calls: list[tuple[str, dict[str, Any]]] = []
-    need_series = wants_series or breakdown in {"by_month", "by_week"}
-    interval = "weekly" if breakdown == "by_week" else "monthly"
-    use_periods = (
-        len(years) == 2
-        and wants_compare
-        and not wants_list
-        and not wants_rank
-        and not need_series
-        and not wants_map
-        and len(utilities) <= 1
-        and len(counties) <= 1
-        and breakdown in {"none", "by_year"}
-    )
 
     def one_scope() -> dict[str, Any]:
         extra: dict[str, Any] = {}
@@ -195,10 +206,40 @@ def plan_calls(
         }
         return ("data_query_records", args)
 
-    if not dataset and (wants_count or wants_list or need_series or wants_map or wants_rank):
+    def series_call(item_year: int, interval: str):
+        return (
+            "visualization_create",
+            {
+                "kind": "time_series",
+                "dataset": viz,
+                "interval": interval,
+                "year": int(item_year),
+                **one_scope(),
+            },
+        )
+
+    interval = "weekly" if breakdown == "by_week" else "monthly"
+    want_count = form == "single_number"
+    want_series = form == "time_series" or breakdown in {"by_month", "by_week"}
+    want_list = form == "record_list"
+    want_map = form in {"map", "map_plus_trend"}
+    want_rank = form == "ranking"
+    want_compare = form == "comparison"
+    if form == "map_plus_trend":
+        want_series = True
+
+    if not dataset and form not in {"comparison"}:
         return None, "missing_slot"
 
-    if use_periods:
+    if want_series and breakdown in {"by_month", "by_week"} and len(years) <= 1:
+        if year is None:
+            return None, "missing_slot"
+        if len(utilities) > 1 or len(counties) > 1:
+            return None, "cannot_express"
+        if want_count or intent == "count":
+            calls.append(count_call(int(year), **one_scope()))
+        calls.append(series_call(int(year), interval))
+    elif len(years) == 2 and want_compare and len(utilities) <= 1 and len(counties) <= 1 and breakdown != "by_year":
         if len(utilities) != 1:
             return None, "missing_slot"
         calls.append(
@@ -216,7 +257,7 @@ def plan_calls(
                 },
             )
         )
-    elif len(years) > 1 and (wants_count or breakdown == "by_year"):
+    elif len(years) > 1 and (want_count or want_series or breakdown == "by_year" or (want_compare and len(utilities) <= 1)):
         scopes = _entity_scopes(utilities, counties, dataset)
         if scopes is None:
             return None, "cannot_express"
@@ -225,7 +266,7 @@ def plan_calls(
         for item in years:
             for extra in scopes:
                 calls.append(count_call(item, **extra))
-    elif len(utilities) > 1 and wants_count and wants_compare and year is not None:
+    elif len(utilities) > 1 and want_compare and year is not None:
         calls.append(
             (
                 "comparison_run",
@@ -238,70 +279,69 @@ def plan_calls(
                 },
             )
         )
-    elif (len(utilities) > 1 or len(counties) > 1) and wants_count:
+    elif len(utilities) > 1 and want_count:
         if year is None:
             return None, "missing_slot"
-        scopes = _entity_scopes(utilities, counties, dataset)
+        if len(utilities) > MAX_PLAN_CALLS:
+            return None, "over_limit"
+        for utility in utilities:
+            calls.append(count_call(int(year), utility=utility))
+    elif len(counties) > 1 and want_count:
+        if year is None:
+            return None, "missing_slot"
+        scopes = _entity_scopes([], counties, dataset)
         if scopes is None:
             return None, "cannot_express"
         if len(scopes) > MAX_PLAN_CALLS:
             return None, "over_limit"
         for extra in scopes:
             calls.append(count_call(int(year), **extra))
-    elif wants_list and len(utilities) <= 1 and len(counties) <= 1:
-        if year is None:
-            return None, "missing_slot"
-        calls.append(count_call(int(year), mode="records", **one_scope()))
-    elif wants_count:
-        if year is None:
-            return None, "missing_slot"
-        calls.append(count_call(int(year), **one_scope()))
-
-    if need_series:
-        if year is None or len(utilities) > 1 or len(counties) > 1:
-            return None, "missing_slot" if year is None else "cannot_express"
-        calls.append(
-            (
-                "visualization_create",
-                {
-                    "kind": "time_series",
-                    "dataset": viz,
-                    "interval": interval,
-                    "year": int(year),
-                    **one_scope(),
-                },
-            )
-        )
-    if wants_map:
-        if len(utilities) > 1 or len(counties) > 1:
+    elif want_rank:
+        dimension = getattr(facts, "rank_dimension", None)
+        if dimension in (None, "", "none"):
+            dimension = breakdown.removeprefix("by_") if str(breakdown).startswith("by_") else None
+        group = _RANK_GROUP.get(dimension or "")
+        rank_conf = _choice_confidence(facts, "rank_dimension_confidence")
+        if getattr(facts, "rank_dimension", None) not in (None, "none", "") and rank_conf < min_confidence:
+            return None, "gate"
+        if group not in _RANK_GROUP.values():
             return None, "cannot_express"
-        calls.append(
-            (
-                "visualization_create",
-                {"kind": "map", "dataset": viz, **one_scope()},
-            )
-        )
-    if wants_rank and breakdown == "by_county":
-        if dataset not in {"cpuc_ignitions", "calfire_incidents"} or year is None:
-            return None, "cannot_express" if year is not None else "missing_slot"
+        if year is None:
+            return None, "missing_slot"
         calls.append(
             (
                 "data_query_rank",
                 {
                     "dataset": dataset,
-                    "group_by": "county",
+                    "group_by": group,
                     "metric": "count",
                     "year": int(year),
                 },
             )
         )
-    if wants_list and not any(
-        name == "data_query_records" and args.get("result_mode") == "records"
-        for name, args in calls
-    ):
+    elif want_list:
         if year is None or len(utilities) > 1 or len(counties) > 1:
-            return None, "cannot_express"
+            return None, "missing_slot" if year is None else "cannot_express"
         calls.append(count_call(int(year), mode="records", **one_scope()))
+    elif want_map and not want_series:
+        calls.append(("visualization_create", {"kind": "map", "dataset": viz, **one_scope()}))
+    elif want_count:
+        if year is None:
+            return None, "missing_slot"
+        calls.append(count_call(int(year), **one_scope()))
+    elif want_series:
+        if year is None or len(utilities) > 1 or len(counties) > 1:
+            return None, "missing_slot" if year is None else "cannot_express"
+        calls.append(series_call(int(year), interval))
+    else:
+        return None, "cannot_express"
+
+    if chart and not any(name == "visualization_create" and args.get("kind") == "time_series" for name, args in calls):
+        if year is None or len(utilities) > 1 or len(counties) > 1 or len(years) > 1:
+            return None, "cannot_express"
+        calls.append(series_call(int(year), interval))
+    if want_map and want_series and not any(args.get("kind") == "map" for _, args in calls):
+        calls.append(("visualization_create", {"kind": "map", "dataset": viz, **one_scope()}))
 
     if len(calls) > MAX_PLAN_CALLS:
         return None, "over_limit"
@@ -312,15 +352,50 @@ def plan_calls(
         years=years,
         utilities=utilities,
         counties=counties,
-        wants_count=wants_count,
-        wants_list=wants_list,
-        wants_series=need_series,
-        wants_map=wants_map,
-        wants_rank=wants_rank and breakdown == "by_county",
-        wants_compare=wants_compare,
+        wants_count=want_count or bool(any(name == "data_query_records" and args.get("result_mode") != "records" for name, args in calls)),
+        wants_list=want_list,
+        wants_series=want_series or bool(chart),
+        wants_map=want_map,
+        wants_rank=want_rank,
+        wants_compare=want_compare and len(years) == 2 and len(utilities) <= 1,
     ):
         return None, "partial_plan"
     return calls, "planned"
+
+def _gated_choice(facts: Any, name: str, gate: float) -> tuple[Any, str | None]:
+    """Choice confidence is the probability of the selected option."""
+    value = getattr(facts, name, None)
+    confidence = getattr(facts, f"{name}_confidence", None)
+    if confidence is None:
+        confidence = 1.0
+    if float(confidence) < gate:
+        return None, "gate"
+    return value, None
+
+
+def _resolve_dataset(facts: Any, slots: dict[str, Any], gate: float):
+    chosen = getattr(facts, "dataset", None)
+    confidence = getattr(facts, "dataset_confidence", None)
+    if chosen == "multiple":
+        return None, "cannot_express"
+    if chosen not in (None, "", "none"):
+        if confidence is not None and float(confidence) < gate:
+            return None, "gate"
+        return chosen, None
+    slot = slots.get("dataset")
+    if not slot:
+        return None, "missing_slot"
+    return slot, None
+
+
+def _extra_chart(facts: Any, form: str, gate: float) -> tuple[bool | None, str | None]:
+    """Only count-like and comparison plans depend on the extra-chart Noul."""
+    if form in {"time_series", "map", "map_plus_trend", "ranking", "record_list"}:
+        return False, None
+    decision = _noul_yes(getattr(facts, "also_chart", 0.0) or 0.0, gate)
+    if decision is None:
+        return None, "gate"
+    return decision, None
 
 
 def load_plan_facts(question: str, settings: Any) -> Any | None:
@@ -337,20 +412,23 @@ def load_plan_facts(question: str, settings: Any) -> Any | None:
         None,
         getattr(settings, "jev_ablation", "v3_hybrid"),
     )
-    fact_call = next(call for call in calls if call["name"] == "facts")
     backend = TypeSafeBackend(
         model=getattr(settings, "jev_model", "jev-latest"),
         timeout_seconds=float(getattr(settings, "jev_timeout_seconds", 8.0)),
     )
-    result = backend.evaluate(
-        fact_call["state"],
-        fact_call["questions"],
-        request_id="plan",
-        question_hash="plan",
-    )
-    if result is None:
-        return None
-    return facts_from_answers(result.answers)
+    answers: dict[str, Any] = {}
+    for name in ("facts", "topic"):
+        call = next(item for item in calls if item["name"] == name)
+        result = backend.evaluate(
+            call["state"],
+            call["questions"],
+            request_id="plan",
+            question_hash="plan",
+        )
+        if result is None:
+            return None
+        answers.update(result.answers)
+    return facts_from_answers(answers)
 
 
 def _noul_yes(probability: float, gate: float) -> bool | None:

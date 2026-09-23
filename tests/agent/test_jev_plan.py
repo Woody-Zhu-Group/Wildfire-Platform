@@ -8,15 +8,15 @@ from services.agent.orchestrator import _render_deterministic
 
 def _facts(**overrides):
     base = dict(
-        wants_count=0.0,
-        wants_list=0.0,
-        wants_time_series=0.0,
-        wants_map=0.0,
-        wants_ranking=0.0,
-        wants_comparison=0.0,
-        is_multi_part=0.0,
+        intent="count",
+        intent_confidence=0.95,
         breakdown="none",
         breakdown_confidence=0.95,
+        rank_dimension="none",
+        rank_dimension_confidence=0.95,
+        output_form=None,
+        output_form_confidence=0.95,
+        also_chart=0.05,
     )
     base.update(overrides)
     return SimpleNamespace(**base)
@@ -24,7 +24,7 @@ def _facts(**overrides):
 
 def test_per_month_plans_a_monthly_series():
     calls, reason = plan_calls(
-        _facts(breakdown="by_month"),
+        _facts(intent="trend", breakdown="by_month"),
         {"dataset": "epss_outages", "year": 2023, "utilities": ["SCE"]},
     )
     assert reason == "planned"
@@ -44,7 +44,7 @@ def test_per_month_plans_a_monthly_series():
 
 def test_several_named_years_plan_one_count_each():
     calls, reason = plan_calls(
-        _facts(wants_count=0.9),
+        _facts(),
         {
             "dataset": "cpuc_ignitions",
             "years": [2018, 2019, 2020],
@@ -58,7 +58,7 @@ def test_several_named_years_plan_one_count_each():
 
 def test_two_years_with_a_comparison_use_periods():
     calls, reason = plan_calls(
-        _facts(wants_count=0.9, wants_comparison=0.9),
+        _facts(intent="compare"),
         {"dataset": "cpuc_ignitions", "years": [2017, 2021], "utilities": ["PGE"]},
     )
     assert reason == "planned"
@@ -68,7 +68,7 @@ def test_two_years_with_a_comparison_use_periods():
 
 def test_several_utilities_plan_one_count_each():
     calls, reason = plan_calls(
-        _facts(wants_count=0.92),
+        _facts(),
         {
             "dataset": "cpuc_ignitions",
             "year": 2022,
@@ -81,7 +81,7 @@ def test_several_utilities_plan_one_count_each():
 
 def test_by_county_plans_a_rank():
     calls, reason = plan_calls(
-        _facts(breakdown="by_county", wants_ranking=0.9),
+        _facts(intent="rank", rank_dimension="county", breakdown="by_county"),
         {"dataset": "cpuc_ignitions", "year": 2023, "utilities": []},
     )
     assert reason == "planned"
@@ -91,7 +91,7 @@ def test_by_county_plans_a_rank():
 
 def test_count_plus_chart_plans_two_tools():
     calls, reason = plan_calls(
-        _facts(wants_count=0.9, wants_time_series=0.9),
+        _facts(also_chart=0.95),
         {"dataset": "calfire_incidents", "year": 2024, "utilities": []},
     )
     assert reason == "planned"
@@ -103,7 +103,7 @@ def test_count_plus_chart_plans_two_tools():
 
 def test_missing_year_falls_back():
     calls, reason = plan_calls(
-        _facts(wants_count=0.95),
+        _facts(),
         {"dataset": "cpuc_ignitions", "utilities": ["PGE", "SCE"]},
     )
     assert calls is None
@@ -112,7 +112,7 @@ def test_missing_year_falls_back():
 
 def test_plan_over_the_call_limit_falls_back():
     calls, reason = plan_calls(
-        _facts(wants_count=0.95),
+        _facts(),
         {
             "dataset": "cpuc_ignitions",
             "years": [2014, 2015, 2016, 2017, 2018, 2019, 2020],
@@ -125,7 +125,7 @@ def test_plan_over_the_call_limit_falls_back():
 
 def test_month_plus_yearly_total_plans_both_or_falls_back():
     calls, reason = plan_calls(
-        _facts(breakdown="by_month", wants_count=0.95, wants_time_series=0.95),
+        _facts(breakdown="by_month"),
         {"dataset": "epss_outages", "year": 2023, "utilities": ["PGE"]},
     )
     if calls is None:
@@ -144,7 +144,7 @@ def test_month_plus_yearly_total_plans_both_or_falls_back():
 
 def test_three_named_years_are_counts_not_a_period_comparison():
     calls, reason = plan_calls(
-        _facts(wants_count=0.95, wants_comparison=0.95),
+        _facts(intent="compare"),
         {
             "dataset": "cpuc_ignitions",
             "years": [2019, 2020, 2021],
@@ -158,7 +158,7 @@ def test_three_named_years_are_counts_not_a_period_comparison():
 
 def test_a_list_question_is_one_records_call():
     calls, reason = plan_calls(
-        _facts(wants_list=0.92),
+        _facts(intent="records_list"),
         {"dataset": "psps_events", "year": 2019, "utilities": ["PGE"]},
     )
     assert reason == "planned"
@@ -169,7 +169,7 @@ def test_a_list_question_is_one_records_call():
 
 def test_several_counties_plan_one_count_each():
     calls, reason = plan_calls(
-        _facts(wants_count=0.91),
+        _facts(),
         {
             "dataset": "calfire_incidents",
             "year": 2018,
@@ -183,13 +183,13 @@ def test_several_counties_plan_one_count_each():
 
 def test_uncertain_yes_falls_back_but_a_confident_no_does_not():
     uncertain, uncertain_reason = plan_calls(
-        _facts(wants_count=0.6, breakdown="by_month"),
+        _facts(intent_confidence=0.6, breakdown="by_month"),
         {"dataset": "epss_outages", "year": 2023, "utilities": []},
     )
     assert uncertain is None
     assert uncertain_reason == "gate"
     calls, reason = plan_calls(
-        _facts(wants_count=0.08, breakdown="by_month"),
+        _facts(intent="trend", also_chart=0.08, breakdown="by_month"),
         {"dataset": "epss_outages", "year": 2023, "utilities": ["SCE"]},
     )
     assert reason == "planned"
@@ -210,24 +210,32 @@ def test_plan_facts_use_the_facts_call():
     from services.agent.decisions import planner
     from services.agent.decisions import typesafe_backend
 
-    seen = {}
+    seen = {"questions": []}
+
+    class _Result:
+        answers = {}
 
     class _Backend:
         def __init__(self, **kwargs):
             pass
 
         def evaluate(self, state, questions, **kwargs):
-            seen["questions"] = set(questions)
-            return None
+            seen["questions"].append(set(questions))
+            return _Result()
 
     original = typesafe_backend.TypeSafeBackend
     typesafe_backend.TypeSafeBackend = _Backend
     try:
-        assert planner.load_plan_facts("How many in 2024?", object()) is None
+        planner.load_plan_facts("How many in 2024?", object())
     finally:
         typesafe_backend.TypeSafeBackend = original
-    assert "wants_count" in seen["questions"]
-    assert "tool_pick" not in seen["questions"]
+    asked = set().union(*seen["questions"])
+    assert "output_form" in asked
+    assert "also_chart" in asked
+    assert "intent" in asked
+    assert "wants_count" not in asked
+    assert "is_multi_part" not in asked
+    assert "tool_pick" not in asked
 
 
 def test_every_rendered_number_traces_to_evidence():
