@@ -240,14 +240,14 @@ CASES = [
     ),
     (
         "unsupported_other_measure",
-        JevFacts(measure="other_measure"),
+        JevFacts(measure="other_measure", intent="count"),
         "unsupported",
         None,
         "unsupported_other_measure",
     ),
     (
         "measure_is_judgment",
-        JevFacts(measure="other_measure"),
+        JevFacts(measure="other_measure", intent="rank"),
         "clarify",
         "ambiguous_risk_metric",
         None,
@@ -272,6 +272,32 @@ def test_policy_table():
         assert outcome.clarify_reason == reason, (name, outcome.clarify_reason)
         assert outcome.unsupported_topic == topic, (name, outcome.unsupported_topic)
         assert name.replace("multi_intent_stays_answer", "multi_intent_count_and_trend") in outcome.trace
+
+
+def test_other_measure_never_declines_map_or_spatial_intents():
+    for intent in ("map", "territory_boundary", "spatial_context"):
+        outcome = derive_outcome(
+            JevFacts(
+                measure="other_measure",
+                intent=intent,
+                has_time_scope=0.9,
+                names_specific_place=0.9,
+            ),
+            question="Show the SCE utility territory boundary",
+        )
+        assert outcome.unsupported_topic != "unsupported_other_measure", intent
+        assert "unsupported_other_measure" not in outcome.trace, intent
+        assert "measure_is_judgment" not in outcome.trace, intent
+
+
+def test_other_measure_declines_only_gated_intents():
+    for intent in ("count", "rank", "compare", "trend", "records_list"):
+        outcome = derive_outcome(
+            JevFacts(measure="other_measure", intent=intent, has_time_scope=0.9),
+            question="What was the average response time for PG&E in 2020?",
+        )
+        assert outcome.disposition == "unsupported", intent
+        assert outcome.unsupported_topic == "unsupported_other_measure", intent
 
 
 def test_rank_triples_match_routing_source():

@@ -65,6 +65,11 @@ OFF_TOPIC_RULES = {
 }
 
 
+# Intents where an other_measure answer means the warehouse cannot return
+# what was asked. Map, territory_boundary, and spatial_context are never gated.
+MEASURE_GATED_INTENTS = frozenset({"count", "rank", "compare", "trend", "records_list"})
+
+
 @dataclass
 class JevFacts:
     has_time_scope: float = 0.0
@@ -190,7 +195,9 @@ def derive_outcome(
         trace.append("other_off_topic")
         return DerivedOutcome("unsupported", None, None, trace, None, {})
 
-    if facts.measure == "other_measure":
+    if facts.measure == "other_measure" and (facts.intent or "") in MEASURE_GATED_INTENTS:
+        # A map, a territory boundary, or spatial context names no warehouse
+        # measure, so other_measure never declines those intents.
         if re.search(
             r"\b(?:worst|most dangerous|safest|riskiest|most risky|highest risk)\b",
             question or "",
