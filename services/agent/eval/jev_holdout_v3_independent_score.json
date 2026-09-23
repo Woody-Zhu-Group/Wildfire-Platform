@@ -778,13 +778,15 @@
         "id": "hv3_054",
         "before": "unsupported via Jev (correct)",
         "after": "clarify via router/risk_future_date",
-        "label": "unsupported/unsupported_live_web"
+        "label": "unsupported/unsupported_live_web",
+        "note": "The future backstop now overrides Jev's unsupported with a clarify. The label calls a question about this fall live_web; the router calls it a forward date. Flagged for label review."
       },
       {
         "id": "hv3_045",
         "before": "answer via Jev (correct)",
         "after": "unsupported via Jev measure=other_measure",
-        "label": "answer"
+        "label": "answer",
+        "note": "Label disagreement rather than a policy error: the label's tool call asks calfire_incidents for a cause field, but db/schema.sql stores cause only on wildfire.epss_outages. Flagged for label review."
       }
     ]
   }
