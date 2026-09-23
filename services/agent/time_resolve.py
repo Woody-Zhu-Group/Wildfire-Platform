@@ -681,6 +681,15 @@ def _allowed_years(time_resolution: dict[str, Any] | None) -> set[int]:
     return allowed
 
 
+def _date_filter_keys(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Only the year and start/end filters, without comparison periods."""
+    return {
+        key: arguments[key]
+        for key in ("year", "start_date", "end_date")
+        if key in arguments
+    }
+
+
 def _as_day(value: Any) -> date | None:
     if isinstance(value, date):
         return value
@@ -871,6 +880,17 @@ def apply_harness_years(
         filled["year"] = only
         filled.pop("start_date", None)
         filled.pop("end_date", None)
+    else:
+        # The question lists separate years (2021, 2022, and 2023) with no
+        # span to substitute. Picking one listed year would be a guess, so a
+        # call filtered on an unlisted year is rejected.
+        stray = sorted(years_in_arguments(_date_filter_keys(filled)) - allowed)
+        if stray:
+            listed = ", ".join(str(year) for year in sorted(allowed))
+            return filled, (
+                f"Year {stray[0]} is not one of the years named in the "
+                f"question ({listed})"
+            )
     for key in (
         "period_a_start",
         "period_a_end",

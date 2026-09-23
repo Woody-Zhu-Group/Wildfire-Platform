@@ -262,3 +262,60 @@ def test_breakdown_words_set_per_year():
         "How many PG&E ignitions were there from January 2024 up to today?",
     ):
         assert _slot(question)["per_year"] is False, question
+
+
+def test_listed_years_reject_a_year_not_in_the_list():
+    question = "PG&E ignitions in 2021, 2022, and 2023"
+    for hold in (True, False):
+        for arguments in (
+            {"dataset": "cpuc_ignitions", "utility": "PGE", "year": 2019},
+            {
+                "dataset": "cpuc_ignitions",
+                "start_date": "2019-01-01",
+                "end_date": "2019-12-31",
+            },
+        ):
+            _, error = apply_harness_years(
+                arguments,
+                time_resolution=_slot(question),
+                today=TODAY,
+                hold_window=hold,
+            )
+            assert error is not None
+            assert "2019" in error
+            assert "2021, 2022, 2023" in error
+
+
+def test_listed_years_each_stand():
+    question = "PG&E ignitions in 2021, 2022, and 2023"
+    for year in (2021, 2022, 2023):
+        for hold in (True, False):
+            filled, error = apply_harness_years(
+                {"dataset": "cpuc_ignitions", "year": year},
+                time_resolution=_slot(question),
+                today=TODAY,
+                hold_window=hold,
+            )
+            assert error is None
+            assert filled == {"dataset": "cpuc_ignitions", "year": year}
+
+
+def test_executor_rejects_an_unlisted_year():
+    async def run():
+        executor = ToolExecutor(AgentSettings(), ArtifactStore())
+        try:
+            return await executor.execute(
+                "data_query_records",
+                {"dataset": "cpuc_ignitions", "result_mode": "count", "year": 2019},
+                request_id="test",
+                attempt=1,
+                time_resolution=resolve_time(
+                    "PG&E ignitions in 2021, 2022, and 2023"
+                ).as_slot(),
+            )
+        finally:
+            await executor.close()
+
+    result = asyncio.run(run())
+    assert not result.ok
+    assert result.error["code"] == "year_not_derived"
