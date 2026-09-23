@@ -7,9 +7,10 @@ utilities inside SCE) were loaded as extra shells. Esri JSON (f=json) keeps
 the rings as published: clockwise rings are outer boundaries and
 counterclockwise rings are holes.
 
-This module fetches Esri JSON, assigns each hole to the smallest outer ring
-that contains it, and builds one GeoJSON Polygon per outer ring. PostGIS
-unions the polygons (so overlapping outer rings count once) and only calls
+This module reads Esri JSON (from a cache in data/boundaries, or from the
+FeatureServer), assigns each hole to the smallest outer ring that contains
+it, and builds one GeoJSON Polygon per outer ring. PostGIS unions the
+polygons, so overlapping or nested outer rings count once, and only calls
 ST_MakeValid on a polygon that is still invalid. The load gate then requires
 every geometry to be valid and its area to match the publisher's area
 attribute within 0.1%.
@@ -18,7 +19,8 @@ attribute within 0.1%.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -30,6 +32,7 @@ from shared.db import REPO_ROOT
 
 CACHE_DIR = REPO_ROOT / "data" / "boundaries"
 AREA_TOLERANCE = 0.001  # 0.1% of the publisher's area
+SLIVER_M2 = 1.0  # rings smaller than this are reported, not changed
 
 # Square meters per squared unit of the layer's native spatial reference, the
 # CRS its Shape__Area attribute is measured in. The area check projects our
@@ -40,20 +43,33 @@ AREA_UNIT_M2 = {
     3310: 1.0,  # NAD83 California Albers, meters
     102599: _US_SURVEY_FOOT_M**2,  # WGS 1984 California Teale Albers, US feet
 }
+_AUTHALIC_RADIUS_KM = 6371.0072
+
+
+class GeometryGateError(RuntimeError):
+    """A source or rebuilt geometry fails a check; nothing is loaded."""
+
+
+class SourceUnavailable(GeometryGateError):
+    """No usable cache and the publisher could not be reached."""
 
 
 @dataclass(frozen=True)
 class RingOverride:
     """A published hole that the evidence says is part of the area.
 
-    The counterclockwise ring of feature ``key`` that contains (lon, lat) is
-    treated as an outer ring. The area gate still checks the result against
-    the publisher's area attribute.
+    Exactly one counterclockwise ring of feature ``key`` must contain
+    (lon, lat) and have a spherical area within ``tolerance`` of
+    ``expected_area_km2``. That ring is treated as an outer ring. Anything
+    else (no match, several matches, a different area, or no feature with
+    this key) stops the load, so no other ring can be flipped.
     """
 
     key: str
     lon: float
     lat: float
+    expected_area_km2: float
+    tolerance: float
     reason: str
 
 
@@ -62,8 +78,13 @@ class Layer:
     name: str
     url: str
     key_field: str
+    expected_keys: frozenset[str]
     area_field: str = "Shape__Area"
     ring_overrides: tuple[RingOverride, ...] = ()
+
+    @property
+    def cache_path(self) -> Path:
+        return CACHE_DIR / f"{self.name}.esri.json"
 
 
 HFTD_LAYER = Layer(
@@ -73,6 +94,7 @@ HFTD_LAYER = Layer(
         "CPUC_High_Fire_Threat_District/FeatureServer/0"
     ),
     key_field="HFTD",
+    expected_keys=frozenset({"Tier 2", "Tier 3"}),
 )
 IOU_LAYER = Layer(
     name="cpuc_iou_service_territories",
@@ -81,11 +103,15 @@ IOU_LAYER = Layer(
         "IOU_Service_Territories/FeatureServer/0"
     ),
     key_field="UtilityID",
+    expected_keys=frozenset({"PG&E", "SCE", "PacifiCorp", "SDG&E", "LU", "BVES"}),
     ring_overrides=(
         RingOverride(
             key="PG&E",
             lon=-122.0402,
             lat=38.0816,
+            # Spherical area; 181.33 km2 in EPSG:3310.
+            expected_area_km2=181.22,
+            tolerance=0.005,
             reason=(
                 "181 km2 ring over Suisun Marsh and Grizzly Island is marked as a "
                 "hole in the Esri JSON, but the layer's own Shape__Area counts it, "
@@ -95,10 +121,7 @@ IOU_LAYER = Layer(
         ),
     ),
 )
-
-
-class GeometryGateError(RuntimeError):
-    """A rebuilt geometry is invalid or its area does not match the publisher."""
+LAYERS = (IOU_LAYER, HFTD_LAYER)
 
 
 # ---- Rings --------------------------------------------------------------
@@ -113,6 +136,17 @@ def signed_area(ring: list[list[float]]) -> float:
         (x1, y1), (x2, y2) = ring[-1], ring[0]
         total += x1 * y2 - x2 * y1
     return total / 2.0
+
+
+def ring_area_km2(ring: list[list[float]]) -> float:
+    """Area of a lon/lat ring on the authalic sphere, in km2."""
+    total = 0.0
+    closed = ring if ring[0] == ring[-1] else ring + [ring[0]]
+    for (l1, p1), (l2, p2) in zip(closed, closed[1:]):
+        total += math.radians(l2 - l1) * (
+            2 + math.sin(math.radians(p1)) + math.sin(math.radians(p2))
+        )
+    return abs(total) * _AUTHALIC_RADIUS_KM**2 / 2
 
 
 def is_outer_ring(ring: list[list[float]]) -> bool:
@@ -151,39 +185,92 @@ def point_in_ring(x: float, y: float, ring: list[list[float]]) -> bool:
     return inside
 
 
-def _ring_inside(hole: list[list[float]], outer: list[list[float]]) -> bool:
-    """A hole is inside an outer ring when most of its sampled vertices are.
+def _ring_inside(inner: list[list[float]], outer: list[list[float]]) -> bool:
+    """A ring is inside another when most of its sampled vertices are.
 
     Several vertices are tested because a hole can touch its outer boundary.
     """
-    step = max(1, (len(hole) - 1) // 7)
-    samples = hole[: len(hole) - 1 : step][:7] or hole[:1]
+    step = max(1, (len(inner) - 1) // 7)
+    samples = inner[: len(inner) - 1 : step][:7] or inner[:1]
     hits = sum(point_in_ring(pt[0], pt[1], outer) for pt in samples)
     return hits * 2 > len(samples)
 
 
+@dataclass
+class RingReport:
+    """What happened to one feature's rings, printed by the loader."""
+
+    rings: int = 0
+    dropped_short: int = 0
+    slivers: int = 0
+    nested_outers: int = 0
+    overridden: list[str] = field(default_factory=list)
+
+    def summary(self) -> str:
+        parts = [f"{self.rings} rings"]
+        if self.dropped_short:
+            parts.append(f"{self.dropped_short} dropped (fewer than 4 points)")
+        if self.slivers:
+            parts.append(f"{self.slivers} slivers under {SLIVER_M2:g} m2 kept")
+        if self.nested_outers:
+            parts.append(f"{self.nested_outers} outer rings nested in another outer (unioned)")
+        if self.overridden:
+            parts.append("override: " + "; ".join(self.overridden))
+        return ", ".join(parts)
+
+
 def esri_rings_to_polygons(
     rings: list[list[list[float]]],
-    force_outer_points: tuple[tuple[float, float], ...] = (),
-) -> list[list[list[list[float]]]]:
+    overrides: tuple[RingOverride, ...] = (),
+) -> tuple[list[list[list[list[float]]]], RingReport]:
     """Group Esri rings into GeoJSON Polygon coordinate arrays.
 
-    Each hole goes to the smallest outer ring containing it. A hole with no
-    containing outer ring raises, rather than being dropped or turned into
-    an outer ring. A hole containing one of ``force_outer_points`` is treated
-    as an outer ring (see RingOverride); each point must match exactly one hole.
+    - Rings with fewer than 4 points are dropped and counted.
+    - A ring with exactly zero area raises.
+    - Each hole goes to the smallest outer ring containing it. A hole with no
+      containing outer ring raises.
+    - An outer ring nested directly inside another outer ring (not inside one
+      of its holes) is kept as its own polygon and counted. PostGIS unions it
+      with its container, which matches Esri's nonzero winding: the nested
+      area counts once, and a hole inside only the nested ring is covered by
+      the container.
+    - Each override must match exactly one hole by point and area; that hole
+      becomes an outer ring.
     """
-    usable = [ring for ring in rings if len(ring) >= 4]
+    report = RingReport(rings=len(rings))
+    usable = []
+    for ring in rings:
+        if len(ring) < 4:
+            report.dropped_short += 1
+            continue
+        if signed_area(ring) == 0.0:
+            raise GeometryGateError(f"ring at {ring[0]} has zero area")
+        if ring_area_km2(ring) * 1e6 < SLIVER_M2:
+            report.slivers += 1
+        usable.append(ring)
     outers = [ring for ring in usable if is_outer_ring(ring)]
     holes = [ring for ring in usable if not is_outer_ring(ring)]
-    for lon, lat in force_outer_points:
-        matched = [hole for hole in holes if point_in_ring(lon, lat, hole)]
+
+    for item in overrides:
+        matched = [
+            hole
+            for hole in holes
+            if point_in_ring(item.lon, item.lat, hole)
+            and abs(ring_area_km2(hole) - item.expected_area_km2)
+            <= item.tolerance * item.expected_area_km2
+        ]
         if len(matched) != 1:
             raise GeometryGateError(
-                f"ring override at ({lon}, {lat}) matched {len(matched)} holes, expected 1"
+                f"ring override for {item.key} at ({item.lon}, {item.lat}) with "
+                f"{item.expected_area_km2} km2 matched {len(matched)} holes, expected 1"
             )
-        holes.remove(matched[0])
+        holes = [hole for hole in holes if hole is not matched[0]]
         outers.append(list(reversed(matched[0])))
+        report.overridden.append(
+            f"{item.key} hole of {ring_area_km2(matched[0]):,.2f} km2 at "
+            f"({item.lon}, {item.lat}) treated as area"
+        )
+
     if not outers:
         raise GeometryGateError("feature has no clockwise (outer) ring")
     outer_boxes = [_bbox(ring) for ring in outers]
@@ -197,15 +284,26 @@ def esri_rings_to_polygons(
             if _bbox_contains(outer_box, box) and _ring_inside(hole, outers[index])
         ]
         if not candidates:
-            raise GeometryGateError(
-                f"hole at {hole[0]} is not inside any outer ring"
-            )
+            raise GeometryGateError(f"hole at {hole[0]} is not inside any outer ring")
         owner = min(candidates, key=lambda index: outer_areas[index])
         polygons[owner].append(hole)
-    return polygons
+
+    # Nested outers: inside another outer ring and not inside any of its holes.
+    for index, outer in enumerate(outers):
+        for other, container in enumerate(polygons):
+            if other == index or outer_areas[other] <= outer_areas[index]:
+                continue
+            if not _bbox_contains(outer_boxes[other], outer_boxes[index]):
+                continue
+            if _ring_inside(outer, container[0]) and not any(
+                _ring_inside(outer, hole) for hole in container[1:]
+            ):
+                report.nested_outers += 1
+                break
+    return polygons, report
 
 
-# ---- Fetch --------------------------------------------------------------
+# ---- Sources ------------------------------------------------------------
 
 
 def _get_json(client: httpx.Client, url: str, params: dict[str, str]) -> dict:
@@ -217,14 +315,12 @@ def _get_json(client: httpx.Client, url: str, params: dict[str, str]) -> dict:
     return body
 
 
-def fetch_layer(layer: Layer, *, refresh: bool = False) -> dict[str, Any]:
-    """Esri JSON features in EPSG:4326 plus layer metadata, cached on disk."""
-    cache = CACHE_DIR / f"{layer.name}.esri.json"
-    if cache.exists() and cache.stat().st_size > 0 and not refresh:
-        print(f"  using cached {cache}")
-        return json.loads(cache.read_text(encoding="utf-8"))
+def fetch_layer(layer: Layer, *, transport: httpx.BaseTransport | None = None) -> dict[str, Any]:
+    """Download Esri JSON features in EPSG:4326 plus layer metadata, and cache it."""
     headers = {"User-Agent": "Mozilla/5.0 (compatible; WildfireServices/1.0)"}
-    with httpx.Client(timeout=300.0, follow_redirects=True, headers=headers) as client:
+    with httpx.Client(
+        timeout=300.0, follow_redirects=True, headers=headers, transport=transport
+    ) as client:
         meta = _get_json(client, layer.url, {"f": "json"})
         features: list[dict] = []
         offset = 0
@@ -247,13 +343,13 @@ def fetch_layer(layer: Layer, *, refresh: bool = False) -> dict[str, Any]:
             if not page.get("exceededTransferLimit") or not batch:
                 break
             offset += len(batch)
+    extent_sr = (meta.get("extent") or {}).get("spatialReference") or {}
     edited_ms = (meta.get("editingInfo") or {}).get("dataLastEditDate")
     payload = {
         "source_url": layer.url,
         "fetched_at": datetime.now(timezone.utc).isoformat(),
         "layer_name": meta.get("name"),
-        "native_wkid": (meta.get("extent") or {}).get("spatialReference", {}).get("latestWkid")
-        or (meta.get("extent") or {}).get("spatialReference", {}).get("wkid"),
+        "native_wkid": extent_sr.get("latestWkid") or extent_sr.get("wkid"),
         "data_last_edit": (
             datetime.fromtimestamp(edited_ms / 1000, timezone.utc).isoformat()
             if edited_ms
@@ -261,10 +357,58 @@ def fetch_layer(layer: Layer, *, refresh: bool = False) -> dict[str, Any]:
         ),
         "features": features,
     }
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps(payload), encoding="utf-8")
-    print(f"  downloaded {len(features)} features from {layer.url}")
+    check_complete(payload, layer)
+    layer.cache_path.parent.mkdir(parents=True, exist_ok=True)
+    layer.cache_path.write_text(json.dumps(payload), encoding="utf-8")
+    print(f"  downloaded {len(features)} features from {layer.url} to {layer.cache_path}")
     return payload
+
+
+def load_source(
+    layer: Layer, *, refresh: bool = False, transport: httpx.BaseTransport | None = None
+) -> dict[str, Any]:
+    """The layer's Esri JSON from cache, or from the publisher when needed.
+
+    Raises SourceUnavailable with the fix when there is no usable cache and
+    the publisher cannot be reached. Called before any table is touched.
+    """
+    cache = layer.cache_path
+    if not refresh and cache.exists() and cache.stat().st_size > 0:
+        try:
+            payload = json.loads(cache.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise SourceUnavailable(f"cache {cache} is not valid JSON: {exc}") from exc
+        check_complete(payload, layer)
+        print(f"  using cached {cache} (fetched {payload.get('fetched_at')})")
+        return payload
+    try:
+        return fetch_layer(layer, transport=transport)
+    except (httpx.HTTPError, OSError, RuntimeError, ValueError) as exc:
+        if isinstance(exc, GeometryGateError):
+            raise
+        reason = "refresh requested" if refresh else f"no cache at {cache}"
+        raise SourceUnavailable(
+            f"{layer.name}: {reason}, and {layer.url} could not be reached "
+            f"({type(exc).__name__}: {exc}). Seed the cache on a machine with "
+            "network access (python -m db.loaders.rebuild_boundaries --fetch-only) "
+            f"and copy {cache.name} into {cache.parent}."
+        ) from exc
+
+
+def check_complete(payload: dict[str, Any], layer: Layer) -> None:
+    """The feature set must be exactly the expected keys, once each."""
+    keys = [
+        str((feature.get("attributes") or {}).get(layer.key_field))
+        for feature in payload.get("features") or []
+    ]
+    duplicates = sorted({key for key in keys if keys.count(key) > 1})
+    missing = sorted(layer.expected_keys - set(keys))
+    extra = sorted(set(keys) - layer.expected_keys)
+    if duplicates or missing or extra:
+        raise GeometryGateError(
+            f"{layer.name} features are not the expected set: missing {missing}, "
+            f"unexpected {extra}, duplicated {duplicates}"
+        )
 
 
 def area_unit_m2(native_wkid: int | None) -> float:
@@ -277,29 +421,29 @@ def area_unit_m2(native_wkid: int | None) -> float:
 
 
 def features_to_rows(payload: dict[str, Any], layer: Layer) -> list[dict[str, Any]]:
-    """One row per feature: key, attributes, polygons, and publisher area in m2."""
+    """One row per feature: key, attributes, polygons, report, publisher area in m2."""
+    check_complete(payload, layer)
     unit = area_unit_m2(payload.get("native_wkid"))
+    override_keys = {item.key for item in layer.ring_overrides}
+    unknown = sorted(override_keys - layer.expected_keys)
+    if unknown:
+        raise GeometryGateError(f"ring overrides name features that do not exist: {unknown}")
     rows = []
     for feature in payload["features"]:
         attrs = feature["attributes"]
+        key = str(attrs[layer.key_field])
         rings = (feature.get("geometry") or {}).get("rings") or []
-        overrides = tuple(
-            (item.lon, item.lat) for item in layer.ring_overrides
-            if item.key == attrs[layer.key_field]
-        )
-        for item in layer.ring_overrides:
-            if item.key == attrs[layer.key_field]:
-                print(f"  ring override {item.key} at ({item.lon}, {item.lat}): {item.reason}")
         area_attr = attrs.get(layer.area_field)
         if area_attr is None:
-            raise GeometryGateError(
-                f"{attrs.get(layer.key_field)} has no {layer.area_field} attribute"
-            )
+            raise GeometryGateError(f"{key} has no {layer.area_field} attribute")
+        overrides = tuple(item for item in layer.ring_overrides if item.key == key)
+        polygons, report = esri_rings_to_polygons(rings, overrides)
         rows.append(
             {
-                "key": attrs[layer.key_field],
+                "key": key,
                 "attributes": attrs,
-                "polygons": esri_rings_to_polygons(rings, overrides),
+                "polygons": polygons,
+                "report": report,
                 "publisher_area_m2": float(area_attr) * unit,
             }
         )
@@ -376,11 +520,12 @@ def enforce_gate(cur: psycopg.Cursor, table: str, key_column: str) -> list[dict[
     """Raise inside the load transaction so a failed gate rolls the load back."""
     rows = check_table(cur, table, key_column)
     for row in rows:
-        diff = (row["area_m2"] - row["publisher_area_m2"]) / row["publisher_area_m2"]
+        publisher = row["publisher_area_m2"]
+        diff = (row["area_m2"] - publisher) / publisher if publisher else float("nan")
         print(
             f"  gate {row['key']}: valid={row['valid']} "
-            f"area={row['area_m2'] / 1e6:,.1f} km2 "
-            f"publisher={row['publisher_area_m2'] / 1e6:,.1f} km2 ({diff:+.4%})"
+            f"area={row['area_m2'] / 1e6:,.2f} km2 "
+            f"publisher={(publisher or 0) / 1e6:,.2f} km2 ({diff:+.4%})"
         )
     failures = gate_failures(rows)
     if failures:
@@ -392,7 +537,10 @@ def enforce_gate(cur: psycopg.Cursor, table: str, key_column: str) -> list[dict[
 
 
 def dataset_demo_geometries(path: Path, key_field: str) -> dict[str, dict[str, Any]]:
-    """The previous, simplified web-map geometry, kept in geom_source for audit."""
+    """The previous, simplified web-map geometry, kept in geom_source for audit.
+
+    Returns {} when dataset_demo is absent (EC2), so geom_source is NULL there.
+    """
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))

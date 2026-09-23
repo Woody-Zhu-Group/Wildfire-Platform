@@ -5,17 +5,17 @@ from __future__ import annotations
 import sys
 
 from db.loaders import (
+    load_boundaries,
     load_calfire,
     load_circuits,
     load_counties,
     load_cpuc,
     load_epss,
     load_grid,
-    load_hftd,
-    load_iou,
     load_psps,
     load_us_ignitions,
 )
+from db.loaders.arcgis_polygons import GeometryGateError
 from db.loaders.util import apply_schema, print_step
 from db.loaders.validate import run_validation
 from shared.db import connect, get_settings
@@ -46,11 +46,18 @@ def main() -> int:
         apply_schema(conn, settings.schema_sql)
 
         counts: dict[str, int] = {}
-        counts["iou_territories"] = load_iou.load(conn, settings)
+        # IOU and HFTD load together from CPUC sources. A missing cache with no
+        # network, or a failed gate, leaves both tables as they were and does
+        # not stop the other tables from loading.
+        boundary_error: str | None = None
+        try:
+            counts.update(load_boundaries.load(conn, settings))
+        except GeometryGateError as exc:
+            boundary_error = str(exc)
+            print(f"  ERROR boundaries not loaded, previous rows kept: {exc}")
         counts["counties"] = load_counties.load(conn, settings)
         counts["circuits"] = load_circuits.load(conn, settings)
         counts["grid_cells"] = load_grid.load(conn, settings)
-        counts["hftd_tiers"] = load_hftd.load(conn, settings)
         counts["cpuc_ignitions"] = load_cpuc.load_combined(conn, settings)
         counts["cpuc_ignitions_with_time"] = load_cpuc.load_with_time(conn, settings)
         counts["calfire_incidents"] = load_calfire.load(conn, settings)
@@ -67,6 +74,12 @@ def main() -> int:
         print_step("LOAD COMPLETE — row counts")
         for name, n in counts.items():
             print(f"  {name}: {n}")
+        if boundary_error:
+            print(
+                "ERROR: iou_territories and hftd_tiers were not reloaded. "
+                "See docs/DATA_CHANGE_HFTD_IOU.md, Deploy notes."
+            )
+            return 1
         return 0
     finally:
         conn.close()

@@ -232,7 +232,8 @@ COMMENT ON TABLE wildfire.hftd_tiers IS
   'FeatureServer Esri JSON with rings by orientation (holes kept). The loader refuses '
   'a geometry that is invalid or whose EPSG:3310 area is more than 0.1% from '
   'publisher_area_m2. geom_source is the old simplified dataset_demo hftd.geojson '
-  'geometry, kept for audit only (invalid; do not query it). '
+  'geometry, kept for audit only (invalid; do not query it; NULL where dataset_demo '
+  'was absent at load, as on EC2). '
   'KNOWN GAP: no CPZ (Circuit Protection Zone) data. '
   'shape_area / shape_length are the publisher attributes in EPSG:3310 units.';
 
@@ -256,7 +257,8 @@ CREATE INDEX IF NOT EXISTS iou_territories_geom_gix ON wildfire.iou_territories 
 COMMENT ON TABLE wildfire.iou_territories IS
   'CPUC IOU_Service_Territories (IOU_Service_Territory_20240812), rebuilt from Esri JSON '
   'with rings by orientation, so municipal-utility holes stay holes. Same 0.1% area gate '
-  'as hftd_tiers. geom_source is the old simplified dataset_demo geometry (audit only).';
+  'as hftd_tiers. geom_source is the old simplified dataset_demo geometry (audit only; NULL where '
+  'dataset_demo was absent at load).';
 
 
 -- ---------------------------------------------------------------------------
