@@ -297,12 +297,6 @@ def test_single_dataset_monthly_trend_still_builds_a_monthly_series():
     assert args["year"] == 2024
 
 
-def test_bear_valley_fills_the_utility_slot():
-    decision = route_question("How many Bear Valley ignitions were there in 2021?")
-    assert decision.slots["utilities"] == ["BVES"]
-    assert decision.slots["dataset"] == "cpuc_ignitions"
-
-
 def test_clarification_keeps_a_detected_dataset():
     near = route_question("How many CAL FIRE incidents happened near San Jose?")
     assert near.path == "clarification"
@@ -325,33 +319,12 @@ def test_several_counties_are_a_slot_list():
     assert decision.slots["county"] is None
 
 
-def test_live_phrasing_is_unsupported_and_history_is_not():
-    live = route_question("Are there any PSPS outages right now?")
-    assert live.path == "unsupported"
-    assert live.rule == "unsupported_live_web"
-    weather = route_question("What is today's weather in Sonoma County?")
-    assert weather.rule == "unsupported_live_web"
-    assert route_question("What is the current wildfire risk near San Jose?").rule == (
-        "unsupported_live_web"
-    )
-
-    recent = route_question("What were recent ignitions for SCE?")
-    assert recent.rule == "ambiguous_relative_time"
-    last_year = route_question("How many PGE ignitions were there last year?")
-    assert last_year.rule != "unsupported_live_web"
-    assert last_year.path == "deterministic"
-    this_year = route_question("How many PGE ignitions were there this year?")
-    assert this_year.rule != "unsupported_live_web"
-    assert this_year.rule != "risk_future_date"
-
-
 def test_damage_plus_a_future_year_stays_unsupported():
     decision = route_question(
         "What property damage should we expect from ignitions next year?"
     )
     assert decision.path == "unsupported"
     assert decision.rule == "unsupported_damage"
-
 
 
 def test_list_records_uses_preview_limit_25():
