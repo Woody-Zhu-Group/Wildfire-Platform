@@ -222,8 +222,10 @@ def calls_for(
             merged_questions.update(item["questions"])
         grouped = [{"name": "all", "questions": merged_questions, "glossary": gloss or None}]
     elif glossary_mode == "policy":
+        from services.agent.decisions.schemas import context_for_call
+
         for item in grouped:
-            item["glossary"] = policy_context or ""
+            item["glossary"] = context_for_call(item["name"])
     calls = []
     for item in grouped:
         calls.append(

@@ -655,3 +655,262 @@ def test_county_map_uses_auto_fit():
     params = plan_views([execution], status="answer").views[0].params
     assert params["extent"] == "auto_fit"
     assert params["county"] == "Sacramento"
+
+
+def test_ranking_spec_carries_group_by():
+    for group_by, dataset, metric in (
+        ("county", "cpuc_ignitions", "ignition_count"),
+        ("utility", "cpuc_ignitions", "ignition_count"),
+        ("cause", "epss_outages", "epss_outage_count"),
+    ):
+        execution = _exec(
+            "data_query_rank",
+            {
+                "dataset": dataset,
+                "group_by": group_by,
+                "year": 2024,
+                "limit": 10,
+            },
+            {
+                "dataset": dataset,
+                "group_by": group_by,
+                "canvas_metric": metric,
+                "results": [{"key": "example", "value": 3}],
+                "limit": 10,
+            },
+            evidence_id=f"ev_{group_by}",
+        )
+        planned = plan_views([execution], status="answer")
+        assert [item.type for item in planned.views] == ["comparison"]
+        params = planned.views[0].params
+        assert params["kind"] == "ranking"
+        assert params["group_by"] == group_by
+        assert params["dataset"] == dataset
+        assert params["start_date"] == "2024-01-01"
+        assert params["end_date"] == "2024-12-31"
+        assert planned.views[0].evidence_ids == [f"ev_{group_by}"]
+
+
+def test_summary_slot_emits_one_grounded_stat_card():
+    planned = plan_views(
+        [_count("epss_outages", 40, evidence_id="ev_summary", utility=None)],
+        status="answer",
+        slots={"stat_mode": "summary", "dataset": "epss_outages", "year": 2024},
+    )
+    assert planned.view_status == "applied"
+    assert [item.type for item in planned.views] == ["stat_card"]
+    params = planned.views[0].params
+    assert params["stat_mode"] == "summary"
+    assert params["view_id"] == "summary-stats"
+    assert params["source_dataset"] == "epss_outages"
+    assert params["value"] == 40
+    assert params["year"] == 2024
+    assert planned.views[0].evidence_ids == ["ev_summary"]
+    plain = plan_views(
+        [_count("cpuc_ignitions", 532, evidence_id="ev_count")],
+        status="answer",
+    )
+    assert [item.type for item in plain.views] == ["stat_card", "map"]
+    assert plain.views[0].params["stat_mode"] is None
+
+
+def test_series_mode_requires_the_cited_dataset():
+    calfire = _exec(
+        "visualization_create",
+        {"kind": "time_series", "dataset": "calfire", "interval": "monthly", "year": 2024},
+        {"kind": "time_series", "dataset": "calfire", "interval": "monthly"},
+        evidence_id="ev_calfire",
+    )
+    applied = plan_views(
+        [calfire], status="answer", slots={"series_mode": "cumulative_acres"}
+    )
+    assert applied.view_status == "applied"
+    assert applied.views[0].type == "time_series"
+    assert applied.views[0].params["series_mode"] == "cumulative_acres"
+    assert applied.views[0].params["dataset"] == "calfire"
+    assert applied.views[0].evidence_ids == ["ev_calfire"]
+
+    epss = _exec(
+        "visualization_create",
+        {"kind": "time_series", "dataset": "epss", "interval": "monthly", "year": 2024},
+        {"kind": "time_series", "dataset": "epss", "interval": "monthly"},
+        evidence_id="ev_epss_series",
+    )
+    rejected = plan_views(
+        [epss], status="answer", slots={"series_mode": "cumulative_acres"}
+    )
+    assert rejected.view_status == "planner_fallback"
+    assert rejected.views == []
+
+    plain = plan_views([calfire], status="answer")
+    assert plain.views[0].params["series_mode"] is None
+
+
+def test_medical_exposure_slot_emits_one_stat_card_not_a_map():
+    planned = plan_views(
+        [_count("epss_outages", 88, evidence_id="ev_epss", utility=None)],
+        status="answer",
+        slots={"stat_mode": "medical_exposure", "dataset": "epss", "year": 2024},
+    )
+    assert planned.view_status == "applied"
+    assert [item.type for item in planned.views] == ["stat_card"]
+    params = planned.views[0].params
+    assert params["stat_mode"] == "medical_exposure"
+    assert params["view_id"] == "medical-exposure"
+    assert params["source_dataset"] == "epss_outages"
+    assert params["value"] == 88
+    assert params["year"] == 2024
+    assert planned.views[0].evidence_ids == ["ev_epss"]
+    assert planned.views[0].artifact_refs == []
+
+
+def _risk(date: str = "2024-08-15", *, evidence_id: str = "ev_risk") -> ToolExecution:
+    return _exec(
+        "risk_forecast",
+        {"county": "Butte", "date": date},
+        {"date": date, "risk": 0.02, "xi": 0.1, "lookback_days": 90, "scope": {"name": "Butte"}},
+        evidence_id=evidence_id,
+        artifact_ref="art_risk",
+    )
+
+
+def _series(dataset: str, *, evidence_id: str, interval: str = "monthly", year: int = 2024) -> ToolExecution:
+    args = {"kind": "time_series", "dataset": dataset, "interval": interval, "year": year}
+    return _exec(
+        "visualization_create",
+        args,
+        {"kind": "time_series", "dataset": dataset, "interval": interval, "total_events": 5},
+        evidence_id=evidence_id,
+        artifact_ref=f"art_{dataset}",
+    )
+
+
+def _event_map(dataset: str = "ignitions", *, year: int = 2024) -> ToolExecution:
+    return _exec(
+        "visualization_create",
+        {"kind": "map", "dataset": dataset, "year": year},
+        {"kind": "map", "dataset": dataset, "total": 12},
+        evidence_id="ev_map",
+        artifact_ref="art_map",
+    )
+
+
+@pytest.mark.parametrize("mode", ["risk", "residual"])
+def test_risk_grid_map_uses_the_scored_date(mode):
+    planned = plan_views([_risk()], status="answer", slots={"map_mode": mode})
+    assert planned.view_status == "applied"
+    maps = [item for item in planned.views if item.type == "map"]
+    assert len(maps) == 1
+    params = maps[0].params
+    assert params["map_mode"] == mode
+    assert params["risk_date"] == "2024-08-15"
+    assert params["datasets"] == []
+    assert maps[0].evidence_ids == ["ev_risk"]
+    # The risk stat cards still come first.
+    assert planned.views[0].type == "stat_card"
+
+
+def test_risk_answer_without_a_grid_slot_stays_map_less():
+    planned = plan_views([_risk()], status="answer")
+    assert [item.type for item in planned.views] == ["stat_card"]
+
+
+def test_risk_grid_map_rejects_a_date_that_was_not_scored():
+    spec = ComponentSpec(
+        type="map",
+        params={"datasets": [], "map_mode": "risk", "risk_date": "2024-08-16"},
+        evidence_ids=["ev_risk"],
+    )
+    with pytest.raises(GroundingError):
+        ground_views([spec], [_risk()])
+
+
+def test_risk_grid_map_needs_risk_evidence():
+    spec = ComponentSpec(
+        type="map",
+        params={"datasets": [], "map_mode": "residual", "risk_date": "2024-08-15"},
+        evidence_ids=["ev_count"],
+    )
+    with pytest.raises(GroundingError):
+        ground_views([spec], [_count("cpuc_ignitions", 3, evidence_id="ev_count")])
+
+
+def test_risk_grid_map_params_refuse_an_event_layer_or_missing_date():
+    from pydantic import ValidationError
+
+    from services.agent.views import MapViewParams
+
+    with pytest.raises(ValidationError):
+        MapViewParams(datasets=["ignitions"], map_mode="risk", risk_date="2024-08-15")
+    with pytest.raises(ValidationError):
+        MapViewParams(datasets=[], map_mode="risk")
+    with pytest.raises(ValidationError):
+        MapViewParams(datasets=["ignitions"], risk_date="2024-08-15")
+
+
+def test_hdw_slot_marks_the_event_map_only():
+    planned = plan_views([_event_map()], status="answer", slots={"show_hdw": True})
+    assert planned.view_status == "applied"
+    [spec] = planned.views
+    assert spec.params["show_hdw"] is True
+    assert spec.params["datasets"] == ["ignitions"]
+    assert spec.params["map_mode"] == "events"
+    plain = plan_views([_event_map()], status="answer")
+    assert plain.views[0].params["show_hdw"] is False
+
+
+def test_hdw_outside_playback_years_falls_back():
+    planned = plan_views([_event_map(year=2019)], status="answer", slots={"show_hdw": True})
+    assert planned.view_status == "planner_fallback"
+    assert planned.views == []
+
+
+def test_hdw_is_not_stamped_on_a_count_derived_map():
+    planned = plan_views(
+        [_count("cpuc_ignitions", 532, evidence_id="ev_count")],
+        status="answer",
+        slots={"show_hdw": True},
+    )
+    maps = [item for item in planned.views if item.type == "map"]
+    assert maps and maps[0].params["show_hdw"] is False
+
+
+def test_timeline_needs_evidence_for_every_named_dataset():
+    slots = {"series_mode": "timeline", "timeline_datasets": ["ignitions", "epss", "calfire"]}
+    executions = [
+        _series("ignitions", evidence_id="ev_cpuc"),
+        _series("epss", evidence_id="ev_epss"),
+        _series("calfire", evidence_id="ev_calfire"),
+    ]
+    planned = plan_views(executions, status="answer", slots=slots)
+    assert planned.view_status == "applied"
+    [spec] = planned.views
+    assert spec.type == "time_series"
+    assert spec.params["series_mode"] == "timeline"
+    assert spec.params["datasets"] == ["ignitions", "epss", "calfire"]
+    assert spec.evidence_ids == ["ev_cpuc", "ev_epss", "ev_calfire"]
+
+    partial = plan_views(executions[:2], status="answer", slots=slots)
+    assert partial.view_status == "planner_fallback"
+    assert partial.views == []
+
+
+def test_timeline_refuses_mismatched_windows():
+    slots = {"series_mode": "timeline", "timeline_datasets": ["ignitions", "epss"]}
+    planned = plan_views(
+        [
+            _series("ignitions", evidence_id="ev_cpuc", year=2024),
+            _series("epss", evidence_id="ev_epss", year=2023),
+        ],
+        status="answer",
+        slots=slots,
+    )
+    assert planned.view_status == "planner_fallback"
+
+
+def test_single_dataset_trend_never_grows_a_timeline():
+    planned = plan_views([_series("calfire", evidence_id="ev_calfire")], status="answer")
+    [spec] = planned.views
+    assert spec.params["series_mode"] is None
+    assert spec.params["datasets"] is None
+    assert spec.params["dataset"] == "calfire"

@@ -294,6 +294,23 @@ TOOL_MODELS: dict[str, type[StrictModel]] = {
     "comparison_run": ComparisonRunArgs,
 }
 
+
+class RiskSurfaceArgs(StrictModel):
+    """Historical cNHPP risk for every grid cell on one day (GET /surface)."""
+
+    date: date
+
+
+# Tools only the router calls. They are never offered to the model or to Jev,
+# so the model tool list and the Jev payloads do not change.
+HARNESS_TOOL_MODELS: dict[str, type[StrictModel]] = {
+    "risk_surface": RiskSurfaceArgs,
+}
+EXECUTABLE_TOOL_MODELS: dict[str, type[StrictModel]] = {
+    **TOOL_MODELS,
+    **HARNESS_TOOL_MODELS,
+}
+
 TOOL_DESCRIPTIONS = {
     "data_query_records": (
         "Use for filtered warehouse counts or small record samples. "
@@ -584,6 +601,22 @@ class AgentAnswer(StrictModel):
     status: Literal["answer", "clarification", "unsupported", "error"]
     answer: str
     claims: list[EvidenceClaim] = Field(default_factory=list)
+
+
+# Workspace panel identity for a grounded stat card. The UI applies stat_mode
+# instead of rendering the card as a frozen cited number.
+MedicalStatMode = Literal["medical_exposure", "summary"]
+MedicalViewId = Literal["medical-exposure", "summary-stats"]
+SeriesMode = Literal[
+    "yearly",
+    "seasonal",
+    "cumulative_acres",
+    "customer_events",
+    "regional",
+    "timeline",
+]
+# Map canvas mode. risk and residual draw the cNHPP grid for one historical day.
+MapMode = Literal["events", "risk", "residual"]
 
 
 class AskRequest(StrictModel):

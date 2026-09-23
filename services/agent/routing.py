@@ -8,6 +8,7 @@ from datetime import date
 from typing import Any
 
 from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
+from services.shared.dataset_registry import HDW_YEARS
 
 
 @dataclass
@@ -916,6 +917,9 @@ def _single_call_would_collapse(
         lower,
     ):
         return True
+    # A chart plus a total is two results; one series call would drop the total.
+    if kind == "series" and _asks_series_and_total(lower):
+        return True
     if kind == "map" and _BREAKDOWN.search(lower):
         return True
     return False
@@ -1302,6 +1306,25 @@ def _dataset(text: str) -> str | None:
     return candidates[0] if len(set(candidates)) == 1 else None
 
 
+# Event datasets that can sit next to bare "ignitions" as a second dataset.
+# Context layers (HFTD, circuits, territories) do not make ignitions a list.
+_EVENT_DATASETS_BESIDE_IGNITIONS = frozenset(
+    {"epss_outages", "psps_events", "calfire_incidents"}
+)
+# A word right before "ignitions" that already names whose ignitions they are.
+_IGNITION_QUALIFIER = re.compile(
+    r"(?:\bus|\bnational|\bcal\s*fire|\bcalfire|\bepss|\bpsps)\s+$", re.I
+)
+
+
+def _has_bare_ignitions(text: str) -> bool:
+    """True when some "ignitions" is not qualified as US, CAL FIRE, EPSS, or PSPS."""
+    return any(
+        not _IGNITION_QUALIFIER.search(text[: match.start()])
+        for match in re.finditer(r"\bignitions?\b", text, re.I)
+    )
+
+
 def _datasets(text: str) -> list[str]:
     candidates: list[str] = []
     checks = [
@@ -1318,6 +1341,13 @@ def _datasets(text: str) -> list[str]:
         if re.search(pattern, text, re.I):
             candidates.append(key)
     if not candidates and re.search(r"\bignitions?\b", text, re.I):
+        candidates.append("cpuc_ignitions")
+    elif (
+        "cpuc_ignitions" not in candidates
+        and set(candidates) & _EVENT_DATASETS_BESIDE_IGNITIONS
+        and _has_bare_ignitions(text)
+    ):
+        # "ignitions and EPSS outages" names two datasets; bare ignitions are CPUC.
         candidates.append("cpuc_ignitions")
     # Bare "outages" (without PSPS/EPSS) is treated as EPSS for map/count routing.
     if not candidates and re.search(r"\boutages?\b", text, re.I):
@@ -1368,6 +1398,108 @@ _CHANGE_OVER_TIME = re.compile(
     r"(?:the\s+)?(?:most|least|fastest)\b",
     re.I,
 )
+
+
+def _asks_medical_exposure(lower: str) -> bool:
+    """True for the EPSS medical-baseline / life-support panel, not a generic outage ask."""
+    return bool(
+        re.search(
+            r"\b(?:medical\s+baseline|life[\s-]support|medically\s+vulnerable)\b",
+            lower,
+        )
+    )
+
+
+def _asks_summary_panel(lower: str) -> bool:
+    """True for a multi-metric summary, not a single how-many total."""
+    return bool(re.search(r"\b(?:summary|overview) of\b", lower))
+
+
+# A series or chart request that also asks for a total. One series call would
+# drop the total, so this defers as the count path does, until a deterministic
+# count-plus-series path exists.
+_SERIES_WORD = re.compile(
+    r"\b(?:chart|plot|graph|series|trend|over time|monthly|weekly|daily|by month)\b",
+    re.I,
+)
+_TOTAL_ASK = re.compile(
+    r"\bannual\s+totals?\b|\boverall\s+(?:count|total|number)\b|"
+    r"\btotal\s+(?:count|number)\b|\band\s+how\s+many\b|"
+    r"\b(?:plus|include|including|as well as|along with)\s+(?:the\s+|an?\s+)?"
+    r"(?:\w+\s+)?(?:total|count|sum)\b",
+    re.I,
+)
+
+
+def _asks_series_and_total(lower: str) -> bool:
+    return bool(_SERIES_WORD.search(lower) and _TOTAL_ASK.search(lower))
+
+
+def _series_mode_request(lower: str) -> tuple[str, str | None] | None:
+    """Map a series-panel phrase to (series_mode, fixed warehouse dataset).
+
+    A None dataset means the question must name CPUC, EPSS, or CAL FIRE.
+    """
+    if re.search(r"\bcumulative acres\b|\bacres burned over the year\b", lower):
+        return ("cumulative_acres", "calfire_incidents")
+    if re.search(r"\bcustomer events?\b|\bcustomers affected\b", lower):
+        return ("customer_events", "psps_events")
+    if re.search(r"\bepss\b", lower) and re.search(r"\bby region\b", lower):
+        return ("regional", "epss_outages")
+    if re.search(r"\bby division\b", lower) and re.search(
+        r"\b(?:epss|outages?)\b", lower
+    ):
+        return ("regional", "epss_outages")
+    if re.search(r"\byear over year\b|\bannual totals?\b", lower):
+        return ("yearly", None)
+    if re.search(r"\bseasonal\b|\bby month of year\b", lower):
+        return ("seasonal", None)
+    return None
+
+
+def _asks_hdw(lower: str) -> bool:
+    """True for the Hot-Dry-Windy playback overlay, the only weather layer on the map."""
+    return bool(
+        re.search(r"\bhdw\b|\bhot[\s-]+dry[\s-]+windy\b|\bfire[\s-]weather\b", lower)
+    )
+
+
+def _asks_residual(lower: str) -> bool:
+    """Observed minus modeled ignitions on the cNHPP grid."""
+    return bool(
+        re.search(
+            r"\bresiduals?\b|\b(?:observed|actual)\s+(?:vs\.?|versus)\s+"
+            r"(?:expected|predicted|modell?ed)\b",
+            lower,
+        )
+    )
+
+
+def _risk_map_mode(lower: str) -> str | None:
+    """Grid map for a risk question: the residual map or the risk surface."""
+    if _asks_residual(lower):
+        return "residual"
+    # Bare "where" is not enough here; it reads as advice as often as a map ask.
+    if re.search(r"\b(?:surface|maps?|mapped|heat\s*map)\b", lower):
+        return "risk"
+    return None
+
+
+_HDW_EVENT_DATASETS = frozenset(
+    {"cpuc_ignitions", "epss_outages", "psps_events", "calfire_incidents"}
+)
+# Datasets the workspace timeline can overlay on one axis.
+_TIMELINE_DATASETS = ("cpuc_ignitions", "epss_outages", "calfire_incidents")
+
+
+def _timeline_datasets(text: str, lower: str) -> list[str] | None:
+    """Two or more chartable datasets named in one trend ask, else None."""
+    if not re.search(r"\b(?:trends?|time series|timeline|over time)\b", lower):
+        return None
+    named = _datasets(text)
+    if len(named) < 2 or any(item not in _TIMELINE_DATASETS for item in named):
+        return None
+    return named
 
 
 def _asks_ranking(lower: str) -> bool:
@@ -1987,6 +2119,49 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             slots=slots,
         )
 
+    if _asks_medical_exposure(lower):
+        time_args = _time_filter_args(time_resolution)
+        medical_slots = {
+            **slots,
+            "dataset": "epss",
+            "stat_mode": "medical_exposure",
+            "view_id": "medical-exposure",
+        }
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "medical_exposure_missing_year",
+                "Medical exposure panel lacks a time period",
+                answer="What year or date range should I use?",
+                slots=medical_slots,
+            )
+        args: dict[str, Any] = {
+            "dataset": "epss_outages",
+            "result_mode": "count",
+            **time_args,
+        }
+        if utilities:
+            args["utility"] = utilities[0]
+        if county:
+            args["county"] = county
+        tool_calls = [("data_query_records", args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=tool_calls,
+            slots=medical_slots,
+            rule="medical_exposure",
+            reason="Medical baseline or life support asks for the EPSS exposure panel",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "medical_exposure",
+            "Medical baseline or life support asks for the EPSS exposure panel",
+            tool_calls=tool_calls,
+            slots=medical_slots,
+        )
+
     if force_model:
         return RouteDecision(
             "model",
@@ -2057,8 +2232,16 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             slots=slots,
         )
 
+    # A residual map is scored like risk: one place and one past day. Every
+    # branch below returns, so the grid slot never leaks into a non-risk route.
+    risk_asked = _wants_risk(lower) or _asks_residual(lower)
+    if risk_asked:
+        grid_mode = _risk_map_mode(lower)
+        if grid_mode:
+            slots = {**slots, "map_mode": grid_mode}
+
     # Fixed two-step coordinate → cell → risk chain.
-    if coords and _wants_risk(lower):
+    if coords and risk_asked:
         on_date = _single_risk_date(text, time_resolution)
         if (
             _forward_relative_phrase(lower)
@@ -2102,7 +2285,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
 
     # Risk by explicit cell and date.
     cell_match = re.search(r"\bcell(?:_id)?\s*(\d{1,3})\b", lower)
-    wants_risk = _wants_risk(lower)
+    wants_risk = risk_asked
     if wants_risk and cell_match:
         on_date = _single_risk_date(text, time_resolution)
         if (
@@ -2188,6 +2371,26 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 ],
                 slots=slots,
             )
+        # A grid map with no place is the statewide surface for that day.
+        if slots.get("map_mode"):
+            if (
+                _forward_relative_phrase(lower)
+                or _date_after_risk_coverage(on_date)
+                or not on_date
+            ):
+                return _risk_date_clarification(
+                    text=text,
+                    time_resolution=time_resolution,
+                    reason="Statewide risk surface requires a scoreable past date",
+                    slots=slots,
+                )
+            return RouteDecision(
+                "deterministic",
+                "risk_surface",
+                "Grid map with a date and no place scores the statewide surface",
+                tool_calls=[("risk_surface", {"date": on_date})],
+                slots=slots,
+            )
         return RouteDecision(
             "clarification",
             "risk_missing_place",
@@ -2198,6 +2401,52 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 "or latitude/longitude, plus one historical calendar day."
             ),
             slots=slots,
+        )
+
+    timeline = _timeline_datasets(text, lower)
+    if timeline and not utilities and not county and not has_count_clause:
+        timeline_slots = {
+            **slots,
+            "series_mode": "timeline",
+            "timeline_datasets": [_VIZ_DATASET_NAME[item] for item in timeline],
+        }
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "trend_missing_year",
+                "Multi-dataset timeline lacks a year",
+                answer="What year should I chart?",
+                slots=timeline_slots,
+            )
+        interval = _default_series_interval(lower, time_resolution)
+        timeline_calls = [
+            (
+                "visualization_create",
+                {
+                    "kind": "time_series",
+                    "dataset": _VIZ_DATASET_NAME[item],
+                    "interval": interval,
+                    **time_args,
+                },
+            )
+            for item in timeline
+        ]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=timeline_calls,
+            slots=timeline_slots,
+            rule="series_timeline",
+            reason="Trend names several chartable datasets",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "series_timeline",
+            "Trend names several chartable datasets",
+            tool_calls=timeline_calls,
+            slots=timeline_slots,
         )
 
     # Explicit comparisons.
@@ -2303,6 +2552,78 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             slots=slots,
         )
 
+    # HDW exists only as a playback overlay on one California event layer.
+    # With no named layer this falls through rather than picking one.
+    if (
+        _asks_hdw(lower)
+        and dataset in _HDW_EVENT_DATASETS
+        and not has_count_clause
+        and not re.search(r"\b(?:trend|time series)\b", lower)
+    ):
+        hdw_slots = {**slots, "show_hdw": True}
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "map_missing_year",
+                "HDW map lacks a year",
+                answer=(
+                    "What year should I map with HDW? Daily HDW covers "
+                    f"{min(HDW_YEARS)} through {max(HDW_YEARS)}."
+                ),
+                slots=hdw_slots,
+            )
+        window_years = {
+            int(value[:4])
+            for value in (time_args.get("start_date"), time_args.get("end_date"))
+            if value
+        } or {int(time_args["year"])}
+        if len(window_years) > 1:
+            return RouteDecision(
+                "clarification",
+                "map_missing_year",
+                "HDW playback runs one year at a time",
+                answer="HDW plays one year at a time. Which year should I map?",
+                slots=hdw_slots,
+            )
+        if not window_years <= HDW_YEARS:
+            return RouteDecision(
+                "clarification",
+                "time_out_of_coverage",
+                "No HDW playback file for that year",
+                answer=(
+                    f"Daily HDW covers {min(HDW_YEARS)} through {max(HDW_YEARS)}. "
+                    "Which year in that range should I map?"
+                ),
+                slots=hdw_slots,
+            )
+        hdw_args: dict[str, Any] = {
+            "kind": "map",
+            "dataset": _VIZ_DATASET_NAME[dataset],
+            **time_args,
+        }
+        if utilities:
+            hdw_args["utility"] = utilities[0]
+        if county and dataset in _COUNTY_CAPABLE_DATASETS:
+            hdw_args["county"] = county
+        hdw_calls = [("visualization_create", hdw_args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=hdw_calls,
+            slots=hdw_slots,
+            rule="hdw_map",
+            reason="HDW overlay on a named event layer and year",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "hdw_map",
+            "HDW overlay on a named event layer and year",
+            tool_calls=hdw_calls,
+            slots=hdw_slots,
+        )
+
     # Explicit map / trend.
     # Map + named trend must fire both tools. Interval words alone ("monthly
     # map") are not a trend ask — those stay map-only.
@@ -2400,6 +2721,107 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "Explicit map, dataset, and time filter",
             tool_calls=tool_calls,
             slots=slots,
+        )
+
+    if _asks_summary_panel(lower) and dataset:
+        summary_slots = {**slots, "dataset": dataset, "stat_mode": "summary"}
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "records_missing_year",
+                "Summary panel lacks a time period",
+                answer="What year or date range should I use?",
+                slots=summary_slots,
+            )
+        summary_args: dict[str, Any] = {
+            "dataset": dataset,
+            "result_mode": "count",
+            **time_args,
+        }
+        if utilities:
+            summary_args["utility"] = utilities[0]
+        if county and dataset in _COUNTY_CAPABLE_DATASETS:
+            summary_args["county"] = county
+        summary_calls = [("data_query_records", summary_args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=summary_calls,
+            slots=summary_slots,
+            rule="summary_stats",
+            reason="Summary or overview asks for the live summary panel",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "summary_stats",
+            "Summary or overview asks for the live summary panel",
+            tool_calls=summary_calls,
+            slots=summary_slots,
+        )
+
+    series_request = _series_mode_request(lower)
+    if series_request is not None and _asks_series_and_total(lower):
+        return _defer_collapsed(slots)
+    if series_request is not None:
+        series_mode, fixed_dataset = series_request
+        chartable = {"cpuc_ignitions", "epss_outages", "calfire_incidents"}
+        warehouse_dataset = fixed_dataset or (
+            dataset if dataset in chartable else None
+        )
+        mode_slots = {
+            **slots,
+            "dataset": warehouse_dataset,
+            "series_mode": series_mode,
+        }
+        if warehouse_dataset is None:
+            return RouteDecision(
+                "clarification",
+                "series_mode_missing_dataset",
+                "Yearly and seasonal charts need CPUC, EPSS, or CAL FIRE",
+                answer=(
+                    "Which dataset should I chart: CPUC ignitions, "
+                    "EPSS outages, or CAL FIRE incidents?"
+                ),
+                slots=mode_slots,
+            )
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "series_mode_missing_year",
+                "Series panel lacks a time period",
+                answer="What year or date range should I use?",
+                slots=mode_slots,
+            )
+        viz_dataset = _VIZ_DATASET_NAME.get(warehouse_dataset, warehouse_dataset)
+        series_args: dict[str, Any] = {
+            "kind": "time_series",
+            "dataset": viz_dataset,
+            "interval": "monthly",
+            **time_args,
+        }
+        if utilities:
+            series_args["utility"] = utilities[0]
+        if county and warehouse_dataset in _COUNTY_CAPABLE_DATASETS:
+            series_args["county"] = county
+        series_calls = [("visualization_create", series_args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=series_calls,
+            slots=mode_slots,
+            rule=f"series_{series_mode}",
+            reason=f"Series panel {series_mode} for {warehouse_dataset}",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            f"series_{series_mode}",
+            f"Series panel {series_mode} for {warehouse_dataset}",
+            tool_calls=series_calls,
+            slots=mode_slots,
         )
 
     if re.search(r"\b(?:trend|time series|weekly|monthly|daily)\b", lower) and dataset:
