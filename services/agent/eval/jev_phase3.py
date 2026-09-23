@@ -14,7 +14,9 @@ from services.agent.eval.jev_repeat import budget_estimate, latest_jsonl, repeat
 
 def dispatch(args: Any, jobs: list[dict[str, Any]]) -> int:
     calls_per_job = 4 if args.schema == "v3" or args.ablation else 1
-    repeats = args.repeats if args.repeats else 5
+    # One pass unless the caller passed --repeats. Five repeats are for a
+    # wording or facts change, not the default.
+    repeats = args.repeats if args.repeats else 1
     if args.budget_estimate or args.ablation:
         configs = 5 if args.ablation else 1
         print(budget_estimate(len(jobs), repeats * configs, calls_per_job=calls_per_job))

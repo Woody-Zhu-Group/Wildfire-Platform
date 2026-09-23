@@ -440,5 +440,54 @@
         "question": "tell me if a wildfire is burning near Oakland rn"
       }
     ]
+  },
+  "combined": {
+    "backstops": [
+      "unsupported_cpz",
+      "unsupported_cost",
+      "unsupported_air_quality",
+      "unsupported_evacuation",
+      "unsupported_translation",
+      "unsupported_personnel",
+      "unsupported_satellite",
+      "unsupported_leadership",
+      "unsupported_optimization",
+      "unsupported_damage",
+      "unsupported_live_web",
+      "risk_future_date",
+      "city_needs_place",
+      "hftd_constraint_unavailable"
+    ],
+    "prompt_injection": "Not a router rule. The router never emits it, so it cannot decide first.",
+    "not_backstops": "Ranking refusals and unexpressable_county_filter are not backstops. If they do not fire, Jev decides.",
+    "accuracy": {
+      "pre_pr_22_router": {
+        "correct": 29,
+        "n": 65,
+        "accuracy": 0.446
+      },
+      "current_router": {
+        "correct": 41,
+        "n": 65,
+        "accuracy": 0.631,
+        "note": "Not independent. Fixes were written from v3 disagreements."
+      },
+      "jev": {
+        "correct": 40,
+        "n": 65,
+        "accuracy": 0.615
+      },
+      "combined_current_backstops": {
+        "correct": 43,
+        "n": 65,
+        "accuracy": 0.662
+      },
+      "combined_pre_pr_backstops": {
+        "correct": 40,
+        "n": 65,
+        "accuracy": 0.615,
+        "note": "The pre-PR router fired one backstop, unsupported_cost on hv3_052, and Jev agreed, so this matches Jev alone."
+      }
+    }
   }
 }

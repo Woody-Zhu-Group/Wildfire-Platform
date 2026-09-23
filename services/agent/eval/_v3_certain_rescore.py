@@ -21,7 +21,8 @@ ROOT = HERE.parents[2]
 OUT = HERE / "runs" / "v3_certain_jev.json"
 PRICE = 0.042 / 1_000_000
 SPEND_CAP = 1.0
-REPEATS = 5
+# One pass. Use 5 only when question wording or facts change.
+REPEATS = 1
 
 
 def _disposition(path: str) -> str:

@@ -441,7 +441,12 @@ def main() -> int:
         help="Include jev_blind_questions.json in its own table.",
     )
     parser.add_argument("--schema", default="v2", choices=("v2", "v3"))
-    parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument(
+        "--repeats",
+        type=int,
+        default=1,
+        help="One pass by default. Use 5 only when question wording or facts change.",
+    )
     parser.add_argument("--repeat-test", type=int, default=0)
     parser.add_argument("--repeat-count", type=int, default=10)
     parser.add_argument("--budget-estimate", action="store_true")
