@@ -1943,6 +1943,21 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
         "end_date": time_resolution.end_date,
     }
 
+    for key, pattern in UNSUPPORTED.items():
+        if re.search(pattern, lower, re.I):
+            return RouteDecision(
+                "unsupported",
+                f"unsupported_{key}",
+                "No read-only backend service provides the requested information",
+                answer=UNSUPPORTED_ANSWERS.get(
+                    key,
+                    (
+                        "This system cannot answer that question with its available "
+                        "read-only wildfire services."
+                    ),
+                ),
+            )
+
     if _LIVE_NOW.search(lower):
         return RouteDecision(
             "unsupported",

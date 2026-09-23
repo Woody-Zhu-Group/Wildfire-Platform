@@ -330,6 +330,14 @@ def test_live_phrasing_is_unsupported_and_history_is_not():
     assert this_year.rule != "risk_future_date"
 
 
+def test_damage_plus_a_future_year_stays_unsupported():
+    decision = route_question(
+        "What property damage should we expect from ignitions next year?"
+    )
+    assert decision.path == "unsupported"
+    assert decision.rule == "unsupported_damage"
+
+
 def test_future_phrasing_uses_the_future_date_refusal():
     for question in (
         "How many ignitions will there be tomorrow?",
