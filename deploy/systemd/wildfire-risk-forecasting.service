@@ -1,0 +1,21 @@
+[Unit]
+Description=Wildfire risk forecasting API (port 8001)
+After=network-online.target
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/Wildfire-Services
+EnvironmentFile=/home/ubuntu/Wildfire-Services/.env
+Environment=PYTHONPATH=/home/ubuntu/Wildfire-Services
+Environment=PYTHONIOENCODING=utf-8
+ExecStart=/home/ubuntu/Wildfire-Services/.venv/bin/uvicorn services.risk_forecasting.app:app --host 0.0.0.0 --port 8001 --app-dir .
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

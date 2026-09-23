@@ -63,3 +63,6 @@ data/boundaries/*.xml
 .vscode/
 .cursor/
 *.swp
+
+# Jev shadow logs written by the agent (keep the deploy clean-tree check honest)
+services/agent/logs/

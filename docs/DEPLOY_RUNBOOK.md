@@ -4,9 +4,9 @@ For a person connected to the backend host (`ip-172-31-2-9`) through AWS
 Systems Manager Session Manager. There is no SSH. Every command below runs as
 the `ubuntu` user unless it starts with `sudo`.
 
-Covers: pulling `main` and restarting services, health checks, Jev shadow
-mode, locking port 8004 to CloudFront, rotating the TypeSafe key, and
-rollback.
+Covers: the merge and deploy order, pulling `main` and restarting services,
+health checks, Jev shadow mode, locking port 8004 to CloudFront, rotating the
+TypeSafe key, and rollback.
 
 Rules that apply throughout:
 
@@ -16,6 +16,34 @@ Rules that apply throughout:
 - Deploy only `main`. Branches are reviewed and merged on GitHub first.
 - Write down the commit you started from before you change anything (step 1).
   Rollback depends on it.
+
+## Merge and deploy order
+
+Do these in order. Each step depends on the one before it. Merges happen on
+GitHub after review; nobody merges from the host.
+
+1. **Merge PR #22 (`router-paraphrase-fixes`) into `main`.** This is the
+   router fix that stops partial and silently wrong answers. The smoke test
+   checks tagged `requires PR #22` start passing only after it is deployed.
+2. **Rebase `jev-shadow` onto `main`, then merge it.** After PR #22 lands:
+   `git fetch platform && git rebase platform/main` on `jev-shadow`, rerun
+   `pytest tests/agent`, push, and get the PR reviewed and merged. Every
+   `AGENT_JEV_MODE` stays `off` by default, so merging changes no answers.
+3. **Deploy `main`** (sections 1 to 4 below). This PR (#24, the smoke test,
+   `shadow_report.py`, and the risk unit) must be on `main` by then too. After
+   the deploy, run `SMOKE_PR22_MERGED=1 bash scripts/smoke_test.sh`; every
+   check must pass, including the ones tagged `requires PR #22`.
+4. **Enable shadow mode** (section 5). Its precondition check confirms the
+   Jev code arrived with step 2.
+5. **Run `shadow_report.py` after real traffic** (section 5.3), once the log
+   holds a meaningful number of real questions (at least a day of traffic).
+   Production shadow logs are the next clean test set: record the first
+   report before anyone tunes routing or Jev against it, and say in any
+   accuracy claim whether the rows were already used for tuning.
+
+Do not skip ahead. Shadow mode on a commit without `jev-shadow` does nothing,
+and a shadow report on a router without PR #22 measures disagreements that
+are already fixed.
 
 ## 0. Get a shell as ubuntu
 
@@ -34,22 +62,16 @@ Services on this host (from `deploy/systemd/`):
 | unit | port | health URL |
 |---|---|---|
 | `wildfire-data-query` | 8000 | `http://127.0.0.1:8000/health` |
+| `wildfire-risk-forecasting` | 8001 | `http://127.0.0.1:8001/health` |
 | `wildfire-visualization` | 8002 | `http://127.0.0.1:8002/health` |
 | `wildfire-comparison` | 8003 | `http://127.0.0.1:8003/health` |
 | `wildfire-agent` | 8004 | `http://127.0.0.1:8004/health` |
 | `wildfire-frontend` | 8765 | `http://127.0.0.1:8765/` |
 | `wildfire-gpu-control` | 8005 | legacy, keep disabled |
 
-The risk service (8001, `services.risk_forecasting.app`) has no unit in
-`deploy/systemd/`, but the agent calls it at `RISK_FORECASTING_BASE_URL`
-(default `http://127.0.0.1:8001`). Check how it runs today before you deploy:
-
-```bash
-ss -ltnp | grep ':8001' || echo "nothing listening on 8001"
-```
-
-If nothing listens on 8001, risk questions fail. Report it; do not invent a
-unit during a deploy.
+The agent calls the risk service at `RISK_FORECASTING_BASE_URL` (default
+`http://127.0.0.1:8001`). `wildfire-risk-forecasting` is newer than the other
+units, so the first deploy that includes it must install it (section 2.1).
 
 The model host (172.31.6.133, Ollama `qwen2.5:7b`, CPU only) is separate and
 is not restarted by this runbook.
@@ -103,21 +125,60 @@ sudo systemctl daemon-reload
 
 `wildfire-gpu-control` is copied too but stays disabled. Do not enable it.
 
+### 2.1 First deploy with the risk unit
+
+Only once, on the first deploy whose `deploy/systemd/` includes
+`wildfire-risk-forecasting.service`. Check whether it is already enabled:
+
+```bash
+systemctl is-enabled wildfire-risk-forecasting 2>/dev/null || echo "not installed"
+```
+
+If it prints `enabled`, skip to section 3. Otherwise:
+
+```bash
+ss -ltnp | grep ':8001' || echo "nothing listening on 8001"
+```
+
+If something already listens on 8001 (for example a uvicorn started inside
+`screen`), note how it was started, then stop it, or the unit fails to bind.
+Confirm the model artifacts the unit needs are present:
+
+```bash
+ls -l services/risk_forecasting/artifacts/cnhpp_params.npz
+ls services/risk_forecasting/data | head
+```
+
+Then install and enable:
+
+```bash
+sudo cp /home/ubuntu/Wildfire-Services/deploy/systemd/wildfire-risk-forecasting.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now wildfire-risk-forecasting
+curl -s --max-time 15 http://127.0.0.1:8001/health | python3 -m json.tool
+```
+
+`/health` returns 200 even when the model failed to load; read the body and
+confirm the model is loaded. If it is not, the data files are missing or in
+a different place (`RISK_FORECASTING_DATA_DIR`); fix that before continuing.
+More detail in `deploy/systemd/SYSTEMD_SETUP.md`.
+
 ## 3. Restart services
 
 ```bash
 sudo systemctl restart \
   wildfire-data-query \
+  wildfire-risk-forecasting \
   wildfire-visualization \
   wildfire-comparison \
   wildfire-agent \
   wildfire-frontend
 sudo systemctl --no-pager --full status \
-  wildfire-data-query wildfire-visualization wildfire-comparison \
-  wildfire-agent wildfire-frontend | grep -E '^(●|\s+Active:)'
+  wildfire-data-query wildfire-risk-forecasting wildfire-visualization \
+  wildfire-comparison wildfire-agent wildfire-frontend | grep -E '^(●|\s+Active:)'
 ```
 
-All five should show `active (running)`. The agent can be `active` for
+All six should show `active (running)`. The agent can be `active` for
 several minutes while `/health` still fails, because it waits for the model
 host to warm up. Do not restart it again in that window. Watch it:
 
@@ -187,8 +248,10 @@ branch has merged into `main` and been deployed.
 
 ### 5.1 Edit .env
 
-Put the log outside the repository so `git status` stays clean and a
-`git pull` never touches it:
+Put the log outside the repository, so a `git checkout` for rollback or a
+fresh clone never touches it. (`services/agent/logs/`, the code default, is
+gitignored as well, so a log left there no longer breaks the clean-tree check
+in step 1, but keep production logs outside the repo anyway.)
 
 ```bash
 mkdir -p /home/ubuntu/wildfire-logs
@@ -430,7 +493,7 @@ sudo systemctl daemon-reload
 Restart and check:
 
 ```bash
-sudo systemctl restart wildfire-data-query wildfire-visualization wildfire-comparison wildfire-agent wildfire-frontend
+sudo systemctl restart wildfire-data-query wildfire-risk-forecasting wildfire-visualization wildfire-comparison wildfire-agent wildfire-frontend
 bash scripts/smoke_test.sh   # if the rolled-back commit has it
 ```
 

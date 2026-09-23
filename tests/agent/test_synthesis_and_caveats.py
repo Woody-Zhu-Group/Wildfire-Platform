@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from services.agent.caveats import collect_qualifications, _needs_calfire_map_feed_caveat
 from services.agent.orchestrator import _ensure_readable_answer, _render_deterministic
 from services.agent.tools import ToolExecution, ToolExecutor
@@ -147,6 +149,7 @@ def test_cpuc_caveat_attaches_without_utility_scope():
     assert "cpuc_utility_caused" in ids
 
 
+@pytest.mark.requires_service(8000, name="data_query")
 def test_cpuc_vs_us_companion_attaches_sample_caveat_without_us_primary():
     """Caveat must not depend on the model emitting a second primary US call."""
     settings = AgentSettings.from_env()
