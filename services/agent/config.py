@@ -78,6 +78,8 @@ class AgentSettings:
     jev_log_max_mb: float = 50.0
     jev_ablation: str = "v3_hybrid"
     jev_tool_pick_min_confidence: float = 0.8
+    # decide mode: a Jev clarify or refuse wins only at or above this confidence.
+    jev_decide_min_confidence: float = 0.8
 
     @classmethod
     def from_env(cls) -> "AgentSettings":
@@ -164,6 +166,9 @@ class AgentSettings:
             jev_tool_pick_min_confidence=float(
                 os.getenv("AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE", "0.8")
             ),
+            jev_decide_min_confidence=float(
+                os.getenv("AGENT_JEV_DECIDE_MIN_CONFIDENCE", "0.8")
+            ),
             llm_provider=llm_provider,
         )
         if hosted:
@@ -185,12 +190,14 @@ class AgentSettings:
         if self.jev_mode in {"verify", "fallback", "route"}:
             raise ValueError(
                 f"AGENT_JEV_MODE={self.jev_mode} is reserved and not implemented. "
-                "Use off, shadow, tool_pick, or tool_pick_template."
+                "Use off, shadow, tool_pick, tool_pick_template, or decide."
             )
-        if self.jev_mode not in {"off", "shadow", "tool_pick", "tool_pick_template"}:
+        if self.jev_mode not in {"off", "shadow", "tool_pick", "tool_pick_template", "decide"}:
             raise ValueError(
-                "AGENT_JEV_MODE must be off, shadow, tool_pick, or tool_pick_template"
+                "AGENT_JEV_MODE must be off, shadow, tool_pick, tool_pick_template, or decide"
             )
+        if not 0 <= self.jev_decide_min_confidence <= 1:
+            raise ValueError("AGENT_JEV_DECIDE_MIN_CONFIDENCE must be between 0 and 1")
         if not 0 <= self.jev_tool_pick_min_confidence <= 1:
             raise ValueError("AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE must be between 0 and 1")
         if self.jev_backend not in {"typesafe", "openrouter"}:

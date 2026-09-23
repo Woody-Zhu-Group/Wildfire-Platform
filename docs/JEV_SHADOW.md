@@ -16,7 +16,8 @@ Jev is a TypeSafe System One model. `off` and `shadow` do not change answers, to
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AGENT_JEV_MODE` | `off` | `off`, `shadow`, `tool_pick`, or `tool_pick_template` |
+| `AGENT_JEV_MODE` | `off` | `off`, `shadow`, `tool_pick`, `tool_pick_template`, or `decide` (see `docs/JEV_DECIDE.md`) |
+| `AGENT_JEV_DECIDE_MIN_CONFIDENCE` | `0.8` | decide mode: a Jev decision wins over the router only at or above this confidence |
 | `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` | `0.8` | Use Jev's tool only at or above this confidence |
 | `AGENT_JEV_BACKEND` | `typesafe` | `typesafe` or `openrouter` (same request body, see `docs/OPENROUTER.md`) |
 | `AGENT_JEV_MODEL` | `jev-latest` | Model route. Logs record the concrete version the API returns |
