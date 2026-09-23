@@ -42,6 +42,7 @@ RULE_TO_INTENT: dict[str, str] = {
     # Orchestrator rewrite, not a routing.py rule. Excluded from intent scoring.
     "deterministic_router_disabled": None,
     "multi_intent_count_and_trend": "multi_intent",
+    "multi_entity_deferred": "multi_intent",
     "multi_intent_territory_and_map": "multi_intent",
     "ambiguous_risk_metric": "risk",
     "ambiguous_risk_place": "risk",

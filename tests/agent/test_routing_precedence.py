@@ -241,6 +241,60 @@ def test_show_me_where_maps():
     assert decision.tool_calls[0][1]["utility"] == "SCE"
 
 
+def test_several_utilities_and_a_chart_is_not_a_partial_count():
+    decision = route_question(
+        "Give me the ignition count for PGE, SCE, and SDGE in 2024 and chart it"
+    )
+    assert decision.path == "model"
+    assert decision.tool_calls == []
+
+
+def test_annual_counts_across_a_year_range_are_not_one_sum():
+    decision = route_question(
+        "Chart the annual ignition counts for SCE from 2016 through 2022"
+    )
+    assert decision.path in {"model", "clarification"}
+    assert not any(
+        call[0] == "data_query_records" and "start_date" in call[1]
+        for call in decision.tool_calls
+    )
+
+
+def test_each_month_of_one_year_is_not_an_annual_total():
+    decision = route_question("How many PGE outages were there in each month of 2023?")
+    assert decision.path == "model"
+    assert decision.tool_calls == []
+
+
+def test_several_named_years_are_not_one_collapsed_count():
+    decision = route_question(
+        "How many SCE ignitions were there in 2018, and how many in 2020?"
+    )
+    assert decision.path in {"model", "clarification"}
+    totals = [
+        call for call in decision.tool_calls if call[0] == "data_query_records"
+    ]
+    assert len(totals) != 1
+
+
+def test_single_utility_single_year_count_stays_deterministic():
+    decision = route_question("How many PGE ignitions were there in 2024?")
+    assert decision.path == "deterministic"
+    assert decision.rule == "filtered_records"
+    assert decision.tool_calls[0][1]["utility"] == "PGE"
+    assert decision.tool_calls[0][1]["year"] == 2024
+
+
+def test_single_dataset_monthly_trend_still_builds_a_monthly_series():
+    decision = route_question("Show the monthly CAL FIRE incident trend for 2024")
+    assert decision.path == "deterministic"
+    assert decision.rule == "time_series"
+    args = decision.tool_calls[0][1]
+    assert args["kind"] == "time_series"
+    assert args["interval"] == "monthly"
+    assert args["year"] == 2024
+
+
 def test_list_records_uses_preview_limit_25():
     decision = route_question(
         "Show me CAL FIRE incidents in Sacramento County in 2024"

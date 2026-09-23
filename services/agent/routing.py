@@ -223,6 +223,76 @@ def _utilities(text: str) -> list[str]:
     return found
 
 
+_BREAKDOWN = re.compile(
+    r"\b(?:each|every|per)\s+months?\b|"
+    r"\b(?:each|every|per)\s+years?\b|"
+    r"\b(?:each|every|per)\s+count(?:y|ies)\b|"
+    r"\b(?:each|every|per)\s+utilit(?:y|ies)\b|"
+    r"\bby\s+months?\b|"
+    r"\bby\s+years?\b|"
+    r"\bby\s+count(?:y|ies)\b|"
+    r"\bby\s+utilit(?:y|ies)\b|"
+    r"\byear[- ]by[- ]year\b|"
+    r"\bannual(?:ly)?\b|"
+    r"\bin each month\b"
+)
+
+
+def _counties(text: str) -> list[str]:
+    """Every county named in the question, not just the first."""
+    lower = " ".join(text.lower().split())
+    found: list[str] = []
+    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+        if re.search(rf"\b{re.escape(name.lower())}\s+county\b", lower):
+            found.append(name)
+    if found:
+        return found
+    if re.search(r"\b(?:near|around|close to)\b", lower):
+        return []
+    scrubbed = lower
+    for pattern in UTILITY_PATTERNS.values():
+        scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
+    scrubbed = " ".join(scrubbed.split())
+    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+        if re.search(rf"\b{re.escape(name.lower())}\b", scrubbed) and name not in found:
+            found.append(name)
+    return found
+
+
+def _single_call_would_collapse(
+    lower: str,
+    utilities: list[str],
+    counties: list[str],
+    *,
+    kind: str,
+) -> bool:
+    """True when one tool call would drop a named entity or flatten a breakdown."""
+    if len(utilities) > 1 or len(counties) > 1:
+        return True
+    named_years = set(re.findall(r"\b20\d{2}\b", lower))
+    if kind == "count" and (len(named_years) > 1 or _BREAKDOWN.search(lower)):
+        return True
+    if kind == "series" and re.search(
+        r"\bannual(?:ly)?\b|\bper\s+years?\b|\byear[- ]by[- ]year\b|\beach\s+years?\b",
+        lower,
+    ):
+        return True
+    if kind == "map" and _BREAKDOWN.search(lower):
+        return True
+    return False
+
+
+def _defer_collapsed(
+    slots: dict[str, Any],
+) -> RouteDecision:
+    return RouteDecision(
+        "model",
+        "multi_entity_deferred",
+        "A single call would drop a named entity or collapse a breakdown",
+        slots=slots,
+    )
+
+
 def _county(text: str) -> str | None:
     """Extract a county / county-seat place constraint from the question."""
     lower = " ".join(text.lower().split())
@@ -1428,6 +1498,10 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             )
 
     if has_map_clause and dataset:
+        if _single_call_would_collapse(
+            lower, utilities, _counties(text), kind="map"
+        ):
+            return _defer_collapsed(slots)
         time_args = _time_filter_args(time_resolution)
         if not time_args and dataset != "hftd":
             return RouteDecision(
@@ -1471,6 +1545,10 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
         )
 
     if re.search(r"\b(?:trend|time series|weekly|monthly|daily)\b", lower) and dataset:
+        if _single_call_would_collapse(
+            lower, utilities, _counties(text), kind="series"
+        ):
+            return _defer_collapsed(slots)
         time_args = _time_filter_args(time_resolution)
         if not time_args:
             return RouteDecision(
@@ -1605,6 +1683,10 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
     is_count = _has_quantity_op(lower)
     is_list = _has_list_op(lower)
     if (is_count or is_list) and dataset:
+        if _single_call_would_collapse(
+            lower, utilities, _counties(text), kind="count"
+        ):
+            return _defer_collapsed(slots)
         time_args = _time_filter_args(time_resolution)
         if not time_args:
             return RouteDecision(
