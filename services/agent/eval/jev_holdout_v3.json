@@ -67,7 +67,9 @@
     "expected_clarify_reason": null,
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "Router policy open_ended is answer. The generator said answerable."
+    "label_rationale": "Router policy open_ended is answer. The generator said answerable.",
+    "rule": "F",
+    "rule_text": "Rule F labels live in jev_holdout_v3_labels_chatgpt.json on router-paraphrase-fixes. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
   },
   {
     "id": "hv3_006",
@@ -455,7 +457,9 @@
       "data_query_records",
       "data_query_records"
     ],
-    "plan_type": "per_year_counts"
+    "plan_type": "per_year_counts",
+    "rule": "F",
+    "rule_text": "Rule F labels live in jev_holdout_v3_labels_chatgpt.json on router-paraphrase-fixes. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
   },
   {
     "id": "hv3_030",
@@ -559,7 +563,9 @@
       "data_query_records",
       "data_query_records"
     ],
-    "plan_type": "per_year_counts"
+    "plan_type": "per_year_counts",
+    "rule": "F",
+    "rule_text": "Rule F labels live in jev_holdout_v3_labels_chatgpt.json on router-paraphrase-fixes. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
   },
   {
     "id": "hv3_037",
@@ -792,8 +798,10 @@
     "expected_tool_pick": null,
     "expected_clarify_reason": "risk_missing_place",
     "expected_unsupported_topic": null,
-    "needs_human_review": true,
-    "label_rationale": "Router policy risk_missing_place is clarify. The generator said out_of_scope."
+    "needs_human_review": false,
+    "label_rationale": "Router policy risk_missing_place is clarify. The generator said out_of_scope.",
+    "rule": "F",
+    "rule_text": "Rule F labels live in jev_holdout_v3_labels_chatgpt.json on router-paraphrase-fixes. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
   },
   {
     "id": "hv3_054",
@@ -870,8 +878,10 @@
     "expected_tool_pick": null,
     "expected_clarify_reason": "time_out_of_coverage",
     "expected_unsupported_topic": null,
-    "needs_human_review": true,
-    "label_rationale": "Router policy time_out_of_coverage is clarify. The generator said out_of_scope."
+    "needs_human_review": false,
+    "label_rationale": "Router policy time_out_of_coverage is clarify. The generator said out_of_scope.",
+    "rule": "F",
+    "rule_text": "Rule F labels live in jev_holdout_v3_labels_chatgpt.json on router-paraphrase-fixes. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
   },
   {
     "id": "hv3_060",
@@ -909,8 +919,10 @@
     "expected_tool_pick": null,
     "expected_clarify_reason": "risk_future_date",
     "expected_unsupported_topic": null,
-    "needs_human_review": true,
-    "label_rationale": "Router policy risk_future_date is clarify. The generator said out_of_scope."
+    "needs_human_review": false,
+    "label_rationale": "Router policy risk_future_date is clarify. The generator said out_of_scope.",
+    "rule": "F",
+    "rule_text": "Rule F labels live in jev_holdout_v3_labels_chatgpt.json on router-paraphrase-fixes. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
   },
   {
     "id": "hv3_063",

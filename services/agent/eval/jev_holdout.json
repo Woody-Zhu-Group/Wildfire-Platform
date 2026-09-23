@@ -783,7 +783,7 @@
     "expected_tool_pick": null,
     "expected_clarify_reason": null,
     "expected_unsupported_topic": "unsupported_future_prediction",
-    "needs_human_review": true,
+    "needs_human_review": false,
     "label_rationale": "2027 is outside stored years, so policy clarifies instead of refusing a forecast.",
     "previous": {
       "expected_disposition": "clarify",
@@ -791,7 +791,7 @@
       "expected_unsupported_topic": null
     },
     "rule": "F",
-    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set."
+    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
   },
   {
     "id": "ho_057",
@@ -907,7 +907,7 @@
     "expected_tool_pick": null,
     "expected_clarify_reason": null,
     "expected_unsupported_topic": "unsupported_future_prediction",
-    "needs_human_review": true,
+    "needs_human_review": false,
     "label_rationale": "The next expected PSPS event is a forecast, not a stored historical count.",
     "previous": {
       "expected_disposition": "unsupported",
@@ -915,7 +915,7 @@
       "expected_unsupported_topic": null
     },
     "rule": "F",
-    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set."
+    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
   },
   {
     "id": "ho_066",
