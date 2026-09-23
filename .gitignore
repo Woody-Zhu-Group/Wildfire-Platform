@@ -58,6 +58,9 @@ data/boundaries/*.xml
 !**/grid_cells.csv
 !**/circuit_midpoints.csv
 
+# Jev shadow logs (may contain user questions)
+services/agent/logs/
+
 # Editor / local tooling
 .idea/
 .vscode/

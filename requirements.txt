@@ -11,3 +11,4 @@ httpx>=0.27
 boto3>=1.34
 pyshp>=2.3
 pytest>=8.0
+typesafe-sdk>=0.7.1

@@ -175,6 +175,8 @@ def explicit_year_range(text: str) -> tuple[str, str, str] | None:
     lower = " ".join(text.lower().split())
     match = re.search(rf"\b(20\d{{2}})\s+(?:to|through|until)\s+(20\d{{2}})\b", lower)
     if not match:
+        match = re.search(rf"\bbetween\s+(20\d{{2}})\s+and\s+(20\d{{2}})\b", lower)
+    if not match:
         match = re.search(rf"\b(20\d{{2}})\s*[-–—]\s*(20\d{{2}})\b", lower)
     if not match:
         return None
@@ -213,9 +215,19 @@ def _span_resolution(
     )
 
 
+def expand_apostrophe_year(text: str) -> str:
+    """Turn a written '24 into 2024. The digits are in the question; this is not a guess."""
+
+    def replace(match: re.Match[str]) -> str:
+        return str(2000 + int(match.group(1)))
+
+    return re.sub(r"(?<!\d)'(\d{2})\b", replace, text)
+
+
 def resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     """Resolve explicit or relative time. Never guess vague phrases."""
     ref = today or date.today()
+    text = expand_apostrophe_year(text)
     lower = " ".join(text.lower().split())
     data_max = ref.year
     month_hit = month_from_text(lower)

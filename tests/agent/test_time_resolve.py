@@ -65,6 +65,14 @@ def test_explicit_month_window():
     assert result.end_date == "2023-08-31"
 
 
+def test_apostrophe_year_expands_into_the_2000s():
+    result = resolve_time("Tally ignitions in '24", today=TODAY)
+    assert result.status == "explicit"
+    assert result.year == 2024
+    assert result.start_date == "2024-01-01"
+    assert result.end_date == "2024-12-31"
+
+
 def test_bare_year_is_full_calendar_year():
     result = resolve_time("cpuc ignitions in 2024", today=TODAY)
     assert result.status == "explicit"
@@ -84,6 +92,21 @@ def test_month_year_to_month_year_span():
     assert result.years == (2023, 2024)
     assert result.start_date == "2023-08-01"
     assert result.end_date == "2024-09-30"
+
+
+def test_named_year_ranges_include_every_year():
+    assert resolve_time("ignition counts 2017 to 2023", today=TODAY).years == tuple(
+        range(2017, 2024)
+    )
+    assert resolve_time("from 2018 through 2022", today=TODAY).years == tuple(
+        range(2018, 2023)
+    )
+    assert resolve_time("2019-2022 totals", today=TODAY).years == tuple(range(2019, 2023))
+    assert resolve_time("between 2017 and 2023", today=TODAY).years == tuple(
+        range(2017, 2024)
+    )
+    named = resolve_time("how many in 2018, and how many in 2020", today=TODAY)
+    assert named.years == (2018, 2020)
 
 
 def test_year_to_year_and_dashed_span():

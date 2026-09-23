@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 from pydantic import ValidationError
@@ -27,6 +29,8 @@ from services.agent.schemas import AgentAnswer, EvidenceClaim, openai_tools
 from services.agent.streaming import ProgressCallback
 from services.agent.tools import ToolExecution, ToolExecutor
 from services.agent.views import dump_planned, empty_views_payload, plan_views
+
+_shadow_log = logging.getLogger("services.agent.decisions")
 
 MODEL_OFFLINE_ANSWER = (
     "The language model is offline. Counts, maps, and rankings still work. "
@@ -99,10 +103,16 @@ class AgentOrchestrator:
         settings: AgentSettings,
         provider: OpenAICompatibleProvider,
         executor: ToolExecutor,
+        shadow: Any = None,
     ) -> None:
         self.settings = settings
         self.provider = provider
         self.executor = executor
+        self.shadow = shadow
+        if shadow is None and settings.jev_mode == "shadow":
+            from services.agent.decisions.shadow import get_runner
+
+            self.shadow = get_runner(settings)
 
     async def ask(
         self,
@@ -135,6 +145,69 @@ class AgentOrchestrator:
             )
         if decision.path == "model":
             decision.slots.setdefault("candidate_tools", candidate_tools(question))
+        shadow = self.shadow
+        if shadow is not None:
+            try:
+                forced = bool(
+                    force_model or self.settings.disable_deterministic_routing
+                )
+                tools = (
+                    list(decision.slots.get("candidate_tools") or [])
+                    if decision.path == "model"
+                    else None
+                )
+                shadow.submit_routing(
+                    request_id,
+                    question,
+                    decision,
+                    date.today().isoformat(),
+                    forced=forced,
+                    candidate_tools=tools,
+                )
+                if decision.path == "model" and not shadow.bundles_tool_pick:
+                    shadow.submit_tool_pick(
+                        request_id,
+                        question,
+                        list(decision.slots.get("candidate_tools") or []),
+                        forced=forced,
+                    )
+            except Exception as exc:  # noqa: BLE001
+                _shadow_log.warning(
+                    "Jev shadow submit failed: %s: %s", type(exc).__name__, exc
+                )
+        result: OrchestrationResult | None = None
+        try:
+            result = await self._ask_routed(
+                question,
+                on_event=on_event,
+                cancel_event=cancel_event,
+                request_id=request_id,
+                started=started,
+                decision=decision,
+            )
+            return result
+        finally:
+            if shadow is not None and shadow.was_admitted(request_id):
+                try:
+                    response = None if result is None else result.response
+                    shadow.record_outcome(request_id, question, response)
+                except Exception as exc:  # noqa: BLE001
+                    _shadow_log.warning(
+                        "Jev shadow outcome failed: %s: %s",
+                        type(exc).__name__,
+                        exc,
+                    )
+
+    async def _ask_routed(
+        self,
+        question: str,
+        *,
+        on_event: ProgressCallback | None = None,
+        cancel_event: asyncio.Event | None = None,
+        request_id: str,
+        started: float,
+        decision: RouteDecision,
+    ) -> OrchestrationResult:
         print(
             json.dumps(
                 {

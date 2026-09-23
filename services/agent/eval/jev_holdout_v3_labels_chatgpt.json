@@ -1,0 +1,1161 @@
+[
+  {
+    "id": 1,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "SCE",
+            "SDG&E"
+          ],
+          "date_range": "2021"
+        }
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "PG&E",
+            "SCE",
+            "SDG&E"
+          ],
+          "date_range": "2017"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "PG&E",
+            "SCE",
+            "SDG&E"
+          ],
+          "date_range": "2018"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "PG&E",
+            "SCE",
+            "SDG&E"
+          ],
+          "date_range": "2019"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "PG&E",
+            "SCE",
+            "SDG&E"
+          ],
+          "date_range": "2020"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "PG&E",
+            "SCE",
+            "SDG&E"
+          ],
+          "date_range": "2021"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "PG&E",
+            "SCE",
+            "SDG&E"
+          ],
+          "date_range": "2022"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "PG&E",
+            "SCE",
+            "SDG&E"
+          ],
+          "date_range": "2023"
+        }
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "calfire_incidents",
+          "county": "Shasta County",
+          "year": 2019
+        }
+      },
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "calfire_incidents",
+          "county": "Shasta County",
+          "year": 2020
+        }
+      },
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "calfire_incidents",
+          "county": "Shasta County",
+          "year": 2021
+        }
+      },
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "calfire_incidents",
+          "county": "Shasta County",
+          "year": 2022
+        }
+      },
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "calfire_incidents",
+          "county": "Shasta County",
+          "year": 2023
+        }
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "calfire_incident_count",
+          "counties": [
+            "Kern County",
+            "Tulare County",
+            "Kings County"
+          ],
+          "date_range": "2018"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "calfire_incident_count",
+          "counties": [
+            "Kern County",
+            "Tulare County",
+            "Kings County"
+          ],
+          "date_range": "2019"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "calfire_incident_count",
+          "counties": [
+            "Kern County",
+            "Tulare County",
+            "Kings County"
+          ],
+          "date_range": "2020"
+        }
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "disposition": "clarify",
+    "reason": "unexpressable_county_filter",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_rank_us_state"
+    },
+    "rule": "F"
+  },
+  {
+    "id": 6,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "cpuc_ignitions",
+          "county": "Riverside County",
+          "year": 2019
+        }
+      },
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "cpuc_ignitions",
+          "county": "Riverside County",
+          "year": 2020
+        }
+      },
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "cpuc_ignitions",
+          "county": "Riverside County",
+          "year": 2021
+        }
+      },
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "cpuc_ignitions",
+          "county": "Riverside County",
+          "year": 2022
+        }
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "visualization_create",
+        "key_filters": {
+          "dataset": "epss",
+          "utility": "PG&E",
+          "date_range": "2022-01-01 to 2023-12-31",
+          "interval": "monthly"
+        }
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "disposition": "unsupported",
+    "reason": "unsupported_ranking",
+    "tool_calls": []
+  },
+  {
+    "id": 9,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "psps_event_count",
+          "utilities": [
+            "PG&E",
+            "SCE",
+            "SDG&E",
+            "Liberty",
+            "PacifiCorp",
+            "Bear Valley"
+          ],
+          "date_range": "2019-01-01 to 2022-12-31"
+        }
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 11,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 12,
+    "disposition": "unsupported",
+    "reason": "unexpressable_county_filter",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 13,
+    "disposition": "unsupported",
+    "reason": "unexpressable_county_filter",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 14,
+    "disposition": "clarify",
+    "reason": "hftd_constraint_unavailable",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
+  },
+  {
+    "id": 15,
+    "disposition": "unsupported",
+    "reason": "unsupported_rank_epss_utility",
+    "tool_calls": []
+  },
+  {
+    "id": 16,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "Liberty",
+            "Bear Valley"
+          ],
+          "date_range": "2019-01-01 to 2023-12-31"
+        }
+      }
+    ]
+  },
+  {
+    "id": 17,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "visualization_create",
+        "key_filters": {
+          "dataset": "psps",
+          "utility": "SCE",
+          "date_range": "2021-01-01 to 2021-12-31",
+          "interval": "monthly"
+        }
+      }
+    ]
+  },
+  {
+    "id": 18,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 19,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "county": "Sonoma County",
+          "periods": [
+            "2018",
+            "2021"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": 20,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "data_query_rank",
+        "key_filters": {
+          "dataset": "cpuc_ignitions",
+          "group_by": "county",
+          "year": 2022,
+          "metric": "count",
+          "top_n": 15
+        }
+      }
+    ]
+  },
+  {
+    "id": 21,
+    "disposition": "unsupported",
+    "reason": "unsupported_ranking",
+    "tool_calls": []
+  },
+  {
+    "id": 22,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "visualization_create",
+        "key_filters": {
+          "dataset": "ignitions",
+          "date_range": "2017-01-01 to 2022-12-31",
+          "interval": "monthly",
+          "dataset_scope": "CPUC utility-caused"
+        }
+      },
+      {
+        "tool": "visualization_create",
+        "key_filters": {
+          "dataset": "us_ignitions",
+          "date_range": "2017-01-01 to 2022-12-31",
+          "interval": "monthly"
+        }
+      }
+    ]
+  },
+  {
+    "id": 23,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "data_query_spatial",
+        "key_filters": {
+          "dataset": "epss_outages",
+          "hftd_tier": "Tier 3",
+          "date_range": "2023"
+        }
+      }
+    ]
+  },
+  {
+    "id": 24,
+    "disposition": "clarify",
+    "reason": "hftd_constraint_unavailable",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
+  },
+  {
+    "id": 25,
+    "disposition": "clarify",
+    "reason": "forecast_missing_date",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 26,
+    "disposition": "clarify",
+    "reason": "risk_missing_place",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 27,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "counties": [
+            "Merced County",
+            "Stanislaus County",
+            "Madera County"
+          ],
+          "date_range": "2020"
+        }
+      }
+    ]
+  },
+  {
+    "id": 28,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "visualization_create",
+        "key_filters": {
+          "dataset": "psps",
+          "utility": "PG&E",
+          "date_range": "2019-01-01 to 2021-12-31",
+          "interval": "monthly"
+        }
+      }
+    ]
+  },
+  {
+    "id": 29,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [],
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_rank_epss_utility"
+    },
+    "rule": "F"
+  },
+  {
+    "id": 30,
+    "disposition": "unsupported",
+    "reason": "unsupported_ranking",
+    "tool_calls": []
+  },
+  {
+    "id": 31,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "calfire_incident_count",
+          "counties": [
+            "Monterey County",
+            "Ventura County",
+            "Santa Barbara County"
+          ],
+          "date_range": "2018"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "calfire_incident_count",
+          "counties": [
+            "Monterey County",
+            "Ventura County",
+            "Santa Barbara County"
+          ],
+          "date_range": "2019"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "calfire_incident_count",
+          "counties": [
+            "Monterey County",
+            "Ventura County",
+            "Santa Barbara County"
+          ],
+          "date_range": "2020"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "calfire_incident_count",
+          "counties": [
+            "Monterey County",
+            "Ventura County",
+            "Santa Barbara County"
+          ],
+          "date_range": "2021"
+        }
+      },
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "calfire_incident_count",
+          "counties": [
+            "Monterey County",
+            "Ventura County",
+            "Santa Barbara County"
+          ],
+          "date_range": "2022"
+        }
+      }
+    ]
+  },
+  {
+    "id": 32,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "ignition_count",
+          "utilities": [
+            "SCE",
+            "SDG&E"
+          ],
+          "date_range": "2020"
+        }
+      }
+    ]
+  },
+  {
+    "id": 33,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "visualization_create",
+        "key_filters": {
+          "dataset": "ignitions",
+          "county": "San Bernardino County",
+          "year": 2021
+        }
+      }
+    ]
+  },
+  {
+    "id": 34,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "data_query_rank",
+        "key_filters": {
+          "dataset": "epss_outages",
+          "group_by": "circuit",
+          "year": 2022,
+          "metric": "count"
+        }
+      }
+    ]
+  },
+  {
+    "id": 35,
+    "disposition": "clarify",
+    "reason": "hftd_constraint_unavailable",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
+  },
+  {
+    "id": 36,
+    "disposition": "clarify",
+    "reason": "unexpressable_county_filter",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_rank_us_state"
+    },
+    "rule": "F"
+  },
+  {
+    "id": 37,
+    "disposition": "unsupported",
+    "reason": "unsupported_ranking",
+    "tool_calls": []
+  },
+  {
+    "id": 38,
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
+  },
+  {
+    "id": 39,
+    "disposition": "clarify",
+    "reason": "ambiguous_risk_metric",
+    "tool_calls": []
+  },
+  {
+    "id": 40,
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
+  },
+  {
+    "id": 41,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "comparison_run",
+        "key_filters": {
+          "metric": "acres_burned",
+          "utilities": [
+            "PG&E",
+            "SCE",
+            "SDG&E",
+            "Liberty",
+            "PacifiCorp",
+            "Bear Valley"
+          ],
+          "date_range": "2021"
+        }
+      }
+    ]
+  },
+  {
+    "id": 42,
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
+  },
+  {
+    "id": 43,
+    "disposition": "clarify",
+    "reason": "ambiguous_risk_metric",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 44,
+    "disposition": "unsupported",
+    "reason": "unsupported_ranking",
+    "tool_calls": []
+  },
+  {
+    "id": 45,
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
+    "tool_calls": [
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "calfire_incidents",
+          "county": "Yolo County",
+          "year": 2021,
+          "fields": [
+            "cause"
+          ]
+        }
+      }
+    ],
+    "rule": "E",
+    "previous": {
+      "disposition": "answer",
+      "reason": null
+    }
+  },
+  {
+    "id": 46,
+    "disposition": "unsupported",
+    "reason": "unsupported_evacuation",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_damage"
+    }
+  },
+  {
+    "id": 47,
+    "disposition": "unsupported",
+    "reason": "unsupported_damage",
+    "tool_calls": []
+  },
+  {
+    "id": 48,
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
+  },
+  {
+    "id": 49,
+    "disposition": "unsupported",
+    "reason": "unsupported_ranking",
+    "tool_calls": []
+  },
+  {
+    "id": 50,
+    "disposition": "clarify",
+    "reason": "records_missing_year",
+    "tool_calls": []
+  },
+  {
+    "id": 51,
+    "disposition": "unsupported",
+    "reason": "unsupported_air_quality",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
+  },
+  {
+    "id": 52,
+    "disposition": "unsupported",
+    "reason": "unsupported_cost",
+    "tool_calls": []
+  },
+  {
+    "id": 53,
+    "disposition": "unsupported",
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "clarify",
+      "reason": "risk_future_date"
+    },
+    "rule": "F"
+  },
+  {
+    "id": 54,
+    "disposition": "unsupported",
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_live_web"
+    }
+  },
+  {
+    "id": 55,
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [
+      {
+        "tool": "data_query_records",
+        "key_filters": {
+          "dataset": "cpuc_ignitions",
+          "date_range": "after 2024-01-01"
+        }
+      }
+    ]
+  },
+  {
+    "id": 56,
+    "disposition": "unsupported",
+    "reason": "unsupported_live_web",
+    "tool_calls": []
+  },
+  {
+    "id": 57,
+    "disposition": "unsupported",
+    "reason": "unsupported_live_web",
+    "tool_calls": []
+  },
+  {
+    "id": 58,
+    "disposition": "unsupported",
+    "reason": "unsupported_optimization",
+    "tool_calls": []
+  },
+  {
+    "id": 59,
+    "disposition": "unsupported",
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "clarify",
+      "reason": "risk_future_date"
+    },
+    "rule": "F"
+  },
+  {
+    "id": 60,
+    "disposition": "clarify",
+    "reason": "missing_location",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 61,
+    "disposition": "unsupported",
+    "reason": "unsupported_live_web",
+    "tool_calls": []
+  },
+  {
+    "id": 62,
+    "disposition": "unsupported",
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "clarify",
+      "reason": "risk_future_date"
+    },
+    "rule": "F"
+  },
+  {
+    "id": 63,
+    "disposition": "unsupported",
+    "reason": "unsupported_live_web",
+    "tool_calls": []
+  },
+  {
+    "id": 64,
+    "disposition": "unsupported",
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_live_web"
+    }
+  },
+  {
+    "id": 65,
+    "disposition": "clarify",
+    "reason": "records_missing_year",
+    "tool_calls": []
+  },
+  {
+    "id": 66,
+    "disposition": "unsupported",
+    "reason": "unsupported_live_web",
+    "tool_calls": []
+  },
+  {
+    "id": 67,
+    "disposition": "clarify",
+    "reason": "risk_future_date",
+    "tool_calls": []
+  },
+  {
+    "id": 68,
+    "disposition": "unsupported",
+    "reason": "unsupported_optimization",
+    "tool_calls": []
+  },
+  {
+    "id": 69,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 70,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 71,
+    "disposition": "clarify",
+    "reason": "ambiguous_risk_metric",
+    "tool_calls": []
+  },
+  {
+    "id": 72,
+    "disposition": "clarify",
+    "reason": "records_missing_year",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 73,
+    "disposition": "clarify",
+    "reason": "ambiguous_relative_time",
+    "tool_calls": []
+  },
+  {
+    "id": 74,
+    "disposition": "clarify",
+    "reason": "missing_location",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 75,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 76,
+    "disposition": "clarify",
+    "reason": "trend_missing_year",
+    "tool_calls": []
+  },
+  {
+    "id": 77,
+    "disposition": "clarify",
+    "reason": "ranking_missing_year",
+    "tool_calls": []
+  },
+  {
+    "id": 78,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 79,
+    "disposition": "clarify",
+    "reason": "forecast_missing_date",
+    "tool_calls": []
+  },
+  {
+    "id": 80,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 81,
+    "disposition": "clarify",
+    "reason": "trend_missing_year",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 82,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 83,
+    "disposition": "clarify",
+    "reason": "ranking_missing_slots",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 84,
+    "disposition": "clarify",
+    "reason": "ambiguous_relative_time",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 85,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 86,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "id": 87,
+    "disposition": "unsupported",
+    "reason": "unsupported_ranking",
+    "tool_calls": []
+  },
+  {
+    "id": 88,
+    "disposition": "clarify",
+    "reason": "undefined_spatial_scope",
+    "tool_calls": [],
+    "uncertain": true
+  },
+  {
+    "rule": "E",
+    "kind": "label_rule",
+    "written_by": "Michael",
+    "date": "2026-09-23",
+    "text": "Rule E, written label decisions for holdout v3. Rows 14, 24, 35: clarify / hftd_constraint_unavailable. Rows 38, 40, 42, 45, 48: unsupported / unsupported_other_measure. Row 51: unsupported / unsupported_air_quality. Row 46: unsupported / unsupported_evacuation. Rows 54, 64: unsupported / unsupported_future_prediction. Row 29 answers only if the comparison tool returns PG&E values with null plus reason for other utilities; rows 5 and 36 answer only if the US ignitions tool filters by state, else clarify with the closest existing reason. Rows 29, 5, and 36 are pending Michael's confirmation of those checks.",
+    "applied_rows": [
+      14,
+      24,
+      35,
+      38,
+      40,
+      42,
+      45,
+      46,
+      48,
+      51,
+      54,
+      64
+    ],
+    "pending_rows": [],
+    "resolved_by": "F"
+  },
+  {
+    "rule": "F",
+    "kind": "label_rule",
+    "written_by": "Michael",
+    "date": "2026-09-23",
+    "text": "Rule F, written label decisions. hv3_029: answer, because the comparison tool returns PG&E values with null plus reason for other utilities. hv3_005 and hv3_036: clarify / unexpressable_county_filter, because the US ignitions endpoint cannot filter by state. hv3_053, hv3_059, hv3_062: unsupported / unsupported_future_prediction. The same future label applies to ho_056, ho_065, hv2_050, hv2_057, and hv2_062 in the holdout files on jev-multi-tool. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set. Michael's decision on 2026-09-23: needs_human_review is cleared on every row rule F decided, in jev_holdout_v3.json, jev_holdout.json, and jev_holdout_v2.json on jev-multi-tool.",
+    "applied_rows": [
+      5,
+      29,
+      36,
+      53,
+      59,
+      62
+    ],
+    "applied_elsewhere": [
+      "ho_056",
+      "ho_065",
+      "hv2_050",
+      "hv2_057",
+      "hv2_062"
+    ],
+    "left_unchanged": [
+      "ho_061"
+    ],
+    "needs_human_review_cleared": [
+      "hv3_029",
+      "hv3_005",
+      "hv3_036",
+      "hv3_053",
+      "hv3_059",
+      "hv3_062",
+      "ho_056",
+      "ho_065",
+      "hv2_050",
+      "hv2_057",
+      "hv2_062"
+    ]
+  }
+]

@@ -261,5 +261,23 @@
 - Empty days keep the basemap and a muted `No events on this date.` chip (not LoadState). PSPS day-by-day is starts-that-day, not duration-active.
 - Branch `event-map-playback`; do not merge until asked.
 
+## 2026-09-21 — Jev shadow mode (not on the answer path)
+
+- `AGENT_JEV_MODE` defaults to `off`. Shadow logs Jev decisions beside the regex router and does not change Ask responses, SSE events, or eval scores. `verify` / `fallback` / `route` are rejected at startup.
+- Typesafe SDK 0.7.1. Retries disabled (`RetryPolicy(max_retries=0)`). County Choice is 59 options, under the 255 limit. `AGENT_AUDIT.md` was not in the repo; labels were taken from `routing.py`.
+- `pytest tests/agent` 118 passed, then shadow tests 15 passed after the list-versus-count label tweak. Live offline eval and `--replay` skipped: `TYPESAFE_API_KEY` unset. Scored eval could not start: Ollama `:11434` and services `:8001`–`:8003` were down.
+- Label fix: fault/bounded cases use the question's route, not the harness error. Clarify and unsupported intents are null. Unknown rules are `unmapped_rule`, not intent `other`. `risk_out_of_coverage` is clarify `risk_future_date`. EC2 Python was not read: an SSH attempt to the EC2 host timed out and there is no AWS CLI (the host is reached through SSM, see CLAUDE.md).
+
+## 2026-09-22 — Jev shadow phase 2
+
+- Schema `v2`. Context is built from `POLICY_SENTENCES` (590 words) and states every clarify/refuse rule. Six review rows are labeled. `utility_not_invented_from_place` accepts either the refusal or a CAL FIRE count. Tool pick is model-route only (n=14).
+- Live offline eval pinned `jev-1.13.0`. Parse mismatches, unexpected options, and wiring errors were 0. Replay of 20 identical payloads had 15 mismatches above 0.05 probability or a choice change, so that replay is not a clean wiring proof.
+- Deployed Python is recorded as 3.12. Local vermin minimum for the Jev modules is 3.8. No local 3.12 interpreter.
+
+## 2026-09-22 — Jev phase 3 (facts, not a rulebook)
+
+- `jev-1.13.0` has no seed, temperature, or deterministic mode in SDK 0.7.1. Identical canonical payloads (hash mismatches 0) still move low-confidence choice labels. Confidence >= 0.7 did not flip in a 20x10 repeat. Notes in `docs/JEV_DETERMINISM.md`.
+- Schema v3 questions live in `services/agent/decisions/v3.py`. `jev_policy.py` turns those facts into a disposition. Ablation winner is `v3_policy_context` (disposition 87.6%, paraphrase disposition 90.2%, tool_pick 100%). Shadow uses that layout. The daily cap counts questions. Router paraphrase fixes are a separate branch.
+
 
 

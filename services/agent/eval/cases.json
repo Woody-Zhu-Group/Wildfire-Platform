@@ -918,5 +918,145 @@
     ],
     "expected_view_types": [],
     "expected_view_status": "none"
+  },
+  {
+    "id": "router_sce_service_area",
+    "question": "Draw the Southern California Edison service-area outline.",
+    "expected_route": "model",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_around_year",
+    "question": "Around 2023, how many CPUC ignitions were there?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_view_types": []
+  },
+  {
+    "id": "router_close_to_number",
+    "question": "Were CPUC ignitions close to 500 in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_view_types": []
+  },
+  {
+    "id": "router_tally_and_trend",
+    "question": "Give me the SCE ignition tally and its weekly trend for 2024.",
+    "expected_route": "model",
+    "expected_tools": [
+      "data_query_records",
+      "visualization_create"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_view_types": []
+  },
+  {
+    "id": "router_premiums",
+    "question": "How much did home insurance premiums rise after the 2024 fires?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_air_quality",
+    "question": "What was the air quality index during the 2024 Park Fire?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_leadership",
+    "question": "Who is the CEO of PG&E?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_evacuation",
+    "question": "What is the best evacuation route out of Paradise?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_translation",
+    "question": "Translate how many fires into Spanish.",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_personnel",
+    "question": "How many firefighters were deployed to the 2024 Park Fire?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_satellite",
+    "question": "Show me the satellite infrared image of the 2024 fire.",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_pg_and_e_tally",
+    "question": "Tally PG and E utility-attributed ignitions in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "ignition_definition_pge"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": []
+  },
+  {
+    "id": "router_pacific_gas_total",
+    "question": "What is the total number of Pacific Gas ignitions for 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "ignition_definition_pge"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": []
   }
 ]

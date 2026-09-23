@@ -64,6 +64,8 @@ async def lifespan(app: FastAPI):
             "synthesis may hang or truncate. Check Ollama memory limits."
         )
     yield
+    if orchestrator is not None and orchestrator.shadow is not None:
+        orchestrator.shadow.shutdown(timeout=2)
     if provider is not None:
         await provider.close()
     if executor is not None:

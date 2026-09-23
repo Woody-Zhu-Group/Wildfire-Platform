@@ -53,6 +53,17 @@ class AgentSettings:
     risk_url: str = "http://127.0.0.1:8001"
     visualization_url: str = "http://127.0.0.1:8002"
     comparison_url: str = "http://127.0.0.1:8003"
+    # Jev shadow mode. Default off never imports typesafe_sdk.
+    jev_mode: str = "off"
+    jev_backend: str = "typesafe"
+    jev_model: str = "jev-latest"
+    jev_timeout_seconds: float = 3.0
+    jev_sample_rate: float = 1.0
+    jev_max_concurrency: int = 4
+    jev_daily_call_cap: int = 5000
+    jev_log_path: str = "services/agent/logs/jev_shadow.jsonl"
+    jev_log_max_mb: float = 50.0
+    jev_ablation: str = "v3_hybrid"
 
     @classmethod
     def from_env(cls) -> "AgentSettings":
@@ -106,6 +117,18 @@ class AgentSettings:
             comparison_url=os.getenv(
                 "COMPARISON_BASE_URL", "http://127.0.0.1:8003"
             ).rstrip("/"),
+            jev_mode=os.getenv("AGENT_JEV_MODE", "off").strip().lower(),
+            jev_backend=os.getenv("AGENT_JEV_BACKEND", "typesafe").strip().lower(),
+            jev_model=os.getenv("AGENT_JEV_MODEL", "jev-latest").strip(),
+            jev_timeout_seconds=float(os.getenv("AGENT_JEV_TIMEOUT_SECONDS", "3")),
+            jev_sample_rate=float(os.getenv("AGENT_JEV_SAMPLE_RATE", "1")),
+            jev_max_concurrency=int(os.getenv("AGENT_JEV_MAX_CONCURRENCY", "4")),
+            jev_daily_call_cap=int(os.getenv("AGENT_JEV_DAILY_CALL_CAP", "5000")),
+            jev_log_path=os.getenv(
+                "AGENT_JEV_LOG_PATH", "services/agent/logs/jev_shadow.jsonl"
+            ),
+            jev_log_max_mb=float(os.getenv("AGENT_JEV_LOG_MAX_MB", "50")),
+            jev_ablation=os.getenv("AGENT_JEV_ABLATION", "v3_hybrid").strip(),
         )
         value.validate()
         return value
@@ -121,6 +144,35 @@ class AgentSettings:
             raise ValueError("AGENT_NUM_CTX must be >= 2048")
         if self.synthesis_timeout_seconds < 5:
             raise ValueError("AGENT_SYNTHESIS_TIMEOUT_SECONDS must be >= 5")
+        if self.jev_mode in {"verify", "fallback", "route"}:
+            raise ValueError(
+                f"AGENT_JEV_MODE={self.jev_mode} is reserved and not implemented. "
+                "Use off or shadow."
+            )
+        if self.jev_mode not in {"off", "shadow"}:
+            raise ValueError("AGENT_JEV_MODE must be off or shadow")
+        if self.jev_backend != "typesafe":
+            raise ValueError("AGENT_JEV_BACKEND must be typesafe")
+        if self.jev_timeout_seconds <= 0:
+            raise ValueError("AGENT_JEV_TIMEOUT_SECONDS must be positive")
+        if not 0 <= self.jev_sample_rate <= 1:
+            raise ValueError("AGENT_JEV_SAMPLE_RATE must be between 0 and 1")
+        if self.jev_max_concurrency < 1:
+            raise ValueError("AGENT_JEV_MAX_CONCURRENCY must be >= 1")
+        if self.jev_daily_call_cap < 0:
+            raise ValueError("AGENT_JEV_DAILY_CALL_CAP must be >= 0")
+        if self.jev_ablation not in {
+            "v2_full",
+            "v3_split",
+            "v3_single",
+            "v3_no_glossary",
+            "v3_policy_context",
+            "v3_hybrid",
+        }:
+            raise ValueError(
+                "AGENT_JEV_ABLATION must be v2_full, v3_split, v3_single, "
+                "v3_no_glossary, v3_policy_context, or v3_hybrid"
+            )
         if not self.allow_remote_provider and not _is_loopback(self.model_base_url):
             raise ValueError(
                 "Remote model providers are blocked. Security review and "
