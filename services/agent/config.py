@@ -80,6 +80,9 @@ class AgentSettings:
     jev_tool_pick_min_confidence: float = 0.8
     # decide mode: a Jev clarify or refuse wins only at or above this confidence.
     jev_decide_min_confidence: float = 0.8
+    # decide mode: a Jev answer overrides a router clarify or refuse only at or
+    # above this higher confidence; a wrong answer is worse than a clarification.
+    jev_decide_answer_confidence: float = 0.9
 
     @classmethod
     def from_env(cls) -> "AgentSettings":
@@ -169,6 +172,9 @@ class AgentSettings:
             jev_decide_min_confidence=float(
                 os.getenv("AGENT_JEV_DECIDE_MIN_CONFIDENCE", "0.8")
             ),
+            jev_decide_answer_confidence=float(
+                os.getenv("AGENT_JEV_DECIDE_ANSWER_CONFIDENCE", "0.9")
+            ),
             llm_provider=llm_provider,
         )
         if hosted:
@@ -198,6 +204,8 @@ class AgentSettings:
             )
         if not 0 <= self.jev_decide_min_confidence <= 1:
             raise ValueError("AGENT_JEV_DECIDE_MIN_CONFIDENCE must be between 0 and 1")
+        if not 0 <= self.jev_decide_answer_confidence <= 1:
+            raise ValueError("AGENT_JEV_DECIDE_ANSWER_CONFIDENCE must be between 0 and 1")
         if not 0 <= self.jev_tool_pick_min_confidence <= 1:
             raise ValueError("AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE must be between 0 and 1")
         if self.jev_backend not in {"typesafe", "openrouter"}:

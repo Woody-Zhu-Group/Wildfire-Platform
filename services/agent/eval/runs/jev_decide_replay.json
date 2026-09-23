@@ -1,6 +1,7 @@
 {
  "today": "2026-09-23",
  "gate": 0.8,
+ "answer_gate": 0.9,
  "sets": {
   "dev": {
    "n": 137,
@@ -54,9 +55,9 @@
    "decide": 50,
    "jev_errors": 0,
    "exempt": 15,
-   "jev_won": 11,
-   "overrides_right": 6,
-   "overrides_wrong": 1,
+   "jev_won": 9,
+   "overrides_right": 5,
+   "overrides_wrong": 0,
    "router_acc": 0.692,
    "jev_acc": 0.723,
    "decide_acc": 0.769,
@@ -5205,10 +5206,10 @@
     0.85
    ],
    "decide": [
-    "model",
-    "jev_decide_answer",
-    "jev",
-    "gate"
+    "unsupported",
+    "unexpressable_county_filter",
+    "router",
+    "below_gate"
    ]
   },
   "v3|hv3_004": {
@@ -5478,10 +5479,10 @@
     0.88
    ],
    "decide": [
-    "model",
-    "jev_decide_answer",
-    "jev",
-    "gate"
+    "unsupported",
+    "unsupported_ranking",
+    "router",
+    "below_gate"
    ]
   },
   "v3|hv3_022": {

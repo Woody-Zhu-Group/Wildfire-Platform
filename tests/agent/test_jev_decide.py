@@ -250,3 +250,55 @@ def test_decide_mode_timeout_leaves_the_router(monkeypatch):
     asyncio.run(orchestrator.ask(COUNT_Q))
     assert seen["decision"].rule == "filtered_records"
     assert seen["decision"].slots["jev_decide"]["why"] == "timeout"
+
+
+def test_decline_gate_and_answer_gate_are_separate():
+    # A Jev refusal over a router answer uses the decline gate only.
+    decision = route_question(COUNT_Q)
+    refusal = _answer_facts(off_topic=_choice("cost_or_budget", 0.85))
+    wins = decide_from_answers(COUNT_Q, decision, refusal, gate=0.8, answer_gate=0.99)
+    assert wins.winner == "jev" and wins.decision.path == "unsupported"
+    loses = decide_from_answers(COUNT_Q, decision, refusal, gate=0.9, answer_gate=0.5)
+    assert loses.winner == "router" and loses.why == "below_gate"
+
+
+def test_jev_answer_over_a_router_decline_needs_the_higher_answer_gate():
+    question = "How many ignitions near the coast in 2024?"
+    decision = route_question(question)
+    assert decision.rule == "undefined_spatial_scope"
+    # vague_proximity 0.12 is a 0.88 "not vague": past the 0.8 decline gate, short of 0.9.
+    middle = _answer_facts(vague_proximity=_noul(0.12))
+    held = decide_from_answers(question, decision, middle, gate=0.8, answer_gate=0.9)
+    assert held.jev_disposition == "answer" and held.jev_confidence == pytest.approx(0.88)
+    assert held.winner == "router" and held.why == "below_gate" and held.decision is decision
+    # The same answer wins if the answer gate were at the decline gate, so the gates differ.
+    symmetric = decide_from_answers(question, decision, middle, gate=0.8, answer_gate=0.8)
+    assert symmetric.winner == "jev" and symmetric.decision.path == "model"
+
+
+def test_answer_gate_defaults_and_validation(monkeypatch):
+    for name in ("AGENT_JEV_DECIDE_MIN_CONFIDENCE", "AGENT_JEV_DECIDE_ANSWER_CONFIDENCE"):
+        monkeypatch.delenv(name, raising=False)
+    settings = AgentSettings.from_env()
+    assert settings.jev_decide_min_confidence == 0.8
+    assert settings.jev_decide_answer_confidence == 0.9
+    monkeypatch.setenv("AGENT_JEV_DECIDE_ANSWER_CONFIDENCE", "1.5")
+    with pytest.raises(ValueError, match="AGENT_JEV_DECIDE_ANSWER_CONFIDENCE"):
+        AgentSettings.from_env()
+
+
+def test_decide_mode_uses_the_configured_answer_gate(monkeypatch):
+    question = "How many ignitions near the coast in 2024?"
+    backend = FakeBackend(_answer_facts(vague_proximity=_noul(0.12)))
+    seen = {}
+
+    async def routed(q, *, decision, **kwargs):
+        seen["decision"] = decision
+        return None
+
+    for answer_gate, expected in ((0.9, "undefined_spatial_scope"), (0.85, "jev_decide_answer")):
+        settings = replace(AgentSettings.from_env(), jev_mode="decide", jev_decide_answer_confidence=answer_gate)
+        orchestrator = _orchestrator(settings, backend)
+        monkeypatch.setattr(orchestrator, "_ask_routed", routed)
+        asyncio.run(orchestrator.ask(question))
+        assert seen["decision"].rule == expected

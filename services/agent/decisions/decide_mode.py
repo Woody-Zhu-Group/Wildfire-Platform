@@ -5,10 +5,12 @@ Order for one question:
 2. Routes Jev cannot express (router_only) are decided by the router. Jev is not called.
 3. Otherwise Jev's v3_hybrid facts go through derive_outcome (the same policy,
    including the measure gate, that the offline combined decider scored).
-   - Jev clarify or refuse at or above the gate returns that decision and reason.
-   - Jev answer where the router declined wins only when Jev is at or above the
-     gate on the facts behind the router's rule; then the question takes the
-     model path, since a declined route has no deterministic call.
+   - Jev clarify or refuse at or above the decline gate (default 0.8) returns
+     that decision and reason.
+   - Jev answer where the router declined wins only at or above the separate,
+     higher answer gate (default 0.9) on the facts behind the router's rule, since
+     a wrong answer is worse than a clarifying question. The question then takes
+     the model path, since a declined route has no deterministic call.
    - Below the gate, on a timeout, or on any Jev error, the router stands.
 4. When the final disposition is answer, the question proceeds as today: the
    router's deterministic call if it has one, otherwise the model path.
@@ -242,10 +244,15 @@ def decide_from_answers(
     answers: dict[str, Any] | None,
     *,
     gate: float = 0.8,
+    answer_gate: float = 0.9,
     error: str | None = None,
     today: date | None = None,
 ) -> DecideResult:
-    """Pure decide policy over one question's merged Jev answers."""
+    """Pure decide policy over one question's merged Jev answers.
+
+    gate: a Jev clarify or refuse needs this confidence to win.
+    answer_gate: a Jev answer over a router decline needs this (higher) confidence.
+    """
     base = {"router_path": decision.path, "router_rule": decision.rule}
     exempt = exemption(decision)
     if exempt:
@@ -283,7 +290,7 @@ def decide_from_answers(
     # The router declined. Jev must be sure the facts behind that rule do not hold.
     confidence = rule_confidence(decision.rule, answers)
     info["jev_confidence"] = confidence
-    if confidence is not None and confidence >= gate:
+    if confidence is not None and confidence >= answer_gate:
         answered = RouteDecision(
             "model",
             "jev_decide_answer",
@@ -331,18 +338,21 @@ def decide_live(
     *,
     backend: Any,
     gate: float,
+    answer_gate: float = 0.9,
     today: date | None = None,
 ) -> DecideResult:
     """Runtime decide: skip Jev for exempt routes, otherwise ask it and apply the policy."""
     if exemption(decision):
-        return decide_from_answers(question, decision, None, gate=gate)
+        return decide_from_answers(question, decision, None, gate=gate, answer_gate=answer_gate)
     day = today or date.today()
     started = time.perf_counter()
     try:
         answers, error, tokens = ask_jev(backend, question, day.isoformat())
     except Exception as exc:  # noqa: BLE001
         answers, error, tokens = {}, f"{type(exc).__name__}: {exc}", 0
-    result = decide_from_answers(question, decision, answers, gate=gate, error=error, today=day)
+    result = decide_from_answers(
+        question, decision, answers, gate=gate, answer_gate=answer_gate, error=error, today=day
+    )
     result.latency_ms = (time.perf_counter() - started) * 1000
     result.input_tokens = tokens
     return result

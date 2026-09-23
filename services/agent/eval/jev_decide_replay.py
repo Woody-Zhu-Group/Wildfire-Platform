@@ -151,7 +151,7 @@ def _score(labels: list[str], disposition: str | None) -> bool:
 def replay(args: argparse.Namespace) -> int:
     store = json.loads(STORE.read_text(encoding="utf-8"))
     today = date.fromisoformat(store["today"])
-    report: dict[str, Any] = {"today": store["today"], "gate": args.gate, "sets": {}, "rows": {}}
+    report: dict[str, Any] = {"today": store["today"], "gate": args.gate, "answer_gate": args.answer_gate, "sets": {}, "rows": {}}
     for set_name, items in load_sets().items():
         tally = {"n": 0, "router": 0, "jev": 0, "decide": 0, "jev_errors": 0, "exempt": 0, "jev_won": 0, "overrides_right": 0, "overrides_wrong": 0}
         for item in items:
@@ -167,7 +167,7 @@ def replay(args: argparse.Namespace) -> int:
                 if answers
                 else None
             )
-            result = decide_from_answers(item["question"], decision, answers, gate=args.gate, error=stored.get("error"), today=today)
+            result = decide_from_answers(item["question"], decision, answers, gate=args.gate, answer_gate=args.answer_gate, error=stored.get("error"), today=today)
             decide_disp = ROUTER_DISPOSITION[result.decision.path]
             tally["n"] += 1
             tally["router"] += _score(item["labels"], router_disp)
@@ -221,10 +221,10 @@ def live(args: argparse.Namespace) -> int:
             break
         decision = route_question(item["question"])
         started = time.perf_counter()
-        runtime = decide_live(item["question"], decision, backend=backend, gate=args.gate, today=today)
+        runtime = decide_live(item["question"], decision, backend=backend, gate=args.gate, answer_gate=args.answer_gate, today=today)
         tokens += runtime.input_tokens
         answers = _answers(stored["answers"]) if stored.get("answers") else None
-        replayed = decide_from_answers(item["question"], decision, answers, gate=args.gate, error=stored.get("error"), today=today)
+        replayed = decide_from_answers(item["question"], decision, answers, gate=args.gate, answer_gate=args.answer_gate, error=stored.get("error"), today=today)
         rows.append({
             "id": item["id"],
             "runtime": [runtime.decision.path, runtime.decision.rule, runtime.winner, runtime.jev_disposition, runtime.jev_confidence],
@@ -266,6 +266,7 @@ def main() -> int:
     parser.add_argument("command", choices=("capture", "replay", "live"))
     parser.add_argument("--cap-usd", type=float, default=0.3)
     parser.add_argument("--gate", type=float, default=0.8)
+    parser.add_argument("--answer-gate", type=float, default=0.9)
     args = parser.parse_args()
     from dotenv import load_dotenv
 

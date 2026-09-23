@@ -224,8 +224,11 @@ class AgentOrchestrator:
         )
 
         gate = self.settings.jev_decide_min_confidence
+        answer_gate = self.settings.jev_decide_answer_confidence
         if exemption(decision):
-            result = decide_from_answers(question, decision, None, gate=gate)
+            result = decide_from_answers(
+                question, decision, None, gate=gate, answer_gate=answer_gate
+            )
         else:
             try:
                 backend = self.decide_backend
@@ -240,7 +243,12 @@ class AgentOrchestrator:
                     self.decide_backend = backend
                 result = await asyncio.wait_for(
                     asyncio.to_thread(
-                        decide_live, question, decision, backend=backend, gate=gate
+                        decide_live,
+                        question,
+                        decision,
+                        backend=backend,
+                        gate=gate,
+                        answer_gate=answer_gate,
                     ),
                     timeout=self.settings.jev_timeout_seconds + 1.0,
                 )
