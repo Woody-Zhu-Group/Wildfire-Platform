@@ -200,9 +200,14 @@
   },
   {
     "id": 5,
-    "disposition": "unsupported",
-    "reason": "unsupported_rank_us_state",
-    "tool_calls": []
+    "disposition": "clarify",
+    "reason": "unexpressable_county_filter",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_rank_us_state"
+    },
+    "rule": "F"
   },
   {
     "id": 6,
@@ -515,9 +520,14 @@
   },
   {
     "id": 29,
-    "disposition": "unsupported",
-    "reason": "unsupported_rank_epss_utility",
-    "tool_calls": []
+    "disposition": "answer",
+    "reason": null,
+    "tool_calls": [],
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_rank_epss_utility"
+    },
+    "rule": "F"
   },
   {
     "id": 30,
@@ -654,9 +664,14 @@
   },
   {
     "id": 36,
-    "disposition": "unsupported",
-    "reason": "unsupported_rank_us_state",
-    "tool_calls": []
+    "disposition": "clarify",
+    "reason": "unexpressable_county_filter",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_rank_us_state"
+    },
+    "rule": "F"
   },
   {
     "id": 37,
@@ -820,9 +835,14 @@
   },
   {
     "id": 53,
-    "disposition": "clarify",
-    "reason": "risk_future_date",
-    "tool_calls": []
+    "disposition": "unsupported",
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "clarify",
+      "reason": "risk_future_date"
+    },
+    "rule": "F"
   },
   {
     "id": 54,
@@ -869,9 +889,14 @@
   },
   {
     "id": 59,
-    "disposition": "clarify",
-    "reason": "risk_future_date",
-    "tool_calls": []
+    "disposition": "unsupported",
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "clarify",
+      "reason": "risk_future_date"
+    },
+    "rule": "F"
   },
   {
     "id": 60,
@@ -888,9 +913,14 @@
   },
   {
     "id": 62,
-    "disposition": "clarify",
-    "reason": "risk_future_date",
-    "tool_calls": []
+    "disposition": "unsupported",
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "previous": {
+      "disposition": "clarify",
+      "reason": "risk_future_date"
+    },
+    "rule": "F"
   },
   {
     "id": 63,
@@ -1087,10 +1117,32 @@
       54,
       64
     ],
-    "pending_rows": [
-      29,
+    "pending_rows": [],
+    "resolved_by": "F"
+  },
+  {
+    "rule": "F",
+    "kind": "label_rule",
+    "written_by": "Michael",
+    "date": "2026-09-23",
+    "text": "Rule F, written label decisions. hv3_029: answer, because the comparison tool returns PG&E values with null plus reason for other utilities. hv3_005 and hv3_036: clarify / unexpressable_county_filter, because the US ignitions endpoint cannot filter by state. hv3_053, hv3_059, hv3_062: unsupported / unsupported_future_prediction. The same future label applies to ho_056, ho_065, hv2_050, hv2_057, and hv2_062 in the holdout files on jev-multi-tool. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set.",
+    "applied_rows": [
       5,
-      36
+      29,
+      36,
+      53,
+      59,
+      62
+    ],
+    "applied_elsewhere": [
+      "ho_056",
+      "ho_065",
+      "hv2_050",
+      "hv2_057",
+      "hv2_062"
+    ],
+    "left_unchanged": [
+      "ho_061"
     ]
   }
 ]

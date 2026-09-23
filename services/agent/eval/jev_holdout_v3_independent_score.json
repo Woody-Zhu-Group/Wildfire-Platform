@@ -1009,5 +1009,147 @@
         "hv3_062"
       ]
     }
+  },
+  "final_rules_e_f": {
+    "status": "FROZEN. Holdout v3 is frozen at this state. No further tuning of the router, the Jev policy, the Jev questions, or the labels will use v3. Production shadow logs are the next clean test.",
+    "note": "Tuned numbers: the backstops, the measure question, and label rules E and F were all written from v3 disagreements. Jev dispositions are the stored one-pass calls in runs/v3_gap_score.json; no new Jev calls. Jev alone still reflects the ungated measure policy on the 23 other_measure rows because Jev intent votes were not stored for v3.",
+    "labels": "rules E and F applied; no rows pending",
+    "new_calls": 0,
+    "spend_usd": 0.0,
+    "hotspot_route_change": {
+      "rule": "hotspot and hotspots are risk-object words",
+      "route_changes": {
+        "cases.json": 0,
+        "jev_paraphrases.json": 0,
+        "jev_holdout.json": [
+          "ho_061"
+        ],
+        "jev_holdout_v2.json": [],
+        "jev_holdout_v3.json": []
+      },
+      "ho_061": "unsupported_future_prediction back to risk_future_date"
+    },
+    "accuracy": {
+      "combined": {
+        "correct": 56,
+        "accuracy": 0.862,
+        "answer_rows": "22/22",
+        "decline_rows": "38/43"
+      },
+      "jev_alone": {
+        "correct": 51,
+        "accuracy": 0.785,
+        "answer_rows": "22/22",
+        "decline_rows": "36/43"
+      },
+      "router_alone": {
+        "correct": 45,
+        "accuracy": 0.692,
+        "answer_rows": "21/22",
+        "decline_rows": "28/43"
+      },
+      "combined_answered_vs_declined_binary": "60/65"
+    },
+    "remaining_misses": [
+      {
+        "id": "hv3_005",
+        "label": "clarify",
+        "reason": "unexpressable_county_filter",
+        "combined": "unsupported",
+        "source": "jev",
+        "router_rule": "open_ended",
+        "jev": "unsupported",
+        "measure": "other_measure",
+        "question": "What percentage of the sample US wildfire ignitions in California occurred in 2022?"
+      },
+      {
+        "id": "hv3_021",
+        "label": "unsupported",
+        "reason": "unsupported_ranking",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "ranked_records",
+        "jev": "answer",
+        "measure": "event_count",
+        "question": "Which counties had the largest increase in CAL FIRE wildfire incidents between 2019 and 2020?"
+      },
+      {
+        "id": "hv3_030",
+        "label": "unsupported",
+        "reason": "unsupported_ranking",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "ranking_missing_slots",
+        "jev": "answer",
+        "measure": "event_count",
+        "question": "What are the five California cities with the most recorded wildfire incidents in 2019?"
+      },
+      {
+        "id": "hv3_036",
+        "label": "clarify",
+        "reason": "unexpressable_county_filter",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "multi_entity_deferred",
+        "jev": "answer",
+        "measure": "event_count",
+        "question": "How many sample wildfire ignitions occurred in California from all causes in 2018, 2019, 2020, 2021, and 2022?"
+      },
+      {
+        "id": "hv3_050",
+        "label": "clarify",
+        "reason": "records_missing_year",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "records_missing_year",
+        "jev": "answer",
+        "measure": "customers_affected",
+        "question": "For each EPSS event, tell me how many customers were interrupted."
+      },
+      {
+        "id": "hv3_065",
+        "label": "clarify",
+        "reason": "records_missing_year",
+        "combined": "unsupported",
+        "source": "jev",
+        "router_rule": "open_ended",
+        "jev": "unsupported",
+        "measure": "other_measure",
+        "question": "Can you identify the exact cause of every wildfire in California?"
+      },
+      {
+        "id": "hv3_071",
+        "label": "clarify",
+        "reason": "ambiguous_risk_metric",
+        "combined": "unsupported",
+        "source": "jev",
+        "router_rule": "open_ended",
+        "jev": "unsupported",
+        "measure": "other_measure",
+        "question": "Which is worse for fires, SCE or PacifiCorp?"
+      },
+      {
+        "id": "hv3_076",
+        "label": "clarify",
+        "reason": "trend_missing_year",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "open_ended",
+        "jev": "answer",
+        "measure": "record_list",
+        "question": "What did PSPS look like during fire season for SDG&E?"
+      },
+      {
+        "id": "hv3_087",
+        "label": "unsupported",
+        "reason": "unsupported_ranking",
+        "combined": "clarify",
+        "source": "jev",
+        "router_rule": "open_ended",
+        "jev": "clarify",
+        "measure": "event_count",
+        "question": "Chart EPSS events for the worst months."
+      }
+    ]
   }
 }
