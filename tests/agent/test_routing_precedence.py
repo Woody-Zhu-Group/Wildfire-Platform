@@ -297,6 +297,21 @@ def test_single_dataset_monthly_trend_still_builds_a_monthly_series():
     assert args["year"] == 2024
 
 
+def test_bear_valley_fills_the_utility_slot():
+    decision = route_question("How many Bear Valley ignitions were there in 2021?")
+    assert decision.slots["utilities"] == ["BVES"]
+    assert decision.slots["dataset"] == "cpuc_ignitions"
+
+
+def test_clarification_keeps_a_detected_dataset():
+    near = route_question("How many CAL FIRE incidents happened near San Jose?")
+    assert near.path == "clarification"
+    assert near.slots["dataset"] == "calfire_incidents"
+    around_year = route_question("Around 2023, how many CPUC ignitions were there?")
+    assert around_year.rule != "undefined_spatial_scope"
+    assert around_year.slots["dataset"] == "cpuc_ignitions"
+
+
 def test_several_counties_are_a_slot_list():
     decision = route_question(
         "How many CAL FIRE incidents were there in Butte County and Napa County in 2018?"

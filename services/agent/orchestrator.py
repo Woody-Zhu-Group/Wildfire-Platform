@@ -920,6 +920,7 @@ class AgentOrchestrator:
             facts,
             decision.slots,
             min_confidence=self.settings.jev_tool_pick_min_confidence,
+            question=question,
         )
         if not calls:
             return None

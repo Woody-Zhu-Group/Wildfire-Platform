@@ -423,8 +423,7 @@ def test_live_tool_pick_payload_matches_the_offline_hybrid_call():
     from services.agent.decisions.canonical import payload_hash
     from services.agent.decisions.schemas import context_for_call
     from services.agent.decisions.shadow import _payload
-    from services.agent.decisions.v3 import tool_pick_call
-    from services.agent.eval.jev_ablation import _calls
+    from services.agent.decisions.v3 import calls_for_config, tool_pick_call
     from services.agent.routing import candidate_tools
 
     # The offline builder reads the wall clock, so use the same day on both sides.
@@ -439,7 +438,7 @@ def test_live_tool_pick_payload_matches_the_offline_hybrid_call():
         live = tool_pick_call(question, today, tools, "v3_hybrid")
         offline = next(
             call
-            for call in _calls({"question": question, "tools": tools}, "v3_hybrid")
+            for call in calls_for_config(question, today, tools, "v3_hybrid")
             if call["name"] == "tool_pick"
         )
         # Since PR 26 the tool pick call carries the tool_pick policy subset,

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 MAX_PLAN_CALLS = 6
+MAX_ENTITY_CALLS = 10
 
 _VIZ = {
     "cpuc_ignitions": "ignitions",
@@ -143,13 +144,55 @@ _AMBIGUOUS_INTENTS = {"multi_intent", "other", "exploratory_overview"}
 _RANK_GROUP = {"county": "county", "utility": "utility", "circuit": "circuit"}
 
 
+def _time_args(slots: dict[str, Any], item_year: int, years: list[int]) -> dict[str, Any]:
+    """Keep a month window. A bare year must not replace August with the whole year."""
+    start = slots.get("start_date")
+    end = slots.get("end_date")
+    full_year = (
+        isinstance(start, str)
+        and isinstance(end, str)
+        and start.endswith("-01-01")
+        and end.endswith("-12-31")
+        and start[:4] == end[:4]
+    )
+    if start and end and not full_year and len(years) <= 1:
+        args: dict[str, Any] = {"start_date": start, "end_date": end}
+        if item_year:
+            args["year"] = item_year
+        return args
+    return {"year": item_year}
+
+
+def agreeing_calls(
+    slot_calls: list[str] | None,
+    jev_calls: list[str] | None,
+) -> list[str] | None:
+    """Act only when the slot rule and Jev built the same list of tools."""
+    if not slot_calls or not jev_calls:
+        return None
+    from collections import Counter
+
+    if Counter(slot_calls) != Counter(jev_calls):
+        return None
+    return list(jev_calls)
+
+
 def plan_calls(
     facts: Any,
     slots: dict[str, Any],
     *,
     min_confidence: float = 0.8,
+    question: str = "",
 ) -> tuple[list[tuple[str, dict[str, Any]]] | None, str]:
     """Return calls, or (None, reason) when the whole question must fall back."""
+    if question:
+        from services.agent.decisions.jev_policy import JevFacts, derive_outcome
+
+        policy_facts = facts if isinstance(facts, JevFacts) else None
+        if policy_facts is None:
+            return None, "refused"
+        if derive_outcome(policy_facts, question=question).disposition != "answer":
+            return None, "refused"
     year = slots.get("year")
     years = [int(item) for item in (slots.get("years") or [])]
     if year is not None and int(year) not in years:
@@ -217,7 +260,7 @@ def plan_calls(
         args: dict[str, Any] = {
             "dataset": dataset,
             "result_mode": mode,
-            "year": int(item_year),
+            **_time_args(slots, int(item_year), years),
             **extra,
         }
         return ("data_query_records", args)
@@ -277,7 +320,7 @@ def plan_calls(
         scopes = _entity_scopes(utilities, counties, dataset)
         if scopes is None:
             return None, "cannot_express"
-        if len(years) * len(scopes) > MAX_PLAN_CALLS:
+        if len(years) * len(scopes) > MAX_ENTITY_CALLS:
             return None, "over_limit"
         for item in years:
             for extra in scopes:
@@ -298,7 +341,7 @@ def plan_calls(
     elif len(utilities) > 1 and want_count:
         if year is None:
             return None, "missing_slot"
-        if len(utilities) > MAX_PLAN_CALLS:
+        if len(utilities) > MAX_ENTITY_CALLS:
             return None, "over_limit"
         for utility in utilities:
             calls.append(count_call(int(year), utility=utility))
@@ -308,7 +351,7 @@ def plan_calls(
         scopes = _entity_scopes([], counties, dataset)
         if scopes is None:
             return None, "cannot_express"
-        if len(scopes) > MAX_PLAN_CALLS:
+        if len(scopes) > MAX_ENTITY_CALLS:
             return None, "over_limit"
         for extra in scopes:
             calls.append(count_call(int(year), **extra))
@@ -359,7 +402,12 @@ def plan_calls(
     if want_map and want_series and not any(args.get("kind") == "map" for _, args in calls):
         calls.append(("visualization_create", {"kind": "map", "dataset": viz, **one_scope()}))
 
-    if len(calls) > MAX_PLAN_CALLS:
+    entity_counts = bool(calls) and all(
+        name == "data_query_records" and args.get("result_mode") != "records"
+        for name, args in calls
+    )
+    cap = MAX_ENTITY_CALLS if entity_counts else MAX_PLAN_CALLS
+    if len(calls) > cap:
         return None, "over_limit"
     if not calls:
         return None, "cannot_express"

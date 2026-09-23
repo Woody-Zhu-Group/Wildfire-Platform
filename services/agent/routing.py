@@ -1967,6 +1967,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 "unsupported",
                 f"unsupported_{key}",
                 "No read-only backend service provides the requested information",
+                slots=slots,
                 answer=UNSUPPORTED_ANSWERS.get(
                     key,
                     (
@@ -1981,6 +1982,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             "unsupported",
             "unsupported_live_web",
             "No read-only backend service provides the requested information",
+            slots=slots,
             answer=UNSUPPORTED_ANSWERS.get(
                 "live_web",
                 (
@@ -1996,6 +1998,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             "clarification",
             "risk_future_date",
             "Fitted risk has no forecast ingestion for a forward date",
+            slots=slots,
             answer=(
                 f"{_RISK_COVERAGE_LIMIT}, so I can't answer about {phrase}. "
                 "Which past date should I score?"

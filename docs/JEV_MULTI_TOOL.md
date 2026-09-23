@@ -64,7 +64,7 @@ Execution reuses the two-tool path that `multi_intent_count_and_trend` already u
 
 ## Limits
 
-A plan has at most 6 calls. Fall back to the model path when:
+A plan has at most 6 calls, except a per-entity count plan, which may use 10. Planning runs only when the derived disposition is answer. A clarify, an unsupported topic, or a prompt-injection outcome does not produce calls. Fall back to the model path when:
 
 - a required slot is missing
 - a planned tool cannot express the request
