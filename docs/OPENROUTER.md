@@ -5,11 +5,27 @@ Qwen on the local Ollama host and Jev on api.typesafe.ai.
 
 ## Production switch
 
-Do not switch yet. The invented placeholder filters are fixed (37 values to 0 on the
-force_model cases), but the holdout run below still has wrong answers that are not explained
-away: Luna answers multi-part questions with one call, and 5 filter values in one holdout
-question are still flagged. Keep this note until invented filters are zero and every wrong
-answer is explained.
+Do not switch yet. The provider-level fixes are in: invented placeholder filters went from
+37 to 0 on the force_model cases, all 14 of those cases now pass, and the 8 multi-part holdout
+failures now cover every named entity with SQL-correct numbers. The remaining holdout failures
+are not provider problems. They need the Jev-first decider and the slot planner, which live on
+`jev-multi-tool`, before the switch. See "What the switch still needs" below.
+Keep this note until invented filters are zero and every wrong answer is explained.
+
+### What the switch still needs
+
+Failure categories from the 105-question holdout run, and what clears each:
+
+| Category | Count | Cleared by |
+|---|---|---|
+| Answered a question labeled clarify or refuse | 29 | Jev-first decider. On this branch nothing on the model path can clarify or refuse once the router sends a question there, because routing forces a tool call. Jev decides answer, clarify, or refuse before any tool runs. |
+| Multi-part question answered with one call | 8 | Fixed here for hosted models by the coverage continuation (all 8 now cover every entity). The slot planner (`AGENT_SLOT_PLAN`) makes it deterministic: one planned call per named entity, no dependence on the model choosing to call again. |
+| Ranking or breakdown answered with one statewide total | 3 | Jev-first decider tool pick (intent rank, tool `data_query_rank`), so the model is not left to pick `data_query_records`. |
+| Tool cannot answer the question (overlay, PSPS by tier, share by tier, California share of the US sample) | 4 | Jev-first decider: refuse or clarify when no tool can express the operation, instead of answering a neighbouring question. |
+| Named entity the router does not extract (Bear Valley in `ho_022`) | 1 | Slot planner with the router's utility aliases extended to Bear Valley (BVES), so the entity is planned rather than left to the model. |
+| City names geocoded by the model (Auburn, Chico, Sacramento, Stockton, Fresno) | 12 drops | Jev-first decider clarify (city needs a place), backed by the router's city_needs_place backstop. The grounding check already stops these invented coordinates from running. |
+| Filter values in `ho_088` (every IOU listed for "utility service territories") | 5 | Slot planner: expand "utility service territories" into the IOU list as planned calls, so the values come from the plan and not the model. |
+| Complete answer, different tool than the label | 3, plus 7 of the 8 multi-part reruns | Label and scorer review, not a code fix: the holdout scorer requires the labeled tool, and one `data_query_records` call per entity is a valid alternative to `comparison_run`. |
 
 Add these lines to the backend host's `.env` (or the systemd EnvironmentFile for
 `wildfire-agent`), then restart the service:
@@ -74,13 +90,31 @@ distinct stored qwen3:4b model-path calls in `services/agent/eval/runs/` drops 1
 invented (`county: ""` 9, `circuit_id: ""` 4, `Tier 2` with no tier in the question 5);
 grounded values pass unchanged.
 
+Tier rule: a question that names tiers by number keeps only those ("tier 2 or 3" keeps both).
+A question that asks across tiers without a number ("which hftd tier covered the most
+circuits") keeps Tier 2 and Tier 3. HFTD alone with no tier word keeps neither.
+
+Multi-part coverage (hosted only): after a successful routing turn, the loop checks the
+named entities (router utility and year slots, every county the question names when it says
+county or counties, and both tiers when both are named) against the successful calls. If
+any are uncovered it asks the model for the missing ones and continues, within the existing
+`AGENT_MAX_TOOL_STEPS` limit. A continuation after a success stays on Luna; only failed or
+empty turns escalate to Sol. If entities are still uncovered at the limit, the answer is an
+error naming them, never a partial answer. `parallel_tool_calls` is not sent: OpenRouter does
+not list it for GPT-6 Luna, and with `provider.require_parameters` the request then 404s.
+Several calls per turn are allowed by default. The Ollama loop is unchanged because the native
+endpoint rejects multi-turn tool history.
+
+Synthesis sample sizes: the quantity check no longer rejects a record-list sample size
+("returned 10 records") when the number equals a records call's `returned` value and the
+nearby text says returned, shown, listed, or sample. Other uncited counts are still rejected.
+
 Eval scoring: `score_case` in `runner.py` now fails `routing_pass` when an executed filter is
 not grounded in the question or slots (`invented_filters`) or when a utility or county the
 question names never ran (`missing_filters`).
 
-Escalation to Sol: routing step 2 and later and synthesis attempts 2 and later use the
-fallback model. Those turns only happen after the first turn emitted no usable call or failed
-validation. A primary request that raises an HTTP error is retried once on the fallback.
+Escalation to Sol: routing turns after a failed or empty turn, and synthesis attempts 2 and
+later, use the fallback model. A primary request that raises an HTTP error is retried once on the fallback.
 
 Every hosted request prints an `llm_usage` JSON line: provider, phase, model, input and
 output tokens, computed cost, OpenRouter's reported cost, and latency. Prices live in
@@ -222,6 +256,25 @@ needs to accept both tiers when the question asks across HFTD tiers.
 
 Before the fixes there was no holdout run, so the before and after comparison for invented
 filters is the force_model set: 37 values before, 0 after.
+
+### After multi-call coverage, the tier rule, and the sample-size fix (2026-09-23)
+
+Force_model cases, run tag `openrouter-luna-multicall`: 14 of 14 pass (status, tools,
+caveats, evidence, and the filter check), 0 invented values, 0 wrong answers (every number
+matches SQL), p50 4.5 s, p95 7.5 s, $0.022. `cpuc_vs_us` now makes both primary calls, and the
+two "tell me about" cases keep their model-written prose.
+
+The 8 multi-part holdout failures (`ho_006`, `ho_018`, `ho_022`, `ho_047`, `hv2_020`,
+`hv2_025`, `hv2_028`, `hv3_006`), run file `services/agent/eval/runs/hosted_holdout_20260923T224001Z.jsonl`:
+every named entity is now covered and every number matches SQL (Butte 9 and Shasta 4 CAL FIRE
+2020; PSPS 2021 PG&E 2, SCE 5, SDGE 1; CPUC 2023 PG&E 374, SCE 90, SDGE 16; CAL FIRE 2021 172
+and 2022 150; Fresno 0 and 4; Riverside 8, San Bernardino 6, Los Angeles 5; Tier 2 113 and
+Tier 3 45 in 2020; Riverside CPUC 0, 15, 18, 13), 0 invented values, median 8.2 s, max 14.6 s,
+$0.014. The strict holdout scorer still passes only 1 of 8, because 7 used one call per entity
+where the label names `comparison_run` or `data_query_rank`. One answer is incomplete:
+`ho_022` leaves out Bear Valley, which the router does not extract as a utility; the answer says
+it cannot place Bear Valley rather than inventing a number. Shasta's 4 is exact-county: 2 more
+2020 incidents are tagged "Shasta, Tehama" and are excluded by the data service's county filter.
 
 LLM, the 14 force_model cases in cases.json, with the data services and PostGIS running. This does not
 contact the Ollama host:
