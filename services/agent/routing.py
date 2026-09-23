@@ -1196,22 +1196,26 @@ def _asks_ranking(lower: str) -> bool:
 
 
 def _hftd_constraint_unavailable(lower: str) -> bool:
-    """Circuits crossed with a tier, or a request to measure HFTD area.
+    """Circuit inventory crossed with a tier, or a request to measure HFTD area.
 
-    A single-tier HFTD map still uses the word "areas" for the layer itself.
-    That is not a measurement, so only acreage, square miles, or a singular
-    "area" count as an area request.
+    A count of events inside one tier is a spatial summary, even if the
+    question mentions the circuits those events occurred on. A single-tier
+    HFTD map still uses the word "areas" for the layer itself, so only
+    acreage, square miles, or a singular "area" count as a measurement.
     """
     mentions_tier = bool(
         re.search(r"\bhftd\b|\bhigh fire threat|\btier\s*[23]\b", lower)
     )
     if not mentions_tier:
         return False
-    if re.search(r"\bcircuits?\b", lower):
+    if re.search(r"\bacreage\b|\bsquare miles?\b|\barea of\b|\bhftd area\b", lower):
         return True
-    return bool(
-        re.search(r"\bacreage\b|\bsquare miles?\b|\barea of\b|\bhftd area\b", lower)
+    if not re.search(r"\bcircuits?\b", lower):
+        return False
+    event_count = _has_quantity_op(lower) and re.search(
+        r"\b(?:events?|outages?|ignitions?|incidents?|fires?)\b", lower
     )
+    return not event_count
 
 
 def _rank_dimension(lower: str) -> str | None:

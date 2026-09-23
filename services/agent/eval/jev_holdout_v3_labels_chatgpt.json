@@ -317,7 +317,7 @@
   },
   {
     "id": 14,
-    "disposition": "unsupported",
+    "disposition": "clarify",
     "reason": "unexpressed_filter_constraints",
     "tool_calls": []
   },
@@ -450,7 +450,7 @@
   },
   {
     "id": 24,
-    "disposition": "unsupported",
+    "disposition": "clarify",
     "reason": "unexpressed_filter_constraints",
     "tool_calls": []
   },
@@ -633,7 +633,7 @@
   },
   {
     "id": 35,
-    "disposition": "unsupported",
+    "disposition": "clarify",
     "reason": "unexpressed_filter_constraints",
     "tool_calls": []
   },
@@ -651,7 +651,7 @@
   },
   {
     "id": 38,
-    "disposition": "unsupported",
+    "disposition": "clarify",
     "reason": "unexpressed_filter_constraints",
     "tool_calls": []
   },
@@ -663,7 +663,7 @@
   },
   {
     "id": 40,
-    "disposition": "unsupported",
+    "disposition": "clarify",
     "reason": "unexpressed_filter_constraints",
     "tool_calls": []
   },
@@ -691,7 +691,7 @@
   },
   {
     "id": 42,
-    "disposition": "unsupported",
+    "disposition": "clarify",
     "reason": "unexpressed_filter_constraints",
     "tool_calls": []
   },
@@ -740,7 +740,7 @@
   },
   {
     "id": 48,
-    "disposition": "unsupported",
+    "disposition": "clarify",
     "reason": "unexpressed_filter_constraints",
     "tool_calls": []
   },
@@ -758,7 +758,7 @@
   },
   {
     "id": 51,
-    "disposition": "unsupported",
+    "disposition": "clarify",
     "reason": "unexpressed_filter_constraints",
     "tool_calls": []
   },

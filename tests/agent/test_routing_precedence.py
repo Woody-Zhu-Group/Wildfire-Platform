@@ -462,6 +462,13 @@ def test_circuits_with_an_hftd_tier_or_hftd_acreage_clarify():
     assert acreage.rule == "hftd_constraint_unavailable"
 
 
+def test_an_epss_count_inside_one_tier_is_not_a_circuit_intersection():
+    decision = route_question(
+        "How many EPSS events occurred on PG&E circuits in Tier 3 HFTD areas in 2023?"
+    )
+    assert decision.rule != "hftd_constraint_unavailable"
+
+
 def test_a_single_tier_hftd_map_still_answers():
     decision = route_question("Show me a map of Tier 2 High Fire Threat District areas.")
     assert decision.path == "deterministic"

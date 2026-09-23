@@ -1,124 +1,444 @@
 {
   "labels": "services/agent/eval/jev_holdout_v3_labels_chatgpt.json",
-  "questions": "jev_holdout_v3.json on platform/jev-multi-tool at bc3f601",
-  "router": "router-paraphrase-fixes, local route_question, no API",
-  "jev": "Disposition only, reconstructed from the stored v3 score log (2026-09-23, 5 repeats, flip 0). Where that log did not list a disagreement, Jev matched the router from that run. Raw per-question Jev answers were not saved, so intent, dataset, tool_pick, and reason were not rescored. No new API calls.",
   "excluded_uncertain": 23,
   "scored": 65,
-  "disposition": {
-    "router": {"correct": 37, "n": 65, "accuracy": 0.569},
-    "jev": {"correct": 25, "n": 34, "accuracy": 0.735, "note": "31 certain rows were needs_human_review in the stored run and have no Jev answer"},
-    "same_34": {"router_correct": 25, "jev_correct": 25, "n": 34},
-    "agree": 32,
-    "agree_n": 34,
-    "agree_rate": 0.941,
-    "agree_accuracy": 0.75,
-    "agree_correct": 24
+  "label_normalization": {
+    "rule": "If the reason id is a clarify reason in the policy catalog, the disposition is clarify. If it is an unsupported topic, the disposition is unsupported.",
+    "corrected": [
+      {
+        "id": 14,
+        "hv3": "hv3_014",
+        "reason": "unexpressed_filter_constraints",
+        "from": "unsupported",
+        "to": "clarify"
+      },
+      {
+        "id": 24,
+        "hv3": "hv3_024",
+        "reason": "unexpressed_filter_constraints",
+        "from": "unsupported",
+        "to": "clarify"
+      },
+      {
+        "id": 35,
+        "hv3": "hv3_035",
+        "reason": "unexpressed_filter_constraints",
+        "from": "unsupported",
+        "to": "clarify"
+      },
+      {
+        "id": 38,
+        "hv3": "hv3_038",
+        "reason": "unexpressed_filter_constraints",
+        "from": "unsupported",
+        "to": "clarify"
+      },
+      {
+        "id": 40,
+        "hv3": "hv3_040",
+        "reason": "unexpressed_filter_constraints",
+        "from": "unsupported",
+        "to": "clarify"
+      },
+      {
+        "id": 42,
+        "hv3": "hv3_042",
+        "reason": "unexpressed_filter_constraints",
+        "from": "unsupported",
+        "to": "clarify"
+      },
+      {
+        "id": 48,
+        "hv3": "hv3_048",
+        "reason": "unexpressed_filter_constraints",
+        "from": "unsupported",
+        "to": "clarify"
+      },
+      {
+        "id": 51,
+        "hv3": "hv3_051",
+        "reason": "unexpressed_filter_constraints",
+        "from": "unsupported",
+        "to": "clarify"
+      }
+    ]
   },
-  "one_right": [
-    {
-      "id": "hv3_023",
-      "question": "How many EPSS events occurred on PG&E circuits in Tier 3 HFTD areas in 2023?",
-      "label": "answer",
-      "reason": null,
-      "router": "clarify",
-      "router_rule": "hftd_constraint_unavailable",
-      "jev": "answer",
-      "right": "jev"
-    },
-    {
-      "id": "hv3_061",
-      "question": "Can you pull the current HFTD map and tell me what changed this month?",
-      "label": "unsupported",
-      "reason": "unsupported_live_web",
-      "router": "unsupported",
-      "router_rule": "unsupported_live_web",
-      "jev": "answer",
-      "right": "router"
-    }
-  ],
-  "both_wrong": [
+  "reason_misfit_flags_not_changed": [
     {
       "id": "hv3_005",
-      "question": "What percentage of the sample US wildfire ignitions in California occurred in 2022?",
-      "label": "unsupported",
       "reason": "unsupported_rank_us_state",
-      "router": "answer",
-      "jev": "answer"
-    },
-    {
-      "id": "hv3_014",
-      "question": "Give me the distribution circuits in SCE territory that intersect Tier 3 HFTD areas.",
-      "label": "unsupported",
-      "reason": "unexpressed_filter_constraints",
-      "router": "clarify",
-      "jev": "clarify"
-    },
-    {
-      "id": "hv3_021",
-      "question": "Which counties had the largest increase in CAL FIRE wildfire incidents between 2019 and 2020?",
-      "label": "unsupported",
-      "reason": "unsupported_ranking",
-      "router": "answer",
-      "jev": "answer"
-    },
-    {
-      "id": "hv3_024",
-      "question": "map PG&E distribution circuits in Nevada County that are inside HFTD tier 2 or 3",
-      "label": "unsupported",
-      "reason": "unexpressed_filter_constraints",
-      "router": "clarify",
-      "jev": "clarify"
+      "why": "A percentage of California ignitions in one year, not a ranking by state."
     },
     {
       "id": "hv3_029",
-      "question": "compare 2022 and 2023 EPSS events for each of the six utilities and make a chart",
-      "label": "unsupported",
       "reason": "unsupported_rank_epss_utility",
-      "router": "answer",
-      "jev": "answer"
-    },
-    {
-      "id": "hv3_035",
-      "question": "Compare HFTD Tier 2 and Tier 3 acreage within PG&E and SCE service territories.",
-      "label": "unsupported",
-      "reason": "unexpressed_filter_constraints",
-      "router": "clarify",
-      "jev": "clarify"
+      "why": "A two-year comparison and chart, not a ranking of utilities."
     },
     {
       "id": "hv3_036",
-      "question": "How many sample wildfire ignitions occurred in California from all causes in 2018, 2019, 2020, 2021, and 2022?",
-      "label": "unsupported",
       "reason": "unsupported_rank_us_state",
-      "router": "answer",
-      "jev": "answer"
+      "why": "A count of California ignitions across years, not a ranking by state."
     },
     {
-      "id": "hv3_049",
-      "question": "Which utility had the highest ignition rate after adjusting for miles of distribution line?",
-      "label": "unsupported",
-      "reason": "unsupported_ranking",
-      "router": "clarify",
-      "jev": "clarify"
+      "id": "hv3_014",
+      "reason": "unexpressed_filter_constraints",
+      "why": "Asks for circuits intersecting a tier, and names neither a county nor a month."
+    },
+    {
+      "id": "hv3_035",
+      "reason": "unexpressed_filter_constraints",
+      "why": "HFTD acreage, with no county or month."
+    },
+    {
+      "id": "hv3_038",
+      "reason": "unexpressed_filter_constraints",
+      "why": "Cause of fires, with no county or month."
+    },
+    {
+      "id": "hv3_040",
+      "reason": "unexpressed_filter_constraints",
+      "why": "Ignitions per customers, with no county or month."
+    },
+    {
+      "id": "hv3_042",
+      "reason": "unexpressed_filter_constraints",
+      "why": "Response time, with no county or month."
+    },
+    {
+      "id": "hv3_046",
+      "reason": "unsupported_damage",
+      "why": "Asks about evacuations, not damage, loss, or fatalities."
+    },
+    {
+      "id": "hv3_048",
+      "reason": "unexpressed_filter_constraints",
+      "why": "Share of customers de-energized, with no county or month."
+    },
+    {
+      "id": "hv3_051",
+      "reason": "unexpressed_filter_constraints",
+      "why": "Smoke during PSPS, with no county or month."
     }
   ],
-  "slot_planner": {
-    "definition": "Certain rows whose independent tool_calls list has two or more calls. Equivalence is tool-name multiset, or one comparison_run versus two or more data_query_records.",
-    "source": "slot_plan on platform/jev-multi-tool at bc3f601",
-    "n": 6,
-    "produced": 2,
-    "correct": 1,
-    "coverage": 0.333,
-    "precision": 0.5,
-    "accuracy": 0.167,
-    "correct_id": "hv3_006"
+  "jev": {
+    "payload": "v3_hybrid live",
+    "repeats": 5,
+    "errors": 0,
+    "flips": 1,
+    "flip_id": "hv3_068",
+    "flip_votes": [
+      "answer",
+      "clarify",
+      "clarify",
+      "clarify",
+      "clarify"
+    ],
+    "input_tokens": 2763110,
+    "spend_usd": 0.1161,
+    "correct": 40,
+    "n": 65,
+    "accuracy": 0.615
   },
-  "jev_fields": {
-    "labels_cover": ["disposition", "reason"],
-    "labels_do_not_cover": ["intent", "dataset", "tool_pick"],
-    "stored_per_question": ["disposition"],
-    "disposition_accuracy": {"correct": 25, "n": 34, "accuracy": 0.735},
-    "reason": "Not scored. The stored run did not keep per-question clarify or unsupported reasons."
+  "routers": {
+    "platform_main": {
+      "commit": "c108380",
+      "note": "Router on platform/main before PR 22.",
+      "correct": 29,
+      "n": 65,
+      "accuracy": 0.446,
+      "agree_with_jev": 42,
+      "agree_rate": 0.646,
+      "agree_correct": 26,
+      "agree_accuracy": 0.619
+    },
+    "router_paraphrase_fixes": {
+      "note": "This router includes fixes written from earlier v3 disagreements, so this v3 accuracy is not an independent test.",
+      "correct": 41,
+      "n": 65,
+      "accuracy": 0.631,
+      "agree_with_jev": 51,
+      "agree_rate": 0.785,
+      "agree_correct": 36,
+      "agree_accuracy": 0.706
+    }
+  },
+  "hv3_023": {
+    "question": "How many EPSS events occurred on PG&E circuits in Tier 3 HFTD areas in 2023?",
+    "before": "clarify / hftd_constraint_unavailable",
+    "after": "answer / open_ended",
+    "note": "The spatial summary can count events inside one HFTD tier. The old rule fired because the question says circuits. It now fires only when the request is for the circuit inventory plus a tier, or for HFTD area. The router still does not build that spatial call itself."
+  },
+  "route_changes_from_hftd_narrowing": [
+    {
+      "id": "hv3_023",
+      "from": "clarify/hftd_constraint_unavailable",
+      "to": "answer/open_ended"
+    }
+  ],
+  "one_right": {
+    "platform_main": [
+      {
+        "id": "hv3_003",
+        "right": "jev",
+        "label": "answer",
+        "reason": null,
+        "router": "unsupported",
+        "router_rule": "unexpressable_county_filter",
+        "jev": "answer",
+        "question": "how many wildfire incidents were recorded in Shasta County in each year from 2019-2023"
+      },
+      {
+        "id": "hv3_004",
+        "right": "jev",
+        "label": "answer",
+        "reason": null,
+        "router": "clarify",
+        "router_rule": "records_missing_year",
+        "jev": "answer",
+        "question": "For Kern, Tulare, and Kings counties, give the number of CAL FIRE incidents in 2018, 2019, and 2020 and chart the yearly totals."
+      },
+      {
+        "id": "hv3_014",
+        "right": "jev",
+        "label": "clarify",
+        "reason": "unexpressed_filter_constraints",
+        "router": "answer",
+        "router_rule": "utility_territory",
+        "jev": "clarify",
+        "question": "Give me the distribution circuits in SCE territory that intersect Tier 3 HFTD areas."
+      },
+      {
+        "id": "hv3_015",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_rank_epss_utility",
+        "router": "answer",
+        "router_rule": "open_ended",
+        "jev": "unsupported",
+        "question": "rank utilities by total EPSS fast-trip events from 2021 to 2023"
+      },
+      {
+        "id": "hv3_019",
+        "right": "jev",
+        "label": "answer",
+        "reason": null,
+        "router": "clarify",
+        "router_rule": "records_missing_year",
+        "jev": "answer",
+        "question": "How many utility-caused ignitions occurred in Sonoma County in 2018 and 2021, and can you chart the comparison?"
+      },
+      {
+        "id": "hv3_024",
+        "right": "jev",
+        "label": "clarify",
+        "reason": "unexpressed_filter_constraints",
+        "router": "answer",
+        "router_rule": "open_ended",
+        "jev": "clarify",
+        "question": "map PG&E distribution circuits in Nevada County that are inside HFTD tier 2 or 3"
+      },
+      {
+        "id": "hv3_028",
+        "right": "jev",
+        "label": "answer",
+        "reason": null,
+        "router": "clarify",
+        "router_rule": "records_missing_year",
+        "jev": "answer",
+        "question": "Count PSPS events by month for PG&E in 2019, 2020, and 2021."
+      },
+      {
+        "id": "hv3_039",
+        "right": "router",
+        "label": "clarify",
+        "reason": "ambiguous_risk_metric",
+        "router": "clarify",
+        "router_rule": "ranking_missing_slots",
+        "jev": "answer",
+        "question": "Which utility had the most dangerous fires last year?"
+      },
+      {
+        "id": "hv3_046",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_damage",
+        "router": "answer",
+        "router_rule": "filtered_records",
+        "jev": "unsupported",
+        "question": "how many people were evacuated from utility-caused fires in 2019"
+      },
+      {
+        "id": "hv3_047",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_damage",
+        "router": "answer",
+        "router_rule": "filtered_records",
+        "jev": "unsupported",
+        "question": "Give me the number of structures destroyed by PG&E-related ignitions in 2020 by county."
+      },
+      {
+        "id": "hv3_050",
+        "right": "router",
+        "label": "clarify",
+        "reason": "records_missing_year",
+        "router": "clarify",
+        "router_rule": "records_missing_year",
+        "jev": "answer",
+        "question": "For each EPSS event, tell me how many customers were interrupted."
+      },
+      {
+        "id": "hv3_056",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_live_web",
+        "router": "answer",
+        "router_rule": "open_ended",
+        "jev": "unsupported",
+        "question": "Can you send me an alert whenever a new EPSS event occurs?"
+      },
+      {
+        "id": "hv3_057",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_live_web",
+        "router": "answer",
+        "router_rule": "open_ended",
+        "jev": "unsupported",
+        "question": "Show live wildfire incidents happening in California right now."
+      },
+      {
+        "id": "hv3_062",
+        "right": "router",
+        "label": "clarify",
+        "reason": "risk_future_date",
+        "router": "clarify",
+        "router_rule": "ranking_missing_year",
+        "jev": "answer",
+        "question": "Which utility will have the most ignitions next year?"
+      },
+      {
+        "id": "hv3_063",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_live_web",
+        "router": "clarify",
+        "router_rule": "undefined_spatial_scope",
+        "jev": "unsupported",
+        "question": "tell me if a wildfire is burning near Oakland rn"
+      },
+      {
+        "id": "hv3_066",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_live_web",
+        "router": "clarify",
+        "router_rule": "ambiguous_relative_time",
+        "jev": "unsupported",
+        "question": "What are the current outage conditions on PG&E circuits?"
+      },
+      {
+        "id": "hv3_077",
+        "right": "jev",
+        "label": "clarify",
+        "reason": "ranking_missing_year",
+        "router": "answer",
+        "router_rule": "open_ended",
+        "jev": "clarify",
+        "question": "Rank the counties by wildfire incidents."
+      }
+    ],
+    "router_paraphrase_fixes": [
+      {
+        "id": "hv3_003",
+        "right": "jev",
+        "label": "answer",
+        "reason": null,
+        "router": "unsupported",
+        "router_rule": "unexpressable_county_filter",
+        "jev": "answer",
+        "question": "how many wildfire incidents were recorded in Shasta County in each year from 2019-2023"
+      },
+      {
+        "id": "hv3_035",
+        "right": "router",
+        "label": "clarify",
+        "reason": "unexpressed_filter_constraints",
+        "router": "clarify",
+        "router_rule": "hftd_constraint_unavailable",
+        "jev": "answer",
+        "question": "Compare HFTD Tier 2 and Tier 3 acreage within PG&E and SCE service territories."
+      },
+      {
+        "id": "hv3_039",
+        "right": "router",
+        "label": "clarify",
+        "reason": "ambiguous_risk_metric",
+        "router": "clarify",
+        "router_rule": "ranking_missing_slots",
+        "jev": "answer",
+        "question": "Which utility had the most dangerous fires last year?"
+      },
+      {
+        "id": "hv3_047",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_damage",
+        "router": "answer",
+        "router_rule": "multi_entity_deferred",
+        "jev": "unsupported",
+        "question": "Give me the number of structures destroyed by PG&E-related ignitions in 2020 by county."
+      },
+      {
+        "id": "hv3_050",
+        "right": "router",
+        "label": "clarify",
+        "reason": "records_missing_year",
+        "router": "clarify",
+        "router_rule": "records_missing_year",
+        "jev": "answer",
+        "question": "For each EPSS event, tell me how many customers were interrupted."
+      },
+      {
+        "id": "hv3_056",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_live_web",
+        "router": "answer",
+        "router_rule": "open_ended",
+        "jev": "unsupported",
+        "question": "Can you send me an alert whenever a new EPSS event occurs?"
+      },
+      {
+        "id": "hv3_061",
+        "right": "router",
+        "label": "unsupported",
+        "reason": "unsupported_live_web",
+        "router": "unsupported",
+        "router_rule": "unsupported_live_web",
+        "jev": "clarify",
+        "question": "Can you pull the current HFTD map and tell me what changed this month?"
+      },
+      {
+        "id": "hv3_062",
+        "right": "router",
+        "label": "clarify",
+        "reason": "risk_future_date",
+        "router": "clarify",
+        "router_rule": "risk_future_date",
+        "jev": "answer",
+        "question": "Which utility will have the most ignitions next year?"
+      },
+      {
+        "id": "hv3_063",
+        "right": "jev",
+        "label": "unsupported",
+        "reason": "unsupported_live_web",
+        "router": "clarify",
+        "router_rule": "undefined_spatial_scope",
+        "jev": "unsupported",
+        "question": "tell me if a wildfire is burning near Oakland rn"
+      }
+    ]
   }
 }
