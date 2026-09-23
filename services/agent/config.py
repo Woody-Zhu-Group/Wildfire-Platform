@@ -16,8 +16,8 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # Model ids from https://openrouter.ai/api/v1/models (checked 2026-09-23).
 OPENROUTER_DEFAULT_MODEL = "openai/gpt-6-luna"
 OPENROUTER_DEFAULT_FALLBACK_MODEL = "openai/gpt-6-sol"
-# OpenRouter's Jev example uses this id: https://openrouter.ai/docs/guides/community/typesafe-sdk
-OPENROUTER_DEFAULT_JEV_MODEL = "jev-1.13"
+# Pinned dated Jev 1.13 build, as OpenRouter reports it in responses (checked 2026-09-23).
+OPENROUTER_DEFAULT_JEV_MODEL = "typesafe/jev-1.13-20260917"
 
 
 def _bool(name: str, default: bool) -> bool:

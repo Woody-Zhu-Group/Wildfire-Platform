@@ -271,3 +271,11 @@ def test_make_backend_follows_the_setting():
     assert isinstance(make_backend("openrouter", model="jev-1.13", timeout_seconds=3), OpenRouterJevBackend)
     with pytest.raises(ValueError):
         make_backend("other", model="jev", timeout_seconds=3)
+
+
+def test_openrouter_jev_backend_pins_the_dated_model(clean_env):
+    clean_env.setenv("OPENROUTER_API_KEY", FAKE_KEY)
+    clean_env.setenv("AGENT_JEV_BACKEND", "openrouter")
+    assert AgentSettings.from_env().jev_model == "typesafe/jev-1.13-20260917"
+    clean_env.setenv("AGENT_JEV_MODEL", "jev-latest")
+    assert AgentSettings.from_env().jev_model == "jev-latest"

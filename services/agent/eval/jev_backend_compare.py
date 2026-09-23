@@ -16,6 +16,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
+from services.agent.config import OPENROUTER_DEFAULT_JEV_MODEL
 from services.agent.decisions.backend import Answer, QuestionSpec
 from services.agent.decisions.integrity import question_hash
 from services.agent.eval.jev_ablation import _run_calls, _values, units_from_jobs
@@ -57,7 +58,7 @@ def run_backend(name: str, model: str | None, units: list[dict[str, Any]], cap_u
     from services.agent.decisions.typesafe_backend import make_backend, reset_for_tests
 
     reset_for_tests()
-    default_model = "jev-1.13" if name == "openrouter" else "jev-latest"
+    default_model = OPENROUTER_DEFAULT_JEV_MODEL if name == "openrouter" else "jev-latest"
     backend = make_backend(name, model=model or default_model, timeout_seconds=30)
     probe = backend.evaluate(
         {"question": "probe", "today": _today(), "context": "probe"},

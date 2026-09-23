@@ -236,7 +236,7 @@ class OpenRouterJevBackend(TypeSafeBackend):
     def __init__(
         self,
         *,
-        model: str = "jev-1.13",
+        model: str = "typesafe/jev-1.13-20260917",
         timeout_seconds: float = 3.0,
         transport: Any | None = None,
     ) -> None:
