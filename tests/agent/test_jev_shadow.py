@@ -615,10 +615,15 @@ def test_shadow_matches_off_on_deterministic_and_model_paths(tmp_path):
 
 def test_policy_sentences_cover_every_clarify_and_refuse_rule():
     from services.agent.decisions.mapping import policy_rule_ids
-    from services.agent.decisions.schemas import DOMAIN_CONTEXT, POLICY_SENTENCES
+    from services.agent.decisions.schemas import (
+        CONTEXT_DEFERRED_RULES,
+        DOMAIN_CONTEXT,
+        POLICY_SENTENCES,
+    )
 
-    missing = policy_rule_ids() - set(POLICY_SENTENCES)
+    missing = policy_rule_ids() - set(POLICY_SENTENCES) - set(CONTEXT_DEFERRED_RULES)
     assert not missing
+    assert not set(CONTEXT_DEFERRED_RULES) & set(POLICY_SENTENCES)
     for rule_id, sentence in POLICY_SENTENCES.items():
         assert sentence in DOMAIN_CONTEXT
         assert sentence.strip()

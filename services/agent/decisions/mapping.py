@@ -71,6 +71,7 @@ RULE_TO_INTENT: dict[str, str] = {
     "unsupported_rank_cross_dataset": "rank",
     "unsupported_rank_us_state": "rank",
     "unsupported_rank_epss_utility": "rank",
+    "unsupported_future_prediction": "other",
     **{f"unsupported_{key}": "other" for key in UNSUPPORTED},
 }
 

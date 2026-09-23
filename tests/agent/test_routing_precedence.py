@@ -339,14 +339,29 @@ def test_live_phrasing_is_unsupported_and_history_is_not():
     assert this_year.rule != "risk_future_date"
 
 
-def test_future_modal_and_a_year_past_coverage_are_refused():
+def test_future_modal_and_a_year_past_coverage_are_unsupported_predictions():
     for question in (
         "Will PG&E have another PSPS event this fall?",
         "How many PSPS events are expected during the 2026 fire season?",
         "How many ignitions in 2030?",
         "Predict next summer's SCE ignition count.",
+        "Predict which utility will have the most wildfire ignitions in 2027.",
     ):
         decision = route_question(question)
+        assert decision.path == "unsupported", question
+        assert decision.rule == "unsupported_future_prediction", question
+        assert "does not predict" in (decision.answer or ""), question
+
+
+def test_future_risk_question_keeps_the_risk_clarification():
+    for question in (
+        "What's the fire risk in Sacramento County tomorrow?",
+        "What will the ignition risk be in Butte County next summer?",
+        "Can you forecast daily ignition risk for every California grid cell "
+        "for the next 30 days?",
+    ):
+        decision = route_question(question)
+        assert decision.path == "clarification", question
         assert decision.rule == "risk_future_date", question
 
 
@@ -383,7 +398,7 @@ def test_quoted_should_is_not_advice():
     assert decision.rule != "unsupported_optimization"
 
 
-def test_future_phrasing_uses_the_future_date_refusal():
+def test_future_event_counts_are_unsupported_predictions():
     for question in (
         "How many ignitions will there be tomorrow?",
         "How many CAL FIRE incidents next summer?",
@@ -391,8 +406,8 @@ def test_future_phrasing_uses_the_future_date_refusal():
         "How many ignitions in future years?",
     ):
         decision = route_question(question)
-        assert decision.path == "clarification", question
-        assert decision.rule == "risk_future_date", question
+        assert decision.path == "unsupported", question
+        assert decision.rule == "unsupported_future_prediction", question
 
 
 def test_early_returns_keep_the_dataset_slot():

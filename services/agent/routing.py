@@ -671,8 +671,19 @@ _ADVICE = re.compile(
     r"\b(?:should|recommend(?:s|ed)?|penali[sz]e[sd]?|best\s+strategy)\b",
     re.I,
 )
+# The asked object is modeled risk. Predict and forecast alone are not risk
+# words here: a forecast of event counts is a prediction, not a risk score.
+_RISK_OBJECT = re.compile(
+    r"\b(?:risk|risky|riskiness|ignition probability|probability of ignition)\b",
+    re.I,
+)
 
 UNSUPPORTED_ANSWERS = {
+    "future_prediction": (
+        "This system reports historical records only and does not predict "
+        "future events or counts. I can count or chart past years through the "
+        "latest loaded data. Which past period should I use?"
+    ),
     "ranking": (
         "Ranking is not supported for that grouping. I can rank counties or "
         "utilities in CPUC ignitions, counties in CAL FIRE incidents, or "
@@ -1685,7 +1696,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             ),
         )
     future_phrase = _future_refusal_phrase(text, lower)
-    if future_phrase:
+    if future_phrase and _RISK_OBJECT.search(lower):
         return RouteDecision(
             "clarification",
             "risk_future_date",
@@ -1695,6 +1706,14 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 f"{_RISK_COVERAGE_LIMIT}, so I can't answer about {future_phrase}. "
                 "Which past date should I score?"
             ),
+        )
+    if future_phrase:
+        return RouteDecision(
+            "unsupported",
+            "unsupported_future_prediction",
+            "No read-only backend service predicts future events or counts",
+            slots=slots,
+            answer=UNSUPPORTED_ANSWERS["future_prediction"],
         )
     if _asks_for_advice(text):
         return RouteDecision(

@@ -54,6 +54,11 @@ REGEX_ONLY = {
     "unsupported_personnel": "Router keyword. v3 off_topic groups this under other_off_topic.",
     "unsupported_satellite": "Router keyword. v3 off_topic groups this under other_off_topic.",
     "unsupported_leadership": "Router keyword. v3 off_topic groups this under other_off_topic.",
+    "unsupported_future_prediction": (
+        "Router phrasing and year arithmetic: a forward modal, expectation, or "
+        "forecast of events or counts, with no risk object. Kept out of the Jev "
+        "context for now because a new policy sentence changes the payload."
+    ),
 }
 
 OFF_TOPIC_RULES = {

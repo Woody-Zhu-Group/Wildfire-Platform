@@ -139,6 +139,16 @@ _CONTEXT_INTRO = (
     "An attribute utility filter and a count inside that territory are different numbers. House policies:"
 )
 
+# Router rules that are deliberately not yet described to Jev. Adding a
+# sentence changes DOMAIN_CONTEXT and therefore every payload hash, so each
+# entry waits for the next planned context change and its confidence report.
+CONTEXT_DEFERRED_RULES: dict[str, str] = {
+    "unsupported_future_prediction": (
+        "A forward modal, expectation, or forecast of events or counts is refused "
+        "by the router before Jev runs."
+    ),
+}
+
 DOMAIN_CONTEXT = _CONTEXT_INTRO + "\n" + "\n".join(POLICY_SENTENCES.values()) + "\n"
 
 
