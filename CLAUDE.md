@@ -36,7 +36,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Env flags (all default off)
 
-- `AGENT_JEV_MODE`: off, shadow, tool_pick, tool_pick_template, plan
+- `AGENT_JEV_MODE`: off, shadow, tool_pick, tool_pick_template, plan. Main accepts only off and shadow until `jev-shadow` (tool_pick, tool_pick_template) and `jev-multi-tool` (plan) merge.
 - `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`: default 0.8
 - `AGENT_SLOT_PLAN`: deterministic multi-entity planner
 - `AGENT_JEV_LOG_PATH`: shadow log location
@@ -56,11 +56,19 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Branches and merge order
 
-1. `router-paraphrase-fixes` (PR #22, open): router fixes that stop partial and silently wrong answers.
-2. `jev-shadow`: Jev integration, all modes off by default.
-3. `jev-multi-tool`: planner, slot plan, combined decider work.
-4. `panel-summary-stats`: all panel stages (chat reaches 14 of 18 panel views).
-After each merge, rebase the next branch onto `platform/main` and rerun tests.
+Every branch except `ops-shadow-tooling` and `risk-health-check` descends from an unmerged trunk (a792dc2) that already carries the Jev shadow base, and `router-paraphrase-fixes` includes that trunk. Nothing Jev-related can merge before PR #22.
+
+1. `router-paraphrase-fixes` (PR #22): router fixes, the Jev shadow base, the measure gate, the future split, label rules E and F, and frozen holdout v3. After this merge, `AGENT_JEV_MODE` on main accepts only `off` and `shadow`; `tool_pick`, `tool_pick_template`, and `plan` arrive with the branches below.
+2. `ops-shadow-tooling` (PR #24): shadow log report, deploy runbook, smoke test. Based on main, merges clean, independent of #22.
+3. `risk-health-check`: one commit, based on main, merges clean. Open a PR to main.
+4. `panel-summary-stats` (PR #26): rebase onto main after #22. Conflicts to resolve: `jev_policy.py` REGEX_ONLY (both sides add entries), `cases.json` (both sides add cases), the `routing.py` import block, `test_jev_policy.py`, `test_routing_precedence.py`. It carries two early `jev-shadow` commits (policy fixes, near-me as a missing place).
+5. `jev-shadow`: rebase onto main, open its own PR to main. Adds the tool_pick and tool_pick_template modes, template answers, holdout v1, and label rules. Conflicts: `jev_policy.py` (the import line and the JevFacts fields next to `measure`), `test_jev_policy.py`. The two commits panel already carries drop out on rebase.
+6. `openai-provider` (PR #25): stays stacked on `jev-shadow` until that merges, then retarget to main and rebase. `routing.py` is untouched there, so no route report is needed.
+7. `jev-multi-tool`: rebase onto main after `jev-shadow`, its own PR, not combined with `jev-shadow`. Adds plan mode, the slot planner, holdouts v2 and v3 with their raw files and the rule F rows. Conflicts: `routing.py` county-list handling (seven regions), `mapping.py`, `jev_policy.py`, both test files. Its commit that keeps an unsupported topic ahead of the future-date backstop must be rechecked against the future split, with a route report.
+
+`geocode-cities` has no commits of its own yet. Keep `jev-shadow` and `jev-multi-tool` as separate PRs: a mode gate and a planner are different risk surfaces, and the multi-tool `routing.py` conflicts deserve their own review and route report.
+
+After each merge, rebase the next branch onto `platform/main`, rerun `pytest tests/agent`, and report route changes across all eval sets.
 
 ## Eval sets and their status
 
