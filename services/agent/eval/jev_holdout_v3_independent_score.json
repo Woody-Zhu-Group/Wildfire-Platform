@@ -789,5 +789,225 @@
         "note": "Label disagreement rather than a policy error: the label's tool call asks calfire_incidents for a cause field, but db/schema.sql stores cause only on wildfire.epss_outages. Flagged for label review."
       }
     ]
+  },
+  "rule_e_round": {
+    "note": "Tuned numbers. Labels follow rule E (12 rows applied; rows 29, 5, 36 pending). Jev dispositions are the stored one-pass calls from v3_gap_score.json; no new Jev calls were made. The intent gate on other_measure cannot be applied to v3 from stored calls because Jev's intent votes were not stored for v3, so Jev-alone here still reflects the ungated measure policy on the 23 other_measure rows.",
+    "new_calls": 0,
+    "spend_usd": 0.0,
+    "measure_gate": {
+      "rule": "other_measure declines only when Jev intent is count, rank, compare, trend, or records_list; never for map, territory_boundary, or spatial_context.",
+      "dev_from_stored_calls": {
+        "rows": 105,
+        "jev_pre_measure": "101/105",
+        "measure_ungated": "95/105",
+        "measure_gated": "101/105",
+        "restored": [
+          "spatial_point_context",
+          "collision_boundary_only_sce",
+          "collision_map_sce_territory_boundary",
+          "para_territory_boundary",
+          "amb_how_risky",
+          "amb_up_north"
+        ],
+        "note": "router_sce_service_area has no stored Jev call; it is the same wording as para_territory_boundary, whose intent votes were territory_boundary 5 of 5."
+      },
+      "v3_answer_row_lost_last_run": {
+        "id": "hv3_045",
+        "jev_pre_measure": "answer",
+        "with_measure": "unsupported",
+        "recovers_under_gate": "not from stored calls; Jev intent for hv3_045 is not stored, and by wording it is records_list, which stays gated. Under rule E the row is labeled unsupported, so it now scores as a hit."
+      }
+    },
+    "future_split": {
+      "rule": "future phrase with a risk object keeps risk_future_date (clarify); future phrase without one is unsupported_future_prediction, a router-only rule not yet in the Jev context (see CONTEXT_DEFERRED_RULES).",
+      "route_changes": {
+        "cases.json": 0,
+        "jev_paraphrases.json": 0,
+        "jev_holdout.json": [
+          "ho_056",
+          "ho_061",
+          "ho_065"
+        ],
+        "jev_holdout_v2.json": [
+          "hv2_050",
+          "hv2_057",
+          "hv2_062"
+        ],
+        "jev_holdout_v3.json": [
+          "hv3_053",
+          "hv3_054",
+          "hv3_059",
+          "hv3_062",
+          "hv3_064"
+        ]
+      },
+      "all_changes": "risk_future_date clarify to unsupported_future_prediction"
+    },
+    "accuracy": {
+      "combined": {
+        "correct": 53,
+        "accuracy": 0.815,
+        "under_previous_labels": 47,
+        "answer_vs_decline": "answer 21/21  decline 38/44"
+      },
+      "jev_alone": {
+        "correct": 51,
+        "accuracy": 0.785,
+        "under_previous_labels": 45,
+        "answer_vs_decline": "answer 21/21  decline 36/44"
+      },
+      "router_alone": {
+        "correct": 41,
+        "accuracy": 0.631,
+        "under_previous_labels": 42,
+        "answer_vs_decline": "answer 20/21  decline 28/44"
+      },
+      "combined_answered_vs_declined_binary": "59/65"
+    },
+    "remaining_misses": [
+      {
+        "id": "hv3_021",
+        "label": "unsupported",
+        "reason": "unsupported_ranking",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "ranked_records",
+        "jev": "answer",
+        "measure": "event_count",
+        "question": "Which counties had the largest increase in CAL FIRE wildfire incidents between 2019 and 2020?"
+      },
+      {
+        "id": "hv3_029",
+        "label": "unsupported",
+        "reason": "unsupported_rank_epss_utility",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "open_comparison",
+        "jev": "answer",
+        "measure": "event_count",
+        "question": "compare 2022 and 2023 EPSS events for each of the six utilities and make a chart"
+      },
+      {
+        "id": "hv3_030",
+        "label": "unsupported",
+        "reason": "unsupported_ranking",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "ranking_missing_slots",
+        "jev": "answer",
+        "measure": "event_count",
+        "question": "What are the five California cities with the most recorded wildfire incidents in 2019?"
+      },
+      {
+        "id": "hv3_036",
+        "label": "unsupported",
+        "reason": "unsupported_rank_us_state",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "multi_entity_deferred",
+        "jev": "answer",
+        "measure": "event_count",
+        "question": "How many sample wildfire ignitions occurred in California from all causes in 2018, 2019, 2020, 2021, and 2022?"
+      },
+      {
+        "id": "hv3_050",
+        "label": "clarify",
+        "reason": "records_missing_year",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "records_missing_year",
+        "jev": "answer",
+        "measure": "customers_affected",
+        "question": "For each EPSS event, tell me how many customers were interrupted."
+      },
+      {
+        "id": "hv3_053",
+        "label": "clarify",
+        "reason": "risk_future_date",
+        "combined": "unsupported",
+        "source": "router/unsupported_future_prediction",
+        "router_rule": "unsupported_future_prediction",
+        "jev": "unsupported",
+        "measure": "other_measure",
+        "question": "Can you predict which California distribution circuit will have an ignition next month?"
+      },
+      {
+        "id": "hv3_059",
+        "label": "clarify",
+        "reason": "risk_future_date",
+        "combined": "unsupported",
+        "source": "router/unsupported_future_prediction",
+        "router_rule": "unsupported_future_prediction",
+        "jev": "clarify",
+        "measure": "acres_burned",
+        "question": "Estimate how many acres will burn from utility ignitions in 2027."
+      },
+      {
+        "id": "hv3_062",
+        "label": "clarify",
+        "reason": "risk_future_date",
+        "combined": "unsupported",
+        "source": "router/unsupported_future_prediction",
+        "router_rule": "unsupported_future_prediction",
+        "jev": "answer",
+        "measure": "event_count",
+        "question": "Which utility will have the most ignitions next year?"
+      },
+      {
+        "id": "hv3_065",
+        "label": "clarify",
+        "reason": "records_missing_year",
+        "combined": "unsupported",
+        "source": "jev",
+        "router_rule": "open_ended",
+        "jev": "unsupported",
+        "measure": "other_measure",
+        "question": "Can you identify the exact cause of every wildfire in California?"
+      },
+      {
+        "id": "hv3_071",
+        "label": "clarify",
+        "reason": "ambiguous_risk_metric",
+        "combined": "unsupported",
+        "source": "jev",
+        "router_rule": "open_ended",
+        "jev": "unsupported",
+        "measure": "other_measure",
+        "question": "Which is worse for fires, SCE or PacifiCorp?"
+      },
+      {
+        "id": "hv3_076",
+        "label": "clarify",
+        "reason": "trend_missing_year",
+        "combined": "answer",
+        "source": "jev",
+        "router_rule": "open_ended",
+        "jev": "answer",
+        "measure": "record_list",
+        "question": "What did PSPS look like during fire season for SDG&E?"
+      },
+      {
+        "id": "hv3_087",
+        "label": "unsupported",
+        "reason": "unsupported_ranking",
+        "combined": "clarify",
+        "source": "jev",
+        "router_rule": "open_ended",
+        "jev": "clarify",
+        "measure": "event_count",
+        "question": "Chart EPSS events for the worst months."
+      }
+    ],
+    "labels_needing_a_decision": {
+      "pending_rule_e": {
+        "hv3_029": "answer if the comparison tool returns PG&E values with null plus reason for other utilities; it does (REASON_EPSS_PGE_ONLY in services/comparison/queries.py)",
+        "hv3_005 and hv3_036": "the US ignitions endpoint rejects a state filter (state is documented as not supported in v1, no state polygons loaded), so answer is not available"
+      },
+      "future_labels_not_in_rule_e": [
+        "hv3_053",
+        "hv3_059",
+        "hv3_062"
+      ]
+    }
   }
 }

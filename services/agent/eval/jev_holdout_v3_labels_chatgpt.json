@@ -318,8 +318,13 @@
   {
     "id": 14,
     "disposition": "clarify",
-    "reason": "unexpressed_filter_constraints",
-    "tool_calls": []
+    "reason": "hftd_constraint_unavailable",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
   },
   {
     "id": 15,
@@ -451,8 +456,13 @@
   {
     "id": 24,
     "disposition": "clarify",
-    "reason": "unexpressed_filter_constraints",
-    "tool_calls": []
+    "reason": "hftd_constraint_unavailable",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
   },
   {
     "id": 25,
@@ -634,8 +644,13 @@
   {
     "id": 35,
     "disposition": "clarify",
-    "reason": "unexpressed_filter_constraints",
-    "tool_calls": []
+    "reason": "hftd_constraint_unavailable",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
   },
   {
     "id": 36,
@@ -651,9 +666,14 @@
   },
   {
     "id": 38,
-    "disposition": "clarify",
-    "reason": "unexpressed_filter_constraints",
-    "tool_calls": []
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
   },
   {
     "id": 39,
@@ -663,9 +683,14 @@
   },
   {
     "id": 40,
-    "disposition": "clarify",
-    "reason": "unexpressed_filter_constraints",
-    "tool_calls": []
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
   },
   {
     "id": 41,
@@ -691,9 +716,14 @@
   },
   {
     "id": 42,
-    "disposition": "clarify",
-    "reason": "unexpressed_filter_constraints",
-    "tool_calls": []
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
   },
   {
     "id": 43,
@@ -710,8 +740,8 @@
   },
   {
     "id": 45,
-    "disposition": "answer",
-    "reason": null,
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
     "tool_calls": [
       {
         "tool": "data_query_records",
@@ -724,13 +754,23 @@
           ]
         }
       }
-    ]
+    ],
+    "rule": "E",
+    "previous": {
+      "disposition": "answer",
+      "reason": null
+    }
   },
   {
     "id": 46,
     "disposition": "unsupported",
-    "reason": "unsupported_damage",
-    "tool_calls": []
+    "reason": "unsupported_evacuation",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_damage"
+    }
   },
   {
     "id": 47,
@@ -740,9 +780,14 @@
   },
   {
     "id": 48,
-    "disposition": "clarify",
-    "reason": "unexpressed_filter_constraints",
-    "tool_calls": []
+    "disposition": "unsupported",
+    "reason": "unsupported_other_measure",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
   },
   {
     "id": 49,
@@ -758,9 +803,14 @@
   },
   {
     "id": 51,
-    "disposition": "clarify",
-    "reason": "unexpressed_filter_constraints",
-    "tool_calls": []
+    "disposition": "unsupported",
+    "reason": "unsupported_air_quality",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "clarify",
+      "reason": "unexpressed_filter_constraints"
+    }
   },
   {
     "id": 52,
@@ -777,8 +827,13 @@
   {
     "id": 54,
     "disposition": "unsupported",
-    "reason": "unsupported_live_web",
-    "tool_calls": []
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_live_web"
+    }
   },
   {
     "id": 55,
@@ -846,8 +901,13 @@
   {
     "id": 64,
     "disposition": "unsupported",
-    "reason": "unsupported_live_web",
-    "tool_calls": []
+    "reason": "unsupported_future_prediction",
+    "tool_calls": [],
+    "rule": "E",
+    "previous": {
+      "disposition": "unsupported",
+      "reason": "unsupported_live_web"
+    }
   },
   {
     "id": 65,
@@ -1006,5 +1066,31 @@
     "reason": "undefined_spatial_scope",
     "tool_calls": [],
     "uncertain": true
+  },
+  {
+    "rule": "E",
+    "kind": "label_rule",
+    "written_by": "Michael",
+    "date": "2026-09-23",
+    "text": "Rule E, written label decisions for holdout v3. Rows 14, 24, 35: clarify / hftd_constraint_unavailable. Rows 38, 40, 42, 45, 48: unsupported / unsupported_other_measure. Row 51: unsupported / unsupported_air_quality. Row 46: unsupported / unsupported_evacuation. Rows 54, 64: unsupported / unsupported_future_prediction. Row 29 answers only if the comparison tool returns PG&E values with null plus reason for other utilities; rows 5 and 36 answer only if the US ignitions tool filters by state, else clarify with the closest existing reason. Rows 29, 5, and 36 are pending Michael's confirmation of those checks.",
+    "applied_rows": [
+      14,
+      24,
+      35,
+      38,
+      40,
+      42,
+      45,
+      46,
+      48,
+      51,
+      54,
+      64
+    ],
+    "pending_rows": [
+      29,
+      5,
+      36
+    ]
   }
 ]

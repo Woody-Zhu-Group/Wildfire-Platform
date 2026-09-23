@@ -41,7 +41,7 @@ def _v3_rows() -> list[dict]:
     )
     rows = []
     for index, label in enumerate(labels):
-        if label.get("uncertain"):
+        if "disposition" not in label or label.get("uncertain"):
             continue
         item = hold[index]
         rows.append(
