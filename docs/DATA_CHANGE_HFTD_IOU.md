@@ -113,12 +113,15 @@ passes the gate at -0.0975%, just inside the limit, but it would drop those
 outages from PG&E's territory.
 
 The override cannot flip any other ring:
-- It must match exactly one PG&E hole that contains the point
-  (-122.0402, 38.0816).
-- That hole's spherical area must be within 0.5% of 181.22 km2 (181.33 km2
-  in EPSG:3310). The next-largest hole in either layer is 135 km2.
-- It stops the load if it matches no hole, more than one hole, or no
-  feature.
+- It applies only to the PG&E feature, and PG&E has exactly one hole in the
+  published Esri JSON. No SCE or HFTD ring is ever considered. Those layers
+  have larger holes (SCE up to 256.6 km2, Tier 2 up to 816.8 km2).
+- Within PG&E it must match a hole that contains the point
+  (-122.0402, 38.0816), and that hole's spherical area must be within 0.5% of
+  181.22 km2 (181.33 km2 in EPSG:3310).
+- It stops the load if it matches no hole or more than one hole, or names no
+  feature. If CPUC ever adds a second PG&E hole, the point and area guards
+  still select only this one.
 
 ### Areas after the rebuild (km2, EPSG:3310)
 
@@ -304,7 +307,7 @@ local warehouse on 2026-09-23.
 
 19 other region-years are unchanged.
 
-**EPSS outages** (data_query /spatial/summary; comparison EPSS for HFTD)
+**EPSS outages** (data_query /spatial/summary only; the comparison service's utility EPSS count is PG&E's whole EPSS table, not a spatial join)
 
 | Region | Year | Before | After | Change |
 |---|---|---|---|---|
@@ -438,6 +441,14 @@ Points: the Census 2025 Gazetteer internal points (`INTPTLAT`, `INTPTLONG`) of t
 | Willits | Tier 2 | none |
 
 PGE 2024 CPUC ignitions: 532 by attribute (utility = PGE) and 536 by spatial containment, both before and after the rebuild. The 4-ignition gap between the two definitions is real, not a geometry artifact.
+
+Albany: its Gazetteer point (37.890650, -122.318116) is on the Bay shoreline,
+3.5 m outside PG&E's rebuilt polygon, though inside Alameda County. The old
+simplified polygon happened to cover it. Point-based answers now say the point
+is in no IOU territory, even though Albany is served by PG&E. PR #28 should
+handle shoreline city points, for example with a small nearest-polygon
+tolerance (tens of meters) or a note that the center point is at the
+shoreline. That is recorded as a follow-up for #28.
 
 Where the old geometry had two containing regions (Big Bear Lake; Banning, Dunsmuir, Tehachapi and Truckee for HFTD), `/spatial/point` returned one of them with no fixed order. On invalid polygons the answer also depended on the GEOS version.
 
