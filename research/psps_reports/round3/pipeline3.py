@@ -51,6 +51,7 @@ SPEND_CAP_USD = 6.0
 RUNS = Path(os.environ.get("PSPS_R3_RUNS", HERE / "runs"))
 PAGES = HERE / "pages"
 LUNA_MODEL = "openai/gpt-6-luna"
+MAX_LUNA_CHARS = 1_500_000
 _lock = threading.Lock()
 
 # ------------------------------------------------------------------ questions
@@ -118,17 +119,26 @@ Return exactly this JSON shape:
 
 # ------------------------------------------------------------------ spend
 
-def spend() -> dict:
+def _read_spend() -> dict:
     path = RUNS / "spend.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"jev_usd": 0.0, "luna_text_usd": 0.0, "luna_vision_usd": 0.0}
 
 
+def spend() -> dict:
+    # Read under the lock: a concurrent write once left a half-written file (fix
+    # made after the first full-run attempt crashed; see README).
+    with _lock:
+        return _read_spend()
+
+
 def add_spend(kind: str, usd: float) -> float:
     with _lock:
-        state = spend()
+        state = _read_spend()
         state[kind] = round(state.get(kind, 0.0) + usd, 6)
         RUNS.mkdir(exist_ok=True)
-        (RUNS / "spend.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
+        tmp = RUNS / "spend.json.tmp"
+        tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
+        tmp.replace(RUNS / "spend.json")
         return sum(v for v in state.values())
 
 
@@ -161,6 +171,8 @@ def openrouter(body: dict, kind: str) -> tuple[str, dict]:
     if cost is None:
         cost = usage.get("prompt_tokens", 0) * LUNA_PRICE_IN + usage.get("completion_tokens", 0) * LUNA_PRICE_OUT
     add_spend(kind, float(cost))
+    if "choices" not in payload:
+        raise RuntimeError(f"OpenRouter returned no choices: {json.dumps(payload.get('error', payload))[:400]}")
     return payload["choices"][0]["message"]["content"], usage
 
 
@@ -352,6 +364,19 @@ def cmd_luna(events: list[dict], workers: int) -> None:
 
     def run(event):
         pages = pages_with_images(event["report_id"], images)
+        # Oversized reports (one 395-page SDG&E report exceeded the context
+        # window in the full run): keep pages in order up to a character budget,
+        # record where the text was cut, and flag the event for review.
+        truncated_after = None
+        if sum(len(p["text"]) for p in pages) > MAX_LUNA_CHARS:
+            kept, used = [], 0
+            for page in pages:
+                if used + len(page["text"]) > MAX_LUNA_CHARS:
+                    break
+                kept.append(page)
+                used += len(page["text"])
+            truncated_after = kept[-1]["page"]
+            pages = kept
         body = {
             "model": LUNA_MODEL, "temperature": 0, "response_format": {"type": "json_object"},
             "messages": [{"role": "system", "content": LUNA_SYSTEM},
@@ -366,7 +391,7 @@ def cmd_luna(events: list[dict], workers: int) -> None:
             fields = {"parse_error": content[:500]}
         by_number = {p["page"]: p["text"] for p in pages}
         checks = {name: {"value_on_page": p2.value_on_page(item, by_number)} for name, item in fields.items() if isinstance(item, dict)}
-        return {"report_id": event["report_id"], "fields": fields, "checks": checks,
+        return {"report_id": event["report_id"], "fields": fields, "checks": checks, "truncated_after_page": truncated_after,
                 "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"), "cost_usd": usage.get("cost")}
 
     with open(out_path, "a", encoding="utf-8") as fh, cf.ThreadPoolExecutor(workers) as pool:

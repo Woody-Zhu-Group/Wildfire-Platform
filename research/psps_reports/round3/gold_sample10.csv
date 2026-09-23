@@ -1,0 +1,91 @@
+report_id,field,gold,gold_pages,certain,note
+sdge__sdge_de_energization_report_nov_89_2018,mbl_advance_notice,not_applicable,2,yes,No customers were de-energized.
+sdge__sdge_de_energization_report_nov_89_2018,wind_threshold_cited,not_stated,2;3,yes,Forecast gusts only; no de-energization.
+sdge__sdge_de_energization_report_nov_89_2018,complaints_reported,zero,12,yes,No complaints or claims were filed.
+sdge__sdge_de_energization_report_nov_89_2018,claims_reported,zero,12,yes,No complaints or claims were filed.
+sdge__sdge_de_energization_report_nov_89_2018,canceled_after_notice,yes,2;7,yes,7313 customers notified; none de-energized.
+sdge__sdge_de_energization_report_nov_89_2018,customers_deenergized,0,2,yes,
+sdge__sdge_de_energization_report_nov_89_2018,first_deenergization,null,,yes,No de-energization.
+sdge__sdge_de_energization_report_nov_89_2018,last_restoration,null,,yes,No de-energization.
+sdge__sdge_de_energization_report_nov_89_2018,counties_deenergized,0,4,yes,
+pge__psps_event_12_07_20_de_energization_report,mbl_advance_notice,not_applicable,4,yes,No customers were de-energized.
+pge__psps_event_12_07_20_de_energization_report,wind_threshold_cited,not_stated,4;6,yes,No de-energization.
+pge__psps_event_12_07_20_de_energization_report,complaints_reported,zero,27,no,No complaints received from the CPUC; other channels not reported.
+pge__psps_event_12_07_20_de_energization_report,claims_reported,not_stated,27,yes,Claims: not applicable.
+pge__psps_event_12_07_20_de_energization_report,canceled_after_notice,yes,4;16,yes,Event canceled; cancellation notices sent.
+pge__psps_event_12_07_20_de_energization_report,customers_deenergized,0,4,yes,
+pge__psps_event_12_07_20_de_energization_report,first_deenergization,null,,yes,No de-energization.
+pge__psps_event_12_07_20_de_energization_report,last_restoration,null,,yes,No de-energization.
+pge__psps_event_12_07_20_de_energization_report,counties_deenergized,0,4,yes,
+sce__sce_oct_16_2020_psps_post_event_report,mbl_advance_notice,some_not_notified,5;10,yes,No advance notifications to any customer; the one critical care customer was contacted after de-energization.
+sce__sce_oct_16_2020_psps_post_event_report,wind_threshold_cited,met,8,yes,Wind exceeded the 31-46 mph threshold on both circuits.
+sce__sce_oct_16_2020_psps_post_event_report,complaints_reported,zero,6,yes,No formal complaints and Consumer Affairs received none.
+sce__sce_oct_16_2020_psps_post_event_report,claims_reported,zero,6,yes,No claims submitted.
+sce__sce_oct_16_2020_psps_post_event_report,canceled_after_notice,no,5;10,no,No pre-event notifications were sent at all; no circuits were in scope beforehand.
+sce__sce_oct_16_2020_psps_post_event_report,customers_deenergized,86,3,yes,
+sce__sce_oct_16_2020_psps_post_event_report,first_deenergization,2020-10-16 08:27,3;4,yes,
+sce__sce_oct_16_2020_psps_post_event_report,last_restoration,2020-10-16 18:12,3;7,yes,
+sce__sce_oct_16_2020_psps_post_event_report,counties_deenergized,2,3,yes,Los Angeles and Ventura.
+sce__sce_jun_25_28_2020_psps_post_event_report,mbl_advance_notice,not_applicable,3,yes,No circuits were de-energized.
+sce__sce_jun_25_28_2020_psps_post_event_report,wind_threshold_cited,not_stated,3;5,yes,No de-energization; forecasts no longer expected to breach criteria.
+sce__sce_jun_25_28_2020_psps_post_event_report,complaints_reported,zero,7,yes,No formal complaints lodged.
+sce__sce_jun_25_28_2020_psps_post_event_report,claims_reported,not_stated,7,no,The complaints item does not mention claims.
+sce__sce_jun_25_28_2020_psps_post_event_report,canceled_after_notice,yes,3;8,yes,35 circuits in scope and customers notified; none de-energized.
+sce__sce_jun_25_28_2020_psps_post_event_report,customers_deenergized,0,3,yes,
+sce__sce_jun_25_28_2020_psps_post_event_report,first_deenergization,null,,yes,No de-energization.
+sce__sce_jun_25_28_2020_psps_post_event_report,last_restoration,null,,yes,No de-energization.
+sce__sce_jun_25_28_2020_psps_post_event_report,counties_deenergized,0,3,yes,
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,mbl_advance_notice,not_applicable,3,yes,No circuits were de-energized.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,wind_threshold_cited,not_stated,4;5,yes,No de-energization.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,complaints_reported,zero,8,no,Not applicable; no customers lodged formal complaints with Consumer Affairs.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,claims_reported,not_stated,8,no,Claims not mentioned.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,canceled_after_notice,yes,3;5,yes,About 7751 customers notified; none de-energized.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,customers_deenergized,0,3,yes,
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,first_deenergization,null,,yes,No de-energization.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,last_restoration,null,,yes,No de-energization.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,counties_deenergized,0,8,yes,
+sce__sce_post_event_reporting_september_4_through_september_8_2019,mbl_advance_notice,all_notified,5;12;14,no,No critical care customers on either de-energized circuit; customers got initial and update notices before; no MBL-specific statement.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,wind_threshold_cited,met,13,yes,Wind and FPI forecast to exceed PSPS criteria and then observed in the field.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,complaints_reported,zero,12,yes,Not aware of any complaints or claims.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,claims_reported,zero,12,yes,Not aware of any complaints or claims.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,canceled_after_notice,yes,5,yes,Up to 16000 customers in scope; about 632 de-energized.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,customers_deenergized,650|632,3;5,no,Summary says approximately 650; the two circuits add to 632.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,first_deenergization,2019-09-07 17:37,5,yes,Concepcion circuit.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,last_restoration,2019-09-08 14:18,5;12,yes,
+sce__sce_post_event_reporting_september_4_through_september_8_2019,counties_deenergized,1,3,yes,Santa Barbara.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,mbl_advance_notice,some_not_notified,14,yes,Three MBL customers had no notification before de-energization on October 26 (clerical error).
+sdge__sdge_oct_26_27_2020_psps_post_event_report,wind_threshold_cited,not_stated,8,yes,Gusts in the top 1 percent; no threshold statement.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,complaints_reported,zero,20,yes,No complaints as of November 10.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,claims_reported,one_or_more,20,yes,Two food loss claims.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,canceled_after_notice,yes,11;29,yes,Monitored circuits not de-energized; no longer at risk message sent.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,customers_deenergized,4373,12,yes,
+sdge__sdge_oct_26_27_2020_psps_post_event_report,first_deenergization,2020-10-26 08:48,10,yes,
+sdge__sdge_oct_26_27_2020_psps_post_event_report,last_restoration,2020-10-27 17:19,10,yes,
+sdge__sdge_oct_26_27_2020_psps_post_event_report,counties_deenergized,1,10;17,no,Not stated as a count; all devices are in San Diego County.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,mbl_advance_notice,not_applicable,7,yes,No customers were de-energized.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,wind_threshold_cited,not_stated,7;9,yes,No de-energization.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,complaints_reported,zero,27,yes,Zero complaints.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,claims_reported,zero,27,yes,Zero claims.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,canceled_after_notice,yes,8,yes,Table 1: 191 notified; 191 cancelled.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,customers_deenergized,0,7;8,yes,
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,first_deenergization,null,,yes,No de-energization.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,last_restoration,null,,yes,No de-energization.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,counties_deenergized,0,8,yes,
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,mbl_advance_notice,all_notified,25,yes,21 of 21 successful positive notification.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,wind_threshold_cited,met,16,no,Observed wind and FPI no longer met de-energization thresholds as of 6:07 on November 6 (implies they had).
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,complaints_reported,one_or_more,31,yes,Eight complaints.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,claims_reported,zero,31,yes,Zero claims.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,canceled_after_notice,yes,8;28,yes,1601 notified; 1145 de-energized.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,customers_deenergized,1145,7;8,yes,
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,first_deenergization,2025-11-05 05:17,21,yes,Birchim circuit; table lists both de-energized circuits.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,last_restoration,2025-11-06 09:17,21,yes,
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,counties_deenergized,2,8,yes,Inyo and Mono.
+pge__10_17_2024_psps_post_event_report,mbl_advance_notice,all_notified,56,no,1116 attempted; 2 not delivered received doorbell rings (footnote 42); the label rule counts door visits as notified.
+pge__10_17_2024_psps_post_event_report,wind_threshold_cited,not_stated,4,no,Gusts near 88 mph recorded; no statement that wind met a threshold.
+pge__10_17_2024_psps_post_event_report,complaints_reported,one_or_more,78,yes,Table 16.
+pge__10_17_2024_psps_post_event_report,claims_reported,one_or_more,79,yes,28 claims.
+pge__10_17_2024_psps_post_event_report,canceled_after_notice,yes,9,yes,Table 1: 17850 canceled.
+pge__10_17_2024_psps_post_event_report,customers_deenergized,17367,4;9;27,yes,
+pge__10_17_2024_psps_post_event_report,first_deenergization,2024-10-17 12:57,4;107,yes,
+pge__10_17_2024_psps_post_event_report,last_restoration,2024-10-20 13:18,109,no,Appendix B maximum (Silverado 2104); the extracted version is a redline and shared SCE customers are not in the table.
+pge__10_17_2024_psps_post_event_report,counties_deenergized,21,9;27,yes,
