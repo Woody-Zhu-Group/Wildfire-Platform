@@ -674,7 +674,8 @@ _ADVICE = re.compile(
 # The asked object is modeled risk. Predict and forecast alone are not risk
 # words here: a forecast of event counts is a prediction, not a risk score.
 _RISK_OBJECT = re.compile(
-    r"\b(?:risk|risky|riskiness|ignition probability|probability of ignition)\b",
+    r"\b(?:risk|risky|riskiness|hotspots?|ignition probability|"
+    r"probability of ignition)\b",
     re.I,
 )
 

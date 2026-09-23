@@ -359,6 +359,7 @@ def test_future_risk_question_keeps_the_risk_clarification():
         "What will the ignition risk be in Butte County next summer?",
         "Can you forecast daily ignition risk for every California grid cell "
         "for the next 30 days?",
+        "Can the model forecast tomorrow's ignition hotspots?",
     ):
         decision = route_question(question)
         assert decision.path == "clarification", question
