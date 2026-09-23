@@ -917,6 +917,9 @@ def _single_call_would_collapse(
         lower,
     ):
         return True
+    # A chart plus a total is two results; one series call would drop the total.
+    if kind == "series" and _asks_series_and_total(lower):
+        return True
     if kind == "map" and _BREAKDOWN.search(lower):
         return True
     return False
@@ -1410,6 +1413,26 @@ def _asks_medical_exposure(lower: str) -> bool:
 def _asks_summary_panel(lower: str) -> bool:
     """True for a multi-metric summary, not a single how-many total."""
     return bool(re.search(r"\b(?:summary|overview) of\b", lower))
+
+
+# A series or chart request that also asks for a total. One series call would
+# drop the total, so this defers as the count path does, until a deterministic
+# count-plus-series path exists.
+_SERIES_WORD = re.compile(
+    r"\b(?:chart|plot|graph|series|trend|over time|monthly|weekly|daily|by month)\b",
+    re.I,
+)
+_TOTAL_ASK = re.compile(
+    r"\bannual\s+totals?\b|\boverall\s+(?:count|total|number)\b|"
+    r"\btotal\s+(?:count|number)\b|\band\s+how\s+many\b|"
+    r"\b(?:plus|include|including|as well as|along with)\s+(?:the\s+|an?\s+)?"
+    r"(?:\w+\s+)?(?:total|count|sum)\b",
+    re.I,
+)
+
+
+def _asks_series_and_total(lower: str) -> bool:
+    return bool(_SERIES_WORD.search(lower) and _TOTAL_ASK.search(lower))
 
 
 def _series_mode_request(lower: str) -> tuple[str, str | None] | None:
@@ -2739,6 +2762,8 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
         )
 
     series_request = _series_mode_request(lower)
+    if series_request is not None and _asks_series_and_total(lower):
+        return _defer_collapsed(slots)
     if series_request is not None:
         series_mode, fixed_dataset = series_request
         chartable = {"cpuc_ignitions", "epss_outages", "calfire_incidents"}

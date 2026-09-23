@@ -175,3 +175,24 @@ def test_single_stem_topics_still_refuse_with_their_context():
     assert route_question("Translate how many fires into Spanish.").rule == "unsupported_translation"
     assert route_question("How many firefighters were deployed to the 2024 Park Fire?").rule == "unsupported_personnel"
     assert route_question("Show me the satellite infrared image of the 2024 fire.").rule == "unsupported_satellite"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "For SCE, chart monthly EPSS fast-trip outage events during 2022 and include the annual total.",
+        "Chart weekly PG&E ignitions in 2023 and how many there were overall.",
+        "Plot CAL FIRE incidents by month for 2021 plus the total count.",
+    ],
+)
+def test_a_series_plus_a_total_defers_instead_of_one_series_panel(question):
+    decision = route_question(question)
+    assert decision.path == "model", question
+    # Either deferral keeps both results for the model; neither runs one call.
+    assert decision.rule in {"multi_entity_deferred", "multi_intent_count_and_trend"}, question
+    assert decision.tool_calls == []
+
+
+def test_a_yearly_totals_series_alone_still_opens_the_series_panel():
+    decision = route_question("Show year over year CPUC ignition totals for 2024.")
+    assert decision.rule == "series_yearly"
