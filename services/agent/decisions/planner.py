@@ -477,6 +477,7 @@ def load_plan_facts(question: str, settings: Any) -> Any | None:
         date.today().isoformat(),
         None,
         getattr(settings, "jev_ablation", "v3_hybrid"),
+        plan=True,
     )
     backend = TypeSafeBackend(
         model=getattr(settings, "jev_model", "jev-latest"),
