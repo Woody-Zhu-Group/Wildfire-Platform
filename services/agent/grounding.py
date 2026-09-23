@@ -21,7 +21,13 @@ COORD_FIELDS = ("lat", "lon")
 # Fields that are filters. Structural fields (dataset, kind, metric, interval) are not.
 FILTER_FIELDS = ("circuit_id", "county", *TIER_FIELDS, *COORD_FIELDS)
 
-_TIER_RE = re.compile(r"\btier\s*([23])\b", re.IGNORECASE)
+# "tier 2", "tier 2 or 3", "tiers 2 and 3", "tier 2/tier 3".
+_TIER_RE = re.compile(
+    r"\btiers?\s*([23])(?:\s*(?:,|and|or|&|/)\s*(?:tier\s*)?([23]))?\b",
+    re.IGNORECASE,
+)
+_TIER_WORD_RE = re.compile(r"\btiers?\b", re.IGNORECASE)
+ALL_TIERS = {"Tier 2", "Tier 3"}
 _NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
 _DIGITS_RE = re.compile(r"\d{3,}")
 
@@ -30,8 +36,23 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip().lower())
 
 
+def named_tiers(question: str) -> set[str]:
+    """Tiers the question names by number."""
+    return {
+        f"Tier {digit}"
+        for match in _TIER_RE.findall(question or "")
+        for digit in match
+        if digit
+    }
+
+
 def _question_tiers(question: str) -> set[str]:
-    return {f"Tier {match}" for match in _TIER_RE.findall(question or "")}
+    """Tiers a filter may use: the named ones, or both when the question asks
+    across tiers without a number ("which hftd tier covered the most circuits")."""
+    named = named_tiers(question)
+    if named:
+        return named
+    return set(ALL_TIERS) if _TIER_WORD_RE.search(question or "") else set()
 
 
 def _question_numbers(question: str) -> list[float]:
@@ -180,3 +201,112 @@ def score_executed_filters(
         if county and _norm(county).removesuffix(" county") not in used_counties:
             missing.append(f"county:{county}")
     return {"invented": invented, "missing": missing, "pass": not invented and not missing}
+
+
+def named_counties(question: str, county_slot: str | None) -> list[str]:
+    """The router's county slot plus every county the question names.
+
+    The router keeps one county; "Butte County and Shasta County" or
+    "Riverside, San Bernardino, and Los Angeles counties" name several. Bare names
+    count only when the question says county or counties.
+    """
+    from services.agent.routing import _CA_COUNTIES, UTILITY_PATTERNS
+
+    found: list[str] = [county_slot] if county_slot else []
+    lower = _norm(question)
+    if not re.search(r"\bcount(?:y|ies)\b", lower):
+        return found
+    scrubbed = lower
+    for pattern in UTILITY_PATTERNS.values():
+        scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
+    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+        pattern = rf"\b{re.escape(name.lower())}\b"
+        if re.search(pattern, scrubbed):
+            scrubbed = re.sub(pattern, " ", scrubbed)
+            if name not in found:
+                found.append(name)
+    return found
+
+
+def named_entities(
+    question: str,
+    *,
+    utilities: list[str] | None,
+    county: str | None,
+    years: list[int] | None,
+) -> dict[str, list[Any]]:
+    """Entities a multi-part question names, each of which must be covered by a call."""
+    tiers = sorted(named_tiers(question))
+    return {
+        "utility": list(utilities or []),
+        "county": named_counties(question, county),
+        "year": sorted(set(years or [])),
+        "tier": tiers if len(tiers) > 1 else [],
+    }
+
+
+def _years_in_range(start: Any, end: Any) -> set[int]:
+    try:
+        first, last = int(str(start)[:4]), int(str(end)[:4])
+    except (TypeError, ValueError):
+        return set()
+    return set(range(first, last + 1)) if first <= last else set()
+
+
+def _covered(arguments: dict[str, Any], tool: str) -> dict[str, set[Any]]:
+    covered: dict[str, set[Any]] = {"utility": set(), "county": set(), "year": set(), "tier": set()}
+    args = arguments or {}
+    group_by = args.get("group_by")
+    if tool == "data_query_rank" and group_by == "utility":
+        covered["utility"].add("*")
+    if tool == "data_query_rank" and group_by == "county":
+        covered["county"].add("*")
+    if isinstance(args.get("utility"), str):
+        covered["utility"].add(args["utility"])
+    covered["utility"].update(u for u in args.get("utilities") or [] if isinstance(u, str))
+    scope = args.get("scope")
+    if isinstance(scope, str):
+        key = "county" if args.get("scope_type") == "county" else "utility"
+        covered[key].add(_norm(scope).removesuffix(" county") if key == "county" else scope)
+    if isinstance(args.get("county"), str):
+        covered["county"].add(_norm(args["county"]).removesuffix(" county"))
+    for region in args.get("regions") or []:
+        if not isinstance(region, str):
+            continue
+        if args.get("region_type") == "hftd":
+            covered["tier"].add(region)
+        else:
+            covered["county"].add(_norm(region).removesuffix(" county"))
+    for field in TIER_FIELDS:
+        if isinstance(args.get(field), str):
+            covered["tier"].add(args[field])
+    if isinstance(args.get("year"), int):
+        covered["year"].add(args["year"])
+    covered["year"] |= _years_in_range(args.get("start_date"), args.get("end_date"))
+    for prefix in ("period_a", "period_b"):
+        covered["year"] |= _years_in_range(args.get(f"{prefix}_start"), args.get(f"{prefix}_end"))
+    if isinstance(args.get("date"), str):
+        covered["year"] |= _years_in_range(args["date"], args["date"])
+    return covered
+
+
+def uncovered_entities(
+    entities: dict[str, list[Any]],
+    calls: list[tuple[str, dict[str, Any]]],
+) -> list[str]:
+    """Named entities no successful primary call covered, as "kind:value" labels."""
+    covered: dict[str, set[Any]] = {"utility": set(), "county": set(), "year": set(), "tier": set()}
+    for tool, arguments in calls:
+        for kind, values in _covered(arguments, tool).items():
+            covered[kind] |= values
+    missing: list[str] = []
+    for kind, values in entities.items():
+        if not values:
+            continue
+        if "*" in covered[kind]:
+            continue
+        for value in values:
+            key = _norm(str(value)).removesuffix(" county") if kind == "county" else value
+            if key not in covered[kind]:
+                missing.append(f"{kind}:{value}")
+    return missing

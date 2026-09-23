@@ -168,6 +168,8 @@ def test_tool_call_path_uses_native_tool_choice(clean_env, capsys):
     assert request.headers["Authorization"] == f"Bearer {FAKE_KEY}"
     assert body["model"] == "openai/gpt-6-luna"
     assert body["tool_choice"] == "required"
+    # Unsupported for Luna on OpenRouter; with require_parameters it 404s.
+    assert "parallel_tool_calls" not in body
     assert [t["function"]["name"] for t in body["tools"]] == ["data_query_records"]
     from services.agent.provider import strict_nullable_tool
 

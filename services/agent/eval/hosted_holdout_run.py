@@ -121,6 +121,9 @@ async def run(args: argparse.Namespace) -> int:
             for spec in args.holdout:
                 name, _, path = spec.partition("=")
                 rows = [r for r in load_rows(Path(path)) if route_question(r["question"]).path == "model"]
+                if args.ids:
+                    wanted = {item.strip() for item in args.ids.split(",") if item.strip()}
+                    rows = [r for r in rows if r.get("id") in wanted]
                 print(f"[holdout] {name}: {len(rows)} model-path questions")
                 for index, row in enumerate(rows, start=1):
                     executor = ToolExecutor(settings, ArtifactStore(settings.artifact_ttl_seconds))
@@ -176,6 +179,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--holdout", action="append", required=True, help="name=path, repeatable")
     parser.add_argument("--cap-usd", type=float, default=0.8)
+    parser.add_argument("--ids", default="", help="Comma-separated holdout ids to run.")
     return asyncio.run(run(parser.parse_args()))
 
 

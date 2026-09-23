@@ -483,6 +483,9 @@ class OpenAICompatibleProvider:
             ]
             # "required" forces at least one call, as the envelope schema did.
             payload["tool_choice"] = "required"
+            # Several calls per turn are allowed by default. Do not send
+            # parallel_tool_calls: OpenRouter does not list it for GPT-6 Luna, and
+            # with require_parameters the request then 404s (no endpoint).
             payload["max_tokens"] = max_tokens or self.settings.max_routing_tokens
         else:
             payload["max_tokens"] = max_tokens or self.settings.max_synthesis_tokens

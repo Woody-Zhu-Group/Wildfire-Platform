@@ -18,7 +18,11 @@ from services.agent.caveats import collect_qualifications
 from services.agent.config import AgentSettings
 from services.agent.constrained import ROUTING_CONSTRAINED_PROMPT
 from services.agent.domain import DOMAIN_REFERENCE
-from services.agent.grounding import ground_model_filters
+from services.agent.grounding import (
+    ground_model_filters,
+    named_entities,
+    uncovered_entities,
+)
 from services.agent.provider import OpenAICompatibleProvider, SynthesisTimeoutError
 from services.agent.routing import (
     RouteDecision,
@@ -454,8 +458,11 @@ class AgentOrchestrator:
                     await self._emit(on_event, "answer", response)
                     return OrchestrationResult(response=response, raw_log=raw_log)
 
+                partial_stop = any(
+                    event.get("type") == "uncovered_entities_stop" for event in trajectory
+                )
                 if answer_status in {"clarification", "unsupported"} or (
-                    answer_status == "error" and not has_primary
+                    answer_status == "error" and (not has_primary or partial_stop)
                 ):
                     response = self._response(
                         request_id=request_id,
@@ -935,6 +942,21 @@ class AgentOrchestrator:
         blocked_tools: set[str] = set()
         active_candidates = list(candidates)
         catalog = openai_tools(active_candidates, profile="lean_enums")
+        # Failed or empty turns escalate to the fallback model; coverage
+        # continuation turns after a success do not.
+        failed_turns = 0
+        # Hosted models return one call per turn more often than the Ollama
+        # envelope's calls array did, so multi-part questions are checked for
+        # named entities no successful call has covered yet.
+        entities = named_entities(
+            question,
+            utilities=utilities,
+            county=county,
+            years=list(years or []) or ([year] if year else []),
+        )
+        check_coverage = bool(getattr(self.settings, "hosted_llm", False)) and any(
+            len(values) > 1 for values in entities.values()
+        )
         trajectory.append(
             {
                 "type": "tool_catalog",
@@ -966,7 +988,7 @@ class AgentOrchestrator:
                     candidate_tools=candidates,
                     cancel_event=cancel_event,
                     thinking=False,
-                    model=self._turn_model(step, self.settings.request_model),
+                    model=self._turn_model(failed_turns + 1, self.settings.request_model),
                 )
             except asyncio.CancelledError:
                 raise
@@ -1062,6 +1084,7 @@ class AgentOrchestrator:
                         ),
                     }
                 )
+                failed_turns += 1
                 continue
 
             # Verbose reasoning is dropped from history; only protocol-required
@@ -1255,6 +1278,33 @@ class AgentOrchestrator:
                     None,
                 )
 
+            missing = (
+                    uncovered_entities(entities, _primary_calls(executions))
+                    if check_coverage
+                    else []
+                )
+            if turn_had_success and not turn_had_failure and missing:
+                trajectory.append(
+                    {
+                        "type": "uncovered_entities_continue",
+                        "phase": "routing",
+                        "step": step,
+                        "missing": missing,
+                    }
+                )
+                routing_messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "The question names more items than the calls so far "
+                            f"cover. Still missing: {', '.join(missing)}. Call the "
+                            "tool(s) for each missing item now. Do not repeat calls "
+                            "already made and do not answer yet."
+                        ),
+                    }
+                )
+                continue
+
             if turn_had_success and not turn_had_failure:
                 if _is_exploratory_question(question):
                     enrichments = await self._enrich_exploratory_evidence(
@@ -1289,6 +1339,7 @@ class AgentOrchestrator:
             # (HTTP 400). Reset to a clean routing prompt that includes the
             # error so a second model attempt remains possible.
             if turn_had_failure:
+                failed_turns += 1
                 errors = [
                     item.error
                     for item in executions
@@ -1325,6 +1376,37 @@ class AgentOrchestrator:
                     }
                 )
 
+        still_missing = (
+            uncovered_entities(entities, _primary_calls(executions))
+            if check_coverage
+            else []
+        )
+        if still_missing and _primary_calls(executions):
+            # Never answer part of a multi-part question as if it were whole.
+            trajectory.append(
+                {
+                    "type": "uncovered_entities_stop",
+                    "phase": "routing",
+                    "missing": still_missing,
+                }
+            )
+            names = ", ".join(item.split(":", 1)[1] for item in still_missing)
+            return (
+                "error",
+                (
+                    "I could not retrieve data for every item in the question "
+                    f"(missing: {names}), so I am not giving a partial answer. "
+                    "Try asking about each item separately."
+                ),
+                executions,
+                trajectory,
+                model_latency,
+                direct_without_tool,
+                model_turns,
+                raw_log,
+                [],
+                None,
+            )
         return (
             "error",
             _user_facing_tool_failure(executions, set()),
@@ -2144,6 +2226,12 @@ _QUANTITY_CLAIM_RE = re.compile(
     re.IGNORECASE,
 )
 
+_SAMPLE_CONTEXT_RE = re.compile(
+    r"\b(?:return(?:ed|s)?|show(?:s|n|ing)?|display(?:ed|s)?|list(?:ed|s)?|"
+    r"sample[sd]?|representative|example)\b",
+    re.IGNORECASE,
+)
+
 _SYNTHESIS_RECORD_KEEP_KEYS = (
     "incident_name",
     "name",
@@ -2215,6 +2303,14 @@ def _synthesis_evidence_payload(
     return payloads
 
 
+def _primary_calls(executions: list[ToolExecution]) -> list[tuple[str, dict[str, Any]]]:
+    return [
+        (item.tool, item.arguments)
+        for item in executions
+        if item.ok and not item.qualification_call
+    ]
+
+
 def _quantity_mismatches(
     answer: str,
     executions: list[ToolExecution],
@@ -2224,10 +2320,21 @@ def _quantity_mismatches(
     allowed = _quantity_context_values(executions, caveats)
     if not allowed:
         return set()
+    # A record-list sample size ("returned 10 records") is not a count claim.
+    sample_sizes = {
+        int(summary["returned"])
+        for summary in (item.summary or {} for item in executions if item.ok)
+        if summary.get("result_mode") == "records"
+        and isinstance(summary.get("returned"), int)
+    }
     mismatched: set[str] = set()
     for match in _QUANTITY_CLAIM_RE.finditer(answer):
         raw = next(group for group in match.groups() if group is not None)
         value = int(raw.replace(",", ""))
+        if value in sample_sizes and _SAMPLE_CONTEXT_RE.search(
+            answer[max(0, match.start() - 40) : match.end() + 40]
+        ):
+            continue
         if value not in allowed:
             mismatched.add(raw.replace(",", ""))
     return mismatched
