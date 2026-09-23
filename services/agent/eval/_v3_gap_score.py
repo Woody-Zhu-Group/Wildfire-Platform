@@ -33,7 +33,7 @@ def _over(tokens: int) -> bool:
 
 def _v3_rows() -> list[dict]:
     raw = subprocess.check_output(
-        ["git", "show", "platform/jev-multi-tool:services/agent/eval/jev_holdout_v3.json"]
+        ["git", "show", "platform/jev-plan-archive:services/agent/eval/jev_holdout_v3.json"]
     )
     hold = json.loads(raw.decode("utf-8"))
     labels = json.loads(

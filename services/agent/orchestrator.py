@@ -349,15 +349,7 @@ class AgentOrchestrator:
                 need_synthesis = False
             else:
                 jev_ready = None
-                if self.settings.jev_mode == "plan":
-                    jev_ready = await self._run_plan(
-                        question=question,
-                        request_id=request_id,
-                        decision=decision,
-                        on_event=on_event,
-                        cancel_event=cancel_event,
-                    )
-                elif self.settings.jev_mode in {"tool_pick", "tool_pick_template"}:
+                if self.settings.jev_mode in {"tool_pick", "tool_pick_template"}:
                     from services.agent.decisions.tool_pick_mode import (
                         ToolPickDecision,
                         log_tool_pick,
@@ -494,10 +486,7 @@ class AgentOrchestrator:
                     await self._emit(on_event, event, response)
                     return OrchestrationResult(response=response, raw_log=raw_log)
 
-                if self.settings.jev_mode == "plan" and jev_ready is not None:
-                    answer = _render_deterministic(executions)
-                    need_synthesis = False
-                elif (
+                if (
                     self.settings.jev_mode == "tool_pick_template"
                     and jev_ready is not None
                 ):
@@ -898,64 +887,6 @@ class AgentOrchestrator:
             [execution],
             trajectory,
             float(picked.latency_ms or 0.0),
-            0,
-            0,
-            [],
-            [],
-            None,
-        )
-
-    async def _run_plan(
-        self,
-        *,
-        question: str,
-        request_id: str,
-        decision: RouteDecision,
-        on_event: ProgressCallback | None,
-        cancel_event: asyncio.Event | None,
-    ):
-        """Execute a code-built plan. None falls back to the qwen loop."""
-        from services.agent.decisions.planner import load_plan_facts, plan_calls
-
-        facts = load_plan_facts(question, self.settings)
-        if facts is None:
-            return None
-        calls, reason = plan_calls(
-            facts,
-            decision.slots,
-            min_confidence=self.settings.jev_tool_pick_min_confidence,
-            question=question,
-        )
-        if not calls:
-            return None
-        executions: list[ToolExecution] = []
-        trajectory: list[dict[str, Any]] = [
-            {"type": "plan", "reason": reason, "calls": [name for name, _ in calls]}
-        ]
-        for index, (tool, args) in enumerate(calls, start=1):
-            execution = await self._execute_with_repair(
-                tool,
-                args,
-                request_id=request_id,
-                start_attempt=index,
-                year=decision.slots.get("year"),
-                years=decision.slots.get("years") or [],
-                utilities=decision.slots.get("utilities") or [],
-                time_resolution=decision.slots.get("time_resolution"),
-                trajectory=trajectory,
-                on_event=on_event,
-                cancel_event=cancel_event,
-            )
-            if not execution.ok:
-                return None
-            executions.append(execution)
-            trajectory.append(_execution_event(execution))
-        return (
-            "tools_ready",
-            "",
-            executions,
-            trajectory,
-            0.0,
             0,
             0,
             [],

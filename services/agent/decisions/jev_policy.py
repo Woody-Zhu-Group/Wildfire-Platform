@@ -116,14 +116,6 @@ class JevFacts:
     rank_dimension: str | None = "none"
     mentions_multiple_datasets: float = 0.0
     measure: str | None = None
-    intent_confidence: float = 1.0
-    dataset_confidence: float = 1.0
-    rank_dimension_confidence: float = 1.0
-    breakdown: str | None = "none"
-    breakdown_confidence: float = 1.0
-    output_form: str | None = None
-    output_form_confidence: float = 1.0
-    also_chart: float = 0.0
     clarify_reason: str | None = None
     clarify_reason_confidence: float = 0.0
     live_web_probability: float = 0.0
@@ -203,22 +195,6 @@ def facts_from_answers(answers: dict[str, Any], *, threshold: float = 0.5) -> Je
         rank_dimension=choice("rank_dimension") or "none",
         mentions_multiple_datasets=noul("mentions_multiple_datasets"),
         measure=choice("measure"),
-        intent_confidence=confidence("intent") if answers.get("intent") is not None else 1.0,
-        dataset_confidence=confidence("dataset") if answers.get("dataset") is not None else 1.0,
-        rank_dimension_confidence=(
-            confidence("rank_dimension") if answers.get("rank_dimension") is not None else 1.0
-        ),
-        breakdown=choice("breakdown") or "none",
-        breakdown_confidence=(
-            probabilities("breakdown").get(choice("breakdown") or "none", 0.0)
-            if answers.get("breakdown") is not None
-            else 1.0
-        ),
-        output_form=choice("output_form"),
-        output_form_confidence=(
-            confidence("output_form") if answers.get("output_form") is not None else 1.0
-        ),
-        also_chart=noul("also_chart"),
         clarify_reason=choice("clarify_reason"),
         clarify_reason_confidence=confidence("clarify_reason"),
         live_web_probability=probabilities("off_topic").get("live_or_web", 0.0),

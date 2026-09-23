@@ -1157,5 +1157,10 @@
       "hv2_057",
       "hv2_062"
     ]
+  },
+  {
+    "kind": "frozen",
+    "frozen_on": "2026-09-23",
+    "text": "Holdout v3 is frozen at label rules E and F. No further tuning of the router, the Jev policy, the Jev questions, or these labels may use v3. The question text lives in jev_holdout_v3.json on the jev-plan-archive branch, indexed by position against this file; production shadow logs are the next clean test set."
   }
 ]

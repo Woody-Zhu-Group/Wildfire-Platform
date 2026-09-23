@@ -24,6 +24,48 @@ _PER_MONTH = re.compile(
     re.I,
 )
 _BY_COUNTY = re.compile(r"\b(?:by|per|each)\s+count(?:y|ies)\b", re.I)
+# A plan built from slots can only count, chart one monthly series, or rank by
+# county. Anything below means the plan would answer a narrower question than
+# the one asked, so the rule falls back and the deferral stands.
+_MAP_ASK = re.compile(r"\bmaps?\b|\bmapped\b|\bwhere\b|\blocations?\s+of\b", re.I)
+_OTHER_METRIC = re.compile(
+    r"\bacres?\b|\bacreage\b|\bcustomers?\b|\brate\b|\bratio\b|"
+    r"\bper\s+(?:circuit|customer|mile|km|kilometer|square)\b",
+    re.I,
+)
+_MONTH_WORD = re.compile(
+    r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b|"
+    r"\b(?:q[1-4]|quarter|week of|first half|second half|spring|summer|fall|autumn|winter)\b",
+    re.I,
+)
+_COUNTY_CAPABLE = {"calfire_incidents", "cpuc_ignitions", "epss_outages", "psps_events", "circuits"}
+
+
+def _full_year_window(slots: dict[str, Any]) -> bool:
+    start = slots.get("start_date")
+    end = slots.get("end_date")
+    if not start or not end:
+        return True
+    return start.endswith("-01-01") and end.endswith("-12-31")
+
+
+def _would_lose_something(lower: str, slots: dict[str, Any]) -> bool:
+    """True when every slot plan for this question drops part of it."""
+    dataset = slots.get("dataset")
+    years = list(slots.get("years") or [])
+    utilities = list(slots.get("utilities") or [])
+    counties = list(slots.get("counties") or [])
+    if _MAP_ASK.search(lower):
+        return True
+    if _OTHER_METRIC.search(lower):
+        return True
+    if len(years) > 1 and (_MONTH_WORD.search(lower) or not _full_year_window(slots)):
+        return True
+    if _PER_MONTH.search(lower) and (len(utilities) > 1 or len(counties) > 1):
+        return True
+    if len(counties) == 1 and dataset not in _COUNTY_CAPABLE:
+        return True
+    return False
 _ALSO_TOTAL = re.compile(
     r"\byearly\s+total\b|\bplus\s+(?:the\s+)?(?:yearly\s+)?total\b|"
     r"\bcounts?\b.+\b(?:monthly|by month|each month)\b|"
@@ -41,6 +83,8 @@ def slot_plan(question: str) -> list[str] | None:
     counties = list(slots.get("counties") or [])
     lower = " ".join(question.lower().split())
     explicit = set(re.findall(r"\b20\d{2}\b", lower))
+    if not dataset or _would_lose_something(lower, slots):
+        return None
     if len(counties) > 1 and dataset and (slots.get("year") or len(years) == 1):
         return ["data_query_records"] * len(counties)
     if len(utilities) > 1 and dataset and slots.get("year"):
@@ -145,6 +189,7 @@ def slot_tool_calls(question: str) -> list[tuple[str, dict[str, Any]]] | None:
                         "dataset": dataset,
                         "result_mode": "count",
                         "utility": utility,
+                        **({"county": counties[0]} if len(counties) == 1 else {}),
                         **_time_fields(slots, int(year)),
                     },
                 )

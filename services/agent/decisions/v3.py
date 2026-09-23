@@ -63,44 +63,8 @@ def tool_glossary(tools: list[str]) -> str:
     return "Tools:\n" + "\n".join(lines)
 
 
-def fact_questions(*, plan: bool = False) -> dict[str, QuestionSpec]:
-    """The facts call. The three plan questions are sent only in plan mode.
-
-    Shadow, tool_pick, tool_pick_template, and any decide mode send exactly the
-    nine Nouls measured for PR 43; adding a question changes that payload.
-    """
-    questions = {name: _noul(text) for name, text in FACT_NOULS.items()}
-    if not plan:
-        return questions
-    questions["breakdown"] = _choice(
-        "If the question asks for a breakdown, what is the split?",
-        {
-            "none": "No breakdown.",
-            "by_month": "One value per month.",
-            "by_week": "One value per week.",
-            "by_year": "One value per year.",
-            "by_county": "One value per county.",
-            "by_utility": "One value per utility.",
-            "by_cause": "One value per cause.",
-        },
-    )
-    # Intent already names the main result. This Choice is only for a question
-    # whose intent is multi-part or otherwise not one of those results.
-    questions["output_form"] = _choice(
-        "If the question is not already one result, what is the main result?",
-        {
-            "single_number": "One numeric total.",
-            "record_list": "A list of individual records.",
-            "time_series": "Values across time, such as each month.",
-            "map": "A map.",
-            "ranking": "An ordered ranking.",
-            "comparison": "A side-by-side comparison.",
-        },
-    )
-    questions["also_chart"] = _noul(
-        "Besides the main result, the question also asks for a chart."
-    )
-    return questions
+def fact_questions() -> dict[str, QuestionSpec]:
+    return {name: _noul(text) for name, text in FACT_NOULS.items()}
 
 
 def topic_questions() -> dict[str, QuestionSpec]:
@@ -193,21 +157,10 @@ def place_questions() -> dict[str, QuestionSpec]:
     return questions
 
 
-_TOOL_RETURNS = {
-    "data_query_records": "Returns one total, or a short list of matching records.",
-    "data_query_spatial": "Returns a count or context inside one polygon.",
-    "data_query_rank": "Returns a ranking of groups, such as counties or utilities.",
-    "comparison_run": "Returns a side-by-side comparison of utilities, regions, or two periods.",
-    "visualization_create": "Returns a map, or a per-period series such as monthly values.",
-    "risk_forecast": "Returns a modeled ignition risk for one cell and one past date.",
-}
-
-
 def tool_pick_questions(candidate_tools: list[str]) -> dict[str, QuestionSpec]:
     criteria = {}
     for name in candidate_tools:
-        sentence = _TOOL_RETURNS.get(name) or TOOL_DESCRIPTIONS.get(name, name).split(". ")[0]
-        sentence = sentence.rstrip(".")
+        sentence = TOOL_DESCRIPTIONS.get(name, name).split(". ")[0].rstrip(".")
         criteria[name] = sentence[:1].upper() + sentence[1:] + "."
     criteria["clarify"] = "A required place, time, or dataset is missing."
     criteria["unsupported"] = "The question is outside the available data."
@@ -240,7 +193,6 @@ def calls_for(
     glossary_mode: str = "per_call",
     policy_context: str | None = None,
     include_direct_clarify: bool = False,
-    plan: bool = False,
 ) -> list[dict]:
     """Build the v3 calls. glossary_mode is per_call, concatenated, none, or policy."""
     topic_qs = topic_questions()
@@ -248,7 +200,7 @@ def calls_for(
         from services.agent.decisions.schemas import routing_questions
 
         topic_qs["clarify_reason"] = routing_questions()["clarify_reason"]
-    fact = {"name": "facts", "questions": fact_questions(plan=plan), "glossary": None}
+    fact = {"name": "facts", "questions": fact_questions(), "glossary": None}
     topic = {"name": "topic", "questions": topic_qs, "glossary": dataset_glossary()}
     places = {"name": "places", "questions": place_questions(), "glossary": None}
     grouped = [fact, topic, places]
@@ -291,14 +243,8 @@ def calls_for_config(
     today: str,
     tools: list[str] | None,
     config: str,
-    *,
-    plan: bool = False,
 ) -> list[dict]:
-    """The calls shadow and the offline ablation send for one ablation config.
-
-    plan=True adds the breakdown, output_form, and also_chart questions to the
-    facts call; only the planner passes it.
-    """
+    """The calls shadow and the offline ablation send for one ablation config."""
     from services.agent.decisions.schemas import (
         DOMAIN_CONTEXT,
         routing_questions,
@@ -330,7 +276,6 @@ def calls_for_config(
         glossary_mode=mode,
         policy_context=DOMAIN_CONTEXT if config in {"v3_policy_context", "v3_hybrid"} else None,
         include_direct_clarify=config == "v3_hybrid",
-        plan=plan,
     )
 
 
