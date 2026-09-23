@@ -19,7 +19,7 @@ The gate uses confidence in the chosen side, and only for facts that plan depend
 
 | Plan | Facts |
 | --- | --- |
-| per-year counts | intent, dataset, breakdown, also_chart |
+| per-year counts | dataset. Intent is not gated when it is count or trend, and breakdown is not gated when it is none or by_year, because those readings are the same per-year plan. also_chart does not add a call. |
 | per-utility counts | intent, dataset, breakdown, also_chart |
 | per-county counts | intent, dataset, breakdown, also_chart |
 | monthly or weekly series | intent, dataset, breakdown |

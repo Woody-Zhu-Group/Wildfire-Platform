@@ -181,6 +181,30 @@ def test_several_counties_plan_one_count_each():
     assert [args["county"] for _, args in calls] == ["Butte", "Napa", "Sonoma", "Lake"]
 
 
+def test_count_and_trend_are_the_same_plan_for_named_years():
+    slots = {
+        "dataset": "psps_events",
+        "years": [2018, 2019, 2020],
+        "utilities": ["PGE"],
+    }
+    for intent in ("count", "trend"):
+        calls, reason = plan_calls(
+            _facts(intent=intent, intent_confidence=0.4, breakdown="by_year", breakdown_confidence=0.4),
+            slots,
+        )
+        assert reason == "planned", intent
+        assert [args["year"] for _, args in calls] == [2018, 2019, 2020]
+
+
+def test_a_low_confidence_map_intent_still_gates():
+    calls, reason = plan_calls(
+        _facts(intent="map", intent_confidence=0.4),
+        {"dataset": "cpuc_ignitions", "years": [2018, 2019], "utilities": ["PGE"]},
+    )
+    assert calls is None
+    assert reason == "gate"
+
+
 def test_uncertain_yes_falls_back_but_a_confident_no_does_not():
     uncertain, uncertain_reason = plan_calls(
         _facts(intent_confidence=0.6, breakdown="by_month"),

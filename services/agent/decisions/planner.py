@@ -159,12 +159,24 @@ def plan_calls(
     if not counties and slots.get("county"):
         counties = [str(slots["county"])]
 
-    intent, intent_reason = _gated_choice(facts, "intent", min_confidence)
+    # Several named years are one count per year for both count and trend, and for
+    # breakdown none and by_year. Those readings are the same plan, so they are
+    # not gated against each other.
+    per_year_shape = len(years) > 1 and len(utilities) <= 1 and len(counties) <= 1
+    intent_value = getattr(facts, "intent", None)
+    breakdown_value = getattr(facts, "breakdown", None) or "none"
+    if per_year_shape and intent_value in {"count", "trend"}:
+        intent, intent_reason = intent_value, None
+    else:
+        intent, intent_reason = _gated_choice(facts, "intent", min_confidence)
     if intent_reason:
         return None, intent_reason
     if not intent:
         return None, "cannot_express"
-    breakdown, breakdown_reason = _gated_choice(facts, "breakdown", min_confidence)
+    if per_year_shape and breakdown_value in {"none", "by_year"}:
+        breakdown, breakdown_reason = breakdown_value, None
+    else:
+        breakdown, breakdown_reason = _gated_choice(facts, "breakdown", min_confidence)
     if breakdown_reason:
         return None, breakdown_reason
     breakdown = breakdown or "none"
@@ -181,8 +193,12 @@ def plan_calls(
             return None, "cannot_express"
     if form is None:
         return None, "cannot_express"
-
-    chart, chart_reason = _extra_chart(facts, form, min_confidence)
+    if per_year_shape and form in {"single_number", "time_series"} and breakdown in {"none", "by_year"}:
+        # A yearly chart is the per-year counts. An extra chart does not add a call.
+        form = "single_number"
+        chart, chart_reason = False, None
+    else:
+        chart, chart_reason = _extra_chart(facts, form, min_confidence)
     if chart_reason:
         return None, chart_reason
 
@@ -374,18 +390,20 @@ def _gated_choice(facts: Any, name: str, gate: float) -> tuple[Any, str | None]:
 
 
 def _resolve_dataset(facts: Any, slots: dict[str, Any], gate: float):
+    """Use a confident Jev dataset. Otherwise keep the router slot instead of gating."""
     chosen = getattr(facts, "dataset", None)
     confidence = getattr(facts, "dataset_confidence", None)
-    if chosen == "multiple":
-        return None, "cannot_express"
-    if chosen not in (None, "", "none"):
-        if confidence is not None and float(confidence) < gate:
-            return None, "gate"
-        return chosen, None
     slot = slots.get("dataset")
-    if not slot:
-        return None, "missing_slot"
-    return slot, None
+    confident = confidence is None or float(confidence) >= gate
+    if chosen == "multiple" and confident:
+        return None, "cannot_express"
+    if chosen not in (None, "", "none", "multiple") and confident:
+        return chosen, None
+    if slot:
+        return slot, None
+    if chosen not in (None, "", "none", "multiple"):
+        return None, "gate"
+    return None, "missing_slot"
 
 
 def _extra_chart(facts: Any, form: str, gate: float) -> tuple[bool | None, str | None]:
