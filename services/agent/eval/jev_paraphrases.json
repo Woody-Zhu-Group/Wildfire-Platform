@@ -2630,7 +2630,7 @@
   {
     "id": "para_count_and_trend",
     "question": "Give me the SCE ignition tally and its weekly trend for 2024.",
-    "expected_route": "model",
+    "expected_route": "deterministic",
     "expected_tools": [
       "data_query_records",
       "visualization_create"

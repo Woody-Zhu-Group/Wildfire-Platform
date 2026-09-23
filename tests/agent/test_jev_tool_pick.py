@@ -418,14 +418,17 @@ def test_plain_comparison_uses_the_template(tmp_path, monkeypatch):
 
 
 def test_live_tool_pick_payload_matches_the_offline_hybrid_call():
+    from datetime import date
+
     from services.agent.decisions.canonical import payload_hash
-    from services.agent.decisions.schemas import DOMAIN_CONTEXT
+    from services.agent.decisions.schemas import context_for_call
     from services.agent.decisions.shadow import _payload
     from services.agent.decisions.v3 import tool_pick_call
     from services.agent.eval.jev_ablation import _calls
     from services.agent.routing import candidate_tools
 
-    today = "2026-09-22"
+    # The offline builder reads the wall clock, so use the same day on both sides.
+    today = date.today().isoformat()
     questions = [
         "How many EPSS outages occurred in 2024?",
         "Show a weekly CPUC ignition time series for 2024.",
@@ -439,7 +442,10 @@ def test_live_tool_pick_payload_matches_the_offline_hybrid_call():
             for call in _calls({"question": question, "tools": tools}, "v3_hybrid")
             if call["name"] == "tool_pick"
         )
-        assert live["state"]["glossary"] == DOMAIN_CONTEXT
+        # Since PR 26 the tool pick call carries the tool_pick policy subset,
+        # not the full DOMAIN_CONTEXT; live and offline must still agree.
+        assert live["state"]["glossary"] == context_for_call("tool_pick")
+        assert live["state"]["glossary"] == offline["state"]["glossary"]
         assert live["state"]["question"] == question
         assert live["state"]["today"] == today
         assert payload_hash(_payload(live["state"], live["questions"], "jev-latest")) == (
