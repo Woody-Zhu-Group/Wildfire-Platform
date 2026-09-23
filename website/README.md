@@ -11,7 +11,7 @@ setup, warehouse prerequisites and historical model limitations.
 | Module | Responsibility |
 |---|---|
 | `src/App.tsx`, `src/state.tsx` | Workspace composition, independent panel settings and browser persistence |
-| `src/panelViews.ts`, `src/PanelPicker.tsx` | Five categories and 13 implemented analysis presets |
+| `src/panelViews.ts`, `src/PanelPicker.tsx` | Five categories and 18 implemented analysis presets |
 | `src/PanelWorkspace.tsx`, `src/Controls.tsx` | Panel layout, expansion, filters and common controls |
 | `src/api.ts`, `src/useRemote.ts` | Remote records, pagination, request state and streamed Ask responses |
 | `src/workspaceAggregates.ts` | Configured SQL aggregation; record-based mode when the Data Query URL is empty |
@@ -79,10 +79,17 @@ visible and never trigger a runtime switch back to browser calculations.
 ## Connected panels
 
 Add panel groups ready-to-use views under the five panel categories. Selecting
-a view creates the configured panel immediately. Map offers wildfire events,
-EPSS outage circuits, PSPS areas and HDW playback; Time series offers event trends,
-year comparison, regional trends and seasonal profiles; Comparison offers county,
-utility and cause views. Records and summary metrics each have one entry.
+a view creates the configured panel immediately. The 18 views, as defined in
+`src/panelViews.ts`:
+
+| Category | Views |
+|---|---|
+| Map | Wildfire events, Outage circuits, PSPS areas, Fire weather, Modeled ignition risk surface, Model residual map |
+| Time series | Event trends, Year comparison, Regional trends, Seasonal profile, Cumulative acres burned within a season, Customers affected over time |
+| Comparison | County ranking, Utility comparison, Cause breakdown |
+| Record table | Event records |
+| Stat card | Summary metrics, Medical baseline and life support customers affected by EPSS outages |
+
 Only implemented views appear.
 
 Use the header's Change view action to switch within a panel category. It retains
@@ -134,6 +141,15 @@ in the chart body. Existing saved panels continue to load without a migration.
   based on global source dates rather than filtered events.
   API-filled zero buckets describe recorded events, not audited collection
   completeness. CAL FIRE posting changes still limit across-year interpretation.
+- **Modeled ignition risk surface:** the cNHPP hindcast for one historical date
+  over the 824-cell grid, read from the Historical Risk API `GET /surface`. It is
+  a statistical hindcast, not a forecast.
+- **Model residual map:** observed CPUC ignitions against that hindcast, using the
+  training cell assignment (`GET /observed-training`).
+- **Cumulative acres burned within a season:** reported CAL FIRE acreage
+  accumulated through the selected period.
+- **Customers affected over time:** PSPS customer-event totals over time; these
+  count customer-events, not unique customers.
 - **Comparison:** count/share by cause, utility or county. CPUC/CAL FIRE have
   no cause field. EPSS is PG&E-only, with explicit null bars for other utilities.
   Unknown and missing causes are separate categories.
@@ -147,6 +163,8 @@ in the chart body. Existing saved panels continue to load without a migration.
   An empty related-record list is distinct from a missing collection (`No data`).
 - **Stat card:** record counts and known counties; CAL FIRE acreage; PSPS
   customer-event totals. Missing values are reported, not converted into zeros.
+  The medical exposure card sums medical-baseline and life-support
+  customer-events during PG&E EPSS outages.
 - **Event location bubble:** coordinates, point-in-polygon against remote
   IOU/HFTD geometry, event-record county, and the saved 824-cell grid. Non-point
   geometry identifies the hovered/clicked map position, not an outage's origin.
@@ -164,7 +182,8 @@ clears it. Incomplete/inconsistent pagination fails instead of reporting a
 partial total. Runtime API failures do not fall back to synthetic data.
 
 Ask uses the deployed SSE endpoint and preserves the answer's qualifications.
-It can append the supported harness-planned views; it does not execute render
+It can append the supported harness-planned views, and can open each of the 18
+workspace views; it does not execute render
 instructions from model prose. A four-minute timeout or Cancel leaves the data
 panels usable. Generated scalar answers are not saved across page refreshes.
 Multiple-dataset map specs and advanced comparison/spatial specs are not yet
@@ -286,5 +305,7 @@ build. Separate live-data and rendered-browser checks included:
 
 Physical touchscreen gestures still need device testing. These checks do not
 validate the entire 30-item roadmap or the scientific validity of model outputs.
-Model surfaces, residual maps and other analyses awaiting inputs are not implied
-by the implemented panel catalog.
+The September 13 verification predates the risk surface, residual map, cumulative
+acres, customer events and medical exposure views; those views are in the catalog
+now, and roadmap analyses that are not in `src/panelViews.ts` (for example a model
+performance card) are not implied.
