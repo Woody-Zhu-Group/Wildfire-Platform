@@ -579,6 +579,213 @@
         "hv3_067",
         "hv3_068"
       ]
-    }
+    },
+    "combined_after_misses": {
+      "note": "Every combined-after miss on the 65 certain rows. Source says which layer produced the disposition: a router backstop rule, or Jev through the policy. Labels were not changed.",
+      "n": 17,
+      "rows": [
+        {
+          "id": "hv3_021",
+          "label": "unsupported",
+          "reason": "unsupported_ranking",
+          "got": "answer",
+          "source": "jev",
+          "jev": "answer",
+          "measure": "event_count",
+          "measure_confidence": 1.0,
+          "question": "Which counties had the largest increase in CAL FIRE wildfire incidents between 2019 and 2020?"
+        },
+        {
+          "id": "hv3_029",
+          "label": "unsupported",
+          "reason": "unsupported_rank_epss_utility",
+          "got": "answer",
+          "source": "jev",
+          "jev": "answer",
+          "measure": "event_count",
+          "measure_confidence": 0.85,
+          "question": "compare 2022 and 2023 EPSS events for each of the six utilities and make a chart"
+        },
+        {
+          "id": "hv3_030",
+          "label": "unsupported",
+          "reason": "unsupported_ranking",
+          "got": "answer",
+          "source": "jev",
+          "jev": "answer",
+          "measure": "event_count",
+          "measure_confidence": 0.98,
+          "question": "What are the five California cities with the most recorded wildfire incidents in 2019?"
+        },
+        {
+          "id": "hv3_036",
+          "label": "unsupported",
+          "reason": "unsupported_rank_us_state",
+          "got": "answer",
+          "source": "jev",
+          "jev": "answer",
+          "measure": "event_count",
+          "measure_confidence": 0.98,
+          "question": "How many sample wildfire ignitions occurred in California from all causes in 2018, 2019, 2020, 2021, and 2022?"
+        },
+        {
+          "id": "hv3_038",
+          "label": "clarify",
+          "reason": "unexpressed_filter_constraints",
+          "got": "unsupported",
+          "source": "jev",
+          "jev": "unsupported",
+          "measure": "other_measure",
+          "measure_confidence": 0.52,
+          "question": "How many fires were caused by faulty transformers in 2020?"
+        },
+        {
+          "id": "hv3_040",
+          "label": "clarify",
+          "reason": "unexpressed_filter_constraints",
+          "got": "unsupported",
+          "source": "jev",
+          "jev": "unsupported",
+          "measure": "other_measure",
+          "measure_confidence": 0.96,
+          "question": "Give me the number of ignitions per 100,000 customers for each utility in 2022."
+        },
+        {
+          "id": "hv3_042",
+          "label": "clarify",
+          "reason": "unexpressed_filter_constraints",
+          "got": "unsupported",
+          "source": "jev",
+          "jev": "unsupported",
+          "measure": "other_measure",
+          "measure_confidence": 1.0,
+          "question": "What was the average response time to each wildfire incident for PG&E in 2020?"
+        },
+        {
+          "id": "hv3_045",
+          "label": "answer",
+          "reason": null,
+          "got": "unsupported",
+          "source": "jev",
+          "jev": "unsupported",
+          "measure": "other_measure",
+          "measure_confidence": 0.84,
+          "question": "What was the cause of each CAL FIRE incident in Yolo County during 2021?"
+        },
+        {
+          "id": "hv3_048",
+          "label": "clarify",
+          "reason": "unexpressed_filter_constraints",
+          "got": "unsupported",
+          "source": "jev",
+          "jev": "unsupported",
+          "measure": "other_measure",
+          "measure_confidence": 0.81,
+          "question": "What percentage of PSPS customers lost power during each event in 2021?"
+        },
+        {
+          "id": "hv3_050",
+          "label": "clarify",
+          "reason": "records_missing_year",
+          "got": "answer",
+          "source": "jev",
+          "jev": "answer",
+          "measure": "customers_affected",
+          "measure_confidence": 0.91,
+          "question": "For each EPSS event, tell me how many customers were interrupted."
+        },
+        {
+          "id": "hv3_051",
+          "label": "clarify",
+          "reason": "unexpressed_filter_constraints",
+          "got": "unsupported",
+          "source": "jev",
+          "jev": "unsupported",
+          "measure": "other_measure",
+          "measure_confidence": 1.0,
+          "question": "How much did wildfire smoke increase during PSPS events in 2020?"
+        },
+        {
+          "id": "hv3_054",
+          "label": "unsupported",
+          "reason": "unsupported_live_web",
+          "got": "clarify",
+          "source": "router/risk_future_date",
+          "jev": "unsupported",
+          "measure": "other_measure",
+          "measure_confidence": 0.41,
+          "question": "Will PG&E have another PSPS event this fall?"
+        },
+        {
+          "id": "hv3_064",
+          "label": "unsupported",
+          "reason": "unsupported_live_web",
+          "got": "clarify",
+          "source": "router/risk_future_date",
+          "jev": "answer",
+          "measure": "event_count",
+          "measure_confidence": 0.98,
+          "question": "How many PSPS events are expected during the 2026 fire season?"
+        },
+        {
+          "id": "hv3_065",
+          "label": "clarify",
+          "reason": "records_missing_year",
+          "got": "unsupported",
+          "source": "jev",
+          "jev": "unsupported",
+          "measure": "other_measure",
+          "measure_confidence": 0.99,
+          "question": "Can you identify the exact cause of every wildfire in California?"
+        },
+        {
+          "id": "hv3_071",
+          "label": "clarify",
+          "reason": "ambiguous_risk_metric",
+          "got": "unsupported",
+          "source": "jev",
+          "jev": "unsupported",
+          "measure": "other_measure",
+          "measure_confidence": 0.82,
+          "question": "Which is worse for fires, SCE or PacifiCorp?"
+        },
+        {
+          "id": "hv3_076",
+          "label": "clarify",
+          "reason": "trend_missing_year",
+          "got": "answer",
+          "source": "jev",
+          "jev": "answer",
+          "measure": "record_list",
+          "measure_confidence": 0.62,
+          "question": "What did PSPS look like during fire season for SDG&E?"
+        },
+        {
+          "id": "hv3_087",
+          "label": "unsupported",
+          "reason": "unsupported_ranking",
+          "got": "clarify",
+          "source": "jev",
+          "jev": "clarify",
+          "measure": "event_count",
+          "measure_confidence": 0.63,
+          "question": "Chart EPSS events for the worst months."
+        }
+      ]
+    },
+    "regressions_from_this_change": [
+      {
+        "id": "hv3_054",
+        "before": "unsupported via Jev (correct)",
+        "after": "clarify via router/risk_future_date",
+        "label": "unsupported/unsupported_live_web"
+      },
+      {
+        "id": "hv3_045",
+        "before": "answer via Jev (correct)",
+        "after": "unsupported via Jev measure=other_measure",
+        "label": "answer"
+      }
+    ]
   }
 }
