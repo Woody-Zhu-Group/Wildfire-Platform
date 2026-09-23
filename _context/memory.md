@@ -266,7 +266,7 @@
 - `AGENT_JEV_MODE` defaults to `off`. Shadow logs Jev decisions beside the regex router and does not change Ask responses, SSE events, or eval scores. `verify` / `fallback` / `route` are rejected at startup.
 - Typesafe SDK 0.7.1. Retries disabled (`RetryPolicy(max_retries=0)`). County Choice is 59 options, under the 255 limit. `AGENT_AUDIT.md` was not in the repo; labels were taken from `routing.py`.
 - `pytest tests/agent` 118 passed, then shadow tests 15 passed after the list-versus-count label tweak. Live offline eval and `--replay` skipped: `TYPESAFE_API_KEY` unset. Scored eval could not start: Ollama `:11434` and services `:8001`–`:8003` were down.
-- Label fix: fault/bounded cases use the question's route, not the harness error. Clarify and unsupported intents are null. Unknown rules are `unmapped_rule`, not intent `other`. `risk_out_of_coverage` is clarify `risk_future_date`. EC2 Python was not read: `ssh ubuntu@18.233.17.247` timed out and there is no AWS CLI.
+- Label fix: fault/bounded cases use the question's route, not the harness error. Clarify and unsupported intents are null. Unknown rules are `unmapped_rule`, not intent `other`. `risk_out_of_coverage` is clarify `risk_future_date`. EC2 Python was not read: an SSH attempt to the EC2 host timed out and there is no AWS CLI (the host is reached through SSM, see CLAUDE.md).
 
 ## 2026-09-22 — Jev shadow phase 2
 
