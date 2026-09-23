@@ -5,6 +5,9 @@ Qwen on the local Ollama host and Jev on api.typesafe.ai.
 
 ## Production switch
 
+Do not switch yet: the force_model run below found Luna inventing tool filters. Fix that
+and rerun those cases first.
+
 Add these lines to the backend host's `.env` (or the systemd EnvironmentFile for
 `wildfire-agent`), then restart the service:
 
@@ -63,7 +66,7 @@ output tokens, computed cost, OpenRouter's reported cost, and latency. Prices li
 | Variable | Default | Meaning |
 |---|---|---|
 | `AGENT_JEV_BACKEND` | `typesafe` | `typesafe` or `openrouter` |
-| `AGENT_JEV_MODEL` | `jev-latest`, or `jev-1.13` for `openrouter` | An explicit value wins (the local `.env` sets `jev-latest`) |
+| `AGENT_JEV_MODEL` | `jev-latest`, or `typesafe/jev-1.13-20260917` for `openrouter` | An explicit value wins. The local `.env` and `.env.example` set `jev-latest`; remove that line or set the pinned id when switching the Jev backend |
 
 OpenRouter serves Jev through the TypeSafe request format at
 `POST https://openrouter.ai/api/v1/systemone`
@@ -75,6 +78,28 @@ bodies on a mock transport and fails if state, questions, or criteria differ.
 
 The SDK drops OpenRouter's `usage.cost`, so Jev cost is computed from input tokens at
 $0.042 per million (output is free) and stored in `DecisionResult.extra`.
+
+### Pinned Jev id and measured difference
+
+The OpenRouter backend pins `typesafe/jev-1.13-20260917`, the dated build OpenRouter reports
+in responses; a probe on 2026-09-23 confirmed it is accepted as the request model and served
+unchanged. TypeSafe direct serves `jev-1.13.0` for `jev-latest`.
+
+Dev set, one pass per backend, `v3_hybrid`, 105 questions, 2026-09-23. Dev is used for
+tuning, so these compare backends; they are not a clean accuracy estimate.
+Run file: `services/agent/eval/runs/jev_backend_compare_20260923T214759Z.json`.
+
+| | TypeSafe | OpenRouter |
+|---|---|---|
+| Label accuracy | 96.3% (211/219) | 96.8% (212/219) |
+| Mean confidence (Noul as max(p, 1 - p)) | 0.906 | 0.907 |
+| p50 latency per question | 469 ms | 437 ms |
+| p95 latency per question | 851 ms | 1294 ms |
+| Cost | $0.030 | $0.030 |
+
+Agreement between backends: 98.9% of labels, every disposition, dataset, and tool_pick.
+p95 is about 440 ms (roughly 50%) slower on OpenRouter while p50 is slightly faster. With the
+default `AGENT_JEV_TIMEOUT_SECONDS=3` both fit; tail calls on OpenRouter have less headroom.
 
 ## Prices (checked 2026-09-23)
 
@@ -88,7 +113,28 @@ $0.042 per million (output is free) and stored in `DecisionResult.extra`.
 
 Jev, dev set (cases.json plus paraphrases, used for tuning), one pass through each backend:
 
-    python -m services.agent.eval.jev_backend_compare --backends typesafe,openrouter --typesafe-model jev-latest --openrouter-model jev-1.13
+    python -m services.agent.eval.jev_backend_compare --backends typesafe,openrouter --typesafe-model jev-latest --openrouter-model typesafe/jev-1.13-20260917
+
+### LLM result on the force_model cases (2026-09-23)
+
+Luna, one pass, run tag `openrouter-luna`, 14 force_model cases from cases.json (dev, used
+for tuning). 5 of 14 pass the runner's status, tools, and caveat checks plus evidence present;
+p50 3.9 s, p95 12.8 s per case; $0.083 total. No request reached the Ollama host.
+Run files: `services/agent/eval/runs/openai-gpt-6-luna__thinking-off__constrained__openrouter-luna/`.
+
+Not ready for production. Luna fills optional tool fields with placeholder values instead of
+omitting them: `circuit_id: "000000000"` on ignition and CAL FIRE queries, `lat: 0, lon: 0,
+hftd_tier: "Tier 2"` on spatial summaries, `tier: "Tier 2"` and `county: ""` on views. The
+validators reject most of these, the retry repeats the same arguments, and the case ends in
+an error. Two passing cases are also wrong:
+
+- `model_explicit_year_filled` answered "0 EPSS outages for circuit 000000000 in 2024": the
+  placeholder was valid for EPSS, so the query ran with an invented filter.
+- `detect_partial_200` says a Tier 2 filter was applied. The count (741) is the unfiltered
+  2024 total, so the statement is false.
+
+The fix has to land before the production switch, for example strict tool schemas where
+optional fields are nullable, or a harness check that drops placeholder values before a call.
 
 LLM, the 14 force_model cases in cases.json, with the data services and PostGIS running. This does not
 contact the Ollama host:
