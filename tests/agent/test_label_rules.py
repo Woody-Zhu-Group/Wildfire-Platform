@@ -1,9 +1,10 @@
-"""The three acceptable-label rules. Original gold stays in the files."""
+"""The acceptable-label rules. Original gold stays in the files."""
 
 from services.agent.eval.label_rules import (
     clarify_alternatives,
     fragment_without_verb,
     intent_alternatives,
+    plans_equivalent,
     separate_count_question,
     tool_alternatives,
 )
@@ -26,6 +27,14 @@ def test_separate_counts_also_accept_records():
         "data_query_records",
     ]
     assert tool_alternatives("How many PGE ignitions in 2024?", "data_query_records") is None
+
+
+def test_comparison_and_per_entity_counts_are_the_same_plan():
+    counts = ["data_query_records", "data_query_records"]
+    assert plans_equivalent(["comparison_run"], counts)
+    assert plans_equivalent(counts, ["comparison_run"])
+    assert not plans_equivalent(["data_query_rank"], counts)
+    assert not plans_equivalent(["comparison_run"], ["data_query_records"])
 
 
 def test_verbless_fragment_accepts_count_or_list():
