@@ -179,10 +179,10 @@ def load_plan_facts(question: str, settings: Any) -> Any | None:
     from services.agent.decisions.v3 import calls_for_config
 
     calls = calls_for_config(
-        getattr(settings, "jev_ablation", "v3_hybrid"),
         question,
         date.today().isoformat(),
         None,
+        getattr(settings, "jev_ablation", "v3_hybrid"),
     )
     fact_call = next(call for call in calls if call["name"] == "facts")
     backend = TypeSafeBackend(

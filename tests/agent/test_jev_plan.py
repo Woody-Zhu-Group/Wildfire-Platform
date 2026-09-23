@@ -132,6 +132,30 @@ def test_low_confidence_breakdown_falls_back():
     assert reason == "low_confidence"
 
 
+def test_plan_facts_use_the_facts_call():
+    from services.agent.decisions import planner
+    from services.agent.decisions import typesafe_backend
+
+    seen = {}
+
+    class _Backend:
+        def __init__(self, **kwargs):
+            pass
+
+        def evaluate(self, state, questions, **kwargs):
+            seen["questions"] = set(questions)
+            return None
+
+    original = typesafe_backend.TypeSafeBackend
+    typesafe_backend.TypeSafeBackend = _Backend
+    try:
+        assert planner.load_plan_facts("How many in 2024?", object()) is None
+    finally:
+        typesafe_backend.TypeSafeBackend = original
+    assert "wants_count" in seen["questions"]
+    assert "tool_pick" not in seen["questions"]
+
+
 def test_every_rendered_number_traces_to_evidence():
     class _Exec:
         ok = True
