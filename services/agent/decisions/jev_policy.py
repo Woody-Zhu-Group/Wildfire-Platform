@@ -116,6 +116,15 @@ class JevFacts:
     rank_dimension: str | None = "none"
     mentions_multiple_datasets: float = 0.0
     measure: str | None = None
+    wants_count: float = 0.0
+    wants_list: float = 0.0
+    wants_time_series: float = 0.0
+    wants_map: float = 0.0
+    wants_ranking: float = 0.0
+    wants_comparison: float = 0.0
+    is_multi_part: float = 0.0
+    breakdown: str | None = "none"
+    breakdown_confidence: float = 1.0
     clarify_reason: str | None = None
     clarify_reason_confidence: float = 0.0
     live_web_probability: float = 0.0
@@ -195,6 +204,19 @@ def facts_from_answers(answers: dict[str, Any], *, threshold: float = 0.5) -> Je
         rank_dimension=choice("rank_dimension") or "none",
         mentions_multiple_datasets=noul("mentions_multiple_datasets"),
         measure=choice("measure"),
+        wants_count=noul("wants_count"),
+        wants_list=noul("wants_list"),
+        wants_time_series=noul("wants_time_series"),
+        wants_map=noul("wants_map"),
+        wants_ranking=noul("wants_ranking"),
+        wants_comparison=noul("wants_comparison"),
+        is_multi_part=noul("is_multi_part"),
+        breakdown=choice("breakdown") or "none",
+        breakdown_confidence=(
+            probabilities("breakdown").get(choice("breakdown") or "none", 0.0)
+            if answers.get("breakdown") is not None
+            else 1.0
+        ),
         clarify_reason=choice("clarify_reason"),
         clarify_reason_confidence=confidence("clarify_reason"),
         live_web_probability=probabilities("off_topic").get("live_or_web", 0.0),
