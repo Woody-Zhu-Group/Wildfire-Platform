@@ -324,6 +324,7 @@ def derive_outcome(
         "spatial_context": "spatial_missing_year",
         "count": "records_missing_year",
         "records_list": "records_missing_year",
+        "compare": "records_missing_year",
     }
     coordinate_lookup = intent == "spatial_context" and bool(question) and _coords(question) is not None
     if (

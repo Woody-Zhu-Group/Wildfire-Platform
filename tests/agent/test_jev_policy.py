@@ -320,6 +320,20 @@ def test_rank_triples_match_routing_source():
     assert found == ALLOWED_RANK_TRIPLES
 
 
+def test_compare_without_a_year_clarifies():
+    missing = derive_outcome(
+        JevFacts(intent="compare", dataset="cpuc_ignitions", has_time_scope=0.2),
+        question="Compare utility ignition totals",
+    )
+    assert missing.disposition == "clarify"
+    assert missing.clarify_reason == "records_missing_year"
+    answered = derive_outcome(
+        JevFacts(intent="compare", dataset="cpuc_ignitions", has_time_scope=0.9),
+        question="Compare utility ignition totals in 2024",
+    )
+    assert answered.disposition == "answer"
+
+
 def test_acres_metric_is_computed_in_code():
     outcome = derive_outcome(
         JevFacts(
