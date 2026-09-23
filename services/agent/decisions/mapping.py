@@ -51,6 +51,8 @@ RULE_TO_INTENT: dict[str, str] = {
     "forecast_missing_date": "risk",
     "missing_location": "spatial_context",
     "undefined_spatial_scope": "spatial_context",
+    "city_needs_place": "spatial_context",
+    "hftd_constraint_unavailable": "other",
     "undefined_region": "other",
     "ambiguous_relative_time": "other",
     "time_out_of_coverage": "other",

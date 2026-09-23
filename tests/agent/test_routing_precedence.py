@@ -328,6 +328,72 @@ def test_early_returns_keep_the_dataset_slot():
     assert "dataset" in tomorrow.slots
 
 
+def test_a_city_that_is_not_a_county_asks_for_a_real_place():
+    for question in (
+        "Is the city of Chico inside a Tier 2 or Tier 3 High Fire Threat District?",
+        "What utility service territory contains Modesto?",
+        "For Sacramento, Stockton, and Fresno, identify the utility territory and HFTD tier.",
+    ):
+        decision = route_question(question)
+        assert decision.path == "clarification"
+        assert decision.rule == "city_needs_place"
+        assert decision.tool_calls == []
+        assert "county" in decision.answer.lower()
+
+
+def test_county_questions_still_answer():
+    decision = route_question(
+        "How many CAL FIRE incidents were there in Sacramento County in 2023?"
+    )
+    assert decision.path == "deterministic"
+    assert decision.rule == "filtered_records"
+    assert decision.slots["county"] == "Sacramento"
+
+
+def test_circuits_with_an_hftd_tier_or_hftd_acreage_clarify():
+    circuits = route_question(
+        "Give me the distribution circuits in SCE territory that intersect Tier 3 HFTD areas."
+    )
+    assert circuits.path == "clarification"
+    assert circuits.rule == "hftd_constraint_unavailable"
+    mapped = route_question(
+        "Map PG&E distribution circuits in Nevada County that are inside HFTD tier 2 or 3."
+    )
+    assert mapped.rule == "hftd_constraint_unavailable"
+    acreage = route_question(
+        "Compare HFTD Tier 2 and Tier 3 acreage within PG&E and SCE service territories."
+    )
+    assert acreage.rule == "hftd_constraint_unavailable"
+
+
+def test_a_single_tier_hftd_map_still_answers():
+    decision = route_question("Show me a map of Tier 2 High Fire Threat District areas.")
+    assert decision.path == "deterministic"
+    assert decision.rule == "map"
+    assert decision.tool_calls[0][1]["dataset"] == "hftd"
+
+
+def test_rank_utilities_by_epss_is_refused_including_fast_trip_and_a_year_span():
+    # _asks_ranking used to require which/most/top, so "rank utilities" never
+    # reached unsupported_rank_epss_utility and fell through to the model.
+    for question in (
+        "Rank utilities by EPSS events in 2022.",
+        "Rank utilities by total EPSS fast-trip events from 2021 to 2023.",
+    ):
+        decision = route_question(question)
+        assert decision.path == "unsupported"
+        assert decision.rule == "unsupported_rank_epss_utility"
+
+
+def test_cpuc_utility_rankings_still_answer():
+    decision = route_question("Which utility had the most CPUC ignitions in 2023?")
+    assert decision.path == "deterministic"
+    assert decision.rule == "ranked_records"
+    args = decision.tool_calls[0][1]
+    assert args["dataset"] == "cpuc_ignitions"
+    assert args["group_by"] == "utility"
+
+
 def test_around_a_year_or_close_to_a_number_is_not_a_place():
     around = route_question("Around 2023, how many CPUC ignitions were there?")
     assert around.rule != "undefined_spatial_scope"

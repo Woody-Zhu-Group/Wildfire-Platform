@@ -35,6 +35,14 @@ REGEX_ONLY = {
         "Depends on whether the matched read can express a named county or "
         "month. That is tool-schema arithmetic, not an atomic fact about the wording."
     ),
+    "city_needs_place": (
+        "A city gazetteer, not an atomic fact. The router asks for coordinates, "
+        "a county, or a utility territory."
+    ),
+    "hftd_constraint_unavailable": (
+        "Tool-schema gap: no read intersects circuits with an HFTD tier or "
+        "measures HFTD polygon area."
+    ),
     "unsupported_air_quality": "Router keyword. v3 off_topic groups this under other_off_topic.",
     "unsupported_evacuation": "Router keyword. v3 off_topic groups this under other_off_topic.",
     "unsupported_translation": "Router keyword. v3 off_topic groups this under other_off_topic.",

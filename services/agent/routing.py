@@ -93,6 +93,121 @@ _CA_COUNTIES = (
     "Yuba",
 )
 
+# Cities that are not county names. A county-seat that shares the county name
+# (Sacramento, Fresno) stays a county. These names are not a grid cell, a
+# county polygon, or a utility territory, so the router must ask which of
+# those to use instead of answering with a statewide or county layer.
+_CA_CITIES = (
+    "south san francisco",
+    "rancho cucamonga",
+    "thousand oaks",
+    "mountain view",
+    "redwood city",
+    "huntington beach",
+    "garden grove",
+    "chula vista",
+    "moreno valley",
+    "west covina",
+    "santa monica",
+    "santa clarita",
+    "grass valley",
+    "pleasanton",
+    "san leandro",
+    "santa rosa",
+    "san rafael",
+    "daly city",
+    "palo alto",
+    "long beach",
+    "bakersfield",
+    "susanville",
+    "watsonville",
+    "placerville",
+    "yuba city",
+    "porterville",
+    "santa maria",
+    "santa ana",
+    "san bruno",
+    "san jose",
+    "elk grove",
+    "big bear",
+    "cupertino",
+    "sunnyvale",
+    "fairfield",
+    "woodland",
+    "vacaville",
+    "petaluma",
+    "livermore",
+    "lancaster",
+    "palmdale",
+    "fullerton",
+    "oceanside",
+    "escondido",
+    "national city",
+    "inglewood",
+    "beverly hills",
+    "morgan hill",
+    "south lake tahoe",
+    "rancho cordova",
+    "citrus heights",
+    "stockton",
+    "modesto",
+    "oakland",
+    "berkeley",
+    "redding",
+    "visalia",
+    "eureka",
+    "ukiah",
+    "willits",
+    "hollister",
+    "paradise",
+    "anaheim",
+    "irvine",
+    "pasadena",
+    "glendale",
+    "torrance",
+    "fremont",
+    "hayward",
+    "richmond",
+    "vallejo",
+    "antioch",
+    "roseville",
+    "concord",
+    "novato",
+    "salinas",
+    "gilroy",
+    "auburn",
+    "rocklin",
+    "folsom",
+    "manteca",
+    "tracy",
+    "lodi",
+    "turlock",
+    "clovis",
+    "hanford",
+    "chico",
+    "davis",
+    "malibu",
+    "burbank",
+    "pomona",
+    "fontana",
+    "ontario",
+    "corona",
+    "downey",
+    "compton",
+    "whittier",
+    "norwalk",
+    "carlsbad",
+    "vista",
+    "oxnard",
+)
+
+_CITY_NOT_COUNTY = re.compile(
+    r"\b(?:"
+    + "|".join(re.escape(name) for name in sorted(set(_CA_CITIES), key=len, reverse=True))
+    + r")\b",
+    re.I,
+)
+
 # Datasets whose warehouse tables expose a county column.
 _COUNTY_CAPABLE_DATASETS = {
     "calfire_incidents",
@@ -649,6 +764,7 @@ def _has_list_op(lower: str) -> bool:
 def _asks_ranking(lower: str) -> bool:
     return bool(
         re.search(
+            r"\brank(?:s|ed|ing)?\b|"
             r"\b(?:circuit|count(?:y|ies)|utilit(?:y|ies)|states?|division|cell)s?\s+"
             r"with\s+the\s+(?:most|highest|largest|greatest)\b|"
             r"\b(?:which|what)\s+(?:circuit|count(?:y|ies)|utilit(?:y|ies)|states?|"
@@ -659,6 +775,25 @@ def _asks_ranking(lower: str) -> bool:
             r"\btop\s+\d+\s+(?:circuit|count(?:y|ies)|utilit|states?)",
             lower,
         )
+    )
+
+
+def _hftd_constraint_unavailable(lower: str) -> bool:
+    """Circuits crossed with a tier, or a request to measure HFTD area.
+
+    A single-tier HFTD map still uses the word "areas" for the layer itself.
+    That is not a measurement, so only acreage, square miles, or a singular
+    "area" count as an area request.
+    """
+    mentions_tier = bool(
+        re.search(r"\bhftd\b|\bhigh fire threat|\btier\s*[23]\b", lower)
+    )
+    if not mentions_tier:
+        return False
+    if re.search(r"\bcircuits?\b", lower):
+        return True
+    return bool(
+        re.search(r"\bacreage\b|\bsquare miles?\b|\barea of\b|\bhftd area\b", lower)
     )
 
 
@@ -1092,6 +1227,31 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             answer=(
                 "How should that nearby area be defined? Provide a radius "
                 "(for example 25 km) or a county/utility polygon to use."
+            ),
+        )
+    city = _CITY_NOT_COUNTY.search(lower)
+    if city:
+        return RouteDecision(
+            "clarification",
+            "city_needs_place",
+            "A city that is not a county name is not a query layer",
+            slots=slots,
+            answer=(
+                f"{city.group(0).title()} is a city, not a county or utility "
+                "territory. Which coordinates, county, or utility territory "
+                "should I use? I will not answer with a statewide or county layer."
+            ),
+        )
+    if _hftd_constraint_unavailable(lower):
+        return RouteDecision(
+            "clarification",
+            "hftd_constraint_unavailable",
+            "No tool intersects circuits with an HFTD tier or measures HFTD area",
+            slots=slots,
+            answer=(
+                "No tool can intersect circuits with an HFTD tier, or measure "
+                "HFTD area or acreage. I can map one HFTD tier, or list circuits "
+                "for one utility. Which of those do you want?"
             ),
         )
     region_text = lower
