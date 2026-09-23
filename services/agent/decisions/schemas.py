@@ -123,6 +123,7 @@ POLICY_SENTENCES: dict[str, str] = {
     "unsupported_ranking": "Any ranking other than CPUC by county or utility, CAL FIRE by county (count or acres), or EPSS by circuit must be refused.",
     "unexpressable_county_filter": "County filters exist only on calfire_incidents, cpuc_ignitions, epss_outages, psps_events, and circuits. Never infer a utility from a place name, and do not answer a statewide count that drops a named county.",
     "city_needs_place": "A city that is not also a county name is not a query layer, so ask for coordinates, a county, or a utility territory instead of a statewide or county answer.",
+    "unknown_county": "A municipality written with the word County is not that city, and if it is not a warehouse county, ask which county was meant.",
     "hftd_constraint_unavailable": "No tool intersects circuits with an HFTD tier or measures HFTD area or acreage, so ask instead of dropping that constraint. A map of one HFTD tier is still allowed.",
 }
 

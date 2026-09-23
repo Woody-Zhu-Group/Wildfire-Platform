@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
+from pathlib import Path
 
 from services.agent.argument_normalize import prepare_tool_arguments
 from services.agent.routing import route_question, _year
@@ -348,6 +350,65 @@ def test_county_questions_still_answer():
     assert decision.path == "deterministic"
     assert decision.rule == "filtered_records"
     assert decision.slots["county"] == "Sacramento"
+    orange = route_question(
+        "How many CAL FIRE incidents were there in Orange County in 2023?"
+    )
+    assert orange.rule == "filtered_records"
+    assert orange.slots["county"] == "Orange"
+    assert orange.rule != "city_needs_place"
+
+
+def test_common_word_cities_are_not_places_without_a_cue():
+    not_places = (
+        "What is the state of the utility industry in 2023?",
+        "How many CPUC ignitions involved the commerce sector in 2024?",
+        "Is weed abatement tracked as an EPSS outage in 2023?",
+        "Do pine needles change the fm100 fuel moisture?",
+        "This warehouse is a paradise of ignition records. How many CPUC ignitions were there in 2023?",
+        "Describe the orange glow of the 2024 fire season.",
+        "Admiral Coronado counted CPUC ignitions in 2023.",
+        "What is the best evacuation route out of Paradise?",
+    )
+    for question in not_places:
+        decision = route_question(question)
+        assert decision.rule != "city_needs_place", question
+    glow = route_question("Describe the orange glow of the 2024 fire season.")
+    assert glow.slots.get("county") is None
+
+
+def test_common_word_cities_still_clarify_when_used_as_places():
+    for question in (
+        "Is the city of Weed inside a Tier 3 HFTD area?",
+        "What utility territory contains Needles?",
+        "For 2020, what was the historical ignition risk at an address in Paradise, California?",
+        "How many PSPS shutoffs affected Coronado, California?",
+        "Is the city of Industry inside PG&E territory?",
+    ):
+        decision = route_question(question)
+        assert decision.rule == "city_needs_place", question
+
+
+def test_a_city_name_followed_by_county_is_not_the_city():
+    for question in (
+        "How many CAL FIRE incidents were there in Weed County in 2023?",
+        "How many ignitions were there in Industry County in 2019?",
+        "How many fires were there in Paradise County in 2018?",
+        "How many outages were there in Commerce County in 2020?",
+        "How many incidents were there in Needles County in 2021?",
+        "How many ignitions were there in Coronado County in 2022?",
+    ):
+        decision = route_question(question)
+        assert decision.rule == "unknown_county", question
+        assert decision.rule != "city_needs_place"
+
+
+def test_saved_questions_do_not_take_a_common_word_as_a_city():
+    root = Path(__file__).resolve().parents[2] / "services" / "agent" / "eval"
+    for name in ("cases.json", "jev_paraphrases.json"):
+        rows = json.loads((root / name).read_text(encoding="utf-8"))
+        for row in rows:
+            decision = route_question(row["question"])
+            assert decision.rule != "city_needs_place", row["question"]
 
 
 def test_circuits_with_an_hftd_tier_or_hftd_acreage_clarify():

@@ -565,6 +565,53 @@ _CITY_NOT_COUNTY = re.compile(
     re.I,
 )
 
+# These municipality names are also ordinary words. Match them only with a
+# place cue, so "pine needles" or "the utility industry" is not a city.
+_AMBIGUOUS_CITIES = frozenset(
+    {"industry", "commerce", "weed", "needles", "paradise", "coronado"}
+)
+_CITY_CUE_BEFORE = re.compile(
+    r"(?:"
+    r"\b(?:city|town)\s+of"
+    r"|\bdowntown"
+    r"|\bout\s+of"
+    r"|\b(?:in|at|near|around|outside|inside|into|serving|contains|containing)"
+    r")\s+$",
+    re.I,
+)
+# Orange is a county and a color. Bare "orange" is not the county.
+_COUNTY_REQUIRES_QUALIFIER = frozenset({"orange"})
+
+
+def _city_match(lower: str):
+    """A non-county city used as a place, or None.
+
+    A name followed by County is a county phrase, not the city. Ambiguous
+    names need a place cue such as "in Weed" or "Weed, California".
+    """
+    for match in _CITY_NOT_COUNTY.finditer(lower):
+        name = match.group(0).lower()
+        after = lower[match.end() :]
+        if re.match(r"\s+county\b", after):
+            continue
+        if name in _AMBIGUOUS_CITIES:
+            before = lower[: match.start()]
+            cued = _CITY_CUE_BEFORE.search(before) or re.match(
+                r",?\s*california\b", after
+            )
+            if not cued:
+                continue
+        return match
+    return None
+
+
+def _city_named_as_county(lower: str) -> str | None:
+    """A municipality written as if it were a county, such as Weed County."""
+    for match in _CITY_NOT_COUNTY.finditer(lower):
+        if re.match(r"\s+county\b", lower[match.end() :]):
+            return match.group(0)
+    return None
+
 # Datasets whose warehouse tables expose a county column.
 _COUNTY_CAPABLE_DATASETS = {
     "calfire_incidents",
@@ -726,6 +773,8 @@ def _counties(text: str) -> list[str]:
         scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
     scrubbed = " ".join(scrubbed.split())
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+        if name.lower() in _COUNTY_REQUIRES_QUALIFIER:
+            continue
         if re.search(rf"\b{re.escape(name.lower())}\b", scrubbed) and name not in found:
             found.append(name)
     return found
@@ -783,6 +832,8 @@ def _county(text: str) -> str | None:
         scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
     scrubbed = " ".join(scrubbed.split())
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+        if name.lower() in _COUNTY_REQUIRES_QUALIFIER:
+            continue
         if re.search(rf"\b{re.escape(name.lower())}\b", scrubbed):
             return name
     return None
@@ -1586,7 +1637,19 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 "(for example 25 km) or a county/utility polygon to use."
             ),
         )
-    city = _CITY_NOT_COUNTY.search(lower)
+    named_county = _city_named_as_county(lower)
+    if named_county:
+        return RouteDecision(
+            "clarification",
+            "unknown_county",
+            "A municipality was written as a county",
+            slots=slots,
+            answer=(
+                f"{named_county.title()} County is not a county in this warehouse. "
+                "Which county should I use?"
+            ),
+        )
+    city = _city_match(lower)
     if city:
         return RouteDecision(
             "clarification",

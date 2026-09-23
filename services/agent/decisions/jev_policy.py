@@ -39,6 +39,9 @@ REGEX_ONLY = {
         "A city gazetteer, not an atomic fact. The router asks for coordinates, "
         "a county, or a utility territory."
     ),
+    "unknown_county": (
+        "A name-plus-County check against the county list, not an atomic fact."
+    ),
     "hftd_constraint_unavailable": (
         "Tool-schema gap: no read intersects circuits with an HFTD tier or "
         "measures HFTD polygon area."
