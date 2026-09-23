@@ -812,15 +812,22 @@
     "id": "hv2_050",
     "question": "Can you tell me whether PG&E will have more ignitions next year than SCE?",
     "intended_category": "out_of_scope",
-    "expected_disposition": "clarify",
+    "expected_disposition": "unsupported",
     "expected_intent": null,
     "expected_dataset": null,
     "expected_tool_pick": null,
-    "expected_clarify_reason": "time_out_of_coverage",
-    "expected_unsupported_topic": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_future_prediction",
     "gold_plan": null,
     "needs_human_review": true,
-    "label_rationale": "Next year is outside stored years, so policy clarifies rather than refuses."
+    "label_rationale": "Next year is outside stored years, so policy clarifies rather than refuses.",
+    "previous": {
+      "expected_disposition": "clarify",
+      "expected_clarify_reason": "time_out_of_coverage",
+      "expected_unsupported_topic": null
+    },
+    "rule": "F",
+    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set."
   },
   {
     "id": "hv2_051",
@@ -915,10 +922,17 @@
     "expected_dataset": null,
     "expected_tool_pick": null,
     "expected_clarify_reason": null,
-    "expected_unsupported_topic": null,
+    "expected_unsupported_topic": "unsupported_future_prediction",
     "gold_plan": null,
     "needs_human_review": true,
-    "label_rationale": "Predicting the next ignition is a forecast, not a stored read."
+    "label_rationale": "Predicting the next ignition is a forecast, not a stored read.",
+    "previous": {
+      "expected_disposition": "unsupported",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null
+    },
+    "rule": "F",
+    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set."
   },
   {
     "id": "hv2_058",
@@ -985,10 +999,17 @@
     "expected_dataset": null,
     "expected_tool_pick": null,
     "expected_clarify_reason": null,
-    "expected_unsupported_topic": "unsupported_cost",
+    "expected_unsupported_topic": "unsupported_future_prediction",
     "gold_plan": null,
     "needs_human_review": false,
-    "label_rationale": "Harder to insure is cost."
+    "label_rationale": "Harder to insure is cost.",
+    "previous": {
+      "expected_disposition": "unsupported",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": "unsupported_cost"
+    },
+    "rule": "F",
+    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set."
   },
   {
     "id": "hv2_063",
