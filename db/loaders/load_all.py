@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import sys
 
+import psycopg
+
 from db.loaders import (
     load_boundaries,
     load_calfire,
@@ -47,14 +49,19 @@ def main() -> int:
 
         counts: dict[str, int] = {}
         # IOU and HFTD load together from CPUC sources. A missing cache with no
-        # network, or a failed gate, leaves both tables as they were and does
-        # not stop the other tables from loading.
+        # network, a failed gate, or a database error leaves both tables as
+        # they were and does not stop the other tables from loading.
         boundary_error: str | None = None
         try:
             counts.update(load_boundaries.load(conn, settings))
-        except GeometryGateError as exc:
-            boundary_error = str(exc)
-            print(f"  ERROR boundaries not loaded, previous rows kept: {exc}")
+        except (GeometryGateError, psycopg.Error) as exc:
+            # A database error inside the boundary transaction rolls it back
+            # like a failed gate. Reopen the connection only if it broke.
+            boundary_error = f"{type(exc).__name__}: {exc}"
+            print(f"  ERROR boundaries not loaded, previous rows kept: {boundary_error}")
+            if conn.broken or conn.closed:
+                conn.close()
+                conn = connect(settings, autocommit=True)
         counts["counties"] = load_counties.load(conn, settings)
         counts["circuits"] = load_circuits.load(conn, settings)
         counts["grid_cells"] = load_grid.load(conn, settings)
