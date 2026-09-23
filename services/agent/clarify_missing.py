@@ -131,6 +131,58 @@ def missing_items(rule: str, text: str, slots: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(missing))
 
 
+PLACE_PLACEHOLDER = "[a county]"
+_UTILITY_LABELS = {"PGE": "PG&E", "SDGE": "SDG&E", "PACIFICORP": "PacifiCorp", "BVES": "Bear Valley"}
+# A place phrase starts after one of these words and ends at the next stop word.
+_PLACE_START = r"(?:near|around|close to|in|for|at)"
+_PLACE_STOP = {
+    "in", "for", "during", "from", "and", "or", "than", "since", "between", "last",
+    "this", "next", "on", "at", "of", "to", "over", "with", "rn", "now", "today",
+}
+
+
+def _bare_county(text: str) -> str | None:
+    """A county the question names by a place phrase that is exactly a county name.
+
+    "near Sacramento in 2024" resolves to Sacramento; "around Lake Tahoe" does
+    not resolve to Lake County, and a city such as San Jose resolves to nothing.
+    """
+    import re
+
+    from services.agent.routing import _CA_COUNTIES
+
+    names = {name.lower(): name for name in _CA_COUNTIES}
+    for match in re.finditer(rf"\b{_PLACE_START}\s+(.+)", text, re.I):
+        words = []
+        for token in re.split(r"\s+", match.group(1)):
+            word = re.sub(r"[^\w&'-]", "", token).lower()
+            if not word or word in _PLACE_STOP or word.isdigit():
+                break
+            words.append(word)
+            if re.search(r"[?.,;:!]$", token):
+                break
+        phrase = " ".join(words).removesuffix(" county").removesuffix(" counties")
+        if phrase in names:
+            return names[phrase]
+    return None
+
+
+def resolved_place(text: str, slots: dict[str, Any]) -> str | None:
+    """The place the question already resolved, or None. Never a place it did not name."""
+    if slots.get("county"):
+        return f"{slots['county']} County"
+    if slots.get("counties"):
+        return f"{slots['counties'][0]} County"
+    if slots.get("utilities"):
+        utility = slots["utilities"][0]
+        return f"{_UTILITY_LABELS.get(utility, utility)} territory"
+    if slots.get("coords"):
+        lat, lon = slots["coords"][:2]
+        return f"{lat}, {lon}"
+    county = _bare_county(text)
+    return f"{county} County" if county else None
+
+
 def _example(rule: str, text: str, slots: dict[str, Any], missing: list[str]) -> str:
     import re
 
@@ -138,15 +190,7 @@ def _example(rule: str, text: str, slots: dict[str, Any], missing: list[str]) ->
 
     datasets = _datasets(text)
     dataset = _LABELS.get(datasets[0] if datasets else "", "CPUC ignitions")
-    if slots.get("county"):
-        place = f"{slots['county']} County"
-    elif slots.get("utilities"):
-        place = f"{slots['utilities'][0]} territory"
-    elif slots.get("coords"):
-        lat, lon = slots["coords"][:2]
-        place = f"{lat}, {lon}"
-    else:
-        place = "Sonoma County"
+    place = resolved_place(text, slots) or PLACE_PLACEHOLDER
     year = str(slots.get("year") or "2023")
     needs_place = "place" in missing or rule in _PLACE_RULES or slots.get("county") or slots.get("utilities")
     where = f" in {place}" if needs_place else ""

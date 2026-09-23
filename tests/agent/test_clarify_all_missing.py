@@ -19,7 +19,8 @@ def test_year_and_place_are_both_asked():
     assert after.rule == before.rule == "undefined_spatial_scope"
     assert after.answer.startswith(before.answer)
     assert "I also need a year or date range." in after.answer
-    assert 'For example: "How many PSPS events were there in Sonoma County in 2023?"' in after.answer
+    # Santa Rosa is a city, not a county: the example uses a placeholder, not a real county.
+    assert 'For example: "How many PSPS events were there in [a county] in 2023?"' in after.answer
 
 
 def test_year_and_dataset_are_both_asked():
@@ -50,7 +51,7 @@ def test_risk_place_asks_for_a_scoreable_day():
     assert after.rule == before.rule == "risk_missing_place"
     # "plus one historical calendar day" is already in the text; only the example is added.
     assert "I also need" not in after.answer
-    assert after.answer.endswith('For example: "What was the fitted ignition risk for Sonoma County on 2023-08-15?"')
+    assert after.answer.endswith('For example: "What was the fitted ignition risk for [a county] on 2023-08-15?"')
 
 
 
@@ -85,3 +86,43 @@ def test_rule_path_and_tools_never_change():
         assert (after.path, after.rule, after.tool_calls) == (before.path, before.rule, before.tool_calls), question
         if after.path != "clarification":
             assert after.answer == before.answer, question
+
+
+def test_example_reuses_what_the_question_resolved():
+    # A place phrase that is exactly a county name becomes that county, with the year.
+    near = route_question("Show me fires near Sacramento in 2024").answer
+    assert 'For example: "How many CPUC ignitions were there in Sacramento County in 2024?"' in near
+    # A named utility and dataset are reused.
+    psps = route_question("What was the total number of PSPS events for PG&E?")
+    if psps.answer != _route_question("What was the total number of PSPS events for PG&E?").answer:
+        assert "PG&E territory" in psps.answer and "PSPS events" in psps.answer
+
+
+def test_cities_and_near_me_get_a_placeholder_not_a_real_county():
+    for question in (
+        "What's the historical ignition risk for downtown Bakersfield?",
+        "How many CAL FIRE incidents happened near San Jose?",
+        "Show recent fires near me.",
+        "List the CAL FIRE fires around Lake Tahoe.",
+    ):
+        answer = route_question(question).answer
+        assert "[a county]" in answer, question
+        assert "Sonoma" not in answer and "Lake County" not in answer, question
+
+
+def test_no_example_names_a_county_the_question_did_not_mention():
+    import re
+
+    from services.agent.routing import _CA_COUNTIES
+
+    questions = []
+    for name in ("cases.json", "jev_paraphrases.json", "jev_holdout.json"):
+        questions += [row["question"] for row in json.loads((EVAL / name).read_text(encoding="utf-8"))]
+    for question in questions:
+        decision = route_question(question)
+        if decision.path != "clarification" or "For example:" not in (decision.answer or ""):
+            continue
+        example = decision.answer.split("For example:", 1)[1]
+        for county in _CA_COUNTIES:
+            if re.search(rf"\b{re.escape(county)} County\b", example):
+                assert county.lower() in question.lower(), (question, example)
