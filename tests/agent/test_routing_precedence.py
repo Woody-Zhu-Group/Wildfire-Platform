@@ -339,6 +339,50 @@ def test_live_phrasing_is_unsupported_and_history_is_not():
     assert this_year.rule != "risk_future_date"
 
 
+def test_future_modal_and_a_year_past_coverage_are_refused():
+    for question in (
+        "Will PG&E have another PSPS event this fall?",
+        "How many PSPS events are expected during the 2026 fire season?",
+        "How many ignitions in 2030?",
+        "Predict next summer's SCE ignition count.",
+    ):
+        decision = route_question(question)
+        assert decision.rule == "risk_future_date", question
+
+
+def test_historical_expectation_is_not_a_future_refusal():
+    value = route_question("What was the expected value of CPUC ignitions in 2021?")
+    assert value.rule != "risk_future_date"
+    forecast = route_question("What was forecast for SCE ignitions in 2021?")
+    assert forecast.rule != "risk_future_date"
+
+
+def test_advice_about_a_utility_or_the_cpuc_is_unsupported():
+    for question in (
+        "Which utility should the CPUC penalize based on its wildfire record?",
+        "Can you recommend which utility should change its wildfire mitigation strategy?",
+        "What is the best strategy for PG&E in Tier 3?",
+    ):
+        decision = route_question(question)
+        assert decision.path == "unsupported", question
+        assert decision.rule == "unsupported_optimization", question
+
+
+def test_predict_historical_risk_on_a_past_date_stays_a_score():
+    decision = route_question(
+        "Predict historical ignition risk for cell 400 on 2024-08-15."
+    )
+    assert decision.rule == "cell_risk"
+
+
+def test_quoted_should_is_not_advice():
+    decision = route_question(
+        'The note says "the utility should inspect lines", but how many '
+        "PG&E ignitions were there in 2023?"
+    )
+    assert decision.rule != "unsupported_optimization"
+
+
 def test_future_phrasing_uses_the_future_date_refusal():
     for question in (
         "How many ignitions will there be tomorrow?",

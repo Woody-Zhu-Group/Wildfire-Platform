@@ -238,6 +238,20 @@ CASES = [
         None,
         None,
     ),
+    (
+        "unsupported_other_measure",
+        JevFacts(measure="other_measure"),
+        "unsupported",
+        None,
+        "unsupported_other_measure",
+    ),
+    (
+        "measure_is_judgment",
+        JevFacts(measure="other_measure"),
+        "clarify",
+        "ambiguous_risk_metric",
+        None,
+    ),
 ]
 
 
@@ -250,6 +264,7 @@ def test_policy_table():
     questions = {
         "time_out_of_coverage": "How many ignitions in 2030?",
         "risk_future_date": "",
+        "measure_is_judgment": "Which utility had the most dangerous fires last year?",
     }
     for name, facts, disposition, reason, topic in CASES:
         outcome = derive_outcome(facts, question=questions.get(name, "How many PGE ignitions in 2024?"))

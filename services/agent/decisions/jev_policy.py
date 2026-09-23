@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Callable
 
+import re
+
 from services.agent.routing import _rank_metric
 from services.agent.time_resolve import resolve_time
 
@@ -82,6 +84,7 @@ class JevFacts:
     utilities: dict[str, float] = field(default_factory=dict)
     rank_dimension: str | None = "none"
     mentions_multiple_datasets: float = 0.0
+    measure: str | None = None
     threshold: float = 0.5
 
 
@@ -137,6 +140,7 @@ def facts_from_answers(answers: dict[str, Any], *, threshold: float = 0.5) -> Je
         utilities=utilities,
         rank_dimension=choice("rank_dimension") or "none",
         mentions_multiple_datasets=noul("mentions_multiple_datasets"),
+        measure=choice("measure"),
         threshold=threshold,
     )
 
@@ -185,6 +189,19 @@ def derive_outcome(
     if facts.off_topic == "other_off_topic":
         trace.append("other_off_topic")
         return DerivedOutcome("unsupported", None, None, trace, None, {})
+
+    if facts.measure == "other_measure":
+        if re.search(
+            r"\b(?:worst|most dangerous|safest|riskiest|most risky|highest risk)\b",
+            question or "",
+            re.I,
+        ):
+            trace.append("measure_is_judgment")
+            return hit("ambiguous_risk_metric")
+        trace.append("unsupported_other_measure")
+        return DerivedOutcome(
+            "unsupported", None, "unsupported_other_measure", trace, None, {}
+        )
 
     if _yes(facts.asks_risk, threshold) and not _yes(facts.names_risk_metric, threshold):
         return hit("ambiguous_risk_metric", "asks_risk", "names_risk_metric")
@@ -315,6 +332,7 @@ def covered_rule_ids() -> set[str]:
         "unsupported_rank_us_state",
         "unsupported_rank_epss_utility",
         "unsupported_ranking",
+        "unsupported_other_measure",
         "unexpressable_county_filter",
         "ambiguous_risk_place",
         "map_plus_trend_missing_year",

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.time_resolve import month_from_text, resolve_time
+from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
 
 
 @dataclass
@@ -653,7 +653,22 @@ _LIVE_NOW = re.compile(
     re.I,
 )
 _FUTURE_DATE = re.compile(
-    r"\b(?:tomorrow|next\s+summer|next\s+year|future\s+years?)\b",
+    r"\b(?:tomorrow|next\s+summer|next\s+year|future\s+years?|"
+    r"this\s+fall|upcoming)\b|"
+    r"\bwill\b|"
+    r"\bexpected\b|"
+    r"\bpredict(?:ed|ion|ing|s)?\b|"
+    r"\bforecast(?:ed|s|ing)?\b",
+    re.I,
+)
+_PAST_FORECAST = re.compile(
+    r"\b(?:was|were|been)\b(?:\s+\w+){0,4}\s+"
+    r"(?:forecast|predict)(?:ed|ion|ing|s)?\b|"
+    r"\b(?:forecast|predict)(?:ed|ion|ing|s)?\s+(?:was|were)\b",
+    re.I,
+)
+_ADVICE = re.compile(
+    r"\b(?:should|recommend(?:s|ed)?|penali[sz]e[sd]?|best\s+strategy)\b",
     re.I,
 )
 
@@ -1054,6 +1069,55 @@ _RISK_COVERAGE_LIMIT = (
     "This model scores historical dates only. Weather and vegetation data "
     "end 2025-12-31 and there's no forecast ingestion"
 )
+
+
+def _strip_quotes(text: str) -> str:
+    return re.sub(r"(?:\"[^\"]*\"|'[^']*'|“[^”]*”)", " ", text)
+
+
+def _future_refusal_phrase(text: str, lower: str) -> str | None:
+    """Forward modal, expectation, or a year after warehouse coverage.
+
+    A past-tense forecast, an expected value in a covered year, and a
+    predict/forecast of historical risk on a covered date stay historical.
+    Years before coverage stay on the out-of-coverage clarify.
+    """
+    years = [int(item) for item in re.findall(r"\b(20\d{2})\b", text)]
+    data_max = date.today().year
+    ahead = [year for year in years if year > data_max]
+    if ahead:
+        return str(max(ahead))
+    if not _FUTURE_DATE.search(lower):
+        return None
+    forward = re.search(
+        r"\b(?:will|upcoming|this\s+fall|tomorrow|next\s+(?:year|summer|month)|"
+        r"future\s+years?)\b",
+        lower,
+    )
+    if _PAST_FORECAST.search(lower) and not forward:
+        return None
+    covered = bool(years) and all(DATA_YEAR_MIN <= year <= data_max for year in years)
+    if re.search(r"\bexpected\s+value\b", lower) and covered and not forward:
+        return None
+    if re.search(r"\bhistorical\b", lower) and covered and not forward:
+        return None
+    match = _FUTURE_DATE.search(lower)
+    return match.group(0) if match else None
+
+
+def _asks_for_advice(text: str) -> bool:
+    """What a utility or the CPUC should do. Quoted 'should' does not count."""
+    bare = _strip_quotes(text)
+    if not _ADVICE.search(bare):
+        return False
+    return bool(
+        re.search(
+            r"\b(?:cpuc|utilit(?:y|ies)|pge|pg\s*&\s*e|sce|sdge|pacificorp|"
+            r"liberty|bear valley|bves)\b",
+            bare,
+            re.I,
+        )
+    )
 
 
 def _forward_relative_phrase(lower: str) -> str | None:
@@ -1620,17 +1684,30 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 ),
             ),
         )
-    future = _FUTURE_DATE.search(lower)
-    if future:
-        phrase = future.group(0)
+    future_phrase = _future_refusal_phrase(text, lower)
+    if future_phrase:
         return RouteDecision(
             "clarification",
             "risk_future_date",
             "Fitted risk has no forecast ingestion for a forward date",
             slots=slots,
             answer=(
-                f"{_RISK_COVERAGE_LIMIT}, so I can't answer about {phrase}. "
+                f"{_RISK_COVERAGE_LIMIT}, so I can't answer about {future_phrase}. "
                 "Which past date should I score?"
+            ),
+        )
+    if _asks_for_advice(text):
+        return RouteDecision(
+            "unsupported",
+            "unsupported_optimization",
+            "No read-only backend service provides the requested information",
+            slots=slots,
+            answer=UNSUPPORTED_ANSWERS.get(
+                "optimization",
+                (
+                    "This system cannot answer that question with its available "
+                    "read-only wildfire services."
+                ),
             ),
         )
 

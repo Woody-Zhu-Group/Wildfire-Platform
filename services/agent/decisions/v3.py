@@ -122,6 +122,18 @@ def topic_questions() -> dict[str, QuestionSpec]:
         "mentions_multiple_datasets": _noul(
             "The question names two different warehouse datasets, such as CPUC ignitions and CAL FIRE incidents."
         ),
+        "measure": _choice(
+            "Which measure is the question asking the warehouse to return?",
+            {
+                "event_count": "A count of ignition, outage, incident, or shutoff events stored on those records.",
+                "record_list": "The individual event or circuit records, rather than one total.",
+                "acres_burned": "Acres burned, which CAL FIRE incident records store.",
+                "customers_affected": "Customers de-energized, which PSPS event records store.",
+                "historical_risk": "The fitted historical ignition risk for one place on one past day.",
+                "supported_rate": "A rate the comparison tool can compute: per circuit, or per square kilometer.",
+                "other_measure": "Some other measure, such as response time, smoke, cause, cost, a rate per customer or per mile, or a vague judgment such as worst, most dangerous, or safest.",
+            },
+        ),
     }
 
 

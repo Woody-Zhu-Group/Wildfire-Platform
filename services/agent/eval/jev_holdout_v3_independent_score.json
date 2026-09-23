@@ -489,5 +489,96 @@
         "note": "The pre-PR router fired one backstop, unsupported_cost on hv3_052, and Jev agreed, so this matches Jev alone."
       }
     }
+  },
+  "gap_close": {
+    "note": "Combined after the future/advice backstops and the measure Choice. These v3 numbers are tuned. The new backstops and the measure question were written from remaining v3 misses.",
+    "spend_usd": 0.1705,
+    "input_tokens": 4058566,
+    "v3_pass": 1,
+    "measure_repeats": 5,
+    "accuracy": {
+      "combined_before": {
+        "correct": 45,
+        "n": 65,
+        "accuracy": 0.692,
+        "answer": "22/22",
+        "decline": "23/43"
+      },
+      "combined_after": {
+        "correct": 48,
+        "n": 65,
+        "accuracy": 0.738,
+        "answer": "21/22",
+        "decline": "27/43"
+      },
+      "jev_after": {
+        "correct": 45,
+        "n": 65,
+        "accuracy": 0.692
+      },
+      "router_after": {
+        "correct": 43,
+        "n": 65,
+        "accuracy": 0.662
+      }
+    },
+    "measure": {
+      "v3_certain": {
+        "other_measure": 23,
+        "n": 65,
+        "rate": 0.354,
+        "confidence": 0.857,
+        "counts": {
+          "event_count": 29,
+          "other_measure": 23,
+          "record_list": 9,
+          "acres_burned": 2,
+          "customers_affected": 1,
+          "historical_risk": 1
+        }
+      },
+      "dev": {
+        "other_measure": 170,
+        "calls": 590,
+        "rate": 0.289,
+        "confidence": 0.942,
+        "errors": 1
+      },
+      "holdout": {
+        "other_measure": 38,
+        "calls": 315,
+        "rate": 0.121,
+        "confidence": 0.915,
+        "errors": 0
+      },
+      "holdout_v2": {
+        "other_measure": 40,
+        "calls": 200,
+        "rate": 0.2,
+        "confidence": 0.931,
+        "errors": 0
+      }
+    },
+    "route_changes": {
+      "cases.json": 0,
+      "jev_paraphrases.json": 0,
+      "jev_holdout.json": [
+        "ho_056",
+        "ho_065"
+      ],
+      "jev_holdout_v2.json": [
+        "hv2_057",
+        "hv2_062"
+      ],
+      "jev_holdout_v3.json": [
+        "hv3_053",
+        "hv3_054",
+        "hv3_058",
+        "hv3_059",
+        "hv3_064",
+        "hv3_067",
+        "hv3_068"
+      ]
+    }
   }
 }
