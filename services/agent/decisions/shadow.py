@@ -380,25 +380,15 @@ class ShadowRunner:
 
         from services.agent.decisions.integrity import parse_raw_answers
         from services.agent.decisions.jev_policy import derive_outcome, facts_from_answers
-        from services.agent.decisions.schemas import DOMAIN_CONTEXT
         from services.agent.decisions.v3 import SCHEMA_VERSION as V3_VERSION
-        from services.agent.decisions.v3 import calls_for
+        from services.agent.decisions.v3 import calls_for_config
 
         config = getattr(self.settings, "jev_ablation", "v3_split")
-        mode = {
-            "v3_split": "per_call",
-            "v3_single": "concatenated",
-            "v3_no_glossary": "none",
-            "v3_policy_context": "policy",
-            "v3_hybrid": "policy",
-        }.get(config, "per_call")
-        calls = calls_for(
+        calls = calls_for_config(
             question,
             self._clock().date().isoformat(),
-            include_tools=candidate_tools or None,
-            glossary_mode=mode,
-            policy_context=DOMAIN_CONTEXT if config in {"v3_policy_context", "v3_hybrid"} else None,
-            include_direct_clarify=config == "v3_hybrid",
+            candidate_tools or None,
+            config,
         )
 
         def run_call(call: dict[str, Any]) -> tuple[dict[str, Any], DecisionResult | None]:

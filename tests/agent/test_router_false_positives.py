@@ -187,10 +187,16 @@ def test_single_stem_topics_still_refuse_with_their_context():
 )
 def test_a_series_plus_a_total_defers_instead_of_one_series_panel(question):
     decision = route_question(question)
-    assert decision.path == "model", question
-    # Either deferral keeps both results for the model; neither runs one call.
-    assert decision.rule in {"multi_entity_deferred", "multi_intent_count_and_trend"}, question
-    assert decision.tool_calls == []
+    names = [name for name, _ in decision.tool_calls]
+    # Never one call that drops the total: either a deferral with no calls, or
+    # the deterministic count-plus-series pair.
+    if decision.path == "deterministic":
+        assert decision.rule == "multi_intent_count_and_trend", question
+        assert names == ["data_query_records", "visualization_create"], question
+    else:
+        assert decision.path == "model", question
+        assert decision.rule in {"multi_entity_deferred", "multi_intent_count_and_trend"}, question
+        assert names == [], question
 
 
 def test_a_yearly_totals_series_alone_still_opens_the_series_panel():

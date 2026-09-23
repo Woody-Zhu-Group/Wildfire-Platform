@@ -416,6 +416,18 @@ def test_null_jev_is_excluded_from_accuracy():
 def test_clarify_reason_does_not_score_when_disposition_is_answer():
     expected = {"disposition": "answer", "clarify_reason": "not_applicable", "intent": "count"}
     assert field_applies("clarify_reason", expected) is False
+    assert field_applies(
+        "clarify_reason",
+        {"disposition": "clarify", "clarify_reason": "missing_location"},
+    ) is True
+    assert field_applies(
+        "clarify_reason",
+        {"disposition": "answer", "clarify_reason": "map_missing_year"},
+    ) is False
+    assert field_applies(
+        "clarify_reason",
+        {"disposition": "unsupported", "clarify_reason": "missing_location"},
+    ) is False
     assert field_applies("intent", {"disposition": "clarify", "intent": "other"}) is False
     assert field_applies("tool_pick", {"disposition": "unsupported", "tool_pick": "unsupported"}) is False
     assert field_applies("dataset", {"disposition": "clarify", "dataset": "cpuc_ignitions"}) is False

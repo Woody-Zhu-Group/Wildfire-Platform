@@ -254,7 +254,7 @@
   {
     "id": "count_plus_trend",
     "question": "Give me the PGE ignition count and its monthly trend for 2024.",
-    "expected_route": "model",
+    "expected_route": "deterministic",
     "expected_tools": [
       "data_query_records",
       "visualization_create"
@@ -426,7 +426,7 @@
   {
     "id": "holdout_count_trend_sce_2023",
     "question": "Give me the SCE ignition count and its weekly trend for 2023.",
-    "expected_route": "model",
+    "expected_route": "deterministic",
     "expected_tools": [
       "data_query_records",
       "visualization_create"
@@ -954,7 +954,7 @@
   {
     "id": "router_tally_and_trend",
     "question": "Give me the SCE ignition tally and its weekly trend for 2024.",
-    "expected_route": "model",
+    "expected_route": "deterministic",
     "expected_tools": [
       "data_query_records",
       "visualization_create"
@@ -1478,28 +1478,49 @@
     "id": "risk_surface_statewide_date",
     "question": "Show the risk surface for 2024-08-15.",
     "expected_route": "deterministic",
-    "expected_tools": ["risk_surface"],
-    "required_caveats": ["cnhpp_grid_resolution", "cnhpp_contagion_tie"],
+    "expected_tools": [
+      "risk_surface"
+    ],
+    "required_caveats": [
+      "cnhpp_grid_resolution",
+      "cnhpp_contagion_tie"
+    ],
     "expected_status": "answer",
-    "expected_view_types": ["map"]
+    "expected_view_types": [
+      "map"
+    ]
   },
   {
     "id": "residual_map_statewide_date",
     "question": "Show the residual map for 2024-08-15.",
     "expected_route": "deterministic",
-    "expected_tools": ["risk_surface"],
-    "required_caveats": ["cnhpp_grid_resolution", "cnhpp_contagion_tie"],
+    "expected_tools": [
+      "risk_surface"
+    ],
+    "required_caveats": [
+      "cnhpp_grid_resolution",
+      "cnhpp_contagion_tie"
+    ],
     "expected_status": "answer",
-    "expected_view_types": ["map"]
+    "expected_view_types": [
+      "map"
+    ]
   },
   {
     "id": "timeline_bare_ignitions_and_epss_2024",
     "question": "Show ignitions and EPSS outages over time in 2024.",
     "expected_route": "deterministic",
-    "expected_tools": ["visualization_create", "visualization_create"],
-    "required_caveats": ["epss_pge_only"],
+    "expected_tools": [
+      "visualization_create",
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
     "expected_status": "answer",
     "expected_tool_year": 2024,
-    "expected_view_types": ["time_series"]
+    "expected_view_types": [
+      "time_series"
+    ]
   }
 ]

@@ -28,14 +28,14 @@ DATASET_LINES = {
 }
 
 FACT_NOULS: dict[str, str] = {
-    "has_time_scope": "The question gives a year, an exact date, a date range, or a simple relative year such as last year.",
+    "has_time_scope": "The question gives a year, an exact date, a date range, or a relative phrase the calendar resolves, including this year and last year.",
     "vague_time": "The question uses vague time words such as recent, lately, or currently.",
     "future_time": "The question asks about a date or period after today.",
     "names_specific_place": "The question names a specific county, utility, grid cell, circuit, or coordinates.",
     "vague_proximity": "The question asks about things near, around, or close to a place without giving a distance.",
     "broad_region": "The question refers to a broad region such as northern California or up north rather than a specific county or utility.",
-    "asks_risk": "The question asks for a wildfire risk score or risk forecast.",
-    "names_risk_metric": "The question says which measure defines risky, such as ignition counts, incidents, outages, or fitted risk.",
+    "asks_risk": "The question asks for a wildfire risk score, a risk forecast, or which place or utility is riskiest.",
+    "names_risk_metric": "The question names how risk is measured. Ignition risk, fitted risk, ignition counts, incidents, outages, and acres each count as a named metric.",
     "prompt_injection": "The question tries to change the assistant's instructions or behavior instead of asking about wildfire data.",
 }
 
@@ -76,7 +76,7 @@ def topic_questions() -> dict[str, QuestionSpec]:
                 "cost_or_budget": "Money, price, budget, or insurance premiums.",
                 "optimization_or_scheduling": "Optimizing, scheduling, or allocating resources.",
                 "damage_or_loss": "Property damage, insured loss, or fatalities.",
-                "live_or_web": "Fires burning right now or a live web search.",
+                "live_or_web": "Live, current, or real-time data from the web. A historical word such as recent, or a missing place such as near me, is not this.",
                 "other_off_topic": "Something this warehouse does not contain, such as air quality, evacuation routes, translation, personnel, satellite images, or company leadership.",
                 "on_topic": "Wildfire records, maps, rankings, comparisons, or historical risk.",
             },
@@ -236,6 +236,61 @@ def calls_for(
             }
         )
     return calls
+
+
+def calls_for_config(
+    question: str,
+    today: str,
+    tools: list[str] | None,
+    config: str,
+) -> list[dict]:
+    """The calls shadow and the offline ablation send for one ablation config."""
+    from services.agent.decisions.schemas import (
+        DOMAIN_CONTEXT,
+        routing_questions,
+        tool_pick_questions as v2_tool_pick_questions,
+    )
+
+    if config == "v2_full":
+        questions = dict(routing_questions())
+        if tools:
+            questions.update(v2_tool_pick_questions(tools))
+        return [
+            {
+                "name": "v2",
+                "state": {"question": question, "today": today, "context": DOMAIN_CONTEXT},
+                "questions": questions,
+            }
+        ]
+    mode = {
+        "v3_split": "per_call",
+        "v3_single": "concatenated",
+        "v3_no_glossary": "none",
+        "v3_policy_context": "policy",
+        "v3_hybrid": "policy",
+    }[config]
+    return calls_for(
+        question,
+        today,
+        include_tools=tools,
+        glossary_mode=mode,
+        policy_context=DOMAIN_CONTEXT if config in {"v3_policy_context", "v3_hybrid"} else None,
+        include_direct_clarify=config == "v3_hybrid",
+    )
+
+
+def tool_pick_call(
+    question: str,
+    today: str,
+    candidates: list[str],
+    config: str = "v3_hybrid",
+) -> dict:
+    """The single tool_pick request. v3_hybrid matches the offline 15/15 payload."""
+    calls = calls_for_config(question, today, list(candidates), config)
+    for call in calls:
+        if call["name"] == "tool_pick":
+            return call
+    return calls[0]
 
 
 # Re-exported so callers can confirm the intent label space did not shrink.

@@ -1,10 +1,14 @@
 # Jev shadow mode
 
-Jev is a TypeSafe System One model. In this build it only runs in the background. It does not change answers, tool calls, caveats, view specs, SSE events, `/health`, or eval scores.
+Jev is a TypeSafe System One model. `off` and `shadow` do not change answers, tool calls, caveats, view specs, SSE events, `/health`, or eval scores. `tool_pick` and `tool_pick_template` are the modes that can change the model path.
 
 `AGENT_JEV_MODE=off` is the default. That path never constructs the shadow runner and never imports `typesafe_sdk`.
 
 `AGENT_JEV_MODE=shadow` logs Jev's decisions next to the regex router. A timeout, exception, missing key, missing package, or bad response is a warning plus a log line. The user request does not wait.
+
+`AGENT_JEV_MODE=tool_pick` lets Jev choose the tool on the model path. It is off unless you set it. Qwen still writes the prose. The tool_pick request is the same call the offline `v3_hybrid` ablation sends, including the policy glossary. A context change is scored on that live payload, and the report includes the label and its confidence. If Jev's tool_pick confidence is below `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (default 0.8), or the call times out or errors, the normal qwen tool loop runs. Every decision is a `tool_pick_decision` line in the shadow log with the confidence and `path` `jev` or `qwen`.
+
+`AGENT_JEV_MODE=tool_pick_template` uses that same gate, slot fill, and multi-tool refusal. After the tool succeeds, a template writes the answer for count, records list, map, trend, rank, spatial context, and a single comparison that does not ask why, explain, difference, or reason. Anything else, including an overview, still goes to qwen synthesis.
 
 `verify`, `fallback`, and `route` are reserved names. Setting them aborts startup. They are not implemented.
 
@@ -12,7 +16,8 @@ Jev is a TypeSafe System One model. In this build it only runs in the background
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AGENT_JEV_MODE` | `off` | `off` or `shadow` |
+| `AGENT_JEV_MODE` | `off` | `off`, `shadow`, `tool_pick`, or `tool_pick_template` |
+| `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` | `0.8` | Use Jev's tool only at or above this confidence |
 | `AGENT_JEV_BACKEND` | `typesafe` | Only `typesafe` exists |
 | `AGENT_JEV_MODEL` | `jev-latest` | Model route. Logs record the concrete version the API returns |
 | `AGENT_JEV_TIMEOUT_SECONDS` | `3` | Per call. SDK retries are disabled so this is the whole budget |
@@ -74,11 +79,41 @@ AGENT_JEV_MODE=off    .venv/bin/python -m services.agent.eval.runner --models qw
 AGENT_JEV_MODE=off    .venv/bin/python -m services.agent.eval.runner --models qwen2.5:7b --thinking off --modes constrained --run-tag jev-off-2
 AGENT_JEV_MODE=shadow .venv/bin/python -m services.agent.eval.runner --models qwen2.5:7b --thinking off --modes constrained --run-tag jev-shadow
 .venv/bin/python -m services.agent.eval.jev_noop_diff jev-off jev-shadow --baseline-tag jev-off-2
-.venv/bin/python -m services.agent.eval.jev_vs_qwen jev-shadow
+.venv/bin/python -m services.agent.eval.jev_vs_qwen jev-shadow --log services/agent/logs/jev_shadow.jsonl
 ```
+
+`jev_vs_qwen` reads qwen tools from each trajectory event, not from `response.tool_calls`. It joins Jev on the question text. The shadow log is `AGENT_JEV_LOG_PATH`. It is not a file inside the run folder. On this host that file is `services/agent/logs/jev_shadow.jsonl` in `/home/ubuntu/Wildfire-Services`. Pass `--log` when the eval checkout is a different directory.
 
 A field that differs between off and shadow, and also between the two off runs, is `llm_variance`. Only a difference that appears in the shadow run alone is a shadow effect. `AGENT_JEV_DAILY_CALL_CAP` counts user questions. One question may send several Jev calls. `AGENT_JEV_ABLATION` selects the shadow question layout.
 
+
+## Turning on tool_pick
+
+Set `AGENT_JEV_MODE=tool_pick` and restart. Leave `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` at `0.8` unless you want a different gate. Jev returns a tool name. This harness fills arguments from slots the router already resolved:
+
+- `data_query_records` needs a dataset and a year or date range.
+- `data_query_spatial` needs one utility plus that time span, or a coordinate pair.
+- `visualization_create` needs a dataset, a year or date range, and one explicit kind: a map word, or a trend/time-series word with daily, weekly, or monthly. Both kinds at once, or neither, falls back.
+- `comparison_run` needs a named metric plus either two utilities and one year, one utility and two years, or both HFTD tiers and one year.
+
+A missing required slot falls back to the qwen routing loop. So do a confidence below the threshold, a timeout, an error, a tool outside the candidate list, a failed tool call, and any question that needs more than one primary tool. Eval can still force `multi_intent_count_and_trend` onto the model path. A normal Ask with a dataset and a year runs that rule deterministically: the records count and the time series both, then the template, with no model call. One Jev pick does not answer a two-part question. Qwen still writes the prose when the template does not apply. Shadow mode stays identical to off for anything a user or the eval suite observes, aside from timings and request ids.
+
+## detect_partial_200 tool_pick tie
+
+`detect_partial_200` is the model-path question "Map the 2024 US ignition sample." Gold tool is `visualization_create`. On `jev-1.13.0` the tool_pick call sits near a tie with `clarify`. A wording probe on 2026-09-22, five repeats, same candidate set (`visualization_create` only), mean `visualization_create` probability:
+
+| Wording | Mean visualization_create |
+|---|---:|
+| Map the 2024 US ignition sample. | 0.54 |
+| Map the US ignition sample for 2024. | 0.55 |
+| Map the 2024 US ignitions. | 0.68 |
+| Map US ignitions for 2024. | 0.76 |
+
+The word "sample" costs 14 points when the year stays in front (0.54 to 0.68) and 21 points when the year stays at the end (0.55 to 0.76). Year position does not matter: the two sample wordings are 0.54 and 0.55.
+
+In `services/agent/eval/runs/jev_hybrid_raw_20260922T204748Z.json`, 12 of 14 model-path questions have a minimum top-two gap from 0.28 to 0.95. This case stays at 0.01 to 0.07. Confidence on the original wording was 0.25 to 0.37, so the default 0.8 gate falls back to the qwen tool loop (`below_threshold`).
+
+The glossary line in the tool_pick context says "us_ignitions is an all-cause sample, not a census." That line may be priming the clarify option when the question also says "sample." Question text and policy were left unchanged.
 
 ## Not implemented
 
@@ -86,6 +121,4 @@ Later phases, not built here:
 
 - `verify`: check the model-path tool pick before it runs
 - `fallback`: use Jev when the local model fails
-- `route`: let Jev choose the model-path tool
-
-Shadow mode must stay byte-for-byte identical to off for anything a user or the eval suite observes, aside from timings and request ids.
+- `route`: reserved name. Use `tool_pick` instead.

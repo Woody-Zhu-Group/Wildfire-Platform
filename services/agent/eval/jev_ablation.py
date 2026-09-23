@@ -13,8 +13,7 @@ from typing import Any
 from services.agent.decisions.backend import Answer, DecisionResult
 from services.agent.decisions.expected_facts import expected_facts
 from services.agent.decisions.jev_policy import JevFacts, derive_outcome, facts_from_answers
-from services.agent.decisions.schemas import DOMAIN_CONTEXT, routing_questions, tool_pick_questions
-from services.agent.decisions.v3 import calls_for
+from services.agent.decisions.v3 import calls_for_config
 from services.agent.eval.jev_metrics import field_applies, labels_match
 from services.agent.eval.jev_offline_eval import RUNS, _today, expected_for
 
@@ -27,14 +26,6 @@ CONFIGS = (
 )
 
 _IN_FLIGHT = threading.Semaphore(3)
-
-_V3_MODE = {
-    "v3_split": "per_call",
-    "v3_single": "concatenated",
-    "v3_no_glossary": "none",
-    "v3_policy_context": "policy",
-    "v3_hybrid": "policy",
-}
 
 
 def units_from_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -54,28 +45,7 @@ def units_from_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _calls(unit: dict[str, Any], config: str) -> list[dict[str, Any]]:
-    question = unit["question"]
-    today = _today()
-    tools = unit["tools"]
-    if config == "v2_full":
-        questions = dict(routing_questions())
-        if tools:
-            questions.update(tool_pick_questions(tools))
-        return [
-            {
-                "name": "v2",
-                "state": {"question": question, "today": today, "context": DOMAIN_CONTEXT},
-                "questions": questions,
-            }
-        ]
-    return calls_for(
-        question,
-        today,
-        include_tools=tools,
-        glossary_mode=_V3_MODE[config],
-        policy_context=DOMAIN_CONTEXT if config in {"v3_policy_context", "v3_hybrid"} else None,
-        include_direct_clarify=config == "v3_hybrid",
-    )
+    return calls_for_config(unit["question"], _today(), unit["tools"], config)
 
 
 def _run_calls(backend: Any, unit: dict[str, Any], config: str) -> dict[str, Any]:
@@ -140,9 +110,12 @@ def _values(unit: dict[str, Any], config: str, answers: dict[str, Answer]) -> di
     dataset = answers.get("dataset")
     tool = answers.get("tool_pick")
     direct_clarify = answers.get("clarify_reason")
-    clarify_reason = outcome.clarify_reason
-    if outcome.disposition == "clarify" and direct_clarify is not None and config == "v3_hybrid":
+    # Score the direct Choice on its own. Gold gating in field_applies still
+    # drops the metric unless the gold disposition is clarify.
+    if config == "v3_hybrid" and direct_clarify is not None:
         clarify_reason = direct_clarify.value
+    else:
+        clarify_reason = outcome.clarify_reason if outcome.disposition == "clarify" else None
     return {
         "disposition": outcome.disposition,
         "intent": None if intent is None else intent.value,

@@ -1,0 +1,402 @@
+[
+  {
+    "question": "How many CPUC utility-caused ignition reports were filed for PG&E in 2023?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Give me every CAL FIRE incident recorded in Sonoma County during 2019.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "For PGE, what was the monthly count of EPSS fast-trip outage events across 2022?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Plot SCE PSPS events from 2018 through 2021 on a map.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Between 2017 and 2023, how did SDGE's annual utility-caused ignition count change?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Put Butte County and Shasta County side by side for total CAL FIRE wildfire incidents in 2020.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Among the six covered utilities, which one reported the largest number of ignitions in 2021?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Show PG&E's PSPS-event trend year by year from 2019 to 2024.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "How many EPSS events in 2023 occurred on distribution circuits located in Tier 3 HFTD?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Pull the 2022 CPUC utility-caused ignition records for Liberty.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Which California counties recorded the most CAL FIRE wildfire incidents in 2018?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Display Bear Valley distribution circuits that intersect Tier 2 or Tier 3 HFTD areas.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "SCE had how many utility-caused ignition reports in 2020, and how many in 2022?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Break out 2020 PSPS events by utility.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "From 2017 to 2021, which counties experienced the biggest increase in CAL FIRE incident totals?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "At coordinates 39.4806, -121.1108, what historical modeled ignition risk is shown for June 15, 2022?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Map PacifiCorp's utility-caused ignition reports from 2021.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "PGE recorded how many fast-trip EPSS outages in each month of 2023?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "What were the PSPS event counts for PG&E, SCE, and SDGE in 2021, respectively?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Identify the distribution circuits associated with the most utility-caused ignition reports during 2022.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Can you map CAL FIRE incidents in Napa County for the 2015-2019 period?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Out of the sampled California wildfire ignitions in 2020, what fraction fell inside HFTD Tier 2 or Tier 3?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Order PG&E, SCE, SDGE, PacifiCorp, Liberty, and Bear Valley by their 2023 CPUC-reported ignition totals.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "How many PG&E PSPS events were recorded in 2018, 2019, and 2020?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Within Kern County, what was SCE's utility-caused ignition count for 2019?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Find the CAL FIRE wildfire incidents closest to Fresno that occurred in 2022.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Overlay PG&E's 2021 EPSS events with the HFTD Tier 3 boundary.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "For Mendocino County on August 1, 2020, what is the highest ignition-risk value in the historical model?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Take the 2019-2022 period and compare SDGE's utility-caused ignition totals with SCE's.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "List 2023 PSPS events associated with circuits inside Tier 3 HFTD.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "How many sampled wildfire ignitions of all causes occurred in California in 2016?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "In 2020, which California counties had both CAL FIRE incidents and CPUC utility-caused ignition reports?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Chart PacifiCorp's annual utility-caused ignition count from 2016 through 2022.",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "Was a distribution circuit serving Auburn, California, in Tier 2 or Tier 3 HFTD in 2021?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "How many utility-caused ignitions were recorded in Northern California during 2020?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Compare PGE and SCE utility-caused ignition activity.",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "For 2020, what was the historical ignition risk at an address in Paradise, California?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Show PSPS events around Santa Rosa.",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Between PG&E and SCE, which utility had more EPSS events?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "How many CAL FIRE incidents happened near San Jose?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Map utility-caused ignitions in Riverside County during summer.",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Which distribution circuits had the highest modeled ignition risk?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Can you list fast-trip outage events on EPSS settings?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "What was the total number of PSPS events for PG&E?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Show how HFTD areas changed across map versions.",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "What's the historical ignition risk for downtown Bakersfield?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Give me CPUC utility-caused ignition totals for the Bay Area.",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Were there more wildfire incidents in 2021 or 2022?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Which circuits overlap HFTD near Auburn?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "How many utility-caused ignitions did Liberty report in the last decade?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "Compare PSPS activity in Northern and Southern California.",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "What was the historical ignition risk for a residence in Placerville?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "List the CAL FIRE fires around Lake Tahoe.",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "What's the current wildfire risk for my home?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "Are there any active PSPS outages in California right now?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "How much did PG&E spend on wildfire mitigation in 2023?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "What will the ignition risk be on this circuit next summer?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "Predict which utility will have the most wildfire ignitions in 2027.",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "What does homeowners insurance cost in Tier 3 HFTD?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "Is my electricity out right now?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "What weather conditions caused the Camp Fire?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "What was PG&E's cost per customer for its EPSS program?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "Can the model forecast tomorrow's ignition hotspots?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "Which utility has the safest wildfire mitigation program?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "Find recent CPUC enforcement news involving SCE wildfire penalties.",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "How many firefighters were assigned to the Dixie Fire?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "What property damage costs were attributed to utility-caused fires by year?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "When is the next PSPS event expected in Sonoma County?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "Where should I buy a house if I want to minimize future wildfire risk?",
+    "intended_category": "out_of_scope"
+  },
+  {
+    "question": "tell me the 2022 ignition count for pge, sce, and sdge and put it in a chart",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "pge epss events in 2021 — how many were in tier 3 hftd?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "calfire incidents by county for 2019",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "map sdge psps events from 2020-2022 and list the affected circuits",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "how many utility caused ignitions did sce have in 2018 vs 2023",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "rank the utilities by number of PSPS events in 2019",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "what was the modeled ignition risk around Chico on september 2, 2020?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "show me PacifiCorp circuits that intersect tier 2 HFTD in 2022",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "liberty utility-caused fires from 2019 through 2021",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "compare calfire wildfire totals in Ventura County for 2017 and 2022",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "pge psps event count by year from 2018 to 2023 + total number of epss outages over the same years",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "how many sampled ignitions from all causes were in Sonoma County in 2021?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "which covered utility had the most CPUC ignition reports in 2020?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "show monthly epss outage counts for sce in 2022",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "calfire fire incidents in Santa Barbara County in 2016, 2018, and 2020",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "for july 14 2019, map the modeled ignition risk grid around Redding",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "which hftd tier covered the most utility distribution circuits in 2023?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "pge vs pacificorp utility-caused ignition totals in 2021",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "did bear valley have any cpuC-reported ignitions in 2017?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "list psps events affecting tier 2 circuits in 2022 and count them by utility",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "how many CAL FIRE incidents occurred in Tulare County in 2023?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "what proportion of 2020 sampled wildfire ignitions were inside utility service territories?",
+    "intended_category": "answerable"
+  },
+  {
+    "question": "give me the historical risk value for a grid cell at 38.5816, -121.4944",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "pge epss outages by month",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "compare calfire incidents in Monterey and Santa Cruz counties",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "map the HFTD boundary near Fresno and the circuits inside it",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "how many psps events affected utility customers in Sonoma County?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "what counties had the most utility-caused ignitions?",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "sdge ignition reports versus pge ignition reports",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "show the wildfire risk for Napa",
+    "intended_category": "missing_info"
+  },
+  {
+    "question": "which distribution circuits had the most epss events?",
+    "intended_category": "missing_info"
+  }
+]

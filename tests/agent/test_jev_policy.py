@@ -265,6 +265,15 @@ def test_policy_table():
         "time_out_of_coverage": "How many ignitions in 2030?",
         "risk_future_date": "",
         "measure_is_judgment": "Which utility had the most dangerous fires last year?",
+        "ambiguous_risk_metric": "Which utility is riskiest?",
+        "ambiguous_relative_time": "What were recent ignitions?",
+        "forecast_missing_date": "What is the fitted risk for Sacramento?",
+        "map_missing_year": "Show me the map of PG&E outages",
+        "trend_missing_year": "Show the monthly trend of CAL FIRE incidents",
+        "map_plus_trend_missing_year": "Map CAL FIRE incidents and show the trend",
+        "spatial_missing_year": "How many ignitions happened inside SCE territory?",
+        "records_missing_year": "How many PG&E ignitions were there?",
+        "ranking_missing_year": "Which county had the most CPUC ignitions?",
     }
     for name, facts, disposition, reason, topic in CASES:
         outcome = derive_outcome(facts, question=questions.get(name, "How many PGE ignitions in 2024?"))
@@ -311,6 +320,20 @@ def test_rank_triples_match_routing_source():
     assert found == ALLOWED_RANK_TRIPLES
 
 
+def test_compare_without_a_year_clarifies():
+    missing = derive_outcome(
+        JevFacts(intent="compare", dataset="cpuc_ignitions", has_time_scope=0.2),
+        question="Compare utility ignition totals",
+    )
+    assert missing.disposition == "clarify"
+    assert missing.clarify_reason == "records_missing_year"
+    answered = derive_outcome(
+        JevFacts(intent="compare", dataset="cpuc_ignitions", has_time_scope=0.9),
+        question="Compare utility ignition totals in 2024",
+    )
+    assert answered.disposition == "answer"
+
+
 def test_acres_metric_is_computed_in_code():
     outcome = derive_outcome(
         JevFacts(
@@ -322,6 +345,172 @@ def test_acres_metric_is_computed_in_code():
         question="Which county had the most acres burned in 2023?",
     )
     assert outcome.disposition == "answer"
+
+
+def test_riskiest_regex_clarifies_and_named_ignition_risk_answers():
+    clarify = derive_outcome(
+        JevFacts(asks_risk=0.32, names_risk_metric=0.05, intent="compare"),
+        question="Which utility is riskiest?",
+    )
+    assert clarify.clarify_reason == "ambiguous_risk_metric"
+    answer = derive_outcome(
+        JevFacts(
+            asks_risk=0.92,
+            names_risk_metric=0.09,
+            names_specific_place=0.84,
+            has_time_scope=0.98,
+            intent="risk",
+        ),
+        question="Predict historical ignition risk for cell 400 on 2024-08-15.",
+    )
+    assert answer.disposition == "answer"
+
+
+def test_resolved_year_blocks_a_missing_year_clarify_and_a_bare_map_still_asks():
+    counted = derive_outcome(
+        JevFacts(intent="count", dataset="cpuc_ignitions", has_time_scope=0.41, utilities={"PGE": 0.97}),
+        question="How many PG&E utility-attributed ignitions were there this year?",
+    )
+    assert counted.disposition == "answer"
+    mapped = derive_outcome(
+        JevFacts(intent="map", dataset="epss_outages", has_time_scope=0.65, utilities={"PGE": 0.97}),
+        question="Show me the map of PG&E outages",
+    )
+    assert mapped.clarify_reason == "map_missing_year"
+    dated = derive_outcome(
+        JevFacts(intent="map", dataset="epss_outages", has_time_scope=0.65, utilities={"PGE": 0.97}),
+        question="Show me the map of PG&E outages in 2024",
+    )
+    assert dated.disposition == "answer"
+
+
+def test_coordinate_lookup_skips_spatial_missing_year():
+    lookup = derive_outcome(
+        JevFacts(intent="spatial_context", has_time_scope=0.23, names_specific_place=0.97),
+        question="Which IOU, HFTD tier, and grid cell contain 38.58,-121.49?",
+    )
+    assert lookup.disposition == "answer"
+    territory = derive_outcome(
+        JevFacts(intent="spatial_context", has_time_scope=0.1, utilities={"SCE": 0.9}),
+        question="How many ignitions happened inside SCE territory?",
+    )
+    assert territory.clarify_reason == "spatial_missing_year"
+
+
+def test_utility_noul_counts_as_a_risk_place():
+    placed = derive_outcome(
+        JevFacts(
+            asks_risk=0.93,
+            names_risk_metric=0.73,
+            names_specific_place=0.11,
+            has_time_scope=0.96,
+            intent="risk",
+            utilities={"PGE": 0.97},
+        ),
+        question="What was PGE fitted ignition risk on 2024-08-15?",
+    )
+    assert placed.disposition == "answer"
+    missing = derive_outcome(
+        JevFacts(
+            asks_risk=0.93,
+            names_risk_metric=0.73,
+            names_specific_place=0.11,
+            has_time_scope=0.96,
+            intent="risk",
+            utilities={"PGE": 0.4},
+        ),
+        question="What was the fitted ignition risk on 2024-08-15?",
+    )
+    assert missing.clarify_reason == "risk_missing_place"
+
+
+def test_cross_dataset_rank_does_not_require_intent_rank():
+    mixed = derive_outcome(
+        JevFacts(
+            intent="multi_intent",
+            dataset="multiple",
+            rank_dimension="county",
+            mentions_multiple_datasets=0.98,
+            has_time_scope=0.96,
+            is_multi_intent=0.64,
+        ),
+        question="Which county had the most CAL FIRE incidents and CPUC ignitions in 2023?",
+    )
+    assert mixed.unsupported_topic == "unsupported_rank_cross_dataset"
+    trend = derive_outcome(
+        JevFacts(
+            intent="multi_intent",
+            dataset="cpuc_ignitions",
+            rank_dimension="none",
+            mentions_multiple_datasets=0.1,
+            has_time_scope=0.96,
+            is_multi_intent=0.9,
+        ),
+        question="Give me the SCE ignition count and its weekly trend for 2024.",
+    )
+    assert trend.disposition == "answer"
+    assert "unsupported_rank_cross_dataset" not in trend.trace
+
+
+def test_near_me_is_not_a_live_web_refusal():
+    outcome = derive_outcome(
+        JevFacts(
+            off_topic="live_or_web",
+            live_web_probability=0.82,
+            vague_proximity=0.91,
+            names_specific_place=0.02,
+            vague_time=0.99,
+            clarify_reason="missing_location",
+            clarify_reason_confidence=0.89,
+        ),
+        question="Show recent fires near me.",
+    )
+    assert outcome.disposition == "clarify"
+    assert outcome.clarify_reason == "missing_location"
+
+
+def test_which_fires_overrides_a_weak_live_web_label():
+    outcome = derive_outcome(
+        JevFacts(
+            off_topic="live_or_web",
+            live_web_probability=0.72,
+            vague_proximity=0.13,
+            names_specific_place=0.03,
+            clarify_reason="missing_location",
+            clarify_reason_confidence=0.75,
+        ),
+        question="Which fires should I look at?",
+    )
+    assert outcome.disposition == "clarify"
+    assert outcome.clarify_reason == "missing_location"
+
+
+def test_fires_burning_right_now_still_refuse():
+    outcome = derive_outcome(
+        JevFacts(
+            off_topic="live_or_web",
+            live_web_probability=0.95,
+            vague_proximity=0.1,
+            names_specific_place=0.05,
+            clarify_reason="not_applicable",
+            clarify_reason_confidence=0.9,
+        ),
+        question="What fires are burning right now?",
+    )
+    assert outcome.disposition == "unsupported"
+    assert outcome.unsupported_topic == "unsupported_live_web"
+    strong = derive_outcome(
+        JevFacts(
+            off_topic="live_or_web",
+            live_web_probability=0.9,
+            vague_proximity=0.1,
+            names_specific_place=0.05,
+            clarify_reason="missing_location",
+            clarify_reason_confidence=0.8,
+        ),
+        question="What fires are burning right now?",
+    )
+    assert strong.unsupported_topic == "unsupported_live_web"
 
 
 def test_hftd_map_does_not_need_a_year():
