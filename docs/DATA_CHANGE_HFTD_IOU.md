@@ -39,25 +39,55 @@ denominators.
 
 ## What changed
 
-- `db/loaders/arcgis_polygons.py` fetches each layer from its publisher's
-  FeatureServer as Esri JSON in EPSG:4326. The download is cached in
-  `data/boundaries/*.esri.json` (gitignored).
-- Each counterclockwise ring (hole) goes to the smallest clockwise ring
-  (outer) that contains it. A hole with no containing outer ring stops the
-  load.
-- PostGIS unions the resulting polygons. `ST_MakeValid` runs only on a
-  polygon that is still invalid. On this load, it was not needed for any of
-  them.
-- **Load gate.** Each table loads in one transaction and is rolled back
-  unless every geometry passes `ST_IsValid` and its EPSG:3310 area is within
-  0.1% of the publisher's `Shape__Area`.
-- **Audit columns.** `geom_source` keeps the old dataset_demo geometry.
-  `publisher_area_m2`, `source_url` and `source_edited_at` record the
-  reference.
-- `python -m db.loaders.rebuild_boundaries [--refresh]` reloads just these two
-  tables. `load_all` uses the same loaders.
-- The dataset_demo files are unchanged and still drive the web map. They are
-  no longer used for queries.
+- **Sources.** `db/loaders/arcgis_polygons.py` reads each layer as Esri JSON
+  in EPSG:4326, from a cache in `data/boundaries/*.esri.json` (gitignored),
+  or from the publisher's FeatureServer when there is no cache or
+  `--refresh` is given. With no cache and no network, the load stops with
+  the fix in the message, before any table is touched.
+- **Completeness.** Before truncating, the cached or fetched features must be
+  exactly the expected set: every utility (PG&E, SCE, PacifiCorp, SDG&E, LU,
+  BVES) and both tiers, each once. A partial download is refused and is not
+  cached.
+- **Rings.**
+  - Each counterclockwise ring (hole) goes to the smallest clockwise ring
+    (outer) that contains it. A hole with no containing outer ring stops the
+    load.
+  - Rings with fewer than 4 points are dropped and counted.
+  - A ring with exactly zero area stops the load.
+  - Slivers under 1 m2 are counted and kept. Tier 2 has 4, which are
+    digitizing artifacts in CPUC's layer.
+  - An outer ring nested directly inside another outer ring is counted and
+    unioned with it, which matches Esri's nonzero winding.
+  - The loader prints these counts for every feature.
+- **Union.** PostGIS unions each feature's polygons. `ST_MakeValid` runs only
+  on a polygon that is still invalid. On this load, it was not needed for any
+  of them.
+- **One transaction.** `db/loaders/load_boundaries.py` replaces
+  `iou_territories` and `hftd_tiers` together. The validity and area gate
+  runs on both tables inside the transaction, so a failure rolls back both.
+  New IOU rows never sit beside old HFTD rows.
+- **Load gate.** Every geometry must pass `ST_IsValid`, and its EPSG:3310
+  area must be within 0.1% of the publisher's `Shape__Area`.
+- **Audit columns.**
+  - `geom_source` keeps the old dataset_demo geometry. It is NULL where
+    dataset_demo is absent, as on EC2.
+  - `publisher_area_m2`, `source_url` and `source_edited_at` record the
+    reference.
+- **Commands.**
+  - `python -m db.loaders.rebuild_boundaries [--fetch-only | --refresh]`
+    seeds the cache or reloads just these two tables.
+  - `load_all` uses the same combined load. If the boundaries fail (no
+    source, or a failed gate), `load_all` keeps their previous rows, loads
+    every other table, and exits non-zero.
+- **Web map.** The Historical Map and the website draw these layers from the
+  database through the visualization service (`/map-layer?dataset=hftd` and
+  `/utility-territory`), not from files. Those two queries now draw
+  `ST_SimplifyPreserveTopology(geom, 0.001)` with 5-decimal coordinates.
+  That keeps the Tier 2 payload at about 1.0 MB instead of 2.8 MB, and SCE's
+  at 69 KB instead of 3.0 MB. Bounds and centers still use the full
+  geometry. Every count and containment query uses the full geometry. Only
+  the older fast-trip PSPS section of `frontend/` still reads the dataset_demo
+  files directly.
 
 ### Sources
 
@@ -82,18 +112,26 @@ The loader therefore treats it as an outer ring (`RingOverride` in
 passes the gate at -0.0975%, just inside the limit, but it would drop those
 outages from PG&E's territory.
 
+The override cannot flip any other ring:
+- It must match exactly one PG&E hole that contains the point
+  (-122.0402, 38.0816).
+- That hole's spherical area must be within 0.5% of 181.22 km2 (181.33 km2
+  in EPSG:3310). The next-largest hole in either layer is 135 km2.
+- It stops the load if it matches no hole, more than one hole, or no
+  feature.
+
 ### Areas after the rebuild (km2, EPSG:3310)
 
 | Region | Before (sum of parts) | After | Publisher | After vs publisher |
 |---|---|---|---|---|
-| HFTD Tier 2 | 167,125.4 | 149,984.7 | 149,984.7 | 0.0000% |
-| HFTD Tier 3 | 32,972.8 | 32,327.0 | 32,327.0 | 0.0000% |
-| PGE | 186,196.2 | 185,940.7 | 185,940.7 | 0.0000% |
-| SCE | 136,702.9 | 135,343.1 | 135,343.1 | 0.0000% |
-| PACIFICORP | 28,700.1 | 28,648.7 | 28,648.7 | -0.0001% |
-| SDGE | 11,427.1 | 11,396.2 | 11,396.2 | 0.0000% |
-| Liberty | 3,841.8 | 3,834.8 | 3,834.8 | 0.0000% |
-| BVES | 203.3 | 203.5 | 203.5 | 0.0000% |
+| HFTD Tier 2 | 167,125.37 | 149,984.71 | 149,984.70 | +0.0000% |
+| HFTD Tier 3 | 32,972.81 | 32,326.98 | 32,326.97 | +0.0000% |
+| PGE | 186,196.21 | 185,940.74 | 185,940.74 | 0.0000% |
+| SCE | 136,702.88 | 135,343.07 | 135,343.07 | 0.0000% |
+| PACIFICORP | 28,700.04 | 28,648.65 | 28,648.68 | -0.0001% |
+| SDGE | 11,427.12 | 11,396.24 | 11,396.24 | 0.0000% |
+| Liberty | 3,841.76 | 3,834.83 | 3,834.83 | 0.0000% |
+| BVES | 203.34 | 203.49 | 203.49 | 0.0000% |
 
 Anything divided by these areas changes too. For example, per-km2 rates for
 Tier 2 rise by 11.4%.
@@ -105,8 +143,9 @@ services used until this change. "After" runs it against the rebuilt `geom`.
 The predicates are the ones the services use:
 - `ST_Within` for point events;
 - `ST_Intersects` for PSPS polygons, circuits, and grid cells;
-- `ST_Contains` with the first match by id for city points, as in
-  `/spatial/point`.
+- `ST_Contains` for city points, as in `/spatial/point`. For city points the
+  table lists every region that contains the point, because `/spatial/point`
+  returns one match with no ordering.
 
 Counts are by calendar year of the event date. They were measured on the
 local warehouse on 2026-09-23.
@@ -356,7 +395,9 @@ local warehouse on 2026-09-23.
 
 ### City center points whose answer changes (483 incorporated places checked)
 
-**IOU territory** (11 cities)
+Points: the Census 2025 Gazetteer internal points (`INTPTLAT`, `INTPTLONG`) of the 483 California incorporated places, meaning cities and towns (LSAD 25 and 43), from <https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_gaz_place_06.txt>. They are the same points as `data/places/ca_places_gazetteer_2025.csv` in PR #28, filtered to `place_type` city or town. Each cell lists every region containing the point.
+
+**IOU territory** (12 cities)
 
 | City | Before | After |
 |---|---|---|
@@ -364,6 +405,7 @@ local warehouse on 2026-09-23.
 | Anaheim | SCE | none |
 | Azusa | SCE | none |
 | Banning | SCE | none |
+| Big Bear Lake | BVES, SCE | BVES |
 | Colton | SCE | none |
 | Foster City | none | PGE |
 | Malibu | none | SCE |
@@ -372,31 +414,32 @@ local warehouse on 2026-09-23.
 | Riverside | SCE | none |
 | West Hollywood | none | SCE |
 
-**HFTD tier** (17 cities)
+**HFTD tier** (18 cities)
 
 | City | Before | After |
 |---|---|---|
-| Anderson | HFTD Tier 2 | none |
-| Auburn | HFTD Tier 2 | none |
-| Colfax | HFTD Tier 2 | none |
-| Dunsmuir | HFTD Tier 2 | HFTD Tier 3 |
-| Grass Valley | HFTD Tier 2 | none |
-| Jackson | HFTD Tier 2 | none |
-| Lompoc | HFTD Tier 2 | none |
-| Loyalton | HFTD Tier 2 | none |
-| Placerville | HFTD Tier 3 | HFTD Tier 2 |
-| Redding | HFTD Tier 2 | none |
-| Scotts Valley | HFTD Tier 3 | none |
-| Shasta Lake | HFTD Tier 2 | none |
-| Sutter Creek | HFTD Tier 2 | none |
-| Tehachapi | HFTD Tier 2 | HFTD Tier 3 |
-| Truckee | HFTD Tier 2 | HFTD Tier 3 |
-| Ukiah | HFTD Tier 2 | none |
-| Willits | HFTD Tier 2 | none |
+| Anderson | Tier 2 | none |
+| Auburn | Tier 2 | none |
+| Banning | Tier 2, Tier 3 | Tier 2 |
+| Colfax | Tier 2 | none |
+| Dunsmuir | Tier 2, Tier 3 | Tier 3 |
+| Grass Valley | Tier 2 | none |
+| Jackson | Tier 2 | none |
+| Lompoc | Tier 2 | none |
+| Loyalton | Tier 2 | none |
+| Placerville | Tier 3 | Tier 2 |
+| Redding | Tier 2 | none |
+| Scotts Valley | Tier 3 | none |
+| Shasta Lake | Tier 2 | none |
+| Sutter Creek | Tier 2 | none |
+| Tehachapi | Tier 2, Tier 3 | Tier 3 |
+| Truckee | Tier 2, Tier 3 | Tier 3 |
+| Ukiah | Tier 2 | none |
+| Willits | Tier 2 | none |
 
 PGE 2024 CPUC ignitions: 532 by attribute (utility = PGE) and 536 by spatial containment, both before and after the rebuild. The 4-ignition gap between the two definitions is real, not a geometry artifact.
 
-"Before" for city points is the first match by id among the polygons containing the point, on the old geometry. On invalid polygons that answer also depended on the GEOS version, so production may have answered some of these differently.
+Where the old geometry had two containing regions (Big Bear Lake; Banning, Dunsmuir, Tehachapi and Truckee for HFTD), `/spatial/point` returned one of them with no fixed order. On invalid polygons the answer also depended on the GEOS version.
 
 ## When the corrected data applies
 
@@ -415,12 +458,34 @@ PGE 2024 CPUC ignitions: 532 by attribute (utility = PGE) and 536 by spatial con
 
 ## Deploy notes
 
-- The EC2 database needs the same reload. The schema apply adds the new
-  columns (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`).
-- The EC2 host needs outbound HTTPS to `services2.arcgis.com`, or copy the
-  two cached `data/boundaries/*.esri.json` files there first.
-- If the gate fails, the load for that table rolls back and the old rows
-  stay in place. The command exits non-zero with the reason.
-- PR #28 (city center points) answers "which IOU territory or HFTD tier is
-  this city in" from these tables. Its answers are only as right as this
-  geometry, so deploy this reload with or before #28.
+1. **Seed the source cache (required).** On a machine with network access,
+   run `python -m db.loaders.rebuild_boundaries --fetch-only`. It downloads
+   both layers, checks that every utility and both tiers are present, and
+   writes `data/boundaries/cpuc_hftd.esri.json` and
+   `data/boundaries/cpuc_iou_service_territories.esri.json`. Copy both files
+   to the same path on the EC2 host. The files are gitignored and are not
+   deployed by git. Keep them with the deploy, because they are what the
+   warehouse was built from.
+2. **Reload.** On EC2, run `python -m db.loaders.rebuild_boundaries`. It
+   checks the cache before connecting, applies the schema (this adds the new
+   columns with `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`), then replaces
+   both tables in one transaction behind the gate. It exits non-zero and
+   changes nothing if the cache is missing or incomplete, an override does
+   not match, or the gate fails.
+3. **Brief lock.** The reload truncates `iou_territories` and `hftd_tiers`
+   inside its transaction. That takes an ACCESS EXCLUSIVE lock, so any query
+   that reads either table (spatial summaries, comparisons, point lookups,
+   map layers, utility risk) waits until the reload commits. That took 4.0 seconds on
+   the local warehouse (measured 2026-09-23). Run it outside analyst hours, or accept a
+   short pause.
+4. **Full loads.** `load_all` uses the same combined load. Without a seeded
+   cache and without network, it keeps the old boundary rows, loads every
+   other table, and exits non-zero with this section's reference.
+5. **geom_source.** EC2 has no dataset_demo, so `geom_source` is NULL there.
+   The audit copy exists only where dataset_demo was present at load time.
+6. **Record the date.** Record the EC2 reload date in "When the corrected
+   data applies" above.
+7. **Deploy order with PR #28.** PR #28 (city center points) answers "which
+   IOU territory or HFTD tier is this city in" from these tables. Its answers
+   are only as right as this geometry, so deploy this reload with or before
+   #28.
