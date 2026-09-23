@@ -25,17 +25,19 @@ Roughly 200 extra input tokens per question, all on the facts call. Six short No
 - `year`: one year when the parser has a single year
 - `start_date` and `end_date`
 - `dataset`: one dataset, or null when two catalogs are named
-- `county`: one county
+- `county`: one county, and only when exactly one county is named
+- `counties`: every county the question names
 - `coords`: one latitude and longitude pair
 
-It cannot return several counties. `_county` keeps the first name only. Adding a list means collecting every county mention the same way `_utilities` does, and teaching the planner to emit one call per county or a regions comparison when the schema allows it.
+`_county` still returns the first name. The planner reads `counties` and emits one records count per county when a count is asked. A single records call still takes one county, so the plan is several calls, capped at 6.
 
 ## Planner
 
 `plan_calls(facts, slots)` returns an ordered list of `(tool, arguments)` or a fallback reason. It does not read `candidate_tools`. It builds the set itself.
 
 - `by_month` or `by_week` becomes one `visualization_create` time series at that interval.
-- `by_year` becomes one `data_query_records` count per year in `slots["years"]`. Two years and one scope can be `comparison_run` kind `periods` instead.
+- `by_year` becomes one `data_query_records` count per year in `slots["years"]`. `comparison_run` kind `periods` is used only for exactly two years. Three or more named years are one count per year.
+- A list question with one dataset and one time scope becomes one `data_query_records` call with `result_mode=records`.
 - Several utilities and a count become one `data_query_records` count per utility, or one `comparison_run` kind `utilities` when the metric and a single year are supported.
 - `by_county` with a ranking intent becomes `data_query_rank` with `group_by=county`.
 - A count plus a chart becomes `data_query_records` then `visualization_create`.
@@ -51,9 +53,14 @@ A plan has at most 6 calls. Fall back to the model path when:
 - a required slot is missing
 - a planned tool cannot express the request
 - the plan would exceed 6 calls
-- any planning fact used in the plan is below 0.8
+- any planning fact is unresolved. For a yes/no fact the gate uses confidence in the chosen side, `max(p, 1 - p)`. A probability of 0.08 is a confident no. A probability between 0.2 and 0.8 is unresolved and the plan falls back
+- the finished plan does not cover every requested component or every named entity
 
-No partial plans. If any part of the question cannot be planned, fall back rather than answer half. A rendered number must appear in tool evidence.
+No partial plans. After the calls are built, the planner checks count, list, series, map, ranking, comparison, and each named utility, county, and year. If any requested part is missing, it falls back. A rendered number must appear in tool evidence.
+
+## Spatial lookup then risk, not built
+
+A coordinate plus a past day is already a deterministic two-step chain in the router: `data_query_spatial` returns the grid cell, then `risk_forecast` scores that cell. The planner cannot emit that pair yet. The cell id is not in the question. It exists only after the spatial call returns, and `plan_calls` has to write every argument before any tool runs. Wiring it would mean a second planning step that reads the spatial result, checks the cell id is present, and only then builds the risk call. If the spatial call fails or returns no cell, the whole plan falls back. That second step is not implemented.
 
 ## Gaps the seen holdout exposed
 

@@ -225,6 +225,10 @@
       "data_query_spatial",
       "risk_forecast"
     ],
+    "gold_plan": [
+      "data_query_spatial",
+      "risk_forecast"
+    ],
     "required_caveats": [
       "cnhpp_grid_resolution",
       "cnhpp_contagion_tie"
@@ -245,6 +249,10 @@
       "data_query_records",
       "data_query_records"
     ],
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records"
+    ],
     "required_caveats": [
       "us_ignitions_sample"
     ],
@@ -256,6 +264,10 @@
     "question": "Give me the PGE ignition count and its monthly trend for 2024.",
     "expected_route": "deterministic",
     "expected_tools": [
+      "data_query_records",
+      "visualization_create"
+    ],
+    "gold_plan": [
       "data_query_records",
       "visualization_create"
     ],
@@ -428,6 +440,10 @@
     "question": "Give me the SCE ignition count and its weekly trend for 2023.",
     "expected_route": "deterministic",
     "expected_tools": [
+      "data_query_records",
+      "visualization_create"
+    ],
+    "gold_plan": [
       "data_query_records",
       "visualization_create"
     ],
