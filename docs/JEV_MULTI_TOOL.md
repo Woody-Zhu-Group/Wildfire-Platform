@@ -8,7 +8,7 @@ The first holdout has been read. Do not report its disposition as a clean number
 
 ## Facts
 
-The plan is built from choices, not from overlapping yes/no facts. `intent`, `dataset`, and `rank_dimension` already live on the topic call. `breakdown` stays on the facts call. The `wants_*` Nouls and `is_multi_part` were removed: a count per year is both a count and a series, so those facts sat in the 0.2 to 0.8 band and the all-facts gate blocked the plan. How many years, utilities, or counties are named comes from router slots, not from Jev.
+The plan is built from choices, not from overlapping yes/no facts. `intent`, `dataset`, and `rank_dimension` already live on the topic call. `breakdown` stays on the facts call, and is sent only in plan mode: shadow, tool_pick, tool_pick_template, and any decide mode send exactly the nine-Noul facts call measured for PR 43. The `wants_*` Nouls and `is_multi_part` were removed: a count per year is both a count and a series, so those facts sat in the 0.2 to 0.8 band and the all-facts gate blocked the plan. How many years, utilities, or counties are named comes from router slots, not from Jev.
 
 Two additions, only where intent plus breakdown cannot pick one plan:
 

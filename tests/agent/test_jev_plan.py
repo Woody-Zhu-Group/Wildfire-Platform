@@ -351,3 +351,60 @@ def test_every_rendered_number_traces_to_evidence():
         assert number in text
         assert number in evidence
     assert "999" not in text
+
+
+# Facts payload hashes on platform/main at the PR 46 rebase, today 2026-09-22,
+# model jev-latest, config v3_hybrid. Outside plan mode the facts call must
+# hash to these, so shadow and the tool_pick modes send exactly the PR 43 call.
+_MAIN_FACTS_HASHES = {
+    ("How many EPSS outages occurred in 2024?", ("data_query_records",)): (
+        "e40291568e5a5a8c44f6b67bc21ba42fb69059b3f7041a61b04b521c3a9b4b26"
+    ),
+    ("Show a weekly CPUC ignition time series for 2024.", None): (
+        "1131358d94be0d006962c0371a991e19a2bee17bd2a9dc36ca392b89d2f59ea3"
+    ),
+}
+_PLAN_ONLY = {"breakdown", "output_form", "also_chart"}
+
+
+def test_facts_payload_outside_plan_mode_hashes_the_same_as_main():
+    from services.agent.decisions.canonical import payload_hash
+    from services.agent.decisions.shadow import _payload
+    from services.agent.decisions.v3 import calls_for_config
+
+    for (question, tools), expected in _MAIN_FACTS_HASHES.items():
+        calls = calls_for_config(question, "2026-09-22", list(tools) if tools else None, "v3_hybrid")
+        facts = next(call for call in calls if call["name"] == "facts")
+        assert not _PLAN_ONLY & set(facts["questions"])
+        assert payload_hash(_payload(facts["state"], facts["questions"], "jev-latest")) == expected
+
+
+def test_plan_mode_adds_exactly_the_three_plan_questions_to_the_facts_call():
+    from services.agent.decisions.v3 import calls_for_config
+
+    question = "How many EPSS outages occurred in 2024?"
+    without = next(c for c in calls_for_config(question, "2026-09-22", None, "v3_hybrid") if c["name"] == "facts")
+    with_plan = next(
+        c for c in calls_for_config(question, "2026-09-22", None, "v3_hybrid", plan=True) if c["name"] == "facts"
+    )
+    assert set(with_plan["questions"]) - set(without["questions"]) == _PLAN_ONLY
+    for name in ("topic", "places"):
+        a = next(c for c in calls_for_config(question, "2026-09-22", None, "v3_hybrid") if c["name"] == name)
+        b = next(c for c in calls_for_config(question, "2026-09-22", None, "v3_hybrid", plan=True) if c["name"] == name)
+        assert set(a["questions"]) == set(b["questions"])
+
+
+def test_offline_facts_call_hashes_the_same_as_the_shadow_facts_call(monkeypatch):
+    from services.agent.decisions.canonical import payload_hash
+    from services.agent.decisions.shadow import _payload
+    from services.agent.decisions.v3 import calls_for_config
+    from services.agent.eval import jev_ablation
+
+    today = "2026-09-22"
+    monkeypatch.setattr(jev_ablation, "_today", lambda: today)
+    question = "Show a weekly CPUC ignition time series for 2024."
+    offline = next(c for c in jev_ablation._calls({"question": question, "tools": None}, "v3_hybrid") if c["name"] == "facts")
+    live = next(c for c in calls_for_config(question, today, None, "v3_hybrid") if c["name"] == "facts")
+    assert payload_hash(_payload(offline["state"], offline["questions"], "jev-latest")) == (
+        payload_hash(_payload(live["state"], live["questions"], "jev-latest"))
+    )

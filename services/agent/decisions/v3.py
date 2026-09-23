@@ -63,8 +63,15 @@ def tool_glossary(tools: list[str]) -> str:
     return "Tools:\n" + "\n".join(lines)
 
 
-def fact_questions() -> dict[str, QuestionSpec]:
+def fact_questions(*, plan: bool = False) -> dict[str, QuestionSpec]:
+    """The facts call. The three plan questions are sent only in plan mode.
+
+    Shadow, tool_pick, tool_pick_template, and any decide mode send exactly the
+    nine Nouls measured for PR 43; adding a question changes that payload.
+    """
     questions = {name: _noul(text) for name, text in FACT_NOULS.items()}
+    if not plan:
+        return questions
     questions["breakdown"] = _choice(
         "If the question asks for a breakdown, what is the split?",
         {
@@ -233,6 +240,7 @@ def calls_for(
     glossary_mode: str = "per_call",
     policy_context: str | None = None,
     include_direct_clarify: bool = False,
+    plan: bool = False,
 ) -> list[dict]:
     """Build the v3 calls. glossary_mode is per_call, concatenated, none, or policy."""
     topic_qs = topic_questions()
@@ -240,7 +248,7 @@ def calls_for(
         from services.agent.decisions.schemas import routing_questions
 
         topic_qs["clarify_reason"] = routing_questions()["clarify_reason"]
-    fact = {"name": "facts", "questions": fact_questions(), "glossary": None}
+    fact = {"name": "facts", "questions": fact_questions(plan=plan), "glossary": None}
     topic = {"name": "topic", "questions": topic_qs, "glossary": dataset_glossary()}
     places = {"name": "places", "questions": place_questions(), "glossary": None}
     grouped = [fact, topic, places]
@@ -283,8 +291,14 @@ def calls_for_config(
     today: str,
     tools: list[str] | None,
     config: str,
+    *,
+    plan: bool = False,
 ) -> list[dict]:
-    """The calls shadow and the offline ablation send for one ablation config."""
+    """The calls shadow and the offline ablation send for one ablation config.
+
+    plan=True adds the breakdown, output_form, and also_chart questions to the
+    facts call; only the planner passes it.
+    """
     from services.agent.decisions.schemas import (
         DOMAIN_CONTEXT,
         routing_questions,
@@ -316,6 +330,7 @@ def calls_for_config(
         glossary_mode=mode,
         policy_context=DOMAIN_CONTEXT if config in {"v3_policy_context", "v3_hybrid"} else None,
         include_direct_clarify=config == "v3_hybrid",
+        plan=plan,
     )
 
 
