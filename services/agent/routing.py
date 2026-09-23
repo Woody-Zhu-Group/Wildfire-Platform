@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
+from services.agent.clarify_missing import complete_clarification
 from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
 from services.shared.dataset_registry import HDW_YEARS
 
@@ -1909,6 +1910,23 @@ def _route_ranking(
 
 
 def route_question(question: str, *, force_model: bool = False) -> RouteDecision:
+    """Route one question. A clarification asks for every missing item at once.
+
+    The rule and path come from _route_question alone; only the clarification
+    text is completed, from the same slots.
+    """
+    decision = _route_question(question, force_model=force_model)
+    if decision.path == "clarification":
+        decision.answer = complete_clarification(
+            decision.rule,
+            " ".join(question.strip().split()),
+            decision.slots,
+            decision.answer,
+        )
+    return decision
+
+
+def _route_question(question: str, *, force_model: bool = False) -> RouteDecision:
     text = " ".join(question.strip().split())
     lower = text.lower()
     utilities = _utilities(text)
