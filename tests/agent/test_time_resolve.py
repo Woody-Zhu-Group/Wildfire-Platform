@@ -147,3 +147,116 @@ def test_explicit_calendar_day_is_not_widened():
     assert comma.start_date == comma.end_date == "2024-08-15"
     day_first = resolve_time("15 August 2024", today=TODAY)
     assert day_first.start_date == day_first.end_date == "2024-08-15"
+
+
+def test_open_range_up_to_today_ends_today():
+    result = resolve_time(
+        "How many PG&E ignitions were there from January 2024 up to today?",
+        today=TODAY,
+    )
+    assert result.status == "relative_range"
+    assert result.year is None
+    assert result.years == (2024, 2025, 2026)
+    assert result.start_date == "2024-01-01"
+    assert result.end_date == "2026-08-10"
+
+
+def test_open_range_since_month_ends_today():
+    result = resolve_time("PG&E ignitions since March 2023", today=TODAY)
+    assert result.status == "relative_range"
+    assert result.start_date == "2023-03-01"
+    assert result.end_date == "2026-08-10"
+
+
+def test_open_range_through_today_ends_today():
+    result = resolve_time("ignitions from 2023 through today", today=TODAY)
+    assert result.status == "relative_range"
+    assert result.start_date == "2023-01-01"
+    assert result.end_date == "2026-08-10"
+
+
+def test_open_range_to_date_ends_today():
+    result = resolve_time("SCE ignitions 2021 to date", today=TODAY)
+    assert result.status == "relative_range"
+    assert result.start_date == "2021-01-01"
+    assert result.end_date == "2026-08-10"
+
+
+def test_open_range_other_end_words_and_day_starts():
+    until_now = resolve_time("ignitions from 2024-08-15 until now", today=TODAY)
+    assert until_now.start_date == "2024-08-15"
+    assert until_now.end_date == "2026-08-10"
+    since_day = resolve_time("ignitions since August 15, 2024", today=TODAY)
+    assert since_day.start_date == "2024-08-15"
+    assert since_day.end_date == "2026-08-10"
+    same_year = resolve_time("ignitions since March 2026", today=TODAY)
+    assert same_year.year == 2026
+    assert same_year.start_date == "2026-03-01"
+    assert same_year.end_date == "2026-08-10"
+
+
+def test_open_range_end_is_capped_at_coverage():
+    from services.agent.time_resolve import open_ended_range
+
+    result = open_ended_range("since 2024", today=TODAY)
+    assert result is not None
+    assert result.end_date == TODAY.isoformat()
+    assert result.end_date <= f"{TODAY.year}-12-31"
+
+
+def test_open_range_outside_coverage_clarifies():
+    before = resolve_time("ignitions since 2010", today=TODAY)
+    assert before.status == "out_of_coverage"
+    assert "2010" in before.reason
+    after = resolve_time("ignitions since December 2026", today=TODAY)
+    assert after.status == "out_of_coverage"
+    assert after.start_date is None
+
+
+def test_since_with_named_end_stays_bounded():
+    years = resolve_time("ignitions since 2020 to 2022", today=TODAY)
+    assert years.status == "explicit"
+    assert years.start_date == "2020-01-01"
+    assert years.end_date == "2022-12-31"
+    months = resolve_time("ignitions since March 2023 to May 2024", today=TODAY)
+    assert months.start_date == "2023-03-01"
+    assert months.end_date == "2024-05-31"
+
+
+def test_single_months_and_bounded_ranges_are_unchanged():
+    month = resolve_time("PG&E ignitions in January 2024", today=TODAY)
+    assert month.status == "explicit"
+    assert (month.start_date, month.end_date) == ("2024-01-01", "2024-01-31")
+    span = resolve_time("from august 2023 to september 2024", today=TODAY)
+    assert (span.start_date, span.end_date) == ("2023-08-01", "2024-09-30")
+    years = resolve_time("from 2018 through 2022", today=TODAY)
+    assert (years.start_date, years.end_date) == ("2018-01-01", "2022-12-31")
+    today = resolve_time("what is the risk today", today=TODAY)
+    assert today.start_date == today.end_date == "2026-08-10"
+
+
+def test_apostrophe_year_in_coverage_stays_in_the_2000s():
+    for written, year in (("'24", 2024), ("'14", 2014)):
+        result = resolve_time(f"ignitions in {written}", today=TODAY)
+        assert result.status == "explicit"
+        assert result.year == year
+
+
+def test_apostrophe_99_is_the_1990s_and_clarifies():
+    from services.agent.time_resolve import expand_apostrophe_year
+
+    assert expand_apostrophe_year("fires in '99") == "fires in 1999"
+    result = resolve_time("How many ignitions were there in '99?", today=TODAY)
+    assert result.status == "out_of_coverage"
+    assert result.year == 1999
+    assert "1999" in result.reason
+    assert "2099" not in result.reason
+
+
+def test_apostrophe_years_outside_coverage_clarify_in_either_century():
+    early = resolve_time("ignitions in '05", today=TODAY)
+    assert early.status == "out_of_coverage"
+    assert early.year == 2005
+    late = resolve_time("ignitions in '75", today=TODAY)
+    assert late.status == "out_of_coverage"
+    assert late.year == 1975
