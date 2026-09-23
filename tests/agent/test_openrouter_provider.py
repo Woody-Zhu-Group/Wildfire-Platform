@@ -169,11 +169,14 @@ def test_tool_call_path_uses_native_tool_choice(clean_env, capsys):
     assert body["model"] == "openai/gpt-6-luna"
     assert body["tool_choice"] == "required"
     assert [t["function"]["name"] for t in body["tools"]] == ["data_query_records"]
-    assert body["tools"][0] == catalog[0]
+    from services.agent.provider import strict_nullable_tool
+
+    assert body["tools"][0] == strict_nullable_tool(catalog[0])
     for ollama_only in ("format", "options", "keep_alive", "think"):
         assert ollama_only not in body
     assert "response_format" not in body
-    assert reply.tool_calls == [call]
+    assert [c["function"]["name"] for c in reply.tool_calls] == ["data_query_records"]
+    assert json.loads(reply.tool_calls[0]["function"]["arguments"]) == {"dataset": "epss_outages"}
     assert reply.usage["computed_cost_usd"] == pytest.approx((1000 * 0.10 + 200 * 0.50) / 1e6)
     logged = [json.loads(line) for line in capsys.readouterr().out.splitlines() if "llm_usage" in line]
     assert logged[0]["input_tokens"] == 1000 and logged[0]["output_tokens"] == 200
@@ -279,3 +282,52 @@ def test_openrouter_jev_backend_pins_the_dated_model(clean_env):
     assert AgentSettings.from_env().jev_model == "typesafe/jev-1.13-20260917"
     clean_env.setenv("AGENT_JEV_MODEL", "jev-latest")
     assert AgentSettings.from_env().jev_model == "jev-latest"
+
+
+def test_strict_tool_schema_makes_optional_fields_nullable():
+    from services.agent.provider import strict_nullable_tool
+    from services.agent.schemas import openai_tools
+
+    original = openai_tools(["data_query_spatial"], profile="lean_enums")[0]
+    strict = strict_nullable_tool(original)["function"]
+    params = strict["parameters"]
+    assert strict["strict"] is True
+    assert set(params["required"]) == set(params["properties"])
+    assert params["additionalProperties"] is False
+    # Required stays non-null; optional fields accept null.
+    assert params["properties"]["kind"]["type"] == "string"
+    assert None not in params["properties"]["kind"]["enum"]
+    assert params["properties"]["lat"]["type"] == ["number", "null"]
+    assert params["properties"]["hftd_tier"]["enum"][-1] is None
+    # The input catalog is not mutated.
+    assert original["function"]["parameters"]["properties"]["lat"]["type"] == "number"
+
+
+def test_null_arguments_mean_not_set(clean_env):
+    settings = _hosted(clean_env)
+    call = {
+        "id": "call_1",
+        "type": "function",
+        "function": {
+            "name": "data_query_spatial",
+            "arguments": json.dumps(
+                {"kind": "summary", "utility": "PGE", "lat": None, "lon": None, "hftd_tier": None}
+            ),
+        },
+    }
+    recorder = _Recorder([_chat_reply({"content": None, "tool_calls": [call]})])
+    provider = OpenAICompatibleProvider(settings, transport=httpx.MockTransport(recorder))
+
+    async def run():
+        reply = await provider.complete(
+            messages=[{"role": "user", "content": "q"}],
+            tools=[],
+            structured_response=False,
+            constrained_tool_routing=True,
+            candidate_tools=["data_query_spatial"],
+        )
+        await provider.close()
+        return reply
+
+    reply = asyncio.run(run())
+    assert json.loads(reply.tool_calls[0]["function"]["arguments"]) == {"kind": "summary", "utility": "PGE"}

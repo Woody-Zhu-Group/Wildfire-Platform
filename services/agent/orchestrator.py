@@ -18,6 +18,7 @@ from services.agent.caveats import collect_qualifications
 from services.agent.config import AgentSettings
 from services.agent.constrained import ROUTING_CONSTRAINED_PROMPT
 from services.agent.domain import DOMAIN_REFERENCE
+from services.agent.grounding import ground_model_filters
 from services.agent.provider import OpenAICompatibleProvider, SynthesisTimeoutError
 from services.agent.routing import (
     RouteDecision,
@@ -1080,6 +1081,19 @@ class AgentOrchestrator:
                 tool = str(function.get("name") or "")
                 try:
                     args = json.loads(function.get("arguments") or "{}")
+                    args, dropped = ground_model_filters(
+                        args, question=question, county=county
+                    )
+                    for item in dropped:
+                        event = {
+                            "type": "filter_dropped",
+                            "phase": "routing",
+                            "step": step,
+                            "tool": tool,
+                            **item,
+                        }
+                        trajectory.append(event)
+                        print(json.dumps({"event": "filter_dropped", **event}, default=str))
                     canonical_args = json.dumps(args, sort_keys=True, default=str)
                 except json.JSONDecodeError as exc:
                     routing_messages.append(

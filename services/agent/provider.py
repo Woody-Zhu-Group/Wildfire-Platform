@@ -61,6 +61,47 @@ def strict_agent_answer_schema() -> dict[str, Any]:
     return schema
 
 
+def strict_nullable_tool(tool: dict[str, Any]) -> dict[str, Any]:
+    """Strict function schema where every optional field accepts null.
+
+    Strict mode requires every property to be listed in required. Without null,
+    a model must invent a value for each optional filter (circuit_id "000000000",
+    lat 0). Null means "not set" and is removed by drop_null_arguments.
+    """
+    function = dict(tool.get("function") or {})
+    params = dict(function.get("parameters") or {})
+    required = set(params.get("required") or [])
+    properties: dict[str, Any] = {}
+    for name, spec in (params.get("properties") or {}).items():
+        spec = dict(spec)
+        if name not in required:
+            kind = spec.get("type")
+            if isinstance(kind, str):
+                spec["type"] = [kind, "null"]
+            elif isinstance(kind, list) and "null" not in kind:
+                spec["type"] = [*kind, "null"]
+            if "enum" in spec and None not in spec["enum"]:
+                spec["enum"] = [*spec["enum"], None]
+        properties[name] = spec
+    params["properties"] = properties
+    params["required"] = list(properties)
+    params["additionalProperties"] = False
+    function["parameters"] = params
+    function["strict"] = True
+    return {**tool, "function": function}
+
+
+def drop_null_arguments(arguments: str) -> str:
+    """Remove null fields from a JSON arguments string; leave invalid JSON as is."""
+    try:
+        parsed = json.loads(arguments or "{}")
+    except json.JSONDecodeError:
+        return arguments
+    if not isinstance(parsed, dict):
+        return arguments
+    return json.dumps({key: value for key, value in parsed.items() if value is not None})
+
+
 async def _cancellable_post(
     client: httpx.AsyncClient,
     path: str,
@@ -436,7 +477,7 @@ class OpenAICompatibleProvider:
         if tool_routing:
             allowed = set(candidate_tools)
             payload["tools"] = [
-                tool
+                strict_nullable_tool(tool)
                 for tool in tools
                 if not allowed or tool.get("function", {}).get("name") in allowed
             ]
@@ -478,6 +519,8 @@ class OpenAICompatibleProvider:
             function = call.get("function") or {}
             if isinstance(function.get("arguments"), dict):
                 function["arguments"] = json.dumps(function["arguments"])
+            if tool_routing and isinstance(function.get("arguments"), str):
+                function["arguments"] = drop_null_arguments(function["arguments"])
         usage = dict(raw.get("usage") or {})
         input_tokens = int(usage.get("prompt_tokens") or 0)
         output_tokens = int(usage.get("completion_tokens") or 0)
