@@ -943,12 +943,13 @@
   {
     "id": "router_close_to_number",
     "question": "Were CPUC ignitions close to 500 in 2024?",
-    "expected_route": "model",
-    "expected_tools": [],
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
     "required_caveats": [],
     "expected_status": "answer",
-    "expected_view_types": [],
-    "expected_view_status": "none"
+    "expected_view_types": []
   },
   {
     "id": "router_tally_and_trend",

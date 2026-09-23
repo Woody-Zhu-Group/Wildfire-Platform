@@ -568,8 +568,15 @@ _CITY_NOT_COUNTY = re.compile(
 # These municipality names are also ordinary words. Match them only with a
 # place cue, so "pine needles" or "the utility industry" is not a city.
 _AMBIGUOUS_CITIES = frozenset(
-    {"industry", "commerce", "weed", "needles", "paradise", "coronado"}
+    {
+        "industry", "commerce", "weed", "needles", "paradise", "coronado",
+        "santa ana", "winters", "marina", "vista", "bell", "ross", "davis",
+        "live oak", "highland",
+    }
 )
+# An ambiguous name that continues into a longer phrase is not that city:
+# Marina del Rey is not Marina, and Santa Ana winds are not Santa Ana.
+_CITY_CONTINUES = re.compile(r"\s+(?:del|de\s+la|de|winds?)\b", re.I)
 _CITY_CUE_BEFORE = re.compile(
     r"(?:"
     r"\b(?:city|town)\s+of"
@@ -595,6 +602,8 @@ def _city_match(lower: str):
         if re.match(r"\s+county\b", after):
             continue
         if name in _AMBIGUOUS_CITIES:
+            if _CITY_CONTINUES.match(after):
+                continue
             before = lower[: match.start()]
             cued = _CITY_CUE_BEFORE.search(before) or re.match(
                 r",?\s*california\b", after
@@ -636,9 +645,24 @@ UNSUPPORTED = {
     "cost": r"\b(?:cost|price|budget|dollars?|economic|premiums?)\b",
     "air_quality": r"\bair quality\b",
     "evacuation": r"\bevacuat",
-    "translation": r"\btranslat",
-    "personnel": r"\b(?:firefighters?|personnel|human resources)\b",
-    "satellite": r"\bsatellite\b",
+    # Translate to a grid cell, incidents that involved firefighters, and a
+    # satellite basemap are in scope, so these keys need their own context.
+    "translation": (
+        r"\btranslat\w*\b(?=.*\b(?:spanish|english|chinese|french|german|japanese|"
+        r"korean|vietnamese|tagalog|languages?)\b)|"
+        r"\b(?:spanish|english|chinese|french|german|japanese|korean|vietnamese|"
+        r"tagalog)\b.*\btranslat\w*|"
+        r"\btranslat\w*\s+(?:this|that|it|the\s+(?:answer|response|result))\b"
+    ),
+    "personnel": (
+        r"\b(?:how many|number of|count of|total)\s+(?:\w+\s+){0,2}firefighters?\b|"
+        r"\bfirefighters?\s+(?:were\s+|was\s+|are\s+)?(?:deployed|assigned|staffed|"
+        r"dispatched|on scene)\b|\bpersonnel\b|\bhuman resources\b"
+    ),
+    "satellite": (
+        r"\bsatellite\s+(?:\w+\s+)?(?:image|imagery|infrared|photos?|pictures?|"
+        r"view|data|feed|detections?)\b|\b(?:infrared|thermal)\s+satellite\b"
+    ),
     "leadership": r"\b(?:ceo|chief executive)\b",
     "optimization": r"\b(?:optimi[sz]e|optimal|schedule|allocate)\b",
     "damage": r"\b(?:property damage|expected loss|insured loss|fatalit)\b",
@@ -648,10 +672,30 @@ UNSUPPORTED = {
     ),
 }
 
+# Live wording. "current" counts only next to a live noun, "live" only next
+# to fires, outages, or conditions, and none of it fires when the question
+# names an explicit past year or date, except "right now".
 _LIVE_NOW = re.compile(
-    r"\b(?:right now|today(?:'s)?(?:\s+weather)?|current|live)\b",
+    r"\btoday(?:'s)?\b|"
+    r"\bcurrent(?:ly)?\s+(?:\w+\s+){0,2}?(?:risk|conditions?|outages?|fires?|"
+    r"weather|status|situation|alerts?)\b|"
+    r"\b(?:fires?|outages?|conditions?)\s+(?:are\s+|is\s+)?live\b|"
+    r"\blive\s+(?:fires?|outages?|conditions?|status|feed|data)\b",
     re.I,
 )
+_RIGHT_NOW = re.compile(r"\bright now\b", re.I)
+
+
+def _asks_live(lower: str) -> bool:
+    if _RIGHT_NOW.search(lower):
+        return True
+    # An explicit year or date in the text makes today or current historical
+    # ("up to today" from 2024). A resolved relative date does not count.
+    if re.search(r"\b20\d{2}\b", lower):
+        return False
+    return bool(_LIVE_NOW.search(lower))
+
+
 _FUTURE_DATE = re.compile(
     r"\b(?:tomorrow|next\s+summer|next\s+year|future\s+years?|"
     r"this\s+fall|upcoming)\b|"
@@ -800,10 +844,9 @@ def _counties(text: str) -> list[str]:
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
         if re.search(rf"\b{re.escape(name.lower())}\s+county\b", lower):
             found.append(name)
-    if found:
-        return found
+    # Keep scanning bare names: "Napa and Sonoma County" names two counties.
     if re.search(r"\b(?:near|around|close to)\b", lower):
-        return []
+        return found
     scrubbed = lower
     for pattern in UTILITY_PATTERNS.values():
         scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
@@ -814,6 +857,18 @@ def _counties(text: str) -> list[str]:
         if re.search(rf"\b{re.escape(name.lower())}\b", scrubbed) and name not in found:
             found.append(name)
     return found
+
+
+_PER_PERIOD_ASK = re.compile(
+    r"\b(?:which|what)\s+(?:year|month)s?\b|"
+    r"\b(?:highest|lowest|most|fewest|peak|busiest)\s+(?:\w+\s+){0,3}?(?:year|month)s?\b",
+    re.I,
+)
+_YEAR_RANGE = re.compile(
+    r"\b20\d{2}\s*(?:to|through|until|-|\u2013)\s*20\d{2}\b|"
+    r"\bbetween\s+20\d{2}\s+and\s+20\d{2}\b",
+    re.I,
+)
 
 
 def _single_call_would_collapse(
@@ -827,7 +882,12 @@ def _single_call_would_collapse(
     if len(utilities) > 1 or len(counties) > 1:
         return True
     named_years = set(re.findall(r"\b20\d{2}\b", lower))
-    if kind == "count" and (len(named_years) > 1 or _BREAKDOWN.search(lower)):
+    # "from 2018 to 2020" is one window with start and end dates. Only
+    # enumerated years ("2018, 2019, and 2020") or a breakdown word defer.
+    enumerated = len(named_years) > 1 and not _YEAR_RANGE.search(lower)
+    # "Which year had the most" over a range is a per-year breakdown.
+    per_period = _PER_PERIOD_ASK.search(lower) and len(named_years) > 1
+    if kind == "count" and (enumerated or per_period or _BREAKDOWN.search(lower)):
         return True
     if kind == "series" and re.search(
         r"\bannual(?:ly)?\b|\bper\s+years?\b|\byear[- ]by[- ]year\b|\beach\s+years?\b",
@@ -1095,20 +1155,40 @@ def _future_refusal_phrase(text: str, lower: str) -> str | None:
     Years before coverage stay on the out-of-coverage clarify.
     """
     years = [int(item) for item in re.findall(r"\b(20\d{2})\b", text)]
-    data_max = date.today().year
+    today = date.today()
+    data_max = today.year
     ahead = [year for year in years if year > data_max]
     if ahead:
         return str(max(ahead))
     if not _FUTURE_DATE.search(lower):
         return None
+    # Bare "will" is not a forward token: "Will you show me a map of 2024"
+    # asks about a covered year.
     forward = re.search(
-        r"\b(?:will|upcoming|this\s+fall|tomorrow|next\s+(?:year|summer|month)|"
+        r"\b(?:upcoming|this\s+fall|tomorrow|next\s+(?:year|summer|month)|"
         r"future\s+years?)\b",
         lower,
     )
     if _PAST_FORECAST.search(lower) and not forward:
         return None
-    covered = bool(years) and all(DATA_YEAR_MIN <= year <= data_max for year in years)
+    # Every year or date in the text is inside completed coverage: a bare
+    # mention of the current year is not, a full date on or before today is.
+    iso_dates = re.findall(r"\b(20\d{2}-\d{2}-\d{2})\b", text)
+    iso_ok = True
+    for item in iso_dates:
+        try:
+            iso_ok = iso_ok and date.fromisoformat(item) <= today
+        except ValueError:
+            iso_ok = False
+    bare_current_year = re.search(rf"(?<![\d-]){data_max}(?![\d-])", text)
+    covered = (
+        bool(years)
+        and all(DATA_YEAR_MIN <= year <= data_max for year in years)
+        and not bare_current_year
+        and iso_ok
+    )
+    if covered and not forward:
+        return None
     if re.search(r"\bexpected\s+value\b", lower) and covered and not forward:
         return None
     if re.search(r"\bhistorical\b", lower) and covered and not forward:
@@ -1252,6 +1332,13 @@ def _asks_map_view(lower: str) -> bool:
 
 def _has_list_op(lower: str) -> bool:
     return bool(re.search(r"\b(?:list|show me)\b", lower))
+
+
+_CHANGE_OVER_TIME = re.compile(
+    r"\b(?:increases?|increased|decreases?|decreased|changes?|changed|growth|grew|"
+    r"declines?|declined|dropped|drops?|rise|rose|fell|difference|delta)\b",
+    re.I,
+)
 
 
 def _asks_ranking(lower: str) -> bool:
@@ -1502,6 +1589,22 @@ def _route_ranking(
     if not _asks_ranking(lower):
         return None
 
+    # "Largest increase" ranks a change between periods. A count rank would
+    # silently answer a different metric, so refuse it.
+    if _CHANGE_OVER_TIME.search(lower):
+        return RouteDecision(
+            "unsupported",
+            "unsupported_ranking",
+            "Ranking by change over time is not available",
+            answer=(
+                "Ranking by change over time is not supported. I can rank "
+                "counties, utilities, or circuits by a count or acres for one "
+                "year or date range, or compare two periods for one place. "
+                "Which do you want?"
+            ),
+            slots=slots,
+        )
+
     group_by = _rank_dimension(lower)
     named = _datasets(text)
     # "circuit" is the grouping dimension, not the circuits inventory table.
@@ -1653,7 +1756,9 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
     years = list(time_resolution.years)
     dataset = _dataset(text)
     coords = _coords(text)
-    county = _county(text)
+    counties = _counties(text)
+    # Several named counties never collapse to one hint.
+    county = _county(text) if len(counties) <= 1 else None
     slots = {
         "utilities": utilities,
         "year": year,
@@ -1661,6 +1766,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
         "dataset": dataset,
         "coords": coords,
         "county": county,
+        "counties": counties,
         "time_resolution": time_resolution.as_slot(),
         "start_date": time_resolution.start_date,
         "end_date": time_resolution.end_date,
@@ -1682,7 +1788,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 ),
             )
 
-    if _LIVE_NOW.search(lower):
+    if _asks_live(lower):
         return RouteDecision(
             "unsupported",
             "unsupported_live_web",
@@ -1787,7 +1893,8 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 "Which county should I use?"
             ),
         )
-    city = _city_match(lower)
+    # Coordinates are the place; a city name beside them is a label.
+    city = _city_match(lower) if coords is None else None
     if city:
         return RouteDecision(
             "clarification",
