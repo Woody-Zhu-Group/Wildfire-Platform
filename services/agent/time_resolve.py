@@ -175,6 +175,8 @@ def explicit_year_range(text: str) -> tuple[str, str, str] | None:
     lower = " ".join(text.lower().split())
     match = re.search(rf"\b(20\d{{2}})\s+(?:to|through|until)\s+(20\d{{2}})\b", lower)
     if not match:
+        match = re.search(rf"\bbetween\s+(20\d{{2}})\s+and\s+(20\d{{2}})\b", lower)
+    if not match:
         match = re.search(rf"\b(20\d{{2}})\s*[-–—]\s*(20\d{{2}})\b", lower)
     if not match:
         return None

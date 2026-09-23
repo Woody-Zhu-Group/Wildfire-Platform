@@ -26,7 +26,7 @@ UTILITY_PATTERNS = {
     "SDGE": r"\b(?:sdge|sdg\s*&\s*e|san diego gas(?:(?: and| &) electric)?)\b",
     "PACIFICORP": r"\bpacificorp\b",
     "Liberty": r"\bliberty\b",
-    "BVES": r"\b(?:bves|bear valley electric)\b",
+    "BVES": r"\b(?:bves|bear valley(?: electric)?)\b",
 }
 
 # California counties used for place/county constraint detection. Bare city
@@ -1015,6 +1015,24 @@ def _route_ranking(
 def route_question(question: str, *, force_model: bool = False) -> RouteDecision:
     text = " ".join(question.strip().split())
     lower = text.lower()
+    utilities = _utilities(text)
+    time_resolution = resolve_time(text)
+    year = time_resolution.year
+    years = list(time_resolution.years)
+    dataset = _dataset(text)
+    coords = _coords(text)
+    county = _county(text)
+    slots = {
+        "utilities": utilities,
+        "year": year,
+        "years": years,
+        "dataset": dataset,
+        "coords": coords,
+        "county": county,
+        "time_resolution": time_resolution.as_slot(),
+        "start_date": time_resolution.start_date,
+        "end_date": time_resolution.end_date,
+    }
 
     for key, pattern in UNSUPPORTED.items():
         if re.search(pattern, lower, re.I):
@@ -1022,6 +1040,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 "unsupported",
                 f"unsupported_{key}",
                 "No read-only backend service provides the requested information",
+                slots=slots,
                 answer=UNSUPPORTED_ANSWERS.get(
                     key,
                     (
@@ -1036,6 +1055,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "clarification",
             "ambiguous_risk_metric",
             "Risk could mean fitted cell intensity, ignition count, incidents, or outages",
+            slots=slots,
             answer=(
                 "Which risk measure and time period should I use—for example "
                 "ignition count, CAL FIRE incidents, EPSS outages, or fitted cell risk?"
@@ -1046,6 +1066,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "clarification",
             "missing_location",
             "A location is required",
+            slots=slots,
             answer="What latitude/longitude or bounding box should I use?",
         )
     # "near/around/close to X" without an explicit radius or coordinates is an
@@ -1067,6 +1088,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "clarification",
             "undefined_spatial_scope",
             "Near/around requires an explicit radius or polygon",
+            slots=slots,
             answer=(
                 "How should that nearby area be defined? Provide a radius "
                 "(for example 25 km) or a county/utility polygon to use."
@@ -1080,30 +1102,12 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "clarification",
             "undefined_region",
             "Northern/southern California boundaries are not defined by a service",
+            slots=slots,
             answer=(
                 "How should northern and southern California be defined? "
                 "The warehouse has no such region polygons."
             ),
         )
-
-    utilities = _utilities(text)
-    time_resolution = resolve_time(text)
-    year = time_resolution.year
-    years = list(time_resolution.years)
-    dataset = _dataset(text)
-    coords = _coords(text)
-    county = _county(text)
-    slots = {
-        "utilities": utilities,
-        "year": year,
-        "years": years,
-        "dataset": dataset,
-        "coords": coords,
-        "county": county,
-        "time_resolution": time_resolution.as_slot(),
-        "start_date": time_resolution.start_date,
-        "end_date": time_resolution.end_date,
-    }
 
     if time_resolution.status == "ambiguous":
         return RouteDecision(

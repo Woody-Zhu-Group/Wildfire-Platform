@@ -306,3 +306,32 @@ def test_list_records_uses_preview_limit_25():
     assert args["dataset"] == "calfire_incidents"
     assert args["county"] == "Sacramento"
     assert args["limit"] == 25
+
+
+def test_bear_valley_fills_the_utility_slot():
+    decision = route_question("How many Bear Valley ignitions were there in 2021?")
+    assert decision.slots["utilities"] == ["BVES"]
+    assert decision.slots["dataset"] == "cpuc_ignitions"
+
+
+def test_early_returns_keep_the_dataset_slot():
+    near = route_question("How many CAL FIRE incidents happened near San Jose?")
+    assert near.path == "clarification"
+    assert near.slots["dataset"] == "calfire_incidents"
+    damage = route_question(
+        "What property damage should we expect from ignitions next year?"
+    )
+    assert damage.path == "unsupported"
+    assert damage.slots["dataset"] == "cpuc_ignitions"
+    tomorrow = route_question("What's the fire risk in Sacramento County tomorrow?")
+    assert tomorrow.rule == "risk_future_date"
+    assert "dataset" in tomorrow.slots
+
+
+def test_around_a_year_or_close_to_a_number_is_not_a_place():
+    around = route_question("Around 2023, how many CPUC ignitions were there?")
+    assert around.rule != "undefined_spatial_scope"
+    assert around.slots["dataset"] == "cpuc_ignitions"
+    close = route_question("Were CPUC ignitions close to 500 in 2024?")
+    assert close.rule != "undefined_spatial_scope"
+    assert close.slots["dataset"] == "cpuc_ignitions"

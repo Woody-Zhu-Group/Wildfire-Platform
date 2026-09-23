@@ -94,6 +94,21 @@ def test_month_year_to_month_year_span():
     assert result.end_date == "2024-09-30"
 
 
+def test_named_year_ranges_include_every_year():
+    assert resolve_time("ignition counts 2017 to 2023", today=TODAY).years == tuple(
+        range(2017, 2024)
+    )
+    assert resolve_time("from 2018 through 2022", today=TODAY).years == tuple(
+        range(2018, 2023)
+    )
+    assert resolve_time("2019-2022 totals", today=TODAY).years == tuple(range(2019, 2023))
+    assert resolve_time("between 2017 and 2023", today=TODAY).years == tuple(
+        range(2017, 2024)
+    )
+    named = resolve_time("how many in 2018, and how many in 2020", today=TODAY)
+    assert named.years == (2018, 2020)
+
+
 def test_year_to_year_and_dashed_span():
     spoken = resolve_time("trend of SCE ignitions 2021 to 2025", today=TODAY)
     assert spoken.status == "explicit"
