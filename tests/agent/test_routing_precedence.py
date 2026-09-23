@@ -426,10 +426,12 @@ def test_early_returns_keep_the_dataset_slot():
 
 
 def test_a_city_that_is_not_a_county_asks_for_a_real_place():
+    # One city with a territory or tier question is answered at its center
+    # point (test_city_points.py). Several places, or counts in a city, still ask.
     for question in (
-        "Is the city of Chico inside a Tier 2 or Tier 3 High Fire Threat District?",
-        "What utility service territory contains Modesto?",
         "For Sacramento, Stockton, and Fresno, identify the utility territory and HFTD tier.",
+        "How many CAL FIRE incidents were there in Chico in 2023?",
+        "Is part of Modesto in a Tier 2 or Tier 3 High Fire Threat District?",
     ):
         decision = route_question(question)
         assert decision.path == "clarification"
@@ -471,13 +473,19 @@ def test_common_word_cities_are_not_places_without_a_cue():
     assert glow.slots.get("county") is None
 
 
-def test_common_word_cities_still_clarify_when_used_as_places():
+def test_common_word_cities_are_places_when_cued():
+    # Cued, these are cities. A tier or territory question is answered at the
+    # city center point; an address or a count in the city still asks.
     for question in (
         "Is the city of Weed inside a Tier 3 HFTD area?",
         "What utility territory contains Needles?",
+        "Is the city of Industry inside PG&E territory?",
+    ):
+        decision = route_question(question)
+        assert decision.rule == "city_point_context", question
+    for question in (
         "For 2020, what was the historical ignition risk at an address in Paradise, California?",
         "How many PSPS shutoffs affected Coronado, California?",
-        "Is the city of Industry inside PG&E territory?",
     ):
         decision = route_question(question)
         assert decision.rule == "city_needs_place", question
@@ -504,6 +512,7 @@ def test_saved_questions_do_not_take_a_common_word_as_a_city():
         for row in rows:
             decision = route_question(row["question"])
             assert decision.rule != "city_needs_place", row["question"]
+            assert not decision.rule.startswith("city_point"), row["question"]
 
 
 def test_circuits_with_an_hftd_tier_or_hftd_acreage_clarify():

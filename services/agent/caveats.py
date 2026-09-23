@@ -6,6 +6,12 @@ import re
 from datetime import date
 from typing import Any
 
+from services.agent.places import (
+    IOU_TERRITORY_NOT_PROVIDER,
+    CityPoint,
+    city_point_caveat,
+)
+from services.agent.routing import city_point_for_question
 from services.agent.tools import ToolExecution, ToolExecutor
 from services.shared.dataset_registry import DATASETS
 
@@ -331,7 +337,28 @@ async def collect_qualifications(
         if cid in DATASETS["calfire_incidents"].caveat_ids:
             add(cid, CAVEAT_TEXT[cid], "dataset_definition")
 
+    # A city resolved to one Gazetteer point; tied to the point read's arguments.
+    city = city_point_for_question(question) if question else None
+    if city and any(_is_point_read_at(item, city) for item in working):
+        add("city_center_point", city_point_caveat(city), "census_gazetteer")
+        add("iou_territory_not_provider", IOU_TERRITORY_NOT_PROVIDER, "data_gap")
+
     return qualifications, companion, None
+
+
+def _is_point_read_at(execution: ToolExecution, city: CityPoint) -> bool:
+    if execution.tool != "data_query_spatial":
+        return False
+    args = execution.arguments or {}
+    if args.get("kind") != "point":
+        return False
+    try:
+        return (
+            abs(float(args.get("lat")) - city.lat) < 1e-6
+            and abs(float(args.get("lon")) - city.lon) < 1e-6
+        )
+    except (TypeError, ValueError):
+        return False
 
 
 def _asks_cpuc_us_compare(question: str | None) -> bool:

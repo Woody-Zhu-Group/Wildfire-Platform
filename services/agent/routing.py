@@ -8,6 +8,7 @@ from datetime import date
 from typing import Any
 
 from services.agent.clarify_missing import complete_clarification
+from services.agent.places import GAZETTEER_VINTAGE, CityPoint, city_point
 from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
 from services.shared.dataset_registry import HDW_YEARS
 
@@ -610,6 +611,10 @@ def _city_match(lower: str):
     A name followed by County is a county phrase, not the city. Ambiguous
     names need a place cue such as "in Weed" or "Weed, California".
     """
+    return next(_city_matches(lower), None)
+
+
+def _city_matches(lower: str):
     for match in _CITY_NOT_COUNTY.finditer(lower):
         name = match.group(0).lower()
         after = lower[match.end() :]
@@ -624,8 +629,7 @@ def _city_match(lower: str):
             )
             if not cued:
                 continue
-        return match
-    return None
+        yield match
 
 
 def _city_named_as_county(lower: str) -> str | None:
@@ -634,6 +638,123 @@ def _city_named_as_county(lower: str) -> str | None:
         if re.match(r"\s+county\b", lower[match.end() :]):
             return match.group(0)
     return None
+
+
+# A city center point answers "which territory or tier is this city in" and
+# "fitted risk near this city on a past date". It cannot answer counts or
+# lists in a city, a radius around it, or whether part of it is in a tier.
+_CITY_POINT_RADIUS = re.compile(
+    r"\b\d+(?:\.\d+)?\s*(?:km|mi|miles?|kilometers?|kilometres?)\b|"
+    r"\bradius\b|\bwithin\b|\bmiles?\b|\bkilometers?\b"
+)
+_CITY_POINT_PARTIAL = re.compile(
+    r"\b(?:parts?|portions?|partly|partially|entire(?:ly)?|whole|all\s+of|"
+    r"much\s+of|percent(?:age)?|share\s+of|fraction|boundar\w*|city\s+limits|"
+    r"overlap\w*|intersect\w*|straddl\w*|span\w*|split|"
+    r"address(?:es)?|neighbou?rhoods?|streets?|parcels?|homes?|houses?|"
+    r"residen\w*|propert(?:y|ies)|downtown|uptown|suburbs?|outskirts|"
+    r"edge|east|west|north|south|eastern|western|northern|southern|"
+    r"buildings?|blocks?|acreage|square\s+miles?|sq\.?\s*mi)\b"
+)
+_CITY_POINT_OTHER_INTENT = re.compile(
+    r"\b(?:trend|time series|weekly|monthly|daily|compar\w*|versus|vs\.?|"
+    r"history|historically|over time|since|between|each|every|per)\b"
+)
+_CITY_POINT_EVENT_NOUN = re.compile(
+    r"\b(?:ignitions?|outages?|incidents?|events?|fires?|wildfires?|psps|epss|"
+    r"circuits?|shutoffs?|de-?energi\w*|acres?|records?)\b"
+)
+# Phrases whose "fire" or "ignition" is not an event count.
+_CITY_POINT_NOT_EVENTS = re.compile(
+    r"\b(?:(?:ignition|fire|wildfire)\s+(?:risk|probability|intensity)|"
+    r"probability\s+of\s+(?:an?\s+)?(?:ignition|fire|wildfire)|"
+    r"(?:high\s+)?fire\s+threat(?:\s+districts?)?)\b"
+)
+# Territory containment, not service. The IOU layer covers cities that run
+# their own municipal utility (Redding and Palo Alto fall in the PG&E polygon),
+# so "which utility serves Redding" is not a point question.
+_CITY_POINT_CONTEXT = re.compile(
+    r"\b(?:iou|territor\w*|hftd|high\s+fire\s+threat|"
+    r"fire\s+threat\s+district|tier\s*[123]?|grid\s+cell)\b"
+)
+_CITY_POINT_SERVICE = re.compile(
+    r"\b(?:serv(?:e|es|ed|ing|ice|iced)|provider|provides?|supplie[sd]|"
+    r"suppl(?:y|ies)|delivers?|power\s+company|electricity\s+(?:to|for))\b"
+)
+_NEAR = re.compile(r"\b(?:near|around|close\s+to|nearby)\b")
+
+
+@dataclass(frozen=True)
+class _CityPointPlan:
+    kind: str  # "context" or "risk"
+    point: CityPoint
+
+
+def _city_point_plan(text: str, lower: str) -> _CityPointPlan | None:
+    """A city question one city center point can answer, or None.
+
+    None keeps the city_needs_place clarification: the city is not in the
+    Gazetteer file, several cities or a county are named, or the question
+    asks for counts, lists, maps, a radius, or part of a city.
+    """
+    matches = list(_city_matches(lower))
+    if not matches:
+        return None
+    names = {match.group(0).lower() for match in matches}
+    if len(names) != 1:
+        return None
+    point = city_point(next(iter(names)))
+    if point is None:
+        return None
+    # Drop the city name first, so West Sacramento is not Sacramento County
+    # and South Lake Tahoe is not "south".
+    without_city = lower[: matches[0].start()] + " " + lower[matches[0].end() :]
+    if (
+        _coords(text) is not None
+        or _counties(without_city)
+        or _city_named_as_county(lower)
+    ):
+        return None
+    if _CITY_POINT_RADIUS.search(lower) or _CITY_POINT_PARTIAL.search(without_city):
+        return None
+    if (
+        _has_quantity_op(lower)
+        or _has_list_op(lower)
+        or _asks_map_view(lower)
+        or _asks_ranking(lower)
+        or _CITY_POINT_OTHER_INTENT.search(lower)
+    ):
+        return None
+    if _CITY_POINT_EVENT_NOUN.search(_CITY_POINT_NOT_EVENTS.sub(" ", lower)):
+        return None
+    if _wants_risk(lower):
+        return _CityPointPlan("risk", point)
+    if _NEAR.search(lower):
+        return None
+    if _CITY_POINT_SERVICE.search(lower.replace("service territor", "territor")):
+        return None
+    if _CITY_POINT_CONTEXT.search(lower):
+        return _CityPointPlan("context", point)
+    return None
+
+
+def city_point_for_question(question: str) -> CityPoint | None:
+    """The city center point the router would use for this question, or None."""
+    text = question.strip()
+    plan = _city_point_plan(text, text.lower())
+    return plan.point if plan else None
+
+
+def _city_point_slot(point: CityPoint) -> dict[str, Any]:
+    return {
+        "name": point.name,
+        "place_type": point.place_type,
+        "geoid": point.geoid,
+        "lat": point.lat,
+        "lon": point.lon,
+        "source": f"census_gazetteer_{GAZETTEER_VINTAGE}_internal_point",
+    }
+
 
 # Datasets whose warehouse tables expose a county column.
 _COUNTY_CAPABLE_DATASETS = {
@@ -2027,6 +2148,53 @@ def _route_ranking(
     )
 
 
+def _city_point_route(
+    plan: _CityPointPlan,
+    *,
+    text: str,
+    time_resolution,
+    slots: dict[str, Any],
+) -> RouteDecision:
+    """Spatial context or the spatial to risk chain at a city center point."""
+    point_call = (
+        "data_query_spatial",
+        {"kind": "point", "lat": plan.point.lat, "lon": plan.point.lon},
+    )
+    if plan.kind == "context":
+        return RouteDecision(
+            "deterministic",
+            "city_point_context",
+            f"{plan.point.name} resolved to its Census Gazetteer internal point",
+            tool_calls=[point_call],
+            slots=slots,
+        )
+    lower = text.lower()
+    on_date = _single_risk_date(text, time_resolution)
+    if (
+        _forward_relative_phrase(lower)
+        or _date_after_risk_coverage(on_date)
+        or not on_date
+    ):
+        return _risk_date_clarification(
+            text=text,
+            time_resolution=time_resolution,
+            reason="City forecast requires a scoreable past date",
+            slots=slots,
+        )
+    return RouteDecision(
+        "deterministic",
+        "city_point_risk_chain",
+        f"{plan.point.name} resolved to its Census Gazetteer internal point, "
+        "and a date fully specifies the spatial to risk chain",
+        tool_calls=[
+            point_call,
+            # cell_id is resolved from the first result by the orchestrator.
+            ("risk_forecast", {"cell_id": "$grid_cell_id", "date": on_date}),
+        ],
+        slots=slots,
+    )
+
+
 def route_question(question: str, *, force_model: bool = False) -> RouteDecision:
     """Route one question. A clarification asks for every missing item at once.
 
@@ -2145,6 +2313,11 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 "ignition count, CAL FIRE incidents, EPSS outages, or fitted cell risk?"
             ),
         )
+    city_plan = _city_point_plan(text, lower)
+    if city_plan is not None:
+        slots["city_point"] = _city_point_slot(city_plan.point)
+        # A county name inside the city name (West Sacramento) is not a county.
+        slots["county"] = None
     if re.search(r"\bnear me\b", lower) and _coords(text) is None:
         return RouteDecision(
             "clarification",
@@ -2161,6 +2334,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
     if (
         re.search(r"\b(?:near|around|close to)\b", lower)
         and not re.search(r"\bnear me\b", lower)
+        and city_plan is None
         and not proximity_is_numeric
         and _coords(text) is None
         and not re.search(
@@ -2205,7 +2379,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         )
     # Coordinates are the place; a city name beside them is a label.
     city = _city_match(lower) if coords is None else None
-    if city:
+    if city and city_plan is None:
         return RouteDecision(
             "clarification",
             "city_needs_place",
@@ -2219,7 +2393,12 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         )
     # A ranking that mentions a tier reaches _route_ranking first, where an
     # unsupported ranking is refused before the tier constraint is considered.
-    if _hftd_constraint_unavailable(lower) and not _asks_ranking(lower):
+    # A city point asks which tier one point is in, not a tier measurement.
+    if (
+        city_plan is None
+        and _hftd_constraint_unavailable(lower)
+        and not _asks_ranking(lower)
+    ):
         return RouteDecision(
             "clarification",
             "hftd_constraint_unavailable",
@@ -2319,6 +2498,11 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             "forced_eval",
             "Evaluation case forces model tier",
             slots=slots,
+        )
+
+    if city_plan is not None:
+        return _city_point_route(
+            city_plan, text=text, time_resolution=time_resolution, slots=slots
         )
 
     ranking_decision = _route_ranking(
