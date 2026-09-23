@@ -53,6 +53,7 @@ data/boundaries/*.shx
 data/boundaries/*.prj
 data/boundaries/*.cpg
 data/boundaries/*.xml
+data/boundaries/*.esri.json
 
 # Keep small reference grids (must stay tracked)
 !**/grid_cells.csv
