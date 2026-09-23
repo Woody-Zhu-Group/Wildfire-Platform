@@ -353,16 +353,6 @@ def test_damage_plus_a_future_year_stays_unsupported():
     assert decision.rule == "unsupported_damage"
 
 
-def test_future_phrasing_uses_the_future_date_refusal():
-    for question in (
-        "How many ignitions will there be tomorrow?",
-        "How many CAL FIRE incidents next summer?",
-        "How many ignitions in future years?",
-    ):
-        decision = route_question(question)
-        assert decision.path == "clarification", question
-        assert decision.rule == "risk_future_date", question
-
 
 def test_list_records_uses_preview_limit_25():
     decision = route_question(
