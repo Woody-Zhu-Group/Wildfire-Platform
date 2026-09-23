@@ -1303,6 +1303,25 @@ def _dataset(text: str) -> str | None:
     return candidates[0] if len(set(candidates)) == 1 else None
 
 
+# Event datasets that can sit next to bare "ignitions" as a second dataset.
+# Context layers (HFTD, circuits, territories) do not make ignitions a list.
+_EVENT_DATASETS_BESIDE_IGNITIONS = frozenset(
+    {"epss_outages", "psps_events", "calfire_incidents"}
+)
+# A word right before "ignitions" that already names whose ignitions they are.
+_IGNITION_QUALIFIER = re.compile(
+    r"(?:\bus|\bnational|\bcal\s*fire|\bcalfire|\bepss|\bpsps)\s+$", re.I
+)
+
+
+def _has_bare_ignitions(text: str) -> bool:
+    """True when some "ignitions" is not qualified as US, CAL FIRE, EPSS, or PSPS."""
+    return any(
+        not _IGNITION_QUALIFIER.search(text[: match.start()])
+        for match in re.finditer(r"\bignitions?\b", text, re.I)
+    )
+
+
 def _datasets(text: str) -> list[str]:
     candidates: list[str] = []
     checks = [
@@ -1319,6 +1338,13 @@ def _datasets(text: str) -> list[str]:
         if re.search(pattern, text, re.I):
             candidates.append(key)
     if not candidates and re.search(r"\bignitions?\b", text, re.I):
+        candidates.append("cpuc_ignitions")
+    elif (
+        "cpuc_ignitions" not in candidates
+        and set(candidates) & _EVENT_DATASETS_BESIDE_IGNITIONS
+        and _has_bare_ignitions(text)
+    ):
+        # "ignitions and EPSS outages" names two datasets; bare ignitions are CPUC.
         candidates.append("cpuc_ignitions")
     # Bare "outages" (without PSPS/EPSS) is treated as EPSS for map/count routing.
     if not candidates and re.search(r"\boutages?\b", text, re.I):
@@ -2322,18 +2348,32 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 ],
                 slots=slots,
             )
+        # A grid map with no place is the statewide surface for that day.
+        if slots.get("map_mode"):
+            if (
+                _forward_relative_phrase(lower)
+                or _date_after_risk_coverage(on_date)
+                or not on_date
+            ):
+                return _risk_date_clarification(
+                    text=text,
+                    time_resolution=time_resolution,
+                    reason="Statewide risk surface requires a scoreable past date",
+                    slots=slots,
+                )
+            return RouteDecision(
+                "deterministic",
+                "risk_surface",
+                "Grid map with a date and no place scores the statewide surface",
+                tool_calls=[("risk_surface", {"date": on_date})],
+                slots=slots,
+            )
         return RouteDecision(
             "clarification",
             "risk_missing_place",
             "Fitted risk needs a cell, county, utility, or coordinates",
             answer=(
-                (
-                    "The map draws every grid cell for one day, but the answer "
-                    "scores one place. "
-                    if slots.get("map_mode")
-                    else ""
-                )
-                + "Which place should I score? Fitted ignition risk accepts "
+                "Which place should I score? Fitted ignition risk accepts "
                 "a grid cell, a county, a utility territory (PGE, SCE, or SDGE), "
                 "or latitude/longitude, plus one historical calendar day."
             ),

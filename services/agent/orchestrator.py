@@ -25,7 +25,12 @@ from services.agent.routing import (
     candidate_tools,
     route_question,
 )
-from services.agent.schemas import AgentAnswer, EvidenceClaim, openai_tools
+from services.agent.schemas import (
+    HARNESS_TOOL_MODELS,
+    AgentAnswer,
+    EvidenceClaim,
+    openai_tools,
+)
 from services.agent.streaming import ProgressCallback
 from services.agent.tools import ToolExecution, ToolExecutor
 from services.agent.views import dump_planned, empty_views_payload, plan_views
@@ -293,6 +298,7 @@ class AgentOrchestrator:
                         resolved,
                         request_id=request_id,
                         start_attempt=index,
+                        harness_call=True,
                         year=decision.slots.get("year"),
                         years=decision.slots.get("years") or [],
                         utilities=decision.slots.get("utilities") or [],
@@ -585,8 +591,28 @@ class AgentOrchestrator:
         on_event: ProgressCallback | None = None,
         cancel_event: asyncio.Event | None = None,
         qualification_call: bool = False,
+        harness_call: bool = False,
     ) -> ToolExecution:
         self._raise_if_cancelled(cancel_event)
+        if tool in HARNESS_TOOL_MODELS and not harness_call:
+            # Router-only tools are never offered to the model; refuse a guessed name.
+            return ToolExecution(
+                tool=tool,
+                arguments=dict(args),
+                ok=False,
+                summary={},
+                raw=None,
+                error={
+                    "code": "unknown_tool",
+                    "message": f"Unknown tool {tool!r}",
+                    "recoverable": False,
+                    "suggested_action": "Choose one of the provided tools.",
+                    "field_errors": [],
+                },
+                artifact=None,
+                latency_ms=0.0,
+                qualification_call=qualification_call,
+            )
         # Trail/UI must show post-normalize args (harness year fill, aliases),
         # not only the raw model payload that omitted year=.
         preview = getattr(self.executor, "preview_arguments", None)
@@ -1664,9 +1690,9 @@ def _should_harness_retry(result: ToolExecution) -> bool:
     # field_errors) should be retried without another model turn.
     if code == "invalid_arguments" and not result.error.get("field_errors"):
         try:
-            from services.agent.schemas import TOOL_MODELS
+            from services.agent.schemas import EXECUTABLE_TOOL_MODELS
 
-            TOOL_MODELS[result.tool].model_validate(result.arguments)
+            EXECUTABLE_TOOL_MODELS[result.tool].model_validate(result.arguments)
             return True
         except Exception:  # noqa: BLE001
             return False
@@ -2305,6 +2331,16 @@ def _render_risk_answer(summary: dict[str, Any]) -> str:
     return sentence
 
 
+def _render_surface_answer(summary: dict[str, Any]) -> str:
+    return (
+        f"Modeled ignition risk for all {summary.get('cell_count')} California grid "
+        f"cells on {summary.get('date')}. The highest cell, "
+        f"cell {summary.get('max_risk_cell_id')}, had a "
+        f"{_risk_percent_phrase(summary.get('max_risk'))} chance of at least one "
+        "ignition that day."
+    )
+
+
 def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> str:
     empty = summary.get("empty_reason")
     if empty:
@@ -2411,6 +2447,8 @@ def _render_deterministic(executions: list[ToolExecution]) -> str:
             )
         elif item.tool == "risk_forecast":
             parts.append(_render_risk_answer(summary))
+        elif item.tool == "risk_surface":
+            parts.append(_render_surface_answer(summary))
         elif item.tool == "data_query_rank":
             parts.append(_render_rank_answer(item.arguments or {}, summary))
         elif item.tool == "comparison_run":

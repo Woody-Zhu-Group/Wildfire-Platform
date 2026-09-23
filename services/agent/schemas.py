@@ -294,6 +294,23 @@ TOOL_MODELS: dict[str, type[StrictModel]] = {
     "comparison_run": ComparisonRunArgs,
 }
 
+
+class RiskSurfaceArgs(StrictModel):
+    """Historical cNHPP risk for every grid cell on one day (GET /surface)."""
+
+    date: date
+
+
+# Tools only the router calls. They are never offered to the model or to Jev,
+# so the model tool list and the Jev payloads do not change.
+HARNESS_TOOL_MODELS: dict[str, type[StrictModel]] = {
+    "risk_surface": RiskSurfaceArgs,
+}
+EXECUTABLE_TOOL_MODELS: dict[str, type[StrictModel]] = {
+    **TOOL_MODELS,
+    **HARNESS_TOOL_MODELS,
+}
+
 TOOL_DESCRIPTIONS = {
     "data_query_records": (
         "Use for filtered warehouse counts or small record samples. "

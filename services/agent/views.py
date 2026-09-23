@@ -47,6 +47,8 @@ _SPATIAL_COUNT_LABELS = {
 _HDW_EVENT_LAYERS = frozenset({"ignitions", "epss", "psps", "calfire"})
 # Datasets the workspace timeline can overlay on one axis.
 _TIMELINE_DATASETS = ("ignitions", "epss", "calfire")
+# Risk calls that score one historical day; a grid map may cite either.
+_RISK_DAY_TOOLS = frozenset({"risk_forecast", "risk_surface"})
 _MAX_VISUAL = 2
 _MAX_STATS = 3
 _MONTH_NAMES = (
@@ -407,9 +409,9 @@ def _timeline_views(
 
 
 def _risk_grid_map(primary: list[ToolExecution], map_mode: str) -> ComponentSpec | None:
-    """Risk surface or residual grid for the day the cited risk_forecast scored."""
+    """Risk surface or residual grid for the day a cited risk call scored."""
     for item in primary:
-        if item.tool != "risk_forecast":
+        if item.tool not in _RISK_DAY_TOOLS:
             continue
         scored = _date_str((item.summary or {}).get("date") or (item.arguments or {}).get("date"))
         if not scored:
@@ -740,10 +742,10 @@ def _ground_map(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
         scored = {
             _date_str((item.summary or {}).get("date") or (item.arguments or {}).get("date"))
             for item in cited
-            if item.tool == "risk_forecast"
+            if item.tool in _RISK_DAY_TOOLS
         }
         if risk_date not in scored:
-            raise GroundingError(f"risk_date {risk_date!r} is not a scored risk_forecast date")
+            raise GroundingError(f"risk_date {risk_date!r} is not a scored risk date")
         return
     if params.get("show_hdw") and not any(
         item.tool == "visualization_create" and (item.arguments or {}).get("kind") == "map"

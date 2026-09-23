@@ -39,6 +39,7 @@ RULE_TO_INTENT: dict[str, str] = {
     "coordinate_risk_chain": "risk",
     "cell_risk": "risk",
     "county_risk": "risk",
+    "risk_surface": "risk",
     "utility_risk": "risk",
     "utility_territory": "territory_boundary",
     "circuit_detail": "circuit_detail",

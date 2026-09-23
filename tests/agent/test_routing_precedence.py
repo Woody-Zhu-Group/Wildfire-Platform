@@ -724,8 +724,8 @@ def test_risk_grid_clarifies_instead_of_inventing_a_date_or_place():
     future = route_question("Show the risk surface for Butte County on 2026-08-15")
     assert future.rule == "risk_future_date"
     no_place = route_question("Show the risk surface for 2024-08-15")
-    assert no_place.rule == "risk_missing_place"
-    assert no_place.answer.startswith("The map draws every grid cell for one day")
+    assert no_place.rule == "risk_surface"
+    assert no_place.tool_calls == [("risk_surface", {"date": "2024-08-15"})]
 
 
 def test_where_advice_does_not_become_a_risk_map():
@@ -782,3 +782,40 @@ def test_timeline_needs_several_chartable_datasets():
     assert "timeline_datasets" not in single.slots
     psps = route_question("Show PSPS and EPSS trend for 2024")
     assert psps.rule != "series_timeline"
+
+
+def test_bare_ignitions_beside_another_dataset_are_cpuc():
+    from services.agent.routing import _datasets
+
+    assert _datasets("ignitions and EPSS outages") == ["epss_outages", "cpuc_ignitions"]
+    assert _datasets("ignitions and CAL FIRE incidents") == ["calfire_incidents", "cpuc_ignitions"]
+    assert _datasets("PSPS events and ignitions") == ["psps_events", "cpuc_ignitions"]
+    timeline = route_question("Show ignitions and EPSS outages over time in 2024")
+    assert timeline.rule == "series_timeline"
+    assert sorted(timeline.slots["timeline_datasets"]) == ["epss", "ignitions"]
+    # Two datasets in a count no longer answer with EPSS alone.
+    both = route_question("How many ignitions and EPSS outages in 2024?")
+    assert both.slots["dataset"] is None
+    assert not any(args.get("dataset") == "epss_outages" for _, args in both.tool_calls)
+
+
+def test_qualified_or_single_dataset_ignitions_are_unchanged():
+    from services.agent.routing import _datasets
+
+    assert _datasets("How many CAL FIRE ignitions in 2024?") == ["calfire_incidents"]
+    assert _datasets("How many US ignitions in 2024?") == ["us_ignitions"]
+    assert _datasets("How many national ignitions in 2024?") == ["us_ignitions"]
+    assert _datasets("How many ignitions in 2024?") == ["cpuc_ignitions"]
+    assert _datasets("How many PG&E ignitions in 2024?") == ["cpuc_ignitions"]
+    assert _datasets("CPUC ignitions and EPSS outages") == ["epss_outages", "cpuc_ignitions"]
+    assert _datasets("How many ignitions in HFTD Tier 3 in 2024?") == ["hftd"]
+    assert _datasets("Map EPSS outages for 2024") == ["epss_outages"]
+    for question, rule, dataset in (
+        ("How many CAL FIRE ignitions in 2024?", "filtered_records", "calfire_incidents"),
+        ("How many ignitions in 2024?", "filtered_records", "cpuc_ignitions"),
+        ("Map EPSS outages for 2024.", "map", "epss"),
+    ):
+        decision = route_question(question)
+        assert decision.rule == rule, question
+        assert decision.tool_calls[0][1]["dataset"] == dataset
+

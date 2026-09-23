@@ -1473,5 +1473,33 @@
     "expected_status": "clarification",
     "expected_view_types": [],
     "expected_view_status": "none"
+  },
+  {
+    "id": "risk_surface_statewide_date",
+    "question": "Show the risk surface for 2024-08-15.",
+    "expected_route": "deterministic",
+    "expected_tools": ["risk_surface"],
+    "required_caveats": ["cnhpp_grid_resolution", "cnhpp_contagion_tie"],
+    "expected_status": "answer",
+    "expected_view_types": ["map"]
+  },
+  {
+    "id": "residual_map_statewide_date",
+    "question": "Show the residual map for 2024-08-15.",
+    "expected_route": "deterministic",
+    "expected_tools": ["risk_surface"],
+    "required_caveats": ["cnhpp_grid_resolution", "cnhpp_contagion_tie"],
+    "expected_status": "answer",
+    "expected_view_types": ["map"]
+  },
+  {
+    "id": "timeline_bare_ignitions_and_epss_2024",
+    "question": "Show ignitions and EPSS outages over time in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": ["visualization_create", "visualization_create"],
+    "required_caveats": ["epss_pge_only"],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": ["time_series"]
   }
 ]
