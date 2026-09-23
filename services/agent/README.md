@@ -15,11 +15,24 @@ dataset/metric, scope, and required time/location slots are explicit:
 - map/time series/detail → a visualization tool
 - fully specified utility/region/period comparison → `comparison_run`
 - explicit cell/date, coordinate/date, county/date, or utility/date risk → `risk_forecast` chain
-- known unavailable domains (CPZ, cost, optimization, damage, live web) → refusal
-- missing risk metric, location, region definition, or time → clarification
+- a grid question with a date and no place → `risk_surface` (statewide
+  hindcast; a router-only tool, not in the model's tool list)
+- known unavailable domains (CPZ, cost, air quality, evacuation, translation,
+  personnel, satellite imagery, leadership, optimization, damage, live web,
+  future predictions) → refusal
+- missing risk metric, location, region definition, or time → clarification.
+  When a question is missing more than one item (year, place, dataset), one
+  clarification asks for all of them and ends with an example rephrasing built
+  from what the question already named (`clarify_missing.py`). The rule id does
+  not change.
 
 Compositions, cross-dataset questions, and requests not matching those strict
 rules go to the model. Every response logs `path`, `rule`, and tool trajectory.
+
+On the model path the harness holds tool calls to the resolved years and date
+range, strips invented utilities, and drops model-proposed filters (circuit id,
+HFTD tier, county, coordinates) and sentinel values that the question and router
+slots do not support (`grounding.py`); each drop is logged.
 
 ## Grouped tools
 
@@ -52,9 +65,26 @@ companion calls:
 - US ignition answers state that the CA-heavy FireCastRL data is a sample, not
   a census, and is not comparable to CPUC.
 - EPSS answers state that warehouse coverage is PG&E-only.
+- Fitted risk answers state that cNHPP is fitted on a 0.24° grid (cell
+  aggregates, not circuit-level risk) and that cNHPP versus NHPP is a
+  statistical tie.
 
 If a required companion call or metadata field fails, the primary result is
 suppressed rather than returned without its qualification.
+
+## Model provider and Jev
+
+- Default model tier: Ollama with `qwen2.5:7b` (`AGENT_MODEL`).
+- `AGENT_LLM_PROVIDER=openrouter` sends routing and synthesis to OpenRouter
+  (GPT-6 Luna, with Sol for retry turns) with native `tool_choice` and strict
+  structured outputs. It is off by default, also needs
+  `AGENT_ALLOW_REMOTE_PROVIDER=true` and `OPENROUTER_API_KEY`, and
+  [`docs/OPENROUTER.md`](../../docs/OPENROUTER.md) records why production has not
+  switched yet.
+- `AGENT_JEV_MODE` is `off` by default; `shadow`, `tool_pick`, and
+  `tool_pick_template` are described in [`docs/JEV_SHADOW.md`](../../docs/JEV_SHADOW.md).
+  `AGENT_JEV_BACKEND` is `typesafe` or `openrouter`. A `decide` mode is proposed
+  in open PR #49 and is not on `main`.
 
 ## Run
 
@@ -73,8 +103,8 @@ uvicorn services.agent.app:app --port 8004 --app-dir .
 ```
 
 - `GET /health`
-- `POST /ask` with `{"question":"How many PG&E ignitions were there in 2024?"}` — leave this path unchanged for eval
-- `POST /ask/stream` — SSE harness progress for the website Ask panel (not a second answer path)
+- `POST /ask` with `{"question":"How many PG&E ignitions were there in 2024?"}`: leave this path unchanged for eval
+- `POST /ask/stream`: SSE harness progress for the website Ask panel (not a second answer path)
 - `GET /artifacts/{ref}` for a non-expired full backend payload
 
 The service is single-exchange: it stores no conversation history.
@@ -90,6 +120,13 @@ python -m services.agent.eval.runner `
   --models qwen3:4b,qwen3:8b `
   --thinking off,on `
   --modes prompt,constrained
+```
+
+To match production (the runner itself defaults to `qwen3:4b`):
+
+```powershell
+python -m services.agent.eval.runner `
+  --models qwen2.5:7b --thinking off --modes constrained
 ```
 
 Initial staged baseline only:
@@ -109,7 +146,8 @@ runner stops before subsequent selected cells.
 ## Ollama limitations
 
 Ollama's OpenAI-compatible endpoint does not support `tool_choice`; the harness
-cannot force a tool call. Evaluation therefore records no-tool responses and
+cannot force a tool call on the Ollama path (the OpenRouter path sends
+`tool_choice: "required"`). Evaluation therefore records no-tool responses and
 valid direct-answer attempts before evidence. The harness blocks either from
 becoming a factual answer.
 

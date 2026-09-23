@@ -2,7 +2,7 @@
 
 `docs/index.html` and `docs/assets/workspace/` are the built website, generated
 from [`website/`](../website/README.md). The interface is a conversation area
-and 13 analysis views in five panel categories, using real remote records.
+and 18 analysis views in five panel categories, using real remote records.
 
 Start with the [root README](../README.md) for architecture, usage and local
 backend setup. This directory contains the static publication output; edit
@@ -33,7 +33,9 @@ the other assets, including the existing HDW files, are retained.
 
 ## Data and behavior
 
-- `website/src/api.ts` configures the remote visualization, agent and Data Query URLs.
+- `website/src/api.ts` configures the remote visualization, agent, Data Query and
+  Historical Risk URLs. The risk surface and residual map panels read the Risk API
+  (`/surface`, `/observed-training`) directly.
 - Map layers, event detail, record tables and daily time-series buckets use the
   visualization service. Grouped comparisons, summary metrics and regional series
   use Data Query SQL aggregates. EPSS aggregates count outages, while map features
