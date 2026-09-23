@@ -63,8 +63,33 @@ def tool_glossary(tools: list[str]) -> str:
     return "Tools:\n" + "\n".join(lines)
 
 
+PLAN_NOULS = {
+    "wants_count": "The question asks for a numeric total.",
+    "wants_list": "The question asks for individual records.",
+    "wants_time_series": "The question asks for values across time, such as each month or each year.",
+    "wants_map": "The question asks for a map.",
+    "wants_ranking": "The question asks for an ordered top group.",
+    "wants_comparison": "The question asks to set two or more things side by side.",
+    "is_multi_part": "The question asks for more than one result, such as a count and a chart.",
+}
+
+
 def fact_questions() -> dict[str, QuestionSpec]:
-    return {name: _noul(text) for name, text in FACT_NOULS.items()}
+    questions = {name: _noul(text) for name, text in FACT_NOULS.items()}
+    questions.update({name: _noul(text) for name, text in PLAN_NOULS.items()})
+    questions["breakdown"] = _choice(
+        "If the question asks for a breakdown, what is the split?",
+        {
+            "none": "No breakdown.",
+            "by_month": "One value per month.",
+            "by_week": "One value per week.",
+            "by_year": "One value per year.",
+            "by_county": "One value per county.",
+            "by_utility": "One value per utility.",
+            "by_cause": "One value per cause.",
+        },
+    )
+    return questions
 
 
 def topic_questions() -> dict[str, QuestionSpec]:
@@ -157,10 +182,21 @@ def place_questions() -> dict[str, QuestionSpec]:
     return questions
 
 
+_TOOL_RETURNS = {
+    "data_query_records": "Returns one total, or a short list of matching records.",
+    "data_query_spatial": "Returns a count or context inside one polygon.",
+    "data_query_rank": "Returns a ranking of groups, such as counties or utilities.",
+    "comparison_run": "Returns a side-by-side comparison of utilities, regions, or two periods.",
+    "visualization_create": "Returns a map, or a per-period series such as monthly values.",
+    "risk_forecast": "Returns a modeled ignition risk for one cell and one past date.",
+}
+
+
 def tool_pick_questions(candidate_tools: list[str]) -> dict[str, QuestionSpec]:
     criteria = {}
     for name in candidate_tools:
-        sentence = TOOL_DESCRIPTIONS.get(name, name).split(". ")[0].rstrip(".")
+        sentence = _TOOL_RETURNS.get(name) or TOOL_DESCRIPTIONS.get(name, name).split(". ")[0]
+        sentence = sentence.rstrip(".")
         criteria[name] = sentence[:1].upper() + sentence[1:] + "."
     criteria["clarify"] = "A required place, time, or dataset is missing."
     criteria["unsupported"] = "The question is outside the available data."
