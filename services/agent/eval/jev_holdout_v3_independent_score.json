@@ -1,0 +1,124 @@
+{
+  "labels": "services/agent/eval/jev_holdout_v3_labels_chatgpt.json",
+  "questions": "jev_holdout_v3.json on platform/jev-multi-tool at bc3f601",
+  "router": "router-paraphrase-fixes, local route_question, no API",
+  "jev": "Disposition only, reconstructed from the stored v3 score log (2026-09-23, 5 repeats, flip 0). Where that log did not list a disagreement, Jev matched the router from that run. Raw per-question Jev answers were not saved, so intent, dataset, tool_pick, and reason were not rescored. No new API calls.",
+  "excluded_uncertain": 23,
+  "scored": 65,
+  "disposition": {
+    "router": {"correct": 37, "n": 65, "accuracy": 0.569},
+    "jev": {"correct": 25, "n": 34, "accuracy": 0.735, "note": "31 certain rows were needs_human_review in the stored run and have no Jev answer"},
+    "same_34": {"router_correct": 25, "jev_correct": 25, "n": 34},
+    "agree": 32,
+    "agree_n": 34,
+    "agree_rate": 0.941,
+    "agree_accuracy": 0.75,
+    "agree_correct": 24
+  },
+  "one_right": [
+    {
+      "id": "hv3_023",
+      "question": "How many EPSS events occurred on PG&E circuits in Tier 3 HFTD areas in 2023?",
+      "label": "answer",
+      "reason": null,
+      "router": "clarify",
+      "router_rule": "hftd_constraint_unavailable",
+      "jev": "answer",
+      "right": "jev"
+    },
+    {
+      "id": "hv3_061",
+      "question": "Can you pull the current HFTD map and tell me what changed this month?",
+      "label": "unsupported",
+      "reason": "unsupported_live_web",
+      "router": "unsupported",
+      "router_rule": "unsupported_live_web",
+      "jev": "answer",
+      "right": "router"
+    }
+  ],
+  "both_wrong": [
+    {
+      "id": "hv3_005",
+      "question": "What percentage of the sample US wildfire ignitions in California occurred in 2022?",
+      "label": "unsupported",
+      "reason": "unsupported_rank_us_state",
+      "router": "answer",
+      "jev": "answer"
+    },
+    {
+      "id": "hv3_014",
+      "question": "Give me the distribution circuits in SCE territory that intersect Tier 3 HFTD areas.",
+      "label": "unsupported",
+      "reason": "unexpressed_filter_constraints",
+      "router": "clarify",
+      "jev": "clarify"
+    },
+    {
+      "id": "hv3_021",
+      "question": "Which counties had the largest increase in CAL FIRE wildfire incidents between 2019 and 2020?",
+      "label": "unsupported",
+      "reason": "unsupported_ranking",
+      "router": "answer",
+      "jev": "answer"
+    },
+    {
+      "id": "hv3_024",
+      "question": "map PG&E distribution circuits in Nevada County that are inside HFTD tier 2 or 3",
+      "label": "unsupported",
+      "reason": "unexpressed_filter_constraints",
+      "router": "clarify",
+      "jev": "clarify"
+    },
+    {
+      "id": "hv3_029",
+      "question": "compare 2022 and 2023 EPSS events for each of the six utilities and make a chart",
+      "label": "unsupported",
+      "reason": "unsupported_rank_epss_utility",
+      "router": "answer",
+      "jev": "answer"
+    },
+    {
+      "id": "hv3_035",
+      "question": "Compare HFTD Tier 2 and Tier 3 acreage within PG&E and SCE service territories.",
+      "label": "unsupported",
+      "reason": "unexpressed_filter_constraints",
+      "router": "clarify",
+      "jev": "clarify"
+    },
+    {
+      "id": "hv3_036",
+      "question": "How many sample wildfire ignitions occurred in California from all causes in 2018, 2019, 2020, 2021, and 2022?",
+      "label": "unsupported",
+      "reason": "unsupported_rank_us_state",
+      "router": "answer",
+      "jev": "answer"
+    },
+    {
+      "id": "hv3_049",
+      "question": "Which utility had the highest ignition rate after adjusting for miles of distribution line?",
+      "label": "unsupported",
+      "reason": "unsupported_ranking",
+      "router": "clarify",
+      "jev": "clarify"
+    }
+  ],
+  "slot_planner": {
+    "definition": "Certain rows whose independent tool_calls list has two or more calls. Equivalence is tool-name multiset, or one comparison_run versus two or more data_query_records.",
+    "source": "slot_plan on platform/jev-multi-tool at bc3f601",
+    "n": 6,
+    "produced": 2,
+    "correct": 1,
+    "coverage": 0.333,
+    "precision": 0.5,
+    "accuracy": 0.167,
+    "correct_id": "hv3_006"
+  },
+  "jev_fields": {
+    "labels_cover": ["disposition", "reason"],
+    "labels_do_not_cover": ["intent", "dataset", "tool_pick"],
+    "stored_per_question": ["disposition"],
+    "disposition_accuracy": {"correct": 25, "n": 34, "accuracy": 0.735},
+    "reason": "Not scored. The stored run did not keep per-question clarify or unsupported reasons."
+  }
+}
