@@ -86,6 +86,7 @@ class ToolExecutor:
         utilities: list[str] | None = None,
         time_resolution: dict[str, Any] | None = None,
         qualification_call: bool = False,
+        harness_call: bool = False,
     ) -> dict[str, Any]:
         """Return harness-normalized arguments without calling the backend.
 
@@ -108,7 +109,9 @@ class ToolExecutor:
                 normalized, utilities=utilities
             )
             normalized, _error = apply_harness_years(
-                normalized, time_resolution=time_resolution
+                normalized,
+                time_resolution=time_resolution,
+                hold_window=not harness_call,
             )
         return normalized
 
@@ -124,6 +127,7 @@ class ToolExecutor:
         years: list[int] | None = None,
         utilities: list[str] | None = None,
         time_resolution: dict[str, Any] | None = None,
+        harness_call: bool = False,
     ) -> ToolExecution:
         started = time.perf_counter()
         if tool not in EXECUTABLE_TOOL_MODELS:
@@ -162,13 +166,30 @@ class ToolExecutor:
             repair_comparison=True,
         )
         stripped_utilities: list[str] = []
+        time_corrections: list[dict[str, Any]] = []
         if not qualification_call:
             normalized_arguments, stripped_utilities = _strip_ungrounded_utilities(
                 normalized_arguments, utilities=utilities
             )
             normalized_arguments, year_error = apply_harness_years(
-                normalized_arguments, time_resolution=time_resolution
+                normalized_arguments,
+                time_resolution=time_resolution,
+                hold_window=not harness_call,
+                corrections=time_corrections,
             )
+            for correction in time_corrections:
+                print(
+                    json.dumps(
+                        {
+                            "event": "harness_time_correction",
+                            "request_id": request_id,
+                            "attempt": attempt,
+                            "tool": tool,
+                            **correction,
+                        },
+                        default=str,
+                    )
+                )
             if year_error:
                 print(
                     json.dumps(
@@ -205,6 +226,7 @@ class ToolExecutor:
                     "requested_arguments": arguments,
                     "qualification_call": qualification_call,
                     "stripped_utilities": stripped_utilities,
+                    "time_corrections": time_corrections,
                 },
                 default=str,
             )
