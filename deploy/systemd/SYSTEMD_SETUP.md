@@ -1,15 +1,15 @@
 # Systemd units (Ubuntu backend box)
 
 Install these on the backend instance (`ubuntu@`, repo at
-`/home/ubuntu/Wildfire-Services`). Ollama on the current CPU model host is
-managed separately.
+`/home/ubuntu/Wildfire-Services`). The agent's model tier is OpenRouter; there
+is no model host.
 
 Units: `wildfire-data-query` (:8000), `wildfire-risk-forecasting` (:8001),
 `wildfire-visualization` (:8002),
 `wildfire-comparison` (:8003), `wildfire-agent` (:8004), and
-`wildfire-frontend` (:8765). The legacy `wildfire-gpu-control` (:8005) unit is
-optional and should remain disabled unless a new EC2/Ollama resource is
-explicitly configured. Services start in parallel after `network-online.target`.
+`wildfire-frontend` (:8765). Services start in parallel after
+`network-online.target`. The old `wildfire-gpu-control` unit was removed; if a
+copy is still installed on the host, disable and delete it.
 
 Each unit runs as `ubuntu` from `/home/ubuntu/Wildfire-Services` with the
 repo `.venv`, `PYTHONPATH` set to the repo root and `PYTHONIOENCODING=utf-8`.
@@ -41,9 +41,10 @@ Each unit sets `EnvironmentFile=/home/ubuntu/Wildfire-Services/.env`. systemd
 syntax is stricter than `python-dotenv`: no `export`, no `$VAR` expansion, no
 unquoted spaces, and an unquoted `#` starts a comment (quote passwords that
 contain `#`). Services also load the repo `.env` themselves (`shared/db.py`
-for the database-backed services, `services/agent/config.py` and
-`services/gpu_control/config.py` for those two) without overriding values
-systemd has already set.
+for the database-backed services, `services/agent/config.py` for the agent)
+without overriding values systemd has already set. The agent unit needs
+`OPENROUTER_API_KEY` and `AGENT_ALLOW_REMOTE_PROVIDER=true` in that file or it
+will not start.
 
 On the box, flag problem lines without printing values:
 
@@ -54,8 +55,7 @@ grep -nE '^(export[[:space:]]|[A-Za-z_][A-Za-z0-9_]*=.*[[:space:]]|[A-Za-z_][A-Z
 
 ## Install and enable
 
-From the repo on the instance (after `git pull` so these files exist). The
-`cp` glob also copies `wildfire-gpu-control.service`; it is not enabled below.
+From the repo on the instance (after `git pull` so these files exist).
 
 ```bash
 sudo cp /home/ubuntu/Wildfire-Services/deploy/systemd/wildfire-*.service /etc/systemd/system/

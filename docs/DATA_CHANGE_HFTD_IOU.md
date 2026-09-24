@@ -467,10 +467,9 @@ Where the old geometry had two containing regions (Big Bear Lake; Banning, Dunsm
 
 - **Local warehouse:** answers from 2026-09-23 on use the corrected
   geometry.
-- **EC2 (production):** still serves the old geometry. The correction
-  applies from the date this change is deployed and
-  `python -m db.loaders.rebuild_boundaries` is run there. Record that date
-  here when it happens.
+- **EC2 (production):** the corrected geometry applies from 2026-09-24,
+  when this change was deployed and `python -m db.loaders.rebuild_boundaries`
+  was run there.
 - **Earlier answers:** any spatial HFTD or IOU answer given before that
   date used the old geometry. That includes counts, areas, per-area rates,
   and point lookups. The tables above show how large the differences are.

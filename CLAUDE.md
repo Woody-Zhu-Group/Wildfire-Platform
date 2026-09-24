@@ -2,7 +2,7 @@
 
 @AGENTS.md
 
-AGENTS.md (imported above) holds learned preferences and workspace facts shared with other coding tools. Where it conflicts with this file, this file wins. In particular: the team repo is Woody-Zhu-Group/Wildfire-Platform (push to `platform`), the eval set is no longer 27 cases, and production runs qwen2.5:7b.
+AGENTS.md (imported above) holds learned preferences and workspace facts shared with other coding tools. Where it conflicts with this file, this file wins. In particular: the team repo is Woody-Zhu-Group/Wildfire-Platform (push to `platform`), the eval set is no longer 27 cases, and production runs GPT-6 Luna on OpenRouter (the local qwen path was removed on 2026-09-24).
 
 Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E EPSS, PSPS, US ignitions sample, HFTD, IOU territories, circuits, cNHPP risk model). Users are CPUC analysts. A wrong answer is worse than a slow answer or a clarifying question.
 
@@ -14,7 +14,7 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 - Never print, log, or commit `TYPESAFE_API_KEY`, `.env`, or any credential.
 - Never change a gold label in any eval file unless Michael gives a written label rule.
 - Evals default to one pass. Use `--repeats 5` only when a change touches Jev question wording or adds new Jev facts.
-- Do not run `services.agent.eval.runner` (it calls the qwen model host) unless explicitly asked. Offline Jev evals are fine.
+- Do not run `services.agent.eval.runner` (it spends OpenRouter credits on every model-path case) unless explicitly asked with a budget. Offline Jev evals are fine.
 - Stop and report if TypeSafe API spend in a session passes $5, unless told a different cap.
 - Every change to routing reports how many existing routes changed across `cases.json`, `jev_paraphrases.json`, and all holdouts.
 - Any claim about accuracy states which eval set it came from and whether that set is clean or already used for tuning.
@@ -44,7 +44,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 - `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`: default 0.8
 - `AGENT_JEV_BACKEND`: typesafe (default) or openrouter
 - `AGENT_JEV_LOG_PATH`: shadow log location
-- `AGENT_LLM_PROVIDER`: ollama (default) or openrouter; openrouter also needs `AGENT_ALLOW_REMOTE_PROVIDER=true` and `OPENROUTER_API_KEY` (`docs/OPENROUTER.md`)
+- `AGENT_LLM_PROVIDER`: openrouter is the only value; `OPENROUTER_API_KEY` is required and `AGENT_ALLOW_REMOTE_PROVIDER=true` must be set or startup fails loudly (`docs/OPENROUTER.md`). `AGENT_LLM_MODEL` (openai/gpt-6-luna) and `AGENT_LLM_FALLBACK_MODEL` (openai/gpt-6-sol) override the models
 - `AGENT_SLOT_PLAN`: deterministic multi-entity planner, default off (`docs/JEV_MULTI_TOOL.md`); with decide on, decide runs first
 
 ## Key paths
@@ -79,6 +79,6 @@ After each merge, rebase the next branch onto `platform/main`, rerun `pytest tes
 ## Deployment (EC2, reached by Michael through SSM, not SSH)
 
 - Backend host `ip-172-31-2-9`, repo `/home/ubuntu/Wildfire-Services` (origin there is the platform repo), service `wildfire-agent` on port 8004. Production is still at PR #15.
-- Model host 172.31.6.133, Ollama qwen2.5:7b at 4096 context, CPU only. Slow: hard questions take 3 to 12 minutes.
+- Model tier is OpenRouter (GPT-6 Luna, Sol on retries) since 2026-09-24. The CPU model instance 172.31.6.133 and the old GPU instance are retired.
 - Eval worktree `/home/ubuntu/jev-eval`.
-- Open items: lock port 8004 to CloudFront, rotate the TypeSafe key, switch prose answers to OpenRouter (GPT-6 Luna, Sol for hard fallbacks) once `docs/OPENROUTER.md` clears the switch (the code is on main, off by default).
+- Open items: lock port 8004 to CloudFront, revoke the old TypeSafe key.

@@ -1,6 +1,6 @@
 # Harness guard fixes (2026-08-10 / 2026-08-11)
 
-> Status, 2026-09-23: dated record of the August 2026 fixes and runs; the results below are unchanged. Where current code differs: `AGENT_STRUCTURED_MODE` now defaults to `constrained` (`services/agent/config.py`), so item 16's "default structured_mode=prompt" is the default at the time; the agent's model default is now `qwen2.5:7b` (these runs used `qwen3:4b`); `eval/cases.json` has 107 cases, not 57; and a risk map or surface question with a date and no place now routes to the router-only `risk_surface` tool instead of clarifying (`services/agent/routing.py`).
+> Historical record, 2026-09-24: dated record of the August 2026 fixes and runs on the local Ollama `qwen3:4b` path; the results below are unchanged. That path, `AGENT_STRUCTURED_MODE`, and the thinking cells were removed when production switched to OpenRouter (GPT-6 Luna); see `docs/OPENROUTER.md`. Since these runs, `eval/cases.json` has 107 cases, not 57, and a risk map or surface question with a date and no place routes to the router-only `risk_surface` tool instead of clarifying (`services/agent/routing.py`).
 
 ## Bugs fixed
 

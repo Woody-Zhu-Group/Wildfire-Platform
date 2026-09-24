@@ -2,7 +2,7 @@
 
 A wildfire research platform combining an interactive analysis website, a PostGIS event warehouse, modular FastAPI services, and a historical **cNHPP** (convolutional non-homogeneous Poisson process) ignition-risk model. The website supports recorded fire and outage exploration, weather playback, modeled risk and residual maps, regional and seasonal analysis, and result exports.
 
-The current website offers **18 analysis views in five panel categories**, and the Ask panel can open all 18 from a chat answer. Opening the website does not fit a model, start a GPU, or require a local database.
+The current website offers **18 analysis views in five panel categories**, and the Ask panel can open all 18 from a chat answer. Opening the website does not fit a model or require a local database.
 
 ## Architecture
 
@@ -18,7 +18,7 @@ flowchart LR
     Agent --> Query["Data Query API :8000"]
     Agent --> Compare["Comparison API :8003"]
     Agent --> Risk["Historical Risk API :8001"]
-    Agent -->|Model-tier requests| LLM["Ollama (default) or OpenRouter"]
+    Agent -->|Model-tier requests| LLM["OpenRouter: GPT-6 Luna, Sol on retries"]
     Agent -.->|Optional, off by default| Jev["Jev decisions: TypeSafe or OpenRouter"]
     Viz --> DB[(PostGIS warehouse)]
     Query --> DB
@@ -51,7 +51,6 @@ services/comparison/            # cross-utility / region / period metrics
 services/agent/                 # deterministic router, model harness, caveats, view planner
   decisions/                    # optional Jev (TypeSafe) decision layer, off by default
   eval/                         # eval cases, holdouts, runners, and stored run outputs
-services/gpu_control/           # optional EC2/Ollama control on port 8005
 services/risk_forecasting/
   models.py                     # HPP / NHPP / cNHPP (do not modify lightly)
   grid_data_prep.py             # grid data loaders (do not modify lightly)
@@ -179,7 +178,6 @@ Run each API in a separate terminal from the repository root. These are the loca
 | Visualization | 8002 | GeoJSON layers, time series, territory and event detail |
 | Comparison | 8003 | Backend utility, region and period comparisons |
 | Agent | 8004 | Deterministic/model routing and SSE answers |
-| GPU control (optional) | 8005 | Authenticated start/stop when EC2/Ollama is configured; disabled with no defaults |
 | PostGIS | 5433 | Local database host port; container port is 5432 |
 
 The current website's direct data panels need Visualization and its warehouse; SQL aggregation additionally requires the updated Data Query service. Ask uses Agent and the relevant downstream services. The risk surface and residual map panels need the Historical Risk API. Historical scoring additionally requires the model input files described below.
@@ -253,7 +251,7 @@ uvicorn services.agent.app:app --port 8004 --app-dir .
 
 **Caveats.** Qualifications attach after any successful tool path: CPUC ignitions are utility-caused or utility-attributed, every utility ignition count is paired with the same-period spatial containment count, EPSS is PG&E-only, CAL FIRE answers report missing incident-type and utility-tag counts, CAL FIRE count comparisons that cross 2023 to 2024 carry the incident-map-feed caveat, US ignitions are a sample and not comparable to CPUC, and cNHPP answers note the grid resolution and the cNHPP versus NHPP tie. If a required companion call fails, the answer is suppressed rather than returned without its caveat.
 
-**Model provider.** The default is Ollama with `qwen2.5:7b` (`AGENT_MODEL`). `AGENT_LLM_PROVIDER=openrouter` sends routing and synthesis to OpenRouter (GPT-6 Luna, with Sol for retries) using native tool calls and strict structured outputs; it also needs `AGENT_ALLOW_REMOTE_PROVIDER=true` and `OPENROUTER_API_KEY`, and it is off by default. [`docs/OPENROUTER.md`](docs/OPENROUTER.md) covers the switch, prices, and measurements, and currently says not to switch production yet.
+**Model provider.** Routing and synthesis run on OpenRouter (GPT-6 Luna, with GPT-6 Sol for retries) using native tool calls (`tool_choice: "required"`) and strict structured outputs. `OPENROUTER_API_KEY` is required, and the agent refuses to start until `AGENT_ALLOW_REMOTE_PROVIDER=true` confirms that questions may leave the host. `AGENT_LLM_MODEL` and `AGENT_LLM_FALLBACK_MODEL` override the models. The local Ollama/qwen path was removed on 2026-09-24. [`docs/OPENROUTER.md`](docs/OPENROUTER.md) covers settings, prices, and measurements.
 
 **Jev decision layer (all off by default).** Jev is TypeSafe's non-generative decision model. `AGENT_JEV_MODE` is `off` by default; `shadow` logs Jev's decisions beside the router without changing answers; `tool_pick` lets Jev choose the model-path tool above `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (0.8); `tool_pick_template` adds template answers for simple reads. `AGENT_JEV_BACKEND` is `typesafe` or `openrouter`. `decide` runs the Jev-first decider: router hard backstops first, routes Jev cannot express stay with the router, then Jev's clarify or refuse wins at `AGENT_JEV_DECIDE_MIN_CONFIDENCE` (0.8) and a Jev answer over a router decline needs `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE` (0.9); a Jev decline never contradicts a slot the router resolved, a missing time or place the router proved in code cannot be answered over, and on a timeout or error the router stands. `AGENT_SLOT_PLAN` (off by default) turns a deferred multi-entity question into several deterministic calls built from router slots; with decide on, decide runs first and the planner acts only on questions decide leaves as answer. Jev's own plan mode was archived. See [`docs/JEV_DECIDE.md`](docs/JEV_DECIDE.md), [`docs/JEV_MULTI_TOOL.md`](docs/JEV_MULTI_TOOL.md), [`docs/JEV_SHADOW.md`](docs/JEV_SHADOW.md), [`docs/JEV_DETERMINISM.md`](docs/JEV_DETERMINISM.md), and [`docs/JEV_BACKLOG.md`](docs/JEV_BACKLOG.md).
 
@@ -263,33 +261,13 @@ offline sentence (HTTP 200), not a 500. `/health` stays a cheap `/v1/models`
 probe and does not warm the model. The website Ask panel uses SSE
 `POST /ask/stream`; leave `POST /ask` unchanged for eval.
 
-**Evaluation.** The eval runner defaults to `qwen3:4b`; to match production pass the model and mode explicitly:
+**Evaluation.** The eval runner defaults to the production model (`openai/gpt-6-luna`) and spends OpenRouter credits on every model-path case, so run it only with an explicit budget:
 
 ```bash
-python -m services.agent.eval.runner --models qwen2.5:7b --thinking off --modes constrained
+AGENT_ALLOW_REMOTE_PROVIDER=true python -m services.agent.eval.runner --models openai/gpt-6-luna
 ```
 
 Eval cases are `services/agent/eval/cases.json` and `jev_paraphrases.json` (development data, used for tuning) and holdout v1 (`jev_holdout.json`, seen). See [`services/agent/README.md`](services/agent/README.md), [`services/agent/SECURITY.md`](services/agent/SECURITY.md) for the threat boundary, and [`services/agent/eval/HARNESS_GUARDS.md`](services/agent/eval/HARNESS_GUARDS.md).
-
-### GPU control (optional)
-
-The current test deployment uses the CPU model at `AGENT_MODEL_BASE_URL`.
-`gpu_control` remains available for a future explicitly configured EC2/Ollama
-resource; it is not on the agent request path. The current React website does not call these controls.
-
-```bash
-uvicorn services.gpu_control.app:app --port 8005 --app-dir .
-```
-
-`GPU_INSTANCE_ID`, `GPU_OLLAMA_URL`, and `GPU_MODEL` have no defaults. When
-they are absent, status reports disabled and EC2 is not called. An explicitly
-configured service requires `X-GPU-Control-Token` on `POST /gpu/start` and
-`POST /gpu/stop`. Missing `GPU_CONTROL_TOKEN` returns 503 so start is never
-open. Status is unauthenticated and pollable. Concurrent `/gpu/start` is
-locked: in-progress starts (and any state other than `stopped`/`error`) return
-current status and do not call `StartInstances` again. Stopping EC2 does not
-remove its EBS storage. See
-[`services/gpu_control/README.md`](services/gpu_control/README.md).
 
 ### Local Historical Map and Planning Tool
 
@@ -426,4 +404,3 @@ Historical dates only for years with local covariate files. No live HRRR ingesti
 | [`services/agent/eval/HARNESS_GUARDS.md`](services/agent/eval/HARNESS_GUARDS.md), [`services/agent/eval/ROUTING_EXPERIMENT.md`](services/agent/eval/ROUTING_EXPERIMENT.md) | Harness guards and the routing experiment |
 | [`docs/OPENROUTER.md`](docs/OPENROUTER.md) | OpenRouter LLM and Jev backends, prices, measurements, and the production switch |
 | [`docs/JEV_SHADOW.md`](docs/JEV_SHADOW.md), [`docs/JEV_DECIDE.md`](docs/JEV_DECIDE.md), [`docs/JEV_MULTI_TOOL.md`](docs/JEV_MULTI_TOOL.md), [`docs/JEV_DETERMINISM.md`](docs/JEV_DETERMINISM.md), [`docs/JEV_BACKLOG.md`](docs/JEV_BACKLOG.md) | Jev modes and flags, decide mode, the slot planner, determinism, and deferred Jev work |
-| [`services/gpu_control/README.md`](services/gpu_control/README.md) | Optional GPU control service |

@@ -81,13 +81,13 @@ suppressed rather than returned without its qualification.
 
 ## Model provider and Jev
 
-- Default model tier: Ollama with `qwen2.5:7b` (`AGENT_MODEL`).
-- `AGENT_LLM_PROVIDER=openrouter` sends routing and synthesis to OpenRouter
-  (GPT-6 Luna, with Sol for retry turns) with native `tool_choice` and strict
-  structured outputs. It is off by default, also needs
-  `AGENT_ALLOW_REMOTE_PROVIDER=true` and `OPENROUTER_API_KEY`, and
-  [`docs/OPENROUTER.md`](../../docs/OPENROUTER.md) records why production has not
-  switched yet.
+- Model tier: OpenRouter (GPT-6 Luna, with GPT-6 Sol for retry turns) with
+  native `tool_choice: "required"` for routing and strict structured outputs
+  for synthesis. `OPENROUTER_API_KEY` is required, and startup fails with a
+  clear message until `AGENT_ALLOW_REMOTE_PROVIDER=true` confirms that
+  questions may leave the host. `AGENT_LLM_MODEL` and
+  `AGENT_LLM_FALLBACK_MODEL` override the models. The local Ollama/qwen path
+  was removed on 2026-09-24 ([`docs/OPENROUTER.md`](../../docs/OPENROUTER.md)).
 - `AGENT_JEV_MODE` is `off` by default; `shadow`, `tool_pick`, and
   `tool_pick_template` are described in [`docs/JEV_SHADOW.md`](../../docs/JEV_SHADOW.md).
   `AGENT_JEV_BACKEND` is `typesafe` or `openrouter`. `decide` (off by default)
@@ -102,12 +102,11 @@ suppressed rather than returned without its qualification.
 
 ## Run
 
-The process binds `:8004` even when Ollama is unreachable. Deterministic
+The process binds `:8004` even when OpenRouter is unreachable. Deterministic
 routes still answer; model-tier questions return an offline error payload
-instead of failing startup or returning HTTP 500. Context is warmed lazily
-on the first `complete()` after the GPU comes back. `/health` checks the
-model with `GET /v1/models` (it does not load the model) and calls `/health` on
-each of the four backend services.
+instead of failing startup or returning HTTP 500. `/health` checks the model
+with `GET /models` on the provider and calls `/health` on each of the four
+backend services.
 
 Start the four backend services on ports 8000–8003, then:
 
@@ -128,28 +127,14 @@ The service is single-exchange: it stores no conversation history.
 
 The 107 cases in `eval/cases.json` (14 of them `force_model`) cover
 single-service, multi-service, ranking, required caveats,
-clarifications/refusals, recovery, and partial-HTTP-200 detection. Any subset
-of the eight matrix cells can be selected:
+clarifications/refusals, recovery, and partial-HTTP-200 detection. Each
+`--models` entry is one cell. The default is the production model, and every
+model-path case spends OpenRouter credits, so run it only with an explicit
+budget and prefer `--case-ids` for focused work:
 
 ```powershell
-python -m services.agent.eval.runner `
-  --models qwen3:4b,qwen3:8b `
-  --thinking off,on `
-  --modes prompt,constrained
-```
-
-To match production (the runner itself defaults to `qwen3:4b`):
-
-```powershell
-python -m services.agent.eval.runner `
-  --models qwen2.5:7b --thinking off --modes constrained
-```
-
-Initial staged baseline only:
-
-```powershell
-python -m services.agent.eval.runner `
-  --models qwen3:4b --thinking off --modes prompt
+$env:AGENT_ALLOW_REMOTE_PROVIDER = "true"
+python -m services.agent.eval.runner --models openai/gpt-6-luna
 ```
 
 Use `--case-ids id1,id2` for focused development. Results are written to
@@ -159,19 +144,11 @@ The stop gate is **50% model-tier routing accuracy**, evaluated separately from
 deterministic bypasses after at least five model-tier cases. Below the gate, the
 runner stops before subsequent selected cells.
 
-## Ollama limitations
+## Provider notes
 
-Ollama's OpenAI-compatible endpoint does not support `tool_choice`. On the
-Ollama path, routing instead sends a JSON call envelope (`{"calls": [...]}`,
-drawn from the candidate tools) as the native `/api/chat` `format`; the array
-may be empty, so the harness still cannot force a tool call (the OpenRouter
-path sends `tool_choice: "required"`). Evaluation therefore records no-tool
-responses and valid direct-answer attempts before evidence. The harness blocks
-either from becoming a factual answer.
-
-The installed Qwen3 model template forces a thinking prefix even when
-`reasoning_effort=none`. For the thinking-off cell, startup creates an
-idempotent template-only `*-agent-nothink` alias that uses the exact base
-weights and closes the thinking block before generation. Routing and
-constrained synthesis go through native `/api/chat`; prompt-mode synthesis uses
-`/v1/chat/completions`. Reports retain the base model name.
+Routing sends the candidate tools with `tool_choice: "required"`, so the
+model cannot answer without a tool call. Evaluation still records no-tool
+responses and direct-answer attempts before evidence, and the harness blocks
+either from becoming a factual answer. Earlier local-model runs and their
+Ollama workarounds are historical records under `eval/` and are not comparable
+to hosted runs.

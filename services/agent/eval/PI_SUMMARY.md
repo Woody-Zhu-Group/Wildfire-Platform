@@ -1,6 +1,6 @@
 # Local AI agent for wildfire data questions: summary for PI
 
-> Status, 2026-09-23: dated August 2026 summary; the results below are unchanged. Since then: `eval/cases.json` has grown to 107 cases; the agent's model default is `qwen2.5:7b` with constrained synthesis (this summary measured `qwen3:4b`) (`services/agent/config.py`); a hosted OpenRouter path that sends `tool_choice: "required"` is on main but off by default (`AGENT_LLM_PROVIDER=openrouter`, see [`docs/OPENROUTER.md`](../../../docs/OPENROUTER.md), which records `cpuc_vs_us` passing on that path on 2026-09-23); and CPUC versus US compare questions now companion-fetch the missing dataset in the harness (`services/agent/caveats.py`).
+> Historical record, 2026-09-24: dated August 2026 summary of the local `qwen3:4b` path; the results below are unchanged. Since then: `eval/cases.json` has grown to 107 cases; the local Ollama path was removed and the agent runs on OpenRouter (GPT-6 Luna, `tool_choice: "required"`; see [`docs/OPENROUTER.md`](../../../docs/OPENROUTER.md), which records `cpuc_vs_us` passing on that path on 2026-09-23); and CPUC versus US compare questions now companion-fetch the missing dataset in the harness (`services/agent/caveats.py`).
 
 **Date:** August 2026 (updated after synthesis-quality eval)  
 **Question we set out to answer:** Can a small language model running on a laptop reliably route policymaker questions to our existing wildfire data services, and return answers with the right scientific caveats?

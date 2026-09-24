@@ -14,9 +14,10 @@ imports `typesafe_sdk`, and the default `off` mode never imports it.
   and logs both. Answers, tool calls, caveats, and eval scores do not change.
 - `tool_pick`: on the model path, Jev picks the tool and `tool_pick_mode.py`
   fills arguments from router slots. Below `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`
-  (default 0.8), or on any error or missing slot, the qwen tool loop runs.
+  (default 0.8), or on any error or missing slot, the LLM tool loop runs
+  (logged with the historical path label `qwen`).
 - `tool_pick_template`: same gate; a template writes the answer for simple
-  intents instead of qwen synthesis.
+  intents instead of LLM synthesis.
 
 `AGENT_JEV_BACKEND` is `typesafe` (default, `api.typesafe.ai`) or `openrouter`
 (same request body sent to OpenRouter).
