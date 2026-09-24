@@ -4,13 +4,28 @@
 **Reproducible via:** `analysis/compare_cpuc_calfire_us.py` (repo-root `PYTHONPATH`, `PYTHONIOENCODING=utf-8`).  
 **This is a findings memo, not a product spec.**
 
+> **Status note (2026-09-23):** The findings below are a dated snapshot and are
+> not re-derived. On the code side: the `cpuc_utility_caused` and
+> `us_ignitions_sample` texts quoted under "Caveats currently attached" are
+> still the current `CAVEAT_TEXT` entries (`services/agent/caveats.py:16-24`),
+> and `calfire_missingness` is still built from the null counts
+> (`services/agent/caveats.py:157-164`). The recommended revisions to those
+> three are not implemented. Since this memo, a separate
+> `calfire_map_feed_counts` caveat covers the 2023 to 2024 CAL FIRE count jump
+> (`services/agent/caveats.py:29`, attached by `_needs_calfire_map_feed_caveat`
+> at `services/agent/caveats.py:559`; see
+> [`analysis/calfire-2024-jump.md`](../analysis/calfire-2024-jump.md)). The
+> `us_ignitions` service metadata still reports the state-PIP shares (0.4015 /
+> 0.5872) in `services/shared/dataset_registry.py:71-76`, not the county
+> `ST_Covers` 40.09%.
+
 ---
 
 ## What we should believe
 
 These three tables all describe California fire activity and **do not describe the same events**. CPUC is a utility-attributed ignition list (small fires included). CAL FIRE in this warehouse is an *incident* catalog biased toward fires large enough to be typed and posted (median **53 acres** under the default Wildfire/Fire filter). US ignitions is a FireCastRL **positive-class sample** of IRWIN-derived points, California-heavy, with synthetic controls already stripped. They should not be added, ratioed, or trained as if they were three views of one census.
 
-The open sampling-rate question — *what fraction of actual California fires does US ignitions capture?* — **cannot be answered from these tables**. In 2020–2024 (complete years for US), California US points outnumber default CAL FIRE incidents **7.5 to 1**, and only **~1%** of those US points sit within 5 km and ±3 days of a CAL FIRE Wildfire/Fire incident. A sample cannot be a 7× oversample of its supposed census and also fail a generous spatial-temporal join. US ignitions is not usable as a cNHPP cell-day census, and it is not a measurable subsample of CAL FIRE or CPUC.
+The open sampling-rate question (*what fraction of actual California fires does US ignitions capture?*) **cannot be answered from these tables**. In 2020–2024 (complete years for US), California US points outnumber default CAL FIRE incidents **7.5 to 1**, and only **~1%** of those US points sit within 5 km and ±3 days of a CAL FIRE Wildfire/Fire incident. A sample cannot be a 7× oversample of its supposed census and also fail a generous spatial-temporal join. US ignitions is not usable as a cNHPP cell-day census, and it is not a measurable subsample of CAL FIRE or CPUC.
 
 Cross-checks against previously published warehouse figures all held: US total **33,457**; PGE 2024 CPUC attribute **532** vs spatial **536**; CAL FIRE null `incident_type` **1,234**.
 
@@ -156,7 +171,7 @@ The 10 km / ±7 d cell is the *least* defensible as “same fire.” Even there,
 | 10 km | ±3 d | 244 | 1,883 | 11.47 | 260 | 12,878 | 1.98 |
 | 10 km | ±7 d | 327 | 1,800 | 15.37 | 398 | 12,740 | 3.03 |
 
-If US CA were a sample of the same physical incidents CAL FIRE posts, US→CAL FIRE at 1 km / ±1 d would be high. It is **0.53%**. CAL FIRE→US at the loosest cell is **15.4%** — still a large majority unmatched. We should not call any cell in Tables 3–5 a match *rate of the same fires*. They are upper bounds on crude proximity.
+If US CA were a sample of the same physical incidents CAL FIRE posts, US→CAL FIRE at 1 km / ±1 d would be high. It is **0.53%**. CAL FIRE→US at the loosest cell is **15.4%**, so a large majority is still unmatched. We should not call any cell in Tables 3–5 a match *rate of the same fires*. They are upper bounds on crude proximity.
 
 **Matching is unreliable as identity, and that is a finding.** Different event definitions, different date semantics, no shared keys, and US is a sample rather than a census. The sensitivity grid does not hide a high-match regime we failed to pick.
 
@@ -188,8 +203,8 @@ Counties were chosen *before* seeing the counts, for contrasting profiles: Sacra
 | Butte | 110 | 44 | 43 | 392 | 2.50 | 8.91 |
 | Lake | 26 | 25 | 24 | 73 | 1.04 | 2.92 |
 | Imperial | 0 | 6 | 5 | 6 | 0 | 1.00 |
-| San Francisco | 4 | 0 | 0 | 1 | — | — |
-| **Statewide (same years)** | **3,745** | **1,878** | — | **10,168** | **1.99** | **5.41** |
+| San Francisco | 4 | 0 | 0 | 1 | n/a | n/a |
+| **Statewide (same years)** | **3,745** | **1,878** | n/a | **10,168** | **1.99** | **5.41** |
 
 The statewide CPUC:CAL FIRE ≈ 2 and US:CAL FIRE ≈ 5 **do not** describe these counties. Los Angeles is US-heavy (US 29× CAL FIRE). Sacramento is the reverse (CAL FIRE > CPUC = US). Imperial has no CPUC rows. San Francisco has no default CAL FIRE point inside the county polygon. Text vs spatial CAL FIRE differs by 0–1 in this set.
 
@@ -201,7 +216,7 @@ The statewide CPUC:CAL FIRE ≈ 2 and US:CAL FIRE ≈ 5 **do not** describe thes
 | Los Angeles | 264 | 1 | 0.38 | 2,294 | 5 | 0.22 | 78 |
 | Butte | 110 | 6 | 5.45 | 392 | 4 | 1.02 | 44 |
 | Lake | 26 | 1 | 3.85 | 73 | 0 | 0.0 | 25 |
-| Imperial | 0 | 0 | — | 6 | 0 | 0.0 | 6 |
+| Imperial | 0 | 0 | n/a | 6 | 0 | 0.0 | 6 |
 | San Francisco | 4 | 0 | 0.0 | 1 | 0 | 0.0 | 0 |
 
 County n is small except LA / Butte. We should not over-interpret 0% vs 5%. What holds is the *absence* of a high-match county in this set. LA’s huge US pile is not sitting on CAL FIRE incidents.
@@ -212,13 +227,13 @@ County n is small except LA / Butte. We should not over-interpret 0% vs 5%. What
 
 No code was changed. Recommendations only.
 
-### CPUC — `cpuc_utility_caused`
+### CPUC: `cpuc_utility_caused`
 
 > CPUC ignitions in this warehouse are utility-caused / utility-attributed only; they are not all-cause wildfire counts and are not comparable to CAL FIRE or US ignitions.
 
 **Revise, keep the claim.** The definitional sentence is correct and now has measurements: 2020–2024 CPUC 3,190 vs CAL FIRE default 1,323 vs US CA 9,880, and CPUC→CAL FIRE proximity 1.4–5.6% across the grid. Optional addition: attribute `utility=` ≠ spatial territory containment (PGE 2024 **532** vs **536**, re-verified).
 
-### US — `us_ignitions_sample`
+### US: `us_ignitions_sample`
 
 Base text (when metadata `notes` is absent):
 
@@ -226,9 +241,9 @@ Base text (when metadata `notes` is absent):
 
 Service metadata also injects California-heavy ≈40% / ≈59% of 2024.
 
-**Revise, keep the claim.** Add, in substance: (1) the loaded table is **positives only** — synthetic controls were dropped at extract; (2) CA share by `ST_Covers` vs `wildfire.counties` is **13,413 / 33,457 = 40.09%** (state-PIP was 13,432 / 40.15%; 2024 CA 2,225 / 58.7% either method); (3) **do not state a sampling fraction vs CAL FIRE** — US CA is larger than default CAL FIRE and <4% of US CA points fall within 10 km / ±7 d of a CAL FIRE Wildfire/Fire incident; (4) not a cell-day census, not for cNHPP. The current “not comparable to CPUC” line is supported (CPUC→US 1.9–14.5% depending on threshold; even 14.5% is the loosest cell).
+**Revise, keep the claim.** Add, in substance: (1) the loaded table is **positives only** (synthetic controls were dropped at extract); (2) CA share by `ST_Covers` vs `wildfire.counties` is **13,413 / 33,457 = 40.09%** (state-PIP was 13,432 / 40.15%; 2024 CA 2,225 / 58.7% either method); (3) **do not state a sampling fraction vs CAL FIRE**: US CA is larger than default CAL FIRE and <4% of US CA points fall within 10 km / ±7 d of a CAL FIRE Wildfire/Fire incident; (4) not a cell-day census, not for cNHPP. The current “not comparable to CPUC” line is supported (CPUC→US 1.9–14.5% depending on threshold; even 14.5% is the loosest cell).
 
-### CAL FIRE — `calfire_missingness`
+### CAL FIRE: `calfire_missingness`
 
 > CAL FIRE has 1,234 records without incident type and 282 without utility tags; default counts include only Wildfire/Fire incident types.
 

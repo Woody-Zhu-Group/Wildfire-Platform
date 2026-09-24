@@ -1,4 +1,15 @@
-# AWS migration audit — Wildfire Services
+# AWS migration audit: Wildfire Services
+
+> Status (2026-09-23): historical audit of the tree as of 2026-08-21. Its findings are left as written, but these statements no longer match the current code:
+>
+> - There are six FastAPI apps, not five: `services/gpu_control/` (optional, port 8005) was added.
+> - The risk API now has CORS (`services/risk_forecasting/app.py` 61-67) and serves `/surface`, `/observed`, `/observed-training` and `/metrics` besides `/predict` (`app.py` 149-303). The website calls `/surface` and `/observed-training` directly (`website/src/api.ts` 105, 111), so "the frontend does not call risk" (sections 4.3, 9.1, blocker 12) is out of date. See `services/risk_forecasting/README.md`.
+> - The agent no longer needs a live model to start: lifespan catches model and warmup failures and still binds 8004 (`services/agent/app.py` 33-45). Section 5.7 and blocker 3 are out of date.
+> - systemd units now exist in `deploy/systemd/` for data query, visualization, comparison, agent, frontend and gpu control, with uvicorn bound to `0.0.0.0` (see `deploy/systemd/SYSTEMD_SETUP.md`). There is still no unit for the risk API on 8001. Section 8 and blockers 4 and 5 are out of date on this point.
+> - The current website is a Vite/TypeScript app in `website/` (`website/package.json`) built into `docs/`, with default API bases under CloudFront `/api/...` (`website/src/api.ts` 9-12). Section 4 and "no `package.json`" describe only the older `frontend/` app.
+> - Agent defaults changed: `AGENT_MODEL` defaults to `qwen2.5:7b` (`services/agent/config.py` 108), and `AGENT_LLM_PROVIDER` accepts `ollama` or `openrouter` (`config.py` 198). The loopback rule for backend URLs is still there (`config.py` 231-232). `services/agent/eval/cases.json` now has 107 cases.
+> - `requirements.txt` now also lists `boto3` and `typesafe-sdk`.
+> - File:line references below point to the 2026-08-21 tree and may have moved.
 
 Read-only inventory of `C:\AI Coding Projects\Wildfire Services` as of 2026-08-21. No services were started for this audit. Sizes are from the local working tree. Where something was not observed on disk or in code, this report says **unclear**.
 
@@ -38,29 +49,29 @@ Ollama (`http://127.0.0.1:11434`) is an **external** process, not in this reposi
 
 Paths below are as written in code. Relative paths resolve from **repo root** when `uvicorn … --app-dir .` is used, except `frontend/serve.py` which `os.chdir`s into `frontend/`.
 
-### 2.1 Data query (`services/data_query/`) — runtime
+### 2.1 Data query (`services/data_query/`): runtime
 
 No CSV/GeoJSON reads at request time. Every request opens a new Postgres connection.
 
 | Resource | Path as written | File:line | Format | Local size | When |
 | --- | --- | --- | --- | --- | --- |
 | `.env` | `REPO_ROOT / ".env"` (`C:\AI Coding Projects\Wildfire Services\.env` via `Path(__file__).parents[1]`) | `shared/db.py` 13, 20–21 | dotenv | present locally; **gitignored**; size not required | Once per process (`load_dotenv`) |
-| Postgres | `POSTGRES_HOST` default `"localhost"`, port `"5433"`, db `"wildfire"` or `DATABASE_URL` | `shared/db.py` 84–89, 48–54, 105 | PostgreSQL/PostGIS | Docker volume `wildfire_pgdata` — **unclear** (not measured) | Connection at startup probe + **every request** (`get_conn` opens/closes) |
+| Postgres | `POSTGRES_HOST` default `"localhost"`, port `"5433"`, db `"wildfire"` or `DATABASE_URL` | `shared/db.py` 84–89, 48–54, 105 | PostgreSQL/PostGIS | Docker volume `wildfire_pgdata`: **unclear** (not measured) | Connection at startup probe + **every request** (`get_conn` opens/closes) |
 | Default demo dir (settings only; API does not read files) | `(REPO_ROOT.parent / "dataset_demo" / "assets" / "data").resolve()` | `shared/db.py` 69 | directory | 20.4 MB (+ subdirs; see 2.8) | Settings object at import/`get_settings()` |
 
 Startup: `SELECT PostGIS_Version()` (`services/data_query/app.py` 38). Tables queried per endpoint in `services/data_query/queries.py` (`wildfire.*`).
 
-### 2.2 Visualization (`services/visualization/`) — runtime
+### 2.2 Visualization (`services/visualization/`): runtime
 
 Same as data query: **PostGIS only** at request time (`shared/db.py` + `services/visualization/queries.py`). No local GeoJSON.
 
 `GET /map-layer` default `limit=5000`, max **20000** (`services/visualization/app.py` 31–32, 182).
 
-### 2.3 Comparison (`services/comparison/`) — runtime
+### 2.3 Comparison (`services/comparison/`): runtime
 
 PostGIS only. No local files.
 
-### 2.4 Risk forecasting (`services/risk_forecasting/`) — runtime
+### 2.4 Risk forecasting (`services/risk_forecasting/`): runtime
 
 Defaults from `shared/paths.py` / `services/risk_forecasting/config.py`:
 
@@ -86,7 +97,7 @@ Defaults from `shared/paths.py` / `services/risk_forecasting/config.py`:
 
 Risk data dir total on disk: **267.09 MB**.
 
-### 2.5 Agent (`services/agent/`) — runtime
+### 2.5 Agent (`services/agent/`): runtime
 
 | Resource | Path as written | File:line | Format | Local size | When |
 | --- | --- | --- | --- | --- | --- |
@@ -97,7 +108,7 @@ Risk data dir total on disk: **267.09 MB**.
 
 No local CSV/NetCDF reads. Eval runner **writes** `services/agent/eval/runs/...` (`runner.py` 29, 116–118, 733–734).
 
-### 2.6 Frontend (`frontend/`) — browser runtime
+### 2.6 Frontend (`frontend/`): browser runtime
 
 Served from `frontend/`; `data-base-path="."` and `data-plots-base="../../dataset_demo/assets/website_plots"` in `frontend/index.html` 28–29. `serve.py` maps `/dataset_demo/` to sibling checkout (`serve.py` 26–27, 33–36).
 
@@ -112,14 +123,14 @@ Frontend `assets/data` total: **4.73 MB**. There are **no** copied CPUC/EPSS/CAL
 
 **If visualization API is missing** (`USE_VIS_API` false), code still `fetch`es these (they **404** in this tree):
 
-- `` `${basePath}/assets/data/cpuc_fire_incidents_combined.csv` `` — `sect-fasttrip-psps.js` 191
-- `` `.../epss_outages.csv` `` — 214
-- `` `.../calfire_incidents.csv` `` — 236
-- `` `.../psps_events.geojson` `` — 255
-- `` `.../epss_circuits.geojson` `` — 272
-- `` `.../iou_territories.geojson` `` — 273
-- `` `.../psps_event_circuits.json` `` — 274
-- `` `.../hftd.geojson` `` — 294
+- `` `${basePath}/assets/data/cpuc_fire_incidents_combined.csv` ``: `sect-fasttrip-psps.js` 191
+- `` `.../epss_outages.csv` ``: 214
+- `` `.../calfire_incidents.csv` ``: 236
+- `` `.../psps_events.geojson` ``: 255
+- `` `.../epss_circuits.geojson` ``: 272
+- `` `.../iou_territories.geojson` ``: 273
+- `` `.../psps_event_circuits.json` ``: 274
+- `` `.../hftd.geojson` ``: 294
 
 With `historical-vis-api.js` present, `USE_VIS_API` is true and year layers come from `:8002`. Static fallback is dead in this checkout.
 
@@ -132,7 +143,7 @@ With `historical-vis-api.js` present, `USE_VIS_API` is true and year layers come
 | Method maps | `grid_plots/{folder}/exp_0_{slug}/map.png` | `sect-fasttrip-psps.js` 4255–4256, 4295, 4930 | PNG | parent `grid_plots/` **827.2 MB**; `website_plots/` **2090.59 MB** | When sliders change |
 | Other plot trees | `plots/`, `historical plots/` | same plots base | PNG etc. | 1237.9 MB + 14.6 MB | If selected via CSV/manifest |
 
-`frontend/serve.py` 26: `SIBLING_DEMO = REPO_ROOT.parent / "dataset_demo"` — requires a sibling directory named exactly `dataset_demo`.
+`frontend/serve.py` 26: `SIBLING_DEMO = REPO_ROOT.parent / "dataset_demo"`: requires a sibling directory named exactly `dataset_demo`.
 
 ### 2.7 Loaders (not API runtime; required to populate RDS)
 
@@ -153,8 +164,8 @@ Default source: `DATASET_DEMO_DATA_DIR` or `../dataset_demo/assets/data` (`share
 | `grid_cells.csv` | `load_grid.py` 44 from `risk_forecasting_data_dir` | CSV | 0.03 MB |
 | `data/north_america/us_ignitions_extracted.csv` | `extract_us_ignitions.py` 17; `load_us_ignitions.py` 32 | CSV | 3.87 MB (gitignored) |
 | `data/north_america/Wildfire_Dataset.csv` | `extract_us_ignitions.py` 16 | CSV | **1079.80 MB** (gitignored) |
-| `db/schema.sql` | Docker init + `apply_schema` | SQL | — | Once at DB init / load |
-| `db/schema_us_ignitions.sql` | `load_us_ignitions.py` 15 | SQL | — | Load |
+| `db/schema.sql` | Docker init + `apply_schema` | SQL | n/a | Once at DB init / load |
+| `db/schema_us_ignitions.sql` | `load_us_ignitions.py` 15 | SQL | n/a | Load |
 | Census county zip | URLs in `load_counties.py` 27–28; cache `REPO_ROOT / "data" / "boundaries" / "cb_2023_us_county_500k.zip"` (`load_counties.py` 30–31) | shapefile zip | gitignored patterns; **unclear** if cached locally this audit (dir has `.gitkeep`) |
 
 `dataset_demo/assets/data` total **20.4 MB** including `cache/`, `iou_shapes/`, `weather_anim/`.
@@ -237,7 +248,7 @@ Approximate, this machine:
 | `tests/test_comparison.py` | 10 | `http://127.0.0.1:8003` |
 | `tests/agent/test_streaming.py` | 168 | `base_url="http://test"` (ASGI test, not a real host) |
 
-### 3.5 External HTTPS in product UI / loaders (CDN, tiles, census — not localhost)
+### 3.5 External HTTPS in product UI / loaders (CDN, tiles, census; not localhost)
 
 | File | Line | Context |
 | --- | --- | --- |
@@ -286,7 +297,7 @@ Approximate, this machine:
 
 Base URLs from `api-config.js` (currently loopback). Paths concatenated in JS:
 
-**Visualization (`WILDFIRE_API_BASE`, default `http://127.0.0.1:8002`) — `historical-vis-api.js`:**
+**Visualization (`WILDFIRE_API_BASE`, default `http://127.0.0.1:8002`): `historical-vis-api.js`:**
 
 - `GET /health` (line 38)
 - `GET /map-layer?dataset=…&limit=20000&offset=0&year=…` plus `incident_type` for calfire, `include_outages=true` for epss (41–48)
@@ -296,13 +307,13 @@ Base URLs from `api-config.js` (currently loopback). Paths concatenated in JS:
 
 Datasets used from the map loader (`sect-fasttrip-psps.js` 614–621): `ignitions`, `epss`, `calfire`, `psps`, `hftd`, `us_ignitions`.
 
-**Agent (`WILDFIRE_AGENT_BASE`, default `http://127.0.0.1:8004`) — `historical-agent-api.js`:**
+**Agent (`WILDFIRE_AGENT_BASE`, default `http://127.0.0.1:8004`): `historical-agent-api.js`:**
 
 - `GET /health` (10)
 - `POST /ask/stream` (22)
 - `GET /artifacts/{ref}` (84)
 
-**Data query (`WILDFIRE_DATA_QUERY_BASE`, default `http://127.0.0.1:8000`) — `sect-fasttrip-psps.js` 2152–2163, 2894:**
+**Data query (`WILDFIRE_DATA_QUERY_BASE`, default `http://127.0.0.1:8000`): `sect-fasttrip-psps.js` 2152–2163, 2894:**
 
 Record-table refetch only:
 
@@ -338,9 +349,9 @@ Thinking-off on Qwen3 creates a local Ollama alias `{model}-agent-nothink` via `
 
 ### 5.2 Exact invocation code path
 
-1. `services/agent/app.py` 31–35 — lifespan: `ensure_runtime_model` then `OpenAICompatibleProvider.ensure_context_loaded()`.
-2. `model_setup.py` 44–70 — Ollama `/api/show`, `/api/create`.
-3. `provider.py` 148–181 — warmup `POST /api/generate` (unload) and `POST /api/chat`.
+1. `services/agent/app.py` 31–35: lifespan: `ensure_runtime_model` then `OpenAICompatibleProvider.ensure_context_loaded()`.
+2. `model_setup.py` 44–70: Ollama `/api/show`, `/api/create`.
+3. `provider.py` 148–181: warmup `POST /api/generate` (unload) and `POST /api/chat`.
 4. Ask: `app.py` 138–142 `orchestrator.ask` → `orchestrator.py` 112 `route_question`.
 5. Model loop uses `provider.complete` (`provider.py` 196–246):
    - constrained tool routing → `_complete_native_tool_envelope` → native `/api/chat` (`provider.py` 217–226, 405–410)
@@ -383,7 +394,7 @@ Most Ask traffic can be answered **without** the LLM **if the agent process is r
 ### 5.6 Evaluation suite
 
 - Location: `services/agent/eval/`
-- Cases: `cases.json` — **62** `"id"` entries (grew past the original 27).
+- Cases: `cases.json`: **62** `"id"` entries (grew past the original 27).
 - Run: `python -m services.agent.eval.runner` with `--models`, `--thinking`, `--modes`, `--case-ids`, `--run-tag`, `--fresh`, `--disable-deterministic` (`runner.py` 1048–1074).
 - Preflight requires live `/health` on 8000–8003 **and** `{model_base}/models` containing the model (`runner.py` 49–72).
 - Stop gate: 50% model-tier routing (`STOP_THRESHOLD = 0.50`, `MIN_MODEL_CASES_FOR_STOP = 5`) (`runner.py` 34–35).
@@ -467,11 +478,11 @@ Documented but **not read by Python:** `PYTHONPATH`, `PYTHONIOENCODING` (operato
 
 ### 6.2 Settings files (keys only)
 
-- **`.env.example`** — keys: `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL` (commented), `DATASET_DEMO_DATA_DIR`, `RISK_FORECASTING_DATA_DIR` (commented), `GRID_CELL_SPACING_DEG`, `AGENT_PROVIDER`, `AGENT_MODEL_BASE_URL`, `AGENT_MODEL_API_KEY`, `AGENT_MODEL`, `AGENT_THINKING`, `AGENT_STRUCTURED_MODE`, `AGENT_SYNTHESIS_THINKING`, `AGENT_TIMEOUT_SECONDS`, `AGENT_MAX_TOOL_STEPS`, `AGENT_MAX_VALIDATION_RETRIES`, `DATA_QUERY_BASE_URL`, `RISK_FORECASTING_BASE_URL`, `VISUALIZATION_BASE_URL`, `COMPARISON_BASE_URL`.
-- **`.env`** — present locally, **gitignored**, never in `git log --all -- .env`. Values not copied here.
-- **`services/agent/config.py`** — `AgentSettings` dataclass (keys in §6.1).
-- **`shared/db.py`** — `Settings` dataclass.
-- **`services/risk_forecasting/config.py`** — paths + train years / lookback.
+- **`.env.example`** keys: `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL` (commented), `DATASET_DEMO_DATA_DIR`, `RISK_FORECASTING_DATA_DIR` (commented), `GRID_CELL_SPACING_DEG`, `AGENT_PROVIDER`, `AGENT_MODEL_BASE_URL`, `AGENT_MODEL_API_KEY`, `AGENT_MODEL`, `AGENT_THINKING`, `AGENT_STRUCTURED_MODE`, `AGENT_SYNTHESIS_THINKING`, `AGENT_TIMEOUT_SECONDS`, `AGENT_MAX_TOOL_STEPS`, `AGENT_MAX_VALIDATION_RETRIES`, `DATA_QUERY_BASE_URL`, `RISK_FORECASTING_BASE_URL`, `VISUALIZATION_BASE_URL`, `COMPARISON_BASE_URL`.
+- **`.env`**: present locally, **gitignored**, never in `git log --all -- .env`. Values not copied here.
+- **`services/agent/config.py`**: `AgentSettings` dataclass (keys in §6.1).
+- **`shared/db.py`**: `Settings` dataclass.
+- **`services/risk_forecasting/config.py`**: paths + train years / lookback.
 - No `settings.py` Django-style module.
 
 ### 6.3 Credentials in git / history
@@ -479,7 +490,7 @@ Documented but **not read by Python:** `PYTHONPATH`, `PYTHONIOENCODING` (operato
 - **No** AWS keys, `sk-` tokens, or private keys found in tracked source.
 - **Default local DB password `wildfire`** is in `.env.example` and `docker-compose.yml` (not a production secret, but it is committed).
 - **Default model key `"ollama"`** is committed as a dummy Bearer token.
-- Git LFS: client installed; **`git lfs ls-files` empty** — LFS not used.
+- Git LFS: client installed; **`git lfs ls-files` empty**: LFS not used.
 - `.env` not in history.
 
 ### 6.4 Database connection
@@ -527,7 +538,7 @@ No `pyproject.toml`, no `package.json`.
 | **netCDF4** | Needs NetCDF-C/HDF5 if a manylinux/AL2023 wheel is not available. Flag for Amazon Linux 2023 / Ubuntu: install `netcdf`/`libhdf5` **or** confirm a binary wheel. Used at risk predict time (`grid_data_prep.py` `import netCDF4` / `nc.Dataset`). |
 | **numpy / scipy** | Usually pip wheels. scipy used for sparse adjacency and optimize in fit. |
 | **psycopg[binary]** | Bundles libpq; extra `libpq` often unnecessary. |
-| **pyshp** | Pure Python shapefile reader for county loader only — **not GDAL**. |
+| **pyshp** | Pure Python shapefile reader for county loader only, **not GDAL**. |
 | **pygrib / eccodes** | **Not in this repo.** `prep_hrrr_grid.py` reads already-extracted HRRR **CSV**. |
 | **GDAL Python bindings** | **Not in requirements.** |
 
@@ -542,7 +553,7 @@ Unpinned `>=` ranges: reproducible EC2 images may want a lockfile. No version wa
 | Mechanism | Present? |
 | --- | --- |
 | Dockerfile (apps) | **No** |
-| docker-compose | **Yes** — PostGIS only (`restart: unless-stopped`) |
+| docker-compose | **Yes**: PostGIS only (`restart: unless-stopped`) |
 | systemd / Procfile / supervisor | **No** |
 | How apps are kept running | **Manually** in terminals (`uvicorn`, `python frontend/serve.py`, Ollama separately). Documented in README / AGENTS.md. |
 | Logging | `print(...)` to **stdout** (startup, per-request middleware on data_query/viz/comparison, JSON lines for agent model events). **No** `logging` module, no log files, no rotation. |
@@ -571,10 +582,10 @@ Agent security model (`services/agent/SECURITY.md`): trusted local user, loopbac
 
 ### 9.3 Expensive public-abuse surfaces (if exposed)
 
-- `GET /map-layer?limit=20000` — up to 20k GeoJSON features per dataset (`visualization/app.py` 31–32; frontend always requests `limit=20000`).
+- `GET /map-layer?limit=20000`: up to 20k GeoJSON features per dataset (`visualization/app.py` 31–32; frontend always requests `limit=20000`).
 - `GET /ignitions` etc. with `limit` up to **1000** (`filters.py` 15, `MAX_LIMIT`).
-- `GET /predict` — first call for a date can load a full year of weather CSV (~29 MB) + NetCDF (~11.5 MB) into RAM; percentile logic can pull **2020–2025** (`predictor.py` `LOCAL_PERCENTILE_YEARS`). Repeated distinct years → ~246 MB mapped into caches **per worker**.
-- `POST /ask` / `/ask/stream` — can invoke the LLM (CPU/GPU minutes) and fan out to all four APIs. Timeouts exist (`AGENT_TIMEOUT_SECONDS`, synthesis 180s) but **no queue / auth / quota**.
+- `GET /predict`: first call for a date can load a full year of weather CSV (~29 MB) + NetCDF (~11.5 MB) into RAM; percentile logic can pull **2020–2025** (`predictor.py` `LOCAL_PERCENTILE_YEARS`). Repeated distinct years → ~246 MB mapped into caches **per worker**.
+- `POST /ask` / `/ask/stream`: can invoke the LLM (CPU/GPU minutes) and fan out to all four APIs. Timeouts exist (`AGENT_TIMEOUT_SECONDS`, synthesis 180s) but **no queue / auth / quota**.
 - County loader HTTP to Census is **offline CLI**, not an HTTP route.
 - No write endpoints on the public APIs (read-only SQL + predict). Loaders are local CLI.
 
@@ -586,7 +597,7 @@ Agent security model (`services/agent/SECURITY.md`): trusted local user, loopbac
 | --- | --- |
 | Branch | `main` tracking `origin/main` |
 | Uncommitted changes | **None** (`git status` clean) |
-| HEAD | `2f06813` — “Ship the warehouse, remaining services, Historical Map frontend, and place-based historical risk.” |
+| HEAD | `2f06813`: “Ship the warehouse, remaining services, Historical Map frontend, and place-based historical risk.” |
 | Working tree size (all files, including gitignored) | **1380.32 MB** |
 | `.git` directory | **6.25 MB** |
 | Tracked files > 10 MB | **None** |
@@ -611,7 +622,7 @@ Priority order. Concrete, not “fix paths.”
 
 5. **No app containers / process manager.** Only PostGIS has Compose `restart`. Production needs systemd, ECS, or similar for five uvicorn workers + optional static nginx/S3. Logs are stdout `print` only.
 
-6. **Postgres is `localhost:5433` with password `wildfire`.** RDS will need `POSTGRES_HOST` / `DATABASE_URL` and a real secret. Compose publishes 5433 to avoid Windows 5432 — RDS will be 5432 (or a custom port) on a private hostname. Schema must include PostGIS (`CREATE EXTENSION postgis` in `db/schema.sql` 5).
+6. **Postgres is `localhost:5433` with password `wildfire`.** RDS will need `POSTGRES_HOST` / `DATABASE_URL` and a real secret. Compose publishes 5433 to avoid Windows 5432; RDS will be 5432 (or a custom port) on a private hostname. Schema must include PostGIS (`CREATE EXTENSION postgis` in `db/schema.sql` 5).
 
 7. **Risk files are gitignored and required.** `predictor.py` 215–223 will `FileNotFoundError` on `services/risk_forecasting/data/grid_weather_{year}.csv` and `daily_gridded_CA_{year}.nc` if those ~246 MB are not copied to the instance (or `RISK_FORECASTING_DATA_DIR` pointed at EFS/S3 mount). `grid_W.pkl` (0.05 MB, gitignored) is required at startup (`predictor.py` 166–169). `cnhpp_params.npz` is in git (2 KB).
 

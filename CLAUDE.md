@@ -18,8 +18,11 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 - Stop and report if TypeSafe API spend in a session passes $5, unless told a different cap.
 - Every change to routing reports how many existing routes changed across `cases.json`, `jev_paraphrases.json`, and all holdouts.
 - Any claim about accuracy states which eval set it came from and whether that set is clean or already used for tuning.
+- Every PR that changes behavior, setup, architecture, endpoints, or env vars must update the affected docs (READMEs, `docs/*.md`, service READMEs, `.env.example`, CLAUDE.md, AGENTS.md) in the same PR, verified against the code on that branch. The PR description must list the docs touched, or say that none were affected. Never describe unmerged work as done.
 
 ## Architecture (target design: Jev first)
+
+On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is decide mode in open PR #49; the slot planner is in open PR #46.
 
 1. Router hard backstops fire first (`services/agent/routing.py`): live and current, future dates, city_needs_place, hftd_constraint_unavailable, explicit unsupported topics.
 2. Jev decides answer, clarify, or refuse (`services/agent/decisions/`, policy in `jev_policy.py`, schema in `v3.py`).
@@ -36,17 +39,19 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Env flags (all default off)
 
-- `AGENT_JEV_MODE`: off, shadow, tool_pick, tool_pick_template, plan. Main accepts only off and shadow until `jev-shadow` (tool_pick, tool_pick_template) and `jev-multi-tool` (plan) merge.
+- `AGENT_JEV_MODE`: main accepts off, shadow, tool_pick, tool_pick_template. `decide` arrives with PR #49 and `plan` with PR #46.
 - `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`: default 0.8
-- `AGENT_SLOT_PLAN`: deterministic multi-entity planner
+- `AGENT_JEV_BACKEND`: typesafe (default) or openrouter
 - `AGENT_JEV_LOG_PATH`: shadow log location
+- `AGENT_LLM_PROVIDER`: ollama (default) or openrouter; openrouter also needs `AGENT_ALLOW_REMOTE_PROVIDER=true` and `OPENROUTER_API_KEY` (`docs/OPENROUTER.md`)
+- `AGENT_SLOT_PLAN`: deterministic multi-entity planner, arrives with PR #46 (not on main)
 
 ## Key paths
 
 - Agent: `services/agent/` (routing.py, orchestrator.py, views.py, caveats.py, schemas.py)
 - Jev: `services/agent/decisions/`
-- Evals: `services/agent/eval/` (cases.json, jev_paraphrases.json, jev_holdout.json, jev_holdout_v2.json, jev_holdout_v3.json, jev_holdout_v3_labels_chatgpt.json, runs/)
-- Docs: `docs/JEV_SHADOW.md`, `docs/JEV_DETERMINISM.md`, `docs/JEV_MULTI_TOOL.md`
+- Evals: `services/agent/eval/` (cases.json, jev_paraphrases.json, jev_holdout.json, jev_holdout_v3_labels_chatgpt.json, runs/). `jev_holdout_v2.json` and the v3 questions (`jev_holdout_v3_questions.json` on that branch) arrive with PR #46; until then read them from `platform/jev-multi-tool`.
+- Docs: `docs/JEV_SHADOW.md`, `docs/JEV_DETERMINISM.md`, `docs/JEV_BACKLOG.md`, `docs/OPENROUTER.md`; `docs/JEV_MULTI_TOOL.md` arrives with PR #46. The root README has a documentation index.
 - Website: `website/src/` (panelViews.ts, answerPanels.ts, agentContracts.ts, state.tsx)
 
 ## Tests
@@ -56,24 +61,20 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Branches and merge order
 
-Every branch except `ops-shadow-tooling` and `risk-health-check` descends from an unmerged trunk (a792dc2) that already carries the Jev shadow base, and `router-paraphrase-fixes` includes that trunk. Nothing Jev-related can merge before PR #22.
+Merged into main: `router-paraphrase-fixes` (#22), `openai-provider` (#25), `panel-summary-stats` (#26), `jev-shadow` (#43), `hftd-geometry-rebuild` (#45), `time-resolve-fixes` (#48), `model-date-range` (#50), `clarify-all-missing` (#51), `readme-refresh` (#57), `gitignore-hook-files` (#59).
 
-1. `router-paraphrase-fixes` (PR #22): router fixes, the Jev shadow base, the measure gate, the future split, label rules E and F, and frozen holdout v3. After this merge, `AGENT_JEV_MODE` on main accepts only `off` and `shadow`; `tool_pick`, `tool_pick_template`, and `plan` arrive with the branches below.
-2. `ops-shadow-tooling` (PR #24): shadow log report, deploy runbook, smoke test. Based on main, merges clean, independent of #22.
-3. `risk-health-check`: one commit, based on main, merges clean. Open a PR to main.
-4. `panel-summary-stats` (PR #26): rebase onto main after #22. Conflicts to resolve: `jev_policy.py` REGEX_ONLY (both sides add entries), `cases.json` (both sides add cases), the `routing.py` import block, `test_jev_policy.py`, `test_routing_precedence.py`. It carries two early `jev-shadow` commits (policy fixes, near-me as a missing place).
-5. `jev-shadow`: rebase onto main, open its own PR to main. Adds the tool_pick and tool_pick_template modes, template answers, holdout v1, and label rules. Conflicts: `jev_policy.py` (the import line and the JevFacts fields next to `measure`), `test_jev_policy.py`. The two commits panel already carries drop out on rebase.
-6. `openai-provider` (PR #25): stays stacked on `jev-shadow` until that merges, then retarget to main and rebase. `routing.py` is untouched there, so no route report is needed.
-7. `jev-multi-tool`: rebase onto main after `jev-shadow`, its own PR, not combined with `jev-shadow`. Adds plan mode, the slot planner, holdouts v2 and v3 with their raw files and the rule F rows. Conflicts: `routing.py` county-list handling (seven regions), `mapping.py`, `jev_policy.py`, both test files. Its commit that keeps an unsupported topic ahead of the future-date backstop must be rechecked against the future split, with a route report.
-
-`geocode-cities` has no commits of its own yet. Keep `jev-shadow` and `jev-multi-tool` as separate PRs: a mode gate and a planner are different risk surfaces, and the multi-tool `routing.py` conflicts deserve their own review and route report.
+Open:
+- `jev-multi-tool` (PR #46): plan mode, the slot planner, holdouts v2 and v3 with their raw files, and `docs/JEV_MULTI_TOOL.md`. Keep it separate from other Jev work; its `routing.py` changes need their own route report.
+- `jev-decider` (PR #49): `AGENT_JEV_MODE=decide`. When the README refresh (#57) merges, update the README decide-mode line in this PR.
+- `geocode-cities` (PR #28): rebase onto main now that #45 has merged.
+- `ops-shadow-tooling` (PR #24), `risk-health-check` (PR #27), `research-psps-reports` (PR #29), `router-followups` (PR #58).
 
 After each merge, rebase the next branch onto `platform/main`, rerun `pytest tests/agent`, and report route changes across all eval sets.
 
 ## Eval sets and their status
 
-- Dev (cases.json + paraphrases, 105): used for tuning.
-- Holdout v1 (63) and v2 (40): seen, now development data.
+- Dev (cases.json 107 + paraphrases 41 = 148; the original 105 predate the newer cases): used for tuning.
+- Holdout v1 (63 of 97 rows without `needs_human_review`) and v2 (40): seen, now development data.
 - Holdout v3 (88, 65 certain after independent ChatGPT labels): partly tuned. Router fixes were written from its disagreements.
 - Production shadow logs will be the next clean test.
 
@@ -82,4 +83,4 @@ After each merge, rebase the next branch onto `platform/main`, rerun `pytest tes
 - Backend host `ip-172-31-2-9`, repo `/home/ubuntu/Wildfire-Services` (origin there is the platform repo), service `wildfire-agent` on port 8004. Production is still at PR #15.
 - Model host 172.31.6.133, Ollama qwen2.5:7b at 4096 context, CPU only. Slow: hard questions take 3 to 12 minutes.
 - Eval worktree `/home/ubuntu/jev-eval`.
-- Open items: lock port 8004 to CloudFront, rotate the TypeSafe key, move prose answers to the OpenAI API (GPT-6 Luna, Sol for hard fallbacks).
+- Open items: lock port 8004 to CloudFront, rotate the TypeSafe key, switch prose answers to OpenRouter (GPT-6 Luna, Sol for hard fallbacks) once `docs/OPENROUTER.md` clears the switch (the code is on main, off by default).

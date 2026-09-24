@@ -4,6 +4,16 @@
 **Repro:** `python analysis/calfire_2024_jump.py` (JSON beside this file).  
 **Source file:** sibling `dataset_demo/assets/data/calfire_incidents.csv` (3747 rows = table count).
 
+> **Status note (2026-09-23):** The findings below are a dated snapshot and are
+> not re-derived. "No caveat code was changed in this task" was true of the
+> investigation. The agent now carries a trend caveat,
+> `calfire_map_feed_counts` (`services/agent/caveats.py:29`), attached when a
+> CAL FIRE answer spans 2023 and 2024 or compares counts across years
+> (`_needs_calfire_map_feed_caveat`, `services/agent/caveats.py:559`). Its
+> wording differs from the draft under "Caveat the agent should attach". The
+> Wildfire/Fire default is still applied at query time
+> (`services/data_query/queries.py:329-330`).
+
 ---
 
 ## Conclusion
@@ -12,7 +22,7 @@ The 133 → 611 jump (**4.59×**) under the default Wildfire/Fire filter is **in
 
 It is **not** a 4.6× increase in California wildfires. Official CAL FIRE Redbook counts went **7,386 → 8,110** (**+10%**). Acres burned did rise sharply (**332,822 → 1,077,711**, **3.2×**), driven in large part by the Park Fire (429,603 acres).
 
-What changed in *this table* is how many incidents CAL FIRE **posts on the incident map**. In 2023 the map listed **1.8%** of Redbook fires and still captured **~97%** of official acres. In 2024 it listed **7.5%** of Redbook fires and captured **~95%** of acres. Same kind of product — notable posted incidents, not a census — with a **higher posting rate from 2024 onward** (2025 stays high at 555).
+What changed in *this table* is how many incidents CAL FIRE **posts on the incident map**. In 2023 the map listed **1.8%** of Redbook fires and still captured **~97%** of official acres. In 2024 it listed **7.5%** of Redbook fires and captured **~95%** of acres. Same kind of product (notable posted incidents, not a census) with a **higher posting rate from 2024 onward** (2025 stays high at 555).
 
 **Hypothesis 1 (real 4.6× fire-count year):** rejected for counts; acres really were worse.  
 **Hypothesis 4 (type field newly populated):** rejected.  
@@ -26,7 +36,7 @@ The agent should not report a 2023-to-2024 CAL FIRE *count* trend from this ware
 
 ## What this table is
 
-The CSV is `https://incidents.fire.ca.gov/imapdata/mapdataall.csv` — the developer dump for [fire.ca.gov/incidents](https://www.fire.ca.gov/incidents), not the Redbook. CAL FIRE’s own incident pages say most fires are contained quickly and “no information will generally be provided” on the site.
+The CSV is `https://incidents.fire.ca.gov/imapdata/mapdataall.csv`, the developer dump for [fire.ca.gov/incidents](https://www.fire.ca.gov/incidents), not the Redbook. CAL FIRE’s own incident pages say most fires are contained quickly and “no information will generally be provided” on the site.
 
 Live HTML archives (fetched 2026-08-14) match the warehouse:
 
@@ -50,7 +60,7 @@ The page headers are the census. The tables are the map feed. We store the latte
 | CAL FIRE Redbook (all agencies) | 7,386 | 332,822 | 8,110 | 1,077,711 | **1.10** |
 | CAL FIRE + local contracts only | 5,744 | 29,907 | 6,928 | 588,782 | 1.21 |
 | Wikipedia / preliminary 2023 | 7,127 | 324,917 | 8,110 | 1,077,711 | 1.14 |
-| FRAP statewide perimeters added | 284 (Firep23_1) | — | 548 (Firep24_1) | — | 1.93 |
+| FRAP statewide perimeters added | 284 (Firep23_1) | n/a | 548 (Firep24_1) | n/a | 1.93 |
 | **This warehouse, default filter** | **133** | **322,983** | **611** | **1,025,720** | **4.59** |
 
 Redbook 2023: [2023_redbook_final.pdf](https://www.fire.ca.gov/our-impact/statistics). Redbook 2024: [2024_redbook_final.pdf](https://www.fire.ca.gov/our-impact/statistics). FRAP from CAL FIRE Fire Perimeters release notes.
@@ -134,7 +144,7 @@ Monthly shape is fire-season, not a dump: 2024 May–October = 65, 137, 182, 88,
 
 - The exact CAL FIRE policy or CMS change that raised the 2024 posting rate. No public changelog found.
 - Whether some 2023 map incidents were removed *before* our first scrape in July 2026. Current HTML archive = 133, so if pruning happened it happened on CAL FIRE’s side and is now the public record.
-- Why 2019–2020 map counts (207, 257) are higher than 2021–2023 without a Redbook count crash of that size — possible earlier posting-mix variation, out of scope here.
+- Why 2019–2020 map counts (207, 257) are higher than 2021–2023 without a Redbook count crash of that size. Possibly earlier posting-mix variation; out of scope here.
 
 ---
 

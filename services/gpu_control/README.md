@@ -16,7 +16,8 @@ resource. Without all three, `/health` reports `disabled`, `/gpu/status` reports
 # PowerShell: $env:PYTHONPATH = "."
 # Required before POST start/stop will work:
 # GPU_INSTANCE_ID, GPU_OLLAMA_URL, GPU_MODEL, GPU_CONTROL_TOKEN,
-# GPU_AWS_REGION (or AWS_REGION), and instance role credentials
+# GPU_AWS_REGION (or AWS_REGION / AWS_DEFAULT_REGION), and instance role credentials
+# Optional: GPU_AGENT_URL (agent used for the pre-fire; default http://127.0.0.1:8004)
 uvicorn services.gpu_control.app:app --port 8005 --app-dir .
 ```
 
@@ -28,7 +29,7 @@ uvicorn services.gpu_control.app:app --port 8005 --app-dir .
 | `POST` | `/gpu/stop` | `X-GPU-Control-Token` |
 
 Missing `GPU_CONTROL_TOKEN` → POST returns **503** (start is never open).
-Wrong or missing header → **401**.
+Wrong or missing header → **401**. An EC2 start/stop API error → **502**.
 
 `GET /gpu/status` is pollable. Concurrent `POST /gpu/start` is serialized with
 an in-process lock. If a start is already running, or state is not `stopped` /
@@ -42,7 +43,7 @@ and a background task then:
 1. Polls until Ollama answers (same `/api/ps` probe as status).
 2. If the model is not in VRAM, loads it with the agent's
    `ensure_context_loaded()` path (same `num_ctx` / options as Ask).
-3. Pre-fires `POST /ask` on the local agent:
+3. Pre-fires `POST /ask` on the agent at `GPU_AGENT_URL`:
    `How many CPUC ignitions were there in 2023?`
 
 `ready` requires the model resident **and** that pre-fire to return
