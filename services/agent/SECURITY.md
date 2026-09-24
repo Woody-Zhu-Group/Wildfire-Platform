@@ -17,7 +17,8 @@ Prompt injection is not treated as reliably solvable by filtering. Safety comes
 from architecture: tool schemas expose only bounded reads, backend response
 content is treated as data, full payloads stay out of model context, unsupported
 claims are blocked without tool evidence, and startup rejects a non-loopback
-model URL unless `AGENT_ALLOW_REMOTE_PROVIDER=true` is set.
+model URL, or any Jev mode other than `off`, unless `AGENT_ALLOW_REMOTE_PROVIDER=true`
+is set.
 
 ## Opt-in remote paths on main (all off by default)
 
@@ -26,15 +27,20 @@ Each of these sends the user's question text off the host:
 - `AGENT_LLM_PROVIDER=openrouter` sends routing and synthesis prompts, including
   tool summaries, to OpenRouter. Startup requires `AGENT_ALLOW_REMOTE_PROVIDER=true`
   and `OPENROUTER_API_KEY`. See [`docs/OPENROUTER.md`](../../docs/OPENROUTER.md).
-- `AGENT_JEV_MODE=shadow`, `tool_pick`, or `tool_pick_template` sends the question
-  to Jev at TypeSafe (`AGENT_JEV_BACKEND=typesafe`, key `TYPESAFE_API_KEY`) or at
-  OpenRouter (`AGENT_JEV_BACKEND=openrouter`, key `OPENROUTER_API_KEY`). These modes
-  are **not** gated by `AGENT_ALLOW_REMOTE_PROVIDER`; turning one on is itself the
-  opt-in. See [`docs/JEV_SHADOW.md`](../../docs/JEV_SHADOW.md).
+- `AGENT_JEV_MODE=shadow`, `tool_pick`, `tool_pick_template`, or `decide` sends
+  the question to Jev at TypeSafe (`AGENT_JEV_BACKEND=typesafe`, key
+  `TYPESAFE_API_KEY`) or at OpenRouter (`AGENT_JEV_BACKEND=openrouter`, key
+  `OPENROUTER_API_KEY`). Every one of these modes requires
+  `AGENT_ALLOW_REMOTE_PROVIDER=true` and the active backend's key; startup fails
+  with a clear message otherwise, so no Jev mode can be turned on without the same
+  explicit opt-in as the LLM provider. Spend is bounded per process per UTC day by
+  `AGENT_JEV_DAILY_CALL_CAP`, counted in API calls. See
+  [`docs/JEV_SHADOW.md`](../../docs/JEV_SHADOW.md) and
+  [`docs/JEV_DECIDE.md`](../../docs/JEV_DECIDE.md).
 
 Keys are read from the environment or `.env` and are kept out of logs: the
 settings object hides the model key from its repr, startup errors never print a
-key, and the shadow log redacts the TypeSafe key.
+key, and the shadow log redacts both the TypeSafe and the OpenRouter key.
 
 The API sets CORS `allow_origins=["*"]` so the local website can call it; bind
 uvicorn to loopback (its default) so that only this machine can reach it.

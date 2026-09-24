@@ -40,27 +40,49 @@ def _load(tag: str) -> dict[str, dict[str, Any]]:
     return rows
 
 
+def normalize(value: Any) -> Any:
+    """Drop IGNORE keys at every nesting level so both sides compare the same keys."""
+    if isinstance(value, dict):
+        return {
+            key: normalize(item) for key, item in value.items() if key not in IGNORE
+        }
+    if isinstance(value, list):
+        return [normalize(item) for item in value]
+    return value
+
+
 def _score_view(row: dict[str, Any]) -> dict[str, Any]:
     score = dict(row.get("score") or {})
     response = row.get("response") or {}
-    kept = {
-        key: value
-        for key, value in score.items()
-        if key not in IGNORE
-    }
+    kept = dict(score)
     for key in ("status", "route", "answer", "caveats", "views"):
-        if key in response and key not in IGNORE:
+        if key in response:
             kept.setdefault(key, response[key])
-    return kept
+    return normalize(kept)
 
 
-def _diff(left: dict[str, Any], right: dict[str, Any]) -> dict[str, tuple[Any, Any]]:
-    keys = set(left) | set(right)
-    changes = {}
-    for key in sorted(keys):
-        if left.get(key) != right.get(key):
-            changes[key] = (left.get(key), right.get(key))
-    return changes
+_MISSING = object()
+
+
+def _diff(left: Any, right: Any, prefix: str = "") -> dict[str, tuple[Any, Any]]:
+    """Leaf-level differences keyed by dotted path. Ignored keys never appear.
+
+    A key present on one side only is reported with None for the missing side:
+    after normalization it is a real difference, not an ignorable one.
+    """
+    if isinstance(left, dict) and isinstance(right, dict):
+        changes: dict[str, tuple[Any, Any]] = {}
+        for key in sorted(set(left) | set(right)):
+            path = f"{prefix}.{key}" if prefix else str(key)
+            changes.update(_diff(left.get(key, _MISSING), right.get(key, _MISSING), path))
+        return changes
+    if left is _MISSING:
+        left = None
+    if right is _MISSING:
+        right = None
+    if left != right:
+        return {prefix: (left, right)}
+    return {}
 
 
 def main(argv: list[str] | None = None) -> int:

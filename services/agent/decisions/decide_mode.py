@@ -19,7 +19,9 @@ Order for one question:
      the model path, since a declined route has no deterministic call.
    - A Jev answer never overrides a decline the router's resolver proved in code:
      a missing or ambiguous time, or a missing place.
-   - Below the gate, on a timeout, or on any Jev error, the router stands.
+   - Below the gate, on a timeout, on any Jev error, or when the daily API call
+     cap (AGENT_JEV_DAILY_CALL_CAP, counted per call) is reached, the router
+     stands. The cap case is recorded as why "daily_cap".
 4. When the final disposition is answer, the question proceeds as today: the
    router's deterministic call if it has one, otherwise the model path.
 
@@ -39,6 +41,7 @@ from typing import Any
 
 from services.agent.clarify_missing import complete_clarification
 from services.agent.decisions.backend import Answer
+from services.agent.decisions.call_budget import DailyCallBudget
 from services.agent.decisions.jev_policy import (
     OFF_TOPIC_RULES,
     REGEX_ONLY,
@@ -498,11 +501,23 @@ def decide_live(
     answer_gate: float = 0.9,
     today: date | None = None,
     timeout: float | None = None,
+    budget: DailyCallBudget | None = None,
 ) -> DecideResult:
-    """Runtime decide: skip Jev for exempt routes, otherwise ask it and apply the policy."""
+    """Runtime decide: skip Jev for exempt routes, otherwise ask it and apply the policy.
+
+    budget: today's API call budget. The question's calls are reserved before any
+    is sent; when they do not fit, Jev is not asked and the router stands with
+    why "daily_cap".
+    """
     if exemption(decision):
         return decide_from_answers(question, decision, None, gate=gate, answer_gate=answer_gate)
     day = today or date.today()
+    if budget is not None and not budget.reserve(len(jev_calls(question, day.isoformat()))):
+        result = decide_from_answers(
+            question, decision, None, gate=gate, answer_gate=answer_gate, error="daily_cap"
+        )
+        result.why = "daily_cap"
+        return result
     started = time.perf_counter()
     try:
         answers, error, tokens = ask_jev(backend, question, day.isoformat(), timeout=timeout)
