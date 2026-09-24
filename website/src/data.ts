@@ -1,6 +1,7 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import catalog from '../../shared/datasets.json' with {type: 'json'};
 import naming from '../../shared/naming.json' with {type: 'json'};
+import { coverageReason, soleUtilityLabel } from './coverage.ts';
 
 // Workspace-only fields. Registry map colors, style.label, and viz keys stay
 // in shared/datasets.json; these names, hex values, panel order, and hasCause
@@ -65,17 +66,22 @@ export const groupNames = (groupBy: GroupBy, key: string) =>
 export const asText = (value: unknown): string | null => value === null || value === undefined || value === '' ? null : String(value);
 export const asNumber = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null;
 
+// The one utility a dataset has rows for (EPSS), from measured coverage.
+const soleUtility = (dataset: DatasetId) => soleUtilityLabel(configFor(dataset).query);
+
 export function filterSupport(datasets: readonly DatasetId[]) {
+  const only = datasets.map(soleUtility).find(Boolean) ?? null;
   return {
     county: !datasets.some(dataset => dataset === 'psps' || dataset === 'us_ignitions'),
-    utility: datasets.includes('us_ignitions') ? 'none' as const : datasets.includes('epss') ? 'pge' as const : 'all' as const,
+    utility: datasets.includes('us_ignitions') ? 'none' as const : only ? 'single' as const : 'all' as const,
+    ...(only && !datasets.includes('us_ignitions') ? {only} : {}),
   };
 }
 
 export function supportedFilters(filters: Filters, datasets: readonly DatasetId[]): Filters {
   const support = filterSupport(datasets);
   return {...filters, county: support.county ? filters.county : '',
-    utility: support.utility === 'none' || (support.utility === 'pge' && filters.utility !== 'PG&E') ? '' : filters.utility};
+    utility: support.utility === 'none' || (support.utility === 'single' && filters.utility !== support.only) ? '' : filters.utility};
 }
 
 export function filterError(filters: Filters): string | null {
@@ -85,15 +91,16 @@ export function filterError(filters: Filters): string | null {
   return filters.start > filters.end ? 'Start date must be on or before end date.' : null;
 }
 export function unavailableReason(dataset: DatasetId, filters: Filters): string | null {
-  if (dataset === 'epss' && filters.utility && filters.utility !== 'PG&E') return 'EPSS is available for PG&E only. This utility has no EPSS data.';
   if (dataset === 'us_ignitions' && (filters.utility || filters.county)) return 'US ignitions do not support county or utility filters. Clear these filters.';
   if (dataset === 'psps' && filters.county) return 'PSPS county filtering is not available. Clear the county filter.';
-  return null;
+  // A utility or period outside measured coverage has no data: absent, not zero.
+  const config = configFor(dataset);
+  return coverageReason(config.query, config.name, filters.utility ? utilityCode(filters.utility) : null, filters.start, filters.end);
 }
 export function datasetNote(dataset: DatasetId) {
   if (dataset === 'cpuc') return 'Utility uses the source attribute; spatial territory counts can differ.';
   if (dataset === 'calfire') return 'Wildfire / Fire records from the incident-map feed; reporting coverage varies across years.';
-  if (dataset === 'epss') return 'PG&E only. Counts are outage events, not unique circuits or customers.';
+  if (dataset === 'epss') return `${soleUtility('epss') ?? 'No utility'} only. Counts are outage events, not unique circuits or customers.`;
   if (dataset === 'us_ignitions') return 'IRWIN / FireCastRL all-cause sample, not a national census or comparable to CPUC.';
   return 'PSPS event areas; affected customers may recur across events.';
 }
@@ -109,7 +116,7 @@ export function recordsFromFeatures(dataset: DatasetId, features: LayerResponse[
       const record: EventRecord = {
         id, dataset, name: asText(p.incident_name ?? p.event_name ?? p.circuit) ?? `${configFor(dataset).name} #${id}`,
         date: asText(p.event_date ?? p.start_date ?? p.date_only_created ?? p.deenergization_start_date) ?? '',
-        county: asText(p.county), utility: dataset === 'epss' ? 'PG&E' : utilityLabel(p.utility),
+        county: asText(p.county), utility: utilityLabel(p.utility) ?? soleUtility(dataset),
         cause: asText(p.cause), acres: asNumber(p.acres_burned), geometry: feature.geometry, properties: p,
       };
       if (records.has(id)) throw new Error('The server returned duplicate event IDs. Refresh to load a consistent snapshot.');

@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { getDetail, getRecords } from './api.ts';
 import { getSummary } from './workspaceAggregates.ts';
 import { configFor, filterError, unavailableReason, type EventRecord } from './data.ts';
+import { soleUtilityLabel } from './coverage.ts';
 import { ChartFilters, DatasetSelect, LoadState } from './Controls';
 import { SelectionContext, usePanel } from './state';
 import { useRemote } from './useRemote';
@@ -66,7 +67,7 @@ function MedicalExposureCard() {
     <div className="stat-toolbar"><ChartFilters filters={filters} onChange={filters => update({ filters })} dataset="epss" /></div>
     <ExportActions datasets={['epss']} disabled={Boolean(validation||remote.error||remote.loading)} rows={()=>metrics.map(metric=>({dataset:'EPSS',metric:metric.id,value:metric.value,missing_records:metric.missing,unit:metric.unit,...filters}))} />
     {validation || remote.error || remote.loading ? <LoadState loading={remote.loading} error={validation || remote.error} retry={remote.error ? remote.retry : undefined} /> : <>
-      <p className="panel-note">Exposure during PG&amp;E EPSS outages; totals are customer-events, not deduplicated customers.</p>
+      <p className="panel-note">Exposure during {soleUtilityLabel('epss_outages')} EPSS outages; totals are customer-events, not deduplicated customers.</p>
       <dl className="stat-metrics" aria-label="EPSS medical baseline and life support exposure">
         {metrics.map(metric => <div key={metric.id} className="stat-metric"><dt>{metric.label}{metric.missing > 0 && <span className="stat-missing" title={`${metric.missing} records have no value for this metric`}> · {metric.missing} missing</span>}</dt><dd>{metric.value === null ? <span title={`None of the ${metric.missing} outages has a value for this metric`}>Not available</span> : metric.value.toLocaleString()}</dd></div>)}
       </dl>

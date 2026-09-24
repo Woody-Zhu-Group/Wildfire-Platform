@@ -12,14 +12,14 @@ export interface PanelView {
 
 export const PANEL_VIEWS: PanelView[] = [
   { id: 'events-map', type: 'map', title: 'Wildfire events', description: 'Explore ignition and fire locations.', settings: { dataset: 'cpuc', overlays: [], mapMode: 'events' } },
-  { id: 'outages-map', type: 'map', title: 'Outage circuits', description: 'Locate PG&E EPSS outages by circuit.', settings: { dataset: 'epss', overlays: [], mapMode: 'events' } },
+  { id: 'outages-map', type: 'map', title: 'Outage circuits', description: 'Locate EPSS outages by circuit.', settings: { dataset: 'epss', overlays: [], mapMode: 'events' } },
   { id: 'psps-map', type: 'map', title: 'PSPS areas', description: 'Explore shutoff areas by utility.', settings: { dataset: 'psps', overlays: [], mapMode: 'events' } },
   { id: 'weather-map', type: 'map', title: 'Fire weather', description: 'Play daily HDW alongside event starts.', settings: { dataset: 'cpuc', overlays: ['hdw'], mapMode: 'events' } },
   { id: 'risk-surface-map', type: 'map', title: 'Modeled ignition risk surface', description: 'Map cNHPP risk for one historical date as a statistical hindcast.', settings: { dataset: 'cpuc', overlays: [], mapMode: 'risk' } },
   { id: 'residual-map', type: 'map', title: 'Model residual map', description: 'Compare observed CPUC ignitions to the cNHPP hindcast using the training cell assignment.', settings: { dataset: 'cpuc', overlays: [], mapMode: 'residual' } },
   { id: 'events-time', type: 'time_series', title: 'Event trends', description: 'Follow CPUC, EPSS and CAL FIRE over time.', settings: { seriesMode: 'timeline', datasets: ['cpuc', 'epss', 'calfire'] } },
   { id: 'annual-time', type: 'time_series', title: 'Year comparison', description: 'Compare years on the same calendar axis.', settings: { dataset: 'cpuc', seriesMode: 'yearly' } },
-  { id: 'regional-time', type: 'time_series', title: 'Regional trends', description: 'Compare EPSS trends across PG&E divisions.', settings: { dataset: 'epss', seriesMode: 'regional' } },
+  { id: 'regional-time', type: 'time_series', title: 'Regional trends', description: 'Compare EPSS trends across divisions.', settings: { dataset: 'epss', seriesMode: 'regional' } },
   { id: 'seasonal-time', type: 'time_series', title: 'Seasonal profile', description: 'Average weekly events across selected years.', settings: { dataset: 'cpuc', seriesMode: 'seasonal' } },
   { id: 'cumulative-acres', type: 'time_series', title: 'Cumulative acres burned within a season', description: 'Accumulate reported CAL FIRE acreage through the selected period.', settings: { dataset: 'calfire', seriesMode: 'cumulative_acres' } },
   { id: 'customer-events', type: 'time_series', title: 'Customers affected over time', description: 'Track PSPS customer-event totals without implying unique customers.', settings: { dataset: 'psps', seriesMode: 'customer_events' } },
@@ -29,7 +29,7 @@ export const PANEL_VIEWS: PanelView[] = [
   { id: 'event-records', type: 'record_table', title: 'Event records', description: 'Search individual events and open their details.', settings: { dataset: 'cpuc' } },
   { id: 'summary-stats', type: 'stat_card', title: 'Summary metrics', description: 'See related totals under one set of filters.', settings: { dataset: 'cpuc', statMode: 'summary' } },
   { id: 'model-metrics', type: 'stat_card', title: 'Risk model performance', description: 'Compare HPP, NHPP and cNHPP on the held-out evaluation year.', settings: { statMode: 'model_metrics' } },
-  { id: 'medical-exposure', type: 'stat_card', title: 'Medical baseline and life support customers affected by EPSS outages', description: 'Sum medical-baseline and life-support customer-events during PG&E outages.', settings: { dataset: 'epss', statMode: 'medical_exposure' } },
+  { id: 'medical-exposure', type: 'stat_card', title: 'Medical baseline and life support customers affected by EPSS outages', description: 'Sum medical-baseline and life-support customer-events during EPSS outages.', settings: { dataset: 'epss', statMode: 'medical_exposure' } },
 ];
 
 export function viewSettings(current: PanelSettings, view: PanelView): PanelSettings {

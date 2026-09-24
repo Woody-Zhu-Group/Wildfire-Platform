@@ -39,8 +39,8 @@ function FilterDialog({ filters, onChange, dataset, datasets, years, yearSelecti
       <label>To<input aria-label="End date" type="date" value={filters.end} onChange={e => onChange({ ...filters, end: e.target.value })} /></label></>}
       <label>County<select aria-label="County" aria-describedby={!support.county ? countyNote : undefined} disabled={!support.county && !filters.county} value={filters.county} onChange={e => onChange({ ...filters, county: e.target.value })}><option value="">All counties</option>{COUNTIES.map(c => <option key={c} disabled={!support.county}>{c}</option>)}</select>
         {!support.county && <small id={countyNote} className="filter-reason">Not available for this dataset</small>}</label>
-      <label>Utility<select aria-label="Utility" aria-describedby={support.utility !== 'all' ? utilityNote : undefined} disabled={support.utility === 'none' && !filters.utility} value={filters.utility} onChange={e => onChange({ ...filters, utility: e.target.value })}><option value="">All utilities</option>{UTILITIES.map(u => <option key={u} disabled={support.utility === 'none' || (support.utility === 'pge' && u !== 'PG&E')}>{u}</option>)}</select>
-        {support.utility !== 'all' && <small id={utilityNote} className="filter-reason">{support.utility === 'pge' ? 'PG&E only' : 'Not available for this dataset'}</small>}</label>
+      <label>Utility<select aria-label="Utility" aria-describedby={support.utility !== 'all' ? utilityNote : undefined} disabled={support.utility === 'none' && !filters.utility} value={filters.utility} onChange={e => onChange({ ...filters, utility: e.target.value })}><option value="">All utilities</option>{UTILITIES.map(u => <option key={u} disabled={support.utility === 'none' || (support.utility === 'single' && u !== support.only)}>{u}</option>)}</select>
+        {support.utility !== 'all' && <small id={utilityNote} className="filter-reason">{support.utility === 'single' ? `${support.only} only` : 'Not available for this dataset'}</small>}</label>
     </div>
     {dataset && <Coverage dataset={dataset} />}
     <button className="quiet-button" onClick={onClose}>Done</button>
