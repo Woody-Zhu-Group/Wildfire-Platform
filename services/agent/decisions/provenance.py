@@ -25,6 +25,7 @@ _DECIDE_WHY: dict[str, str] = {
     "daily_cap": "jev_daily_cap",
     "code_verified": "verified_fact",
     "contradicts_slot": "verified_fact",
+    "slot_unused": "verified_fact",
     "regex_only": "router_only_route",
     "router_only_tool": "router_only_route",
     "agree": "jev_agreed",

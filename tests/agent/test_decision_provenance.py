@@ -99,6 +99,7 @@ def test_a_jev_answer_over_a_router_decline_is_a_jev_answer():
         ("daily_cap", "jev_daily_cap"),
         ("code_verified", "verified_fact"),
         ("contradicts_slot", "verified_fact"),
+        ("slot_unused", "verified_fact"),
         ("regex_only", "router_only_route"),
         ("router_only_tool", "router_only_route"),
         ("agree", "jev_agreed"),

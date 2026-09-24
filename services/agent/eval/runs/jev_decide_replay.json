@@ -62,6 +62,21 @@
    "jev_acc": 0.723,
    "decide_acc": 0.8,
    "status": "tuned (router fixes written from its disagreements)"
+  },
+  "smoke": {
+   "n": 1,
+   "router": 1,
+   "jev": 1,
+   "decide": 1,
+   "jev_errors": 0,
+   "exempt": 0,
+   "jev_won": 0,
+   "overrides_right": 0,
+   "overrides_wrong": 0,
+   "router_acc": 1.0,
+   "jev_acc": 1.0,
+   "decide_acc": 1.0,
+   "status": "production smoke test questions (scripts/smoke_test.sh)"
   }
  },
  "rows": {
@@ -6513,6 +6528,64 @@
     "jev",
     "gate"
    ]
+  },
+  "smoke|single": {
+   "question": "How many PG&E utility-attributed ignitions were there in 2024?",
+   "labels": [
+    "answer"
+   ],
+   "router": [
+    "deterministic",
+    "filtered_records"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.95
+   ],
+   "decide": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "agree"
+   ],
+   "smoke_route_ok": true
+  },
+  "smoke|multi": {
+   "question": "Give me the 2022 ignition count for PG&E, SCE, and SDG&E",
+   "labels": [
+    "answer",
+    "clarify"
+   ],
+   "stored": false
+  },
+  "smoke|modesto": {
+   "question": "What utility service territory contains Modesto?",
+   "labels": [
+    "answer"
+   ],
+   "stored": false
+  },
+  "smoke|modesto_count": {
+   "question": "How many CAL FIRE incidents were there in Modesto in 2023?",
+   "labels": [
+    "clarify"
+   ],
+   "stored": false
+  },
+  "smoke|epss_rank": {
+   "question": "Rank utilities by EPSS events in 2023",
+   "labels": [
+    "unsupported"
+   ],
+   "stored": false
+  },
+  "smoke|live": {
+   "question": "What wildfires are burning right now?",
+   "labels": [
+    "unsupported"
+   ],
+   "stored": false
   }
  }
 }

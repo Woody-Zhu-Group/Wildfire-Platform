@@ -9,9 +9,17 @@ Sets. dev: cases.json + jev_paraphrases.json (used for tuning). v1: jev_holdout.
 v2: jev_holdout_v2.json. Holdout rows marked
 needs_human_review are left out. v3: jev_holdout_v3_questions.json (on main since PR #46) with the 65 rows the
 independent ChatGPT labels made certain; v3 was partly tuned on and is labeled tuned.
+smoke: the six questions scripts/smoke_test.sh asks production (SMOKE_CHECKS), each with
+the route the smoke test expects. A smoke row replays from its own stored call, or from a
+stored call for the same question text in another set; rows with no stored call are
+reported as not stored and are captured on the next capture run. The offline decide
+checks on these questions (tests/agent/test_jev_decide_scope.py) also run them against
+adverse synthetic Jev answers, so decide-mode regressions on them are caught without
+any Jev call.
 
     python -m services.agent.eval.jev_decide_replay capture --cap-usd 0.3
     python -m services.agent.eval.jev_decide_replay replay
+    python -m services.agent.eval.jev_decide_replay sweep-gate
     python -m services.agent.eval.jev_decide_replay live --cap-usd 0.1
 """
 
@@ -43,7 +51,81 @@ HERE = Path(__file__).resolve().parent
 STORE = HERE / "runs" / "jev_decide_store.json"
 REPORT = HERE / "runs" / "jev_decide_replay.json"
 LIVE = HERE / "runs" / "jev_decide_live_dev.json"
-TUNED = {"dev": "used for tuning", "v1": "seen, now development data", "v2": "seen, now development data", "v3": "tuned (router fixes written from its disagreements)"}
+TUNED = {
+    "dev": "used for tuning",
+    "v1": "seen, now development data",
+    "v2": "seen, now development data",
+    "v3": "tuned (router fixes written from its disagreements)",
+    "smoke": "production smoke test questions (scripts/smoke_test.sh)",
+}
+
+# Mirrors the six /ask checks in scripts/smoke_test.sh: the question, the route the
+# smoke test expects (path None where the smoke test accepts more than one route),
+# and the acceptable dispositions.
+SMOKE_CHECKS: list[dict[str, Any]] = [
+    {
+        "id": "single",
+        "question": "How many PG&E utility-attributed ignitions were there in 2024?",
+        "path": "deterministic",
+        "rule": "filtered_records",
+        "labels": ["answer"],
+    },
+    {
+        "id": "multi",
+        "question": "Give me the 2022 ignition count for PG&E, SCE, and SDG&E",
+        "path": None,
+        "rule": None,
+        "labels": ["answer", "clarify"],
+    },
+    {
+        "id": "modesto",
+        "question": "What utility service territory contains Modesto?",
+        "path": "deterministic",
+        "rule": "city_point_context",
+        "labels": ["answer"],
+    },
+    {
+        "id": "modesto_count",
+        "question": "How many CAL FIRE incidents were there in Modesto in 2023?",
+        "path": "clarification",
+        "rule": "city_needs_place",
+        "labels": ["clarify"],
+    },
+    {
+        "id": "epss_rank",
+        "question": "Rank utilities by EPSS events in 2023",
+        "path": "unsupported",
+        "rule": "unsupported_rank_epss_utility",
+        "labels": ["unsupported"],
+    },
+    {
+        "id": "live",
+        "question": "What wildfires are burning right now?",
+        "path": "unsupported",
+        "rule": "unsupported_live_web",
+        "labels": ["unsupported"],
+    },
+]
+
+
+def smoke_route_matches(check: dict[str, Any], decision: Any) -> bool:
+    """True when a route (final or router) is the one the smoke test expects."""
+    if check["path"] is None:
+        return ROUTER_DISPOSITION[decision.path] in check["labels"]
+    return decision.path == check["path"] and decision.rule == check["rule"]
+
+
+def stored_row(store: dict[str, Any], set_name: str, item: dict[str, Any]) -> dict[str, Any] | None:
+    """The stored call for a row: its own key, or for smoke the same question text elsewhere."""
+    rows = store["rows"]
+    own = rows.get(f"{set_name}|{item['id']}")
+    if own is not None or set_name != "smoke":
+        return own
+    wanted = " ".join(item["question"].split()).lower()
+    for row in rows.values():
+        if " ".join(row["question"].split()).lower() == wanted and not row.get("error"):
+            return row
+    return None
 
 
 def _disposition_labels(expected: dict[str, Any]) -> list[str]:
@@ -57,7 +139,7 @@ def _disposition_labels(expected: dict[str, Any]) -> list[str]:
 
 
 def load_sets() -> dict[str, list[dict[str, Any]]]:
-    sets: dict[str, list[dict[str, Any]]] = {"dev": [], "v1": [], "v2": [], "v3": []}
+    sets: dict[str, list[dict[str, Any]]] = {"dev": [], "v1": [], "v2": [], "v3": [], "smoke": []}
     for name, source in (("cases.json", "cases"), ("jev_paraphrases.json", "paraphrases")):
         for case in json.loads((HERE / name).read_text(encoding="utf-8")):
             expected = expected_for(case, source)
@@ -80,6 +162,8 @@ def load_sets() -> dict[str, list[dict[str, Any]]]:
             continue
         row = v3[index]
         sets["v3"].append({"id": row["id"], "question": row["question"], "labels": [label["disposition"]]})
+    for check in SMOKE_CHECKS:
+        sets["smoke"].append({"id": check["id"], "question": check["question"], "labels": list(check["labels"])})
     return sets
 
 
@@ -112,6 +196,8 @@ def capture(args: argparse.Namespace) -> int:
         for item in items:
             key = f"{set_name}|{item['id']}"
             if key in rows and not rows[key].get("error"):
+                continue
+            if set_name == "smoke" and stored_row(store, set_name, item) is not None:
                 continue
             decision = route_question(item["question"])
             # Exempt routes are stored too, so "Jev alone" is scored on every row.
@@ -148,10 +234,14 @@ def replay(args: argparse.Namespace) -> int:
     report: dict[str, Any] = {"today": store["today"], "gate": args.gate, "answer_gate": args.answer_gate, "sets": {}, "rows": {}}
     for set_name, items in load_sets().items():
         tally = {"n": 0, "router": 0, "jev": 0, "decide": 0, "jev_errors": 0, "exempt": 0, "jev_won": 0, "overrides_right": 0, "overrides_wrong": 0}
+        checks = {check["id"]: check for check in SMOKE_CHECKS} if set_name == "smoke" else {}
         for item in items:
             key = f"{set_name}|{item['id']}"
-            stored = store["rows"].get(key)
+            stored = stored_row(store, set_name, item)
             if stored is None:
+                if set_name == "smoke":
+                    report["rows"][key] = {"question": item["question"], "labels": item["labels"], "stored": False}
+                    print(f"smoke {item['id']}: not stored (captured on the next capture run)")
                 continue
             decision = route_question(item["question"])
             router_disp = ROUTER_DISPOSITION[decision.path]
@@ -182,6 +272,11 @@ def replay(args: argparse.Namespace) -> int:
                 "jev": [jev_disp, result.jev_rule, result.jev_confidence],
                 "decide": [result.decision.path, result.decision.rule, result.winner, result.why],
             }
+            if item["id"] in checks:
+                ok = smoke_route_matches(checks[item["id"]], result.decision)
+                report["rows"][key]["smoke_route_ok"] = ok
+                if not ok:
+                    print(f"SMOKE ROUTE CHANGED {item['id']}: decide gave {result.decision.path}/{result.decision.rule}")
         n = tally["n"] or 1
         report["sets"][set_name] = {
             **tally,
@@ -246,6 +341,77 @@ def sweep(args: argparse.Namespace) -> int:
     return 0
 
 
+GATE_SWEEP_SETS = ("dev", "v1", "v2", "v3")
+GATE_SWEEP_VALUES = tuple(round(0.5 + 0.05 * step, 2) for step in range(10))
+
+
+def _outcome_key(result: Any) -> tuple[str, str | None, str]:
+    return (result.decision.path, result.decision.rule, result.winner)
+
+
+def sweep_gate(args: argparse.Namespace) -> int:
+    """Sweep the decline gate from 0.50 to 0.95 with the answer gate fixed. Report only.
+
+    dev, v1, and v2 are already seen data; v3 is tuned and reported separately. This
+    changes no default: the gate stays whatever config sets.
+    """
+    store = json.loads(STORE.read_text(encoding="utf-8"))
+    today = date.fromisoformat(store["today"])
+    sets = load_sets()
+    rows: list[dict[str, Any]] = []
+    outcomes: dict[float, dict[str, tuple[str, str | None, str]]] = {}
+    for gate in GATE_SWEEP_VALUES:
+        row: dict[str, Any] = {"gate": gate}
+        outcomes[gate] = {}
+        for set_name in GATE_SWEEP_SETS:
+            n = hits = fixed = broken = decided = 0
+            for item in sets[set_name]:
+                key = f"{set_name}|{item['id']}"
+                stored = store["rows"].get(key)
+                if stored is None:
+                    continue
+                decision = route_question(item["question"])
+                answers = _answers(stored["answers"]) if stored.get("answers") else None
+                result = decide_from_answers(
+                    item["question"], decision, answers, gate=gate, answer_gate=args.answer_gate,
+                    error=stored.get("error"), today=today,
+                )
+                outcomes[gate][key] = _outcome_key(result)
+                router_ok = _score(item["labels"], ROUTER_DISPOSITION[decision.path])
+                decide_ok = _score(item["labels"], ROUTER_DISPOSITION[result.decision.path])
+                n += 1
+                hits += decide_ok
+                if result.winner == "jev":
+                    decided += 1
+                    fixed += decide_ok and not router_ok
+                    broken += router_ok and not decide_ok
+            row[set_name] = {"n": n, "acc": round(hits / (n or 1), 3), "fixed": fixed, "broken": broken, "jev_decided": decided, "status": TUNED[set_name]}
+        rows.append(row)
+    changes: list[dict[str, Any]] = []
+    for lower, upper in zip(GATE_SWEEP_VALUES, GATE_SWEEP_VALUES[1:]):
+        for key, before in outcomes[lower].items():
+            after = outcomes[upper][key]
+            if before != after:
+                set_name, item_id = key.split("|", 1)
+                question = next(item["question"] for item in sets[set_name] if item["id"] == item_id)
+                changes.append({"from_gate": lower, "to_gate": upper, "set": set_name, "id": item_id, "question": question, "before": list(before), "after": list(after)})
+    out = {"answer_gate": args.answer_gate, "sets": GATE_SWEEP_SETS, "status": {name: TUNED[name] for name in GATE_SWEEP_SETS}, "rows": rows, "changes": changes}
+    (HERE / "runs" / "jev_decide_gate_sweep.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+    header = "| Gate | " + " | ".join(f"{name} acc | {name} fixed / broken | {name} Jev decided" for name in GATE_SWEEP_SETS) + " |"
+    print(header)
+    print("|" + "---|" * (1 + 3 * len(GATE_SWEEP_SETS)))
+    for row in rows:
+        cells = [f"{row['gate']:.2f}"]
+        for name in GATE_SWEEP_SETS:
+            body = row[name]
+            cells += [f"{body['acc']:.3f}", f"{body['fixed']} / {body['broken']}", str(body["jev_decided"])]
+        print("| " + " | ".join(cells) + " |")
+    print()
+    for change in changes:
+        print(f"{change['from_gate']:.2f} -> {change['to_gate']:.2f} {change['set']} {change['id']}: {change['before']} -> {change['after']}  {change['question']}")
+    return 0
+
+
 def live(args: argparse.Namespace) -> int:
     """Dev only: run the runtime path and compare with the replay of the store."""
     store = json.loads(STORE.read_text(encoding="utf-8"))
@@ -305,7 +471,7 @@ def live(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("capture", "replay", "sweep", "live"))
+    parser.add_argument("command", choices=("capture", "replay", "sweep", "sweep-gate", "live"))
     parser.add_argument("--cap-usd", type=float, default=0.3)
     parser.add_argument("--gate", type=float, default=0.8)
     parser.add_argument("--answer-gate", type=float, default=0.9)
@@ -313,7 +479,7 @@ def main() -> int:
     from dotenv import load_dotenv
 
     load_dotenv(REPO_ROOT / ".env")
-    return {"capture": capture, "replay": replay, "sweep": sweep, "live": live}[args.command](args)
+    return {"capture": capture, "replay": replay, "sweep": sweep, "sweep-gate": sweep_gate, "live": live}[args.command](args)
 
 
 if __name__ == "__main__":

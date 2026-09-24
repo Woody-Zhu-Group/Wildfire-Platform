@@ -12,7 +12,10 @@ Order for one question:
      When Jev changes the disposition, its clarification goes through the same
      clarify-all-missing composition as the router's, using the router's slots.
    - A Jev clarification about an item the router already resolved (the time,
-     or the place: county, utility, coordinates, or a geocoded city) is ignored.
+     or the place: county, utility, coordinates, or a geocoded city) is ignored
+     (why contradicts_slot). So is one asking for a time or place that the
+     router's chosen deterministic calls do not take, for example a year on a
+     point-context, territory, or circuit lookup (why slot_unused).
    - Jev answer where the router declined wins only at or above the separate,
      higher answer gate (default 0.9) on the facts behind the router's rule, since
      a wrong answer is worse than a clarifying question. The question then takes
@@ -209,6 +212,58 @@ def router_resolved(item: str, slots: dict[str, Any]) -> bool:
     return False
 
 
+# Tool-call arguments that carry a time window or a place. A deterministic route
+# whose calls carry none of the time arguments takes no time, so a Jev request
+# for a year on it is ignored; likewise for a place.
+_TIME_ARGS = frozenset(
+    {
+        "year",
+        "date",
+        "start_date",
+        "end_date",
+        "period_a_start",
+        "period_a_end",
+        "period_b_start",
+        "period_b_end",
+    }
+)
+_PLACE_ARGS = frozenset(
+    {
+        "lat",
+        "lon",
+        "bbox",
+        "county",
+        "utility",
+        "utilities",
+        "regions",
+        "region_type",
+        "scope",
+        "scope_type",
+        "circuit_id",
+        "cell_id",
+        "record_id",
+        "tier",
+        "hftd_tier",
+    }
+)
+
+
+def route_uses(item: str, decision: RouteDecision) -> bool | None:
+    """Whether the router's chosen deterministic calls take this item.
+
+    None when the router chose no call (a model-path or declined route), so
+    nothing can be said about what the eventual tool needs.
+    """
+    if decision.path != "deterministic" or not decision.tool_calls:
+        return None
+    names = _TIME_ARGS if item == "time" else _PLACE_ARGS
+    return any(
+        key in names and value is not None
+        for _tool, args in decision.tool_calls
+        for key, value in (args or {}).items()
+    )
+
+
 def _item_for(rule: str | None) -> str | None:
     if rule in _TIME_RULES:
         return "time"
@@ -230,7 +285,7 @@ def code_verified_missing(decision: RouteDecision) -> bool:
 @dataclass
 class DecideResult:
     winner: str  # "router" or "jev"
-    why: str  # backstop, regex_only, router_only_tool, agree, gate, below_gate, error, ...
+    why: str  # backstop, regex_only, router_only_tool, agree, gate, below_gate, contradicts_slot, slot_unused, code_verified, error, ...
     decision: RouteDecision
     router_path: str
     router_rule: str
@@ -398,6 +453,10 @@ def decide_from_answers(
         if jev_disposition == "clarify" and item and router_resolved(item, decision.slots):
             # Jev asks for something the router already resolved from the question.
             return DecideResult("router", "contradicts_slot", decision, **info, **base)
+        if jev_disposition == "clarify" and item and route_uses(item, decision) is False:
+            # Jev asks for a time or place the router's chosen calls do not take,
+            # for example a year on a point-context or territory lookup.
+            return DecideResult("router", "slot_unused", decision, **info, **base)
         if confidence is not None and confidence >= gate:
             if router_disposition == jev_disposition:
                 # Both declined the same way: the router's wording stands.

@@ -76,6 +76,7 @@ After each merge, rebase the next branch onto `platform/main`, rerun `pytest tes
 - Dev (cases.json 107 + paraphrases 41 = 148; the original 105 predate the newer cases): used for tuning.
 - Holdout v1 (63 of 97 rows without `needs_human_review`) and v2 (40): seen, now development data.
 - Holdout v3 (88, 65 certain after independent ChatGPT labels): partly tuned. Router fixes were written from its disagreements.
+- Smoke (6): the `scripts/smoke_test.sh` questions, replayed offline in the decide replay and `tests/agent/test_jev_decide_scope.py`; one has a stored Jev call.
 - Production shadow logs will be the next clean test.
 
 ## Deployment (EC2, reached by Michael through SSM, not SSH)
