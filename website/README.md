@@ -83,7 +83,7 @@ visible and never trigger a runtime switch back to browser calculations.
 ## Connected panels
 
 Add panel groups ready-to-use views under the five panel categories. Selecting
-a view creates the configured panel immediately. The 18 views, as defined in
+a view creates the configured panel immediately. The 19 views, as defined in
 `src/panelViews.ts`:
 
 | Category | Views |
@@ -92,9 +92,19 @@ a view creates the configured panel immediately. The 18 views, as defined in
 | Time series | Event trends, Year comparison, Regional trends, Seasonal profile, Cumulative acres burned within a season, Customers affected over time |
 | Comparison | County ranking, Utility comparison, Cause breakdown |
 | Record table | Event records |
-| Stat card | Summary metrics, Medical baseline and life support customers affected by EPSS outages |
+| Stat card | Summary metrics, Risk model performance, Medical baseline and life support customers affected by EPSS outages |
 
 Only implemented views appear.
+
+**Risk model performance** reads the risk service's `GET /metrics` (`VITE_RISK_URL`) and shows
+HPP, NHPP and cNHPP side by side: log-likelihood, AUC, top 5% and top 1% precision, and top 5%
+lift. HPP's top-k values show as not applicable with the service's reason. The card states the
+evaluation year and dates, the training years, cNHPP's xi, and the full parameter hash, and it
+carries the cNHPP versus NHPP statistical tie caveat from `services/risk_forecasting/README.md`.
+It ignores the workspace filters and year bar (the evaluation is one fixed held-out year). A 503
+from `/metrics` shows "Model metrics unavailable" with the service's reason and a Retry button,
+never numbers. A chat answer that opens the card records the cited evaluation (`metricsCitation`),
+and the card says so if the service now reports a different one.
 
 Use the header's Change view action to switch within a panel category. It retains
 the panel's position, custom name, dates, supported filters and expansion state.

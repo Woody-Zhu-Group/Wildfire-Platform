@@ -94,6 +94,18 @@ function riskGridMap(view: View): AnswerPanel | null {
   };
 }
 
+// The model performance card for the evaluation the cited /metrics read returned.
+function modelMetricsCard(view: View): AnswerPanel | null {
+  const p = view.params;
+  if (p.kind !== 'model_metrics' || !hasEvidence(view)) return null;
+  if (!Number.isInteger(p.eval_year) || typeof p.params_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(p.params_sha256)) return null;
+  return {
+    type: 'stat_card',
+    name: 'Risk model performance',
+    settings: {statMode: 'model_metrics', metricsCitation: {evalYear: p.eval_year as number, paramsSha256: p.params_sha256}},
+  };
+}
+
 function chartDataset(id: unknown) {
   return CHART_DATASETS.find(d => d.api === id || d.id === id || d.query === id);
 }
@@ -130,6 +142,11 @@ export function panelsFromAnswer(answer: AgentAnswer): AnswerPanel[] {
     if (view.type === 'time_series' && p.series_mode === 'timeline') {
       const timeline = timelineSeries(view);
       if (timeline) panels.push(timeline);
+      continue;
+    }
+    if (view.type === 'stat_card' && p.stat_mode === 'model_metrics') {
+      const card = modelMetricsCard(view);
+      if (card) panels.push(card);
       continue;
     }
     if (view.type === 'stat_card' && p.stat_mode === 'summary') {

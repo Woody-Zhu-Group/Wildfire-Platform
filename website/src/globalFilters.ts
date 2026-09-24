@@ -23,6 +23,8 @@ export function yearFromFilters(filters: Filters): number {
 
 export function panelUsesGlobalYear(type: PanelId, settings: PanelSettings): boolean {
   if (settings.answerStat) return false;
+  // The model evaluation is one fixed held-out year; the workspace year does not apply.
+  if (type === 'stat_card' && settings.statMode === 'model_metrics') return false;
   if (type === 'time_series' && (settings.seriesMode === 'yearly' || settings.seriesMode === 'seasonal')) return false;
   return true;
 }

@@ -28,11 +28,12 @@ export const PANEL_VIEWS: PanelView[] = [
   { id: 'cause-comparison', type: 'comparison', title: 'Cause breakdown', description: 'Compare the recorded causes of EPSS outages.', settings: { dataset: 'epss', groupBy: 'cause' } },
   { id: 'event-records', type: 'record_table', title: 'Event records', description: 'Search individual events and open their details.', settings: { dataset: 'cpuc' } },
   { id: 'summary-stats', type: 'stat_card', title: 'Summary metrics', description: 'See related totals under one set of filters.', settings: { dataset: 'cpuc', statMode: 'summary' } },
+  { id: 'model-metrics', type: 'stat_card', title: 'Risk model performance', description: 'Compare HPP, NHPP and cNHPP on the held-out evaluation year.', settings: { statMode: 'model_metrics' } },
   { id: 'medical-exposure', type: 'stat_card', title: 'Medical baseline and life support customers affected by EPSS outages', description: 'Sum medical-baseline and life-support customer-events during PG&E outages.', settings: { dataset: 'epss', statMode: 'medical_exposure' } },
 ];
 
 export function viewSettings(current: PanelSettings, view: PanelView): PanelSettings {
-  return structuredClone({ ...current, ...view.settings, answerStat: undefined, weatherDate: undefined, weatherYear: undefined, riskDate: undefined, mapView: undefined, playbackDate: undefined });
+  return structuredClone({ ...current, ...view.settings, answerStat: undefined, metricsCitation: undefined, weatherDate: undefined, weatherYear: undefined, riskDate: undefined, mapView: undefined, playbackDate: undefined });
 }
 
 export function currentView(type: PanelId, settings: PanelSettings): string {
@@ -42,6 +43,7 @@ export function currentView(type: PanelId, settings: PanelSettings): string {
   if (type === 'time_series') return settings.seriesMode === 'regional' ? 'regional-time' : settings.seriesMode === 'seasonal' ? 'seasonal-time' : settings.seriesMode === 'cumulative_acres' ? 'cumulative-acres' : settings.seriesMode === 'customer_events' ? 'customer-events' : settings.seriesMode === 'yearly' ? 'annual-time' : 'events-time';
   if (type === 'comparison') return `${settings.groupBy}-comparison`;
   if (type === 'record_table') return 'event-records';
+  if (settings.statMode === 'model_metrics') return 'model-metrics';
   return settings.statMode === 'medical_exposure' ? 'medical-exposure' : 'summary-stats';
 }
 
@@ -57,6 +59,7 @@ export function updatePanelSettings(panel: PanelInstance, patch: Partial<PanelSe
 
 export function panelDatasets(type: PanelId, settings: PanelSettings): DatasetId[] {
   if (type === 'map' && settings.mapMode === 'risk') return [];
+  if (type === 'stat_card' && settings.statMode === 'model_metrics') return [];
   if (type === 'map' && settings.mapMode === 'residual') return ['cpuc'];
   if (type === 'stat_card' && settings.answerStat) {
     const source = settings.answerStat.sourceDataset;

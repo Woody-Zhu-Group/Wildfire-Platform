@@ -29,9 +29,12 @@ const series = (mode: string, dataset: string): Spec => ({type: 'time_series', .
 const ranking = (groupBy: string, dataset: string): Spec => ({type: 'comparison', ...ev('ev_rank'), params: {kind: 'ranking', metric: 'ignition_count', dataset, group_by: groupBy, year: 2024, start_date: '2024-01-01', end_date: '2024-12-31'}});
 const stat = (mode: 'summary' | 'medical_exposure', dataset: string): Spec => ({type: 'stat_card', ...ev('ev_stat'), params: {kind: 'count', value: 3, label: 'x', scope: 'statewide', period: '2024', source_dataset: dataset, unit: 'events', stat_mode: mode, year: 2024}});
 const grid = (mode: 'risk' | 'residual', day = '2024-08-15'): Spec => ({type: 'map', ...ev('ev_risk'), params: {datasets: [], map_mode: mode, risk_date: day, extent: 'statewide'}});
+const SHA = 'ee6fc19c9388c2ab23f693a0a71ef993844c1ad3793d242692657aafe08d9a57';
+// The spec services/agent/views.py _model_metrics_views emits for a risk_metrics read.
+const modelMetrics = (extra: Record<string, unknown> = {}): Spec => ({type: 'stat_card', ...ev('ev_metrics'), params: {kind: 'model_metrics', value: 0.7602, label: 'cNHPP AUC', scope: 'Statewide, 824 grid cells', period: 'Evaluated on 2024', source_dataset: 'cnhpp', unit: null, stat_mode: 'model_metrics', view_id: 'model-metrics', eval_year: 2024, params_sha256: SHA, ...extra}});
 const timeline = (datasets: string[], evidence = datasets.map(d => `ev_${d}`)): Spec => ({type: 'time_series', ...ev(...evidence), params: {dataset: datasets[0], datasets, year: 2024, interval: 'monthly', series_mode: 'timeline'}});
 
-test('planner-shaped specs reach all 18 workspace views', () => {
+test('planner-shaped specs reach all 19 workspace views', () => {
   const specs: [string, Spec][] = [
     ['events-map', eventMap('ignitions')],
     ['outages-map', eventMap('epss')],
@@ -51,6 +54,7 @@ test('planner-shaped specs reach all 18 workspace views', () => {
     ['event-records', {type: 'record_table', ...ev('ev_rows'), params: {dataset: 'cpuc_ignitions', year: 2024, row_limit: 25}}],
     ['summary-stats', stat('summary', 'epss_outages')],
     ['medical-exposure', stat('medical_exposure', 'epss_outages')],
+    ['model-metrics', modelMetrics()],
   ];
   const reached = new Set<string>();
   for (const [expected, spec] of specs) {
@@ -123,4 +127,18 @@ test('a single-dataset trend never grows extra datasets', () => {
   const [panel] = panelsFromAnswer(answer([{type: 'time_series', ...ev('ev_calfire'), params: {dataset: 'calfire', year: 2024, interval: 'monthly'}}]));
   assert.deepEqual(panel.settings.datasets, ['calfire']);
   assert.deepEqual(applied('time_series', panel.settings).datasets, ['calfire']);
+});
+
+test('the model metrics card carries the cited evaluation and needs evidence and a real hash', () => {
+  const [panel] = panelsFromAnswer(answer([modelMetrics()]));
+  assert.equal(panel.type, 'stat_card');
+  assert.equal(panel.name, PANEL_VIEWS.find(view => view.id === 'model-metrics')!.title);
+  assert.deepEqual(panel.settings, {statMode: 'model_metrics', metricsCitation: {evalYear: 2024, paramsSha256: SHA}});
+  const bare = modelMetrics();
+  delete (bare as {evidence_ids?: string[]}).evidence_ids;
+  assert.deepEqual(panelsFromAnswer(answer([bare])), []);
+  assert.deepEqual(panelsFromAnswer(answer([modelMetrics({params_sha256: 'abc'})])), []);
+  assert.deepEqual(panelsFromAnswer(answer([modelMetrics({eval_year: '2024'})])), []);
+  // Never falls through to a generic answer stat.
+  assert.equal(panelsFromAnswer(answer([modelMetrics({eval_year: null})])).length, 0);
 });
