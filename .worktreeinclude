@@ -15,3 +15,7 @@ data/north_america/us_ignitions_extracted.csv
 
 # Cached Census TIGER county polygons (avoids re-download at load)
 data/boundaries/cb_2023_us_county_500k.zip
+
+# US ignitions state breakdown and its state polygons (read by analysis/compare_cpuc_calfire_us.py)
+data/north_america/_us_ignitions_state_breakdown.json
+data/north_america/_us_states.geojson
