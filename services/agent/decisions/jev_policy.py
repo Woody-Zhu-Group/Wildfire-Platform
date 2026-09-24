@@ -109,6 +109,33 @@ OFF_TOPIC_RULES = {
 # what was asked. Map, territory_boundary, and spatial_context are never gated.
 MEASURE_GATED_INTENTS = frozenset({"count", "rank", "compare", "trend", "records_list"})
 
+# Intents whose tools take a time window, so a missing year clarifies. The
+# missing-year gates apply to these and to nothing else: point context,
+# a territory boundary, circuit detail, and the other lookups take no time.
+# rank is gated inside _ranking_rule. spatial_context is a time-window intent
+# only when it is a count or list inside a territory (SPATIAL_COUNT_MEASURES);
+# "what contains this point" takes no time.
+TIME_WINDOW_INTENTS = frozenset(
+    {"count", "records_list", "map", "trend", "map_plus_trend", "compare", "rank"}
+)
+SPATIAL_COUNT_MEASURES = frozenset({"event_count", "record_list"})
+MISSING_YEAR_RULES = {
+    "map_plus_trend": "map_plus_trend_missing_year",
+    "map": "map_missing_year",
+    "trend": "trend_missing_year",
+    "spatial_context": "spatial_missing_year",
+    "count": "records_missing_year",
+    "records_list": "records_missing_year",
+    "compare": "records_missing_year",
+}
+
+
+def needs_time_window(intent: str | None, measure: str | None) -> bool:
+    """True when the tools behind this intent take a year or date range."""
+    if intent == "spatial_context":
+        return measure in SPATIAL_COUNT_MEASURES
+    return (intent or "") in TIME_WINDOW_INTENTS
+
 
 @dataclass
 class JevFacts:
@@ -331,23 +358,15 @@ def derive_outcome(
         return hit("ambiguous_risk_place", "asks_risk")
 
     intent = facts.intent or ""
-    missing_year = {
-        "map_plus_trend": "map_plus_trend_missing_year",
-        "map": "map_missing_year",
-        "trend": "trend_missing_year",
-        "spatial_context": "spatial_missing_year",
-        "count": "records_missing_year",
-        "records_list": "records_missing_year",
-        "compare": "records_missing_year",
-    }
     coordinate_lookup = intent == "spatial_context" and bool(question) and _coords(question) is not None
     if (
-        intent in missing_year
+        intent in MISSING_YEAR_RULES
+        and needs_time_window(intent, facts.measure)
         and not coordinate_lookup
         and _lacks_year(facts, resolved, threshold)
         and not (intent == "map" and facts.dataset == "hftd")
     ):
-        return hit(missing_year[intent], "has_time_scope")
+        return hit(MISSING_YEAR_RULES[intent], "has_time_scope")
 
     if _yes(facts.is_multi_intent, threshold):
         trace.append("multi_intent_count_and_trend")

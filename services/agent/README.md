@@ -184,7 +184,7 @@ Both carry `decision_source`, who made the answer, clarify, or refuse decision: 
 | `jev` | `disposition`, `confidence` | `AGENT_JEV_MODE=decide` applied Jev's answer, clarify, or refuse |
 | `router` | `why` | The router's decision stands |
 
-`why` for the router: `jev_below_gate` and `jev_agreed` (both with `jev_disposition` and `jev_confidence`), `jev_error`, `jev_timeout`, `jev_daily_cap` (the per-process `AGENT_JEV_DAILY_CALL_CAP` on API calls was reached, so Jev was not asked), `verified_fact` (the resolver proved the time or place, decide's `code_verified` or `contradicts_slot`), `router_only_route` (decide's `regex_only` or `router_only_tool`), `jev_off`, `jev_shadow` and `jev_tool_pick` (modes where Jev does not make this decision), and `jev_skipped` (decide mode skipped a forced-model eval request). Every value also carries `mode`, the `AGENT_JEV_MODE` in force.
+`why` for the router: `jev_below_gate` and `jev_agreed` (both with `jev_disposition` and `jev_confidence`), `jev_error`, `jev_timeout`, `jev_daily_cap` (the per-process `AGENT_JEV_DAILY_CALL_CAP` on API calls was reached, so Jev was not asked), `verified_fact` (the resolver or the chosen tool call proved the time or place, decide's `code_verified`, `contradicts_slot`, or `slot_unused`), `router_only_route` (decide's `regex_only` or `router_only_tool`), `jev_off`, `jev_shadow` and `jev_tool_pick` (modes where Jev does not make this decision), and `jev_skipped` (decide mode skipped a forced-model eval request). Every value also carries `mode`, the `AGENT_JEV_MODE` in force.
 - `GET /artifacts/{ref}` for a non-expired full backend payload
 
 The service is single-exchange: it stores no conversation history.

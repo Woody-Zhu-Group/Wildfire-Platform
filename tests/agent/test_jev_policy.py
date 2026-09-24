@@ -198,7 +198,7 @@ CASES = [
     ),
     (
         "spatial_missing_year",
-        JevFacts(intent="spatial_context", has_time_scope=0.1),
+        JevFacts(intent="spatial_context", measure="event_count", has_time_scope=0.1),
         "clarify",
         "spatial_missing_year",
         None,
@@ -391,10 +391,16 @@ def test_coordinate_lookup_skips_spatial_missing_year():
     )
     assert lookup.disposition == "answer"
     territory = derive_outcome(
-        JevFacts(intent="spatial_context", has_time_scope=0.1, utilities={"SCE": 0.9}),
+        JevFacts(intent="spatial_context", measure="event_count", has_time_scope=0.1, utilities={"SCE": 0.9}),
         question="How many ignitions happened inside SCE territory?",
     )
     assert territory.clarify_reason == "spatial_missing_year"
+    # A point lookup (what contains this city) takes no time window, so no year is asked.
+    contains = derive_outcome(
+        JevFacts(intent="spatial_context", measure="other_measure", has_time_scope=0.1, names_specific_place=0.95),
+        question="What utility service territory contains Modesto?",
+    )
+    assert contains.disposition == "answer"
 
 
 def test_utility_noul_counts_as_a_risk_place():
