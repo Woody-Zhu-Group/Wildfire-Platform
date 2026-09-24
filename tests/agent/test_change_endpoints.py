@@ -13,7 +13,11 @@ periods, and whatever windows the model chooses in one turn are kept.
 
 The reviewer's questions (tests/agent/fixtures/pr95_change_questions.json)
 were written without looking at the fix. Counts here are fixture values, not
-warehouse figures.
+warehouse figures. End-to-end reads use years inside measured CPUC coverage
+(rows from 2020-01-01, PR #93): a read outside it is not covered and the
+answer clarifies (test_a_change_with_an_uncovered_endpoint_clarifies), so the
+reviewer's end-to-end questions are asked with their years moved to 2020 on,
+their structure unchanged.
 """
 
 from __future__ import annotations
@@ -61,9 +65,11 @@ WRITTEN_RANGES = [
     REVIEWER["user_case"],
 ]
 SCE = {"2020": 75, "2023": 90}
-COUNTY_COUNTS = {("Butte", 2019): 40, ("Butte", 2022): 30, ("Shasta", 2019): 12, ("Shasta", 2022): 18}
+# The reviewer's user case with its range moved inside measured CPUC coverage.
+USER_CASE = REVIEWER["user_case"].replace("from 2019 to 2022", "from 2020 to 2023")
+COUNTY_COUNTS = {("Butte", 2020): 40, ("Butte", 2023): 30, ("Shasta", 2020): 12, ("Shasta", 2023): 18}
 MONTH_COUNTS = {"07": 61, "08": 98}
-PGE = {"2016": 110, "2019": 185, "2020": 58, "2023": 42}
+PGE = {"2020": 185, "2021": 110, "2023": 42, "2024": 58}
 PGE_SPAN = 777
 
 
@@ -392,14 +398,15 @@ def test_the_production_question_with_jev_compare_intent_derives_the_percent_cha
 
 def test_butte_and_shasta_end_to_end_keeps_four_calls_and_derives_each_county_change():
     calls = [
-        _count_call(1, county="Butte", year=2019),
-        _count_call(2, county="Butte", year=2022),
-        _count_call(3, county="Shasta", year=2019),
-        _count_call(4, county="Shasta", year=2022),
+        _count_call(1, county="Butte", year=2020),
+        _count_call(2, county="Butte", year=2023),
+        _count_call(3, county="Shasta", year=2020),
+        _count_call(4, county="Shasta", year=2023),
     ]
-    # "Up or down from 2019 to 2022" is a comparison over a written range: Jev's
+    # "Up or down from 2020 to 2023" is a comparison over a written range: Jev's
     # compare intent lets the two endpoint years cover it.
-    response = _ask_with_jev(REVIEWER["user_case"], calls, _jev_facts("compare", 0.95))
+    assert USER_CASE != REVIEWER["user_case"]
+    response = _ask_with_jev(USER_CASE, calls, _jev_facts("compare", 0.95))
     assert response["status"] == "answer"
     counts = {(e["arguments"]["county"], e["arguments"]["year"]): e["summary"]["total"] for e in _primary_counts(response)}
     assert counts == COUNTY_COUNTS
@@ -548,28 +555,30 @@ def test_identical_evidence_renders_one_fallback_line():
 
 # --- one call per turn -------------------------------------------------------
 
-C8 = "Show the shift in PG&E ignitions from 2016 to 2020."
+# The C8 review question ("from 2016 to 2020") with its range moved inside
+# measured CPUC coverage; the harness-only tests above keep 2016 to 2020.
+C8 = "Show the shift in PG&E ignitions from 2021 to 2024."
 
 
 def _c8_turns() -> list[list[dict]]:
-    return [[_count_call(1, utility="PGE", year=2016)], [_count_call(2, utility="PGE", year=2020)]]
+    return [[_count_call(1, utility="PGE", year=2021)], [_count_call(2, utility="PGE", year=2024)]]
 
 
 def test_c8_one_call_per_turn_with_jev_compare_keeps_both_years_and_derives_the_change():
-    # Hosted models often send one call per turn. The lone 2016 call is an
-    # endpoint coverage will ask for, so it is not widened to 2016-2020, and
-    # the 2020 call in the next turn is kept beside it.
+    # Hosted models often send one call per turn. The lone 2021 call is an
+    # endpoint coverage will ask for, so it is not widened to 2021-2024, and
+    # the 2024 call in the next turn is kept beside it.
     response = _ask_with_jev(C8, [], _jev_facts("compare", 0.95), turns=_c8_turns())
     assert response["status"] == "answer"
     windows = [call_window(e["arguments"]) for e in _primary_counts(response)]
-    assert windows == [("2016-01-01", "2016-12-31"), ("2020-01-01", "2020-12-31")]
+    assert windows == [("2021-01-01", "2021-12-31"), ("2024-01-01", "2024-12-31")]
     assert not [e for e in response["trajectory"] if e.get("type") == "harness_time_correction"]
     continued = [e for e in response["trajectory"] if e.get("type") == "uncovered_entities_continue"]
-    assert continued and continued[0]["missing"] == ["year:2020"]
+    assert continued and continued[0]["missing"] == ["year:2024"]
     derived = [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
     assert len(derived) == 1
     row = derived[0]["summary"]["derivations"][0]
-    assert (row["from"]["period"], row["to"]["period"]) == ("2016", "2020")
+    assert (row["from"]["period"], row["to"]["period"]) == ("2021", "2024")
     assert (row["from"]["value"], row["to"]["value"], row["difference"]) == (110, 58, -52)
 
 
@@ -577,7 +586,7 @@ def test_c8_one_call_per_turn_with_trend_intent_behaves_the_same():
     response = _ask_with_jev(C8, [], _jev_facts("trend", 0.9), turns=_c8_turns())
     assert response["status"] == "answer"
     windows = [call_window(e["arguments"]) for e in _primary_counts(response)]
-    assert windows == [("2016-01-01", "2016-12-31"), ("2020-01-01", "2020-12-31")]
+    assert windows == [("2021-01-01", "2021-12-31"), ("2024-01-01", "2024-12-31")]
 
 
 def test_c8_one_call_per_turn_without_a_change_reading_is_held_to_the_span_as_on_main():
@@ -587,17 +596,54 @@ def test_c8_one_call_per_turn_without_a_change_reading_is_held_to_the_span_as_on
     for jev in (None, _jev_facts("count", 0.95), _jev_facts("compare", 0.6)):
         response = _ask_with_jev(C8, [], jev, turns=_c8_turns())
         windows = [call_window(e["arguments"]) for e in _primary_counts(response)]
-        assert windows == [("2016-01-01", "2020-12-31")], jev
+        assert windows == [("2021-01-01", "2024-12-31")], jev
         assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL], jev
 
 
 def test_a_lone_endpoint_the_model_never_follows_up_declines():
     response = _ask_with_jev(
-        C8, [], _jev_facts("compare", 0.95), turns=[[_count_call(1, utility="PGE", year=2016)]]
+        C8, [], _jev_facts("compare", 0.95), turns=[[_count_call(1, utility="PGE", year=2021)]]
     )
     assert response["status"] == "error"
-    assert "2020" in response["answer_text"]
+    assert "2024" in response["answer_text"]
     assert [e for e in response["trajectory"] if e.get("type") == "uncovered_entities_stop"]
+
+
+ORIGINAL_UNCOVERED = [
+    # The reviewer's user case and C8 as written: 2019 and 2016 are before
+    # measured CPUC coverage (rows from 2020-01-01).
+    (
+        REVIEWER["user_case"],
+        [
+            [
+                _count_call(1, county="Butte", year=2019),
+                _count_call(2, county="Butte", year=2022),
+                _count_call(3, county="Shasta", year=2019),
+                _count_call(4, county="Shasta", year=2022),
+            ]
+        ],
+        "2019",
+    ),
+    (
+        "Show the shift in PG&E ignitions from 2016 to 2020.",
+        [[_count_call(1, utility="PGE", year=2016)], [_count_call(2, utility="PGE", year=2020)]],
+        "2016",
+    ),
+]
+
+
+@pytest.mark.parametrize("question,turns,uncovered", ORIGINAL_UNCOVERED)
+def test_a_change_with_an_uncovered_endpoint_clarifies(question, turns, uncovered):
+    # A change needs both endpoints. One outside measured coverage has no
+    # count (absent, not zero), so the answer clarifies, derives nothing, and
+    # never shows a count for the uncovered year.
+    response = _ask_with_jev(question, [], _jev_facts("compare", 0.95), turns=turns)
+    assert response["status"] == "clarification", response["answer_text"]
+    assert "absent, not zero" in response["answer_text"]
+    assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
+    assert not [
+        e for e in _primary_counts(response) if str(e["arguments"].get("year")) == uncovered
+    ]
 
 
 # --- named months are coverage entities ---------------------------------------
@@ -667,8 +713,8 @@ def test_one_call_over_exactly_the_named_months_covers_both():
 
 # --- derived figures need Jev's change reading ---------------------------------
 
-N1 = "List PG&E ignitions in 2019 and in 2023."
-N1_CALLS = [_count_call(1, utility="PGE", year=2019), _count_call(2, utility="PGE", year=2023)]
+N1 = "List PG&E ignitions in 2020 and in 2023."
+N1_CALLS = [_count_call(1, utility="PGE", year=2020), _count_call(2, utility="PGE", year=2023)]
 
 
 def test_a_listing_of_two_years_carries_no_change_figures():
