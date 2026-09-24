@@ -78,7 +78,10 @@ def parse_utility(value: str | None, *, allow_untagged: bool = True) -> str | No
         allowed = sorted(KNOWN_UTILITIES) + (["untagged"] if allow_untagged else [])
         raise HTTPException(
             status_code=400,
-            detail=f"unknown utility {value!r}; allowed: {', '.join(allowed)}",
+            detail=(
+                f"unknown utility {value!r}; it matches no utility in the warehouse. "
+                f"Did you mean {' or '.join(allowed)}?"
+            ),
         )
     resolved = mapping[key]
     if resolved == "untagged" and not allow_untagged:
@@ -146,7 +149,10 @@ def parse_tier(value: str | None) -> str | None:
     if resolved is None:
         raise HTTPException(
             status_code=400,
-            detail=f"tier must be one of {sorted(HFTD_TIERS)}; got {value!r}",
+            detail=(
+                f"unknown tier {value!r}; it matches no HFTD tier in the warehouse. "
+                "Did you mean Tier 2 or Tier 3?"
+            ),
         )
     return resolved
 

@@ -80,7 +80,7 @@ def test_place_resolution_county_utility_point(db_conn):
     bare = resolve_place(county="Sacramento")
     assert bare.cell_ids == county.cell_ids
 
-    with pytest.raises(PlaceNotFound, match="Unknown county"):
+    with pytest.raises(PlaceNotFound, match="(?i)unknown county"):
         resolve_place(county="Atlantis")
 
     pge = resolve_place(utility="PGE")
@@ -88,7 +88,7 @@ def test_place_resolution_county_utility_point(db_conn):
     assert pge.scope_name == "PGE"
     assert pge.cell_count > 1
 
-    with pytest.raises(PlaceNotFound, match="Unknown utility"):
+    with pytest.raises(PlaceNotFound, match="(?i)unknown utility"):
         resolve_place(utility="NOT_AN_IOU")
 
     point = resolve_place(lat=38.58, lon=-121.49)

@@ -69,6 +69,35 @@ def test_normalize_county_rejects_unknown_values_with_close_matches(value, sugge
     assert repr(value) in str(info.value)
 
 
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("SB", ["San Benito", "San Bernardino", "Santa Barbara"]),
+        ("S.B.", ["San Benito", "San Bernardino", "Santa Barbara"]),
+        ("SC", ["Santa Clara", "Santa Cruz"]),
+    ],
+)
+def test_an_abbreviation_that_fits_several_counties_is_rejected_naming_all_of_them(value, expected):
+    """No alias may resolve an ambiguous abbreviation; the error lists every candidate."""
+    with pytest.raises(UnknownCountyError) as info:
+        normalize_county(value)
+    assert info.value.suggestions == expected
+    for name in expected:
+        assert name in str(info.value)
+
+
+def test_no_alias_is_the_initials_of_more_than_one_county():
+    from services.shared.counties import COUNTY_ALIASES
+
+    def initials(name: str) -> str:
+        return "".join(word[0] for word in name.lower().split())
+
+    for alias in COUNTY_ALIASES:
+        compact = alias.replace(" ", "")
+        matches = [name for name in CALIFORNIA_COUNTIES if initials(name) == compact]
+        assert len(matches) <= 1, (alias, matches)
+
+
 def test_normalize_county_never_returns_a_non_canonical_name():
     for value in ("Xyz", "", "   ", "County"):
         with pytest.raises(UnknownCountyError):
@@ -96,10 +125,12 @@ def test_parse_tier_resolves_spellings(value, expected):
 
 
 @pytest.mark.parametrize("value", ["Tier 4", "Tier", "two", "1"])
-def test_parse_tier_rejects_unknown_tiers(value):
+def test_parse_tier_rejects_unknown_tiers_with_the_same_suggestion_text(value):
     with pytest.raises(HTTPException) as info:
         parse_tier(value)
     assert info.value.status_code == 400
+    assert info.value.detail.startswith(f"unknown tier {value!r}")
+    assert "Did you mean Tier 2 or Tier 3?" in info.value.detail
 
 
 @pytest.mark.parametrize(
@@ -116,10 +147,12 @@ def test_parse_utility_resolves_full_names(value, expected):
     assert parse_utility(value) == expected
 
 
-def test_parse_utility_rejects_unknown_with_400():
+def test_parse_utility_rejects_unknown_with_400_and_the_same_suggestion_text():
     with pytest.raises(HTTPException) as info:
         parse_utility("Edison International")
     assert info.value.status_code == 400
+    assert info.value.detail.startswith("unknown utility 'Edison International'")
+    assert "Did you mean" in info.value.detail and "PGE" in info.value.detail
 
 
 # ---------------------------------------------------------------- endpoints

@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
+from fastapi import HTTPException
+
+from services.data_query.filters import parse_utility
+from services.shared.counties import UnknownCountyError, normalize_county
 from shared.db import connect, get_settings
 
 _RISK_UTILITIES = frozenset({"PGE", "SCE", "SDGE"})
@@ -36,10 +40,29 @@ class PlaceResolution:
 
 
 def normalize_county_name(raw: str) -> str:
-    name = " ".join(raw.strip().split())
-    if name.lower().endswith(" county"):
-        name = name[: -len(" county")].strip()
-    return name
+    """Canonical Census name for any spelling ("Butte Co.", "LA", "butte county").
+
+    Uses the shared normalizer, so the risk service accepts exactly what the
+    data query service accepts. An unknown value raises PlaceNotFound with
+    the closest county names.
+    """
+    try:
+        return normalize_county(raw)
+    except UnknownCountyError as exc:
+        raise PlaceNotFound(str(exc)) from exc
+
+
+def normalize_utility_code(raw: str) -> str:
+    """PGE, SCE, or SDGE from a code or a full name; anything else raises."""
+    try:
+        code = parse_utility(raw, allow_untagged=False)
+    except HTTPException as exc:
+        raise PlaceNotFound(str(exc.detail)) from exc
+    if code not in _RISK_UTILITIES:
+        raise PlaceNotFound(
+            f"Unknown utility {raw!r} for fitted risk; it accepts PGE, SCE, or SDGE."
+        )
+    return str(code)
 
 
 def resolve_place(
@@ -85,8 +108,6 @@ def resolve_place(
 
 def _resolve_county(raw: str) -> PlaceResolution:
     name = normalize_county_name(raw)
-    if not name:
-        raise PlaceNotFound("County name is empty")
     with connect(get_settings()) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -116,11 +137,7 @@ def _resolve_county(raw: str) -> PlaceResolution:
 
 
 def _resolve_utility(raw: str) -> PlaceResolution:
-    code = raw.strip().upper()
-    if code not in _RISK_UTILITIES:
-        raise PlaceNotFound(
-            f"Unknown utility {raw!r}. Fitted risk accepts PGE, SCE, or SDGE."
-        )
+    code = normalize_utility_code(raw)
     with connect(get_settings()) as conn:
         with conn.cursor() as cur:
             cur.execute(

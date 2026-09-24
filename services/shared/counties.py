@@ -25,7 +25,9 @@ CALIFORNIA_COUNTIES: tuple[str, ...] = (
 )
 
 # Known short forms and spellings, keyed by their normalized form (lowercase,
-# punctuation removed, single spaces, no trailing "county").
+# punctuation removed, single spaces, no trailing "county"). Only
+# abbreviations that mean one county belong here: "SB" could be Santa
+# Barbara, San Bernardino, or San Benito, so it is rejected with all three.
 COUNTY_ALIASES: dict[str, str] = {
     "la": "Los Angeles",
     "l a": "Los Angeles",
@@ -33,7 +35,6 @@ COUNTY_ALIASES: dict[str, str] = {
     "sf": "San Francisco",
     "san fran": "San Francisco",
     "slo": "San Luis Obispo",
-    "sb": "Santa Barbara",
     "san bernadino": "San Bernardino",
     "san berdoo": "San Bernardino",
     "eldorado": "El Dorado",
@@ -75,11 +76,23 @@ _BY_KEY: dict[str, str] = {_key(name): name for name in CALIFORNIA_COUNTIES}
 _BY_KEY.update({name.lower().replace(" ", ""): name for name in CALIFORNIA_COUNTIES})
 
 
+def _initials(name: str) -> str:
+    return "".join(word[0] for word in name.lower().split())
+
+
 def county_suggestions(value: str, *, limit: int = 3) -> list[str]:
-    """Closest canonical county names for an unmatched value."""
+    """Closest canonical county names for an unmatched value.
+
+    An abbreviation that is the initials of several counties ("SB") lists
+    every one of them, so the caller can see the choice.
+    """
     key = _key(value)
     if not key:
         return []
+    compact = key.replace(" ", "")
+    initials = [name for name in CALIFORNIA_COUNTIES if _initials(name) == compact]
+    if initials:
+        return initials
     keys = list(_BY_KEY)
     close = difflib.get_close_matches(key, keys, n=limit * 2, cutoff=0.6)
     found: list[str] = []
