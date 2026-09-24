@@ -662,10 +662,24 @@ class Qualification(StrictModel):
     source: str
 
 
+class DecisionSource(StrictModel):
+    """Who made the answer, clarify, or refuse decision. Never Jev's raw payload."""
+
+    source: Literal["backstop", "jev", "router"]
+    mode: str
+    rule: str | None = None  # backstop: the router rule id
+    disposition: Literal["answer", "clarify", "unsupported"] | None = None  # jev
+    confidence: float | None = None  # jev
+    why: str | None = None  # router: why Jev did not decide
+    jev_disposition: str | None = None  # router, below the gate or agreeing
+    jev_confidence: float | None = None
+
+
 class AskResponse(StrictModel):
     request_id: str
     status: str
     answer_text: str
+    decision_source: DecisionSource | None = None
     route: dict[str, Any]
     qualifications: list[Qualification] = Field(default_factory=list)
     evidence: list[dict[str, Any]] = Field(default_factory=list)
