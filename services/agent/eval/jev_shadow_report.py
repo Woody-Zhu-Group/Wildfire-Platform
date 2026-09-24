@@ -175,10 +175,10 @@ def render(records: list[dict[str, Any]], args: argparse.Namespace) -> list[str]
         if outcome.get("elapsed_ms") is not None:
             elapsed.append(float(outcome["elapsed_ms"]))
     lines.append(
-        f"- tool_pick matches qwen3 first tools {rate(matched_first, scored)}; "
+        f"- tool_pick matches the model's first tools {rate(matched_first, scored)}; "
         f"final tools {rate(matched_final, scored)}"
     )
-    lines.append("- qwen3 elapsed on those questions " + latency_line(elapsed))
+    lines.append("- model elapsed on those questions " + latency_line(elapsed))
     latencies = [
         float((record.get("jev") or {}).get("latency_ms"))
         for record in routing

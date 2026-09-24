@@ -17,12 +17,6 @@ window.WILDFIRE_AGENT_BASE = "http://127.0.0.1:8004";
 window.WILDFIRE_DATA_QUERY_BASE = "http://127.0.0.1:8000";
 
 /**
- * GPU control API — start/stop the demo Ollama instance.
- * Local default matches: uvicorn services.gpu_control.app:app --port 8005 --app-dir .
- */
-window.WILDFIRE_GPU_CONTROL_BASE = "http://127.0.0.1:8005";
-
-/**
  * CAL FIRE incident_type query value for /map-layer and /time-series.
  * - "all" during A/B verification against static CSV (website has no type filter)
  * - "" (omit / API default Wildfire+Fire) after verification for the wildfire demo

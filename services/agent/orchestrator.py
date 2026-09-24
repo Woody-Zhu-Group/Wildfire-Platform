@@ -16,7 +16,6 @@ from pydantic import ValidationError
 
 from services.agent.caveats import collect_qualifications
 from services.agent.config import AgentSettings
-from services.agent.constrained import ROUTING_CONSTRAINED_PROMPT
 from services.agent.domain import DOMAIN_REFERENCE
 from services.agent.grounding import (
     ground_model_filters,
@@ -70,9 +69,12 @@ Canonical examples:
 6. "Which CPZ costs least to mitigate?" -> unsupported; no CPZ/cost tool exists.
 """
 
-ROUTING_SYSTEM_PROMPT = (
-    f"{DOMAIN_REFERENCE}\n\n{ROUTING_CONSTRAINED_PROMPT}"
-)
+ROUTING_RULES = """Route this wildfire-data question with the provided tools.
+Call every tool needed, using exact schema enum values. If the question does not name
+or clearly imply a specific year, omit year, start_date, and end_date. Query without a
+time filter or ask for clarification; never guess a plausible year. Do not explain."""
+
+ROUTING_SYSTEM_PROMPT = f"{DOMAIN_REFERENCE}\n\n{ROUTING_RULES}"
 
 SYNTHESIS_SYSTEM_PROMPT = """You are writing a short briefing for a wildfire-policy
 reader from tool evidence only.
@@ -461,6 +463,7 @@ class AgentOrchestrator:
                     place_label=(
                         f"the center point of {city['name']}" if city.get("name") else None
                     ),
+                    city_name=city.get("name") or None,
                 )
                 need_synthesis = False
             else:
@@ -757,12 +760,9 @@ class AgentOrchestrator:
             raise asyncio.CancelledError()
 
     def _turn_model(self, attempt: int, primary: str) -> str:
-        """Hosted retries after a failed first turn escalate to the fallback model.
-
-        Ollama keeps the same model on every turn, as before.
-        """
+        """Retries after a failed first turn escalate to the fallback model."""
         fallback = getattr(self.settings, "llm_fallback_model", None)
-        if attempt > 1 and getattr(self.settings, "hosted_llm", False) and fallback:
+        if attempt > 1 and fallback:
             return fallback
         return primary
 
@@ -933,7 +933,10 @@ class AgentOrchestrator:
         on_event: ProgressCallback | None,
         cancel_event: asyncio.Event | None,
     ):
-        """Run Jev's tool when it is confident. None means use the qwen loop."""
+        """Run Jev's tool when it is confident. None means use the LLM tool loop
+
+        (logged under the historical path label "qwen").
+        """
         from services.agent.decisions.tool_pick_mode import (
             ToolPickDecision,
             arguments_for_tool,
@@ -1046,12 +1049,11 @@ class AgentOrchestrator:
             {
                 "role": "user",
                 "content": (
-                    f"/no_think\n{question}\n"
+                    f"{question}\n"
                     f"{slot_hint}"
-                    "You must call the provided tool(s) now and must not answer "
-                    "directly. If multiple results are requested, emit every "
-                    "required call. Include harness-resolved year/date fields "
-                    "in every tool call that needs a time filter."
+                    "If multiple results are requested, emit every required "
+                    "call. Include harness-resolved year/date fields in every "
+                    "tool call that needs a time filter."
                 ),
             }
         ]
@@ -1069,32 +1071,28 @@ class AgentOrchestrator:
         # Failed or empty turns escalate to the fallback model; coverage
         # continuation turns after a success do not.
         failed_turns = 0
-        # Hosted models return one call per turn more often than the Ollama
-        # envelope's calls array did, so multi-part questions are checked for
-        # named entities no successful call has covered yet.
+        # Hosted models often return one call per turn, so multi-part
+        # questions are checked for named entities no successful call has
+        # covered yet.
         entities = named_entities(
             question,
             utilities=utilities,
             county=county,
             years=list(years or []) or ([year] if year else []),
         )
-        check_coverage = bool(getattr(self.settings, "hosted_llm", False)) and any(
-            len(values) > 1 for values in entities.values()
-        )
+        check_coverage = any(len(values) > 1 for values in entities.values())
         trajectory.append(
             {
                 "type": "tool_catalog",
                 "profile": "lean_enums",
-                "constrained_tool_routing": True,
+                "tool_choice": "required",
                 "candidates": active_candidates,
                 "tool_count": len(catalog),
             }
         )
 
-        # Routing and synthesis are separate phases. Mixing both instructions
-        # caused Qwen3:4b to spend its entire completion deliberating over tools.
-        # Routing uses a JSON-schema tool envelope (native Ollama format) so the
-        # model cannot burn the budget on deliberation prose.
+        # Routing and synthesis are separate phases. Routing forces a tool
+        # call (tool_choice required) so the model cannot answer directly.
         # max_tool_steps caps model turns, not identical failure retries;
         # fail_counts below bounds any identical tool-failure fingerprint.
         for step in range(1, self.settings.max_tool_steps + 1):
@@ -1108,11 +1106,11 @@ class AgentOrchestrator:
                     tools=catalog,
                     max_tokens=self.settings.max_routing_tokens,
                     structured_response=False,
-                    constrained_tool_routing=True,
+                    tool_routing=True,
                     candidate_tools=candidates,
                     cancel_event=cancel_event,
                     thinking=False,
-                    model=self._turn_model(failed_turns + 1, self.settings.request_model),
+                    model=self._turn_model(failed_turns + 1, self.settings.model),
                 )
             except asyncio.CancelledError:
                 raise
@@ -1484,7 +1482,7 @@ class AgentOrchestrator:
                     {
                         "role": "user",
                         "content": (
-                            f"/no_think\n{question}\n{slot_hint}"
+                            f"{question}\n{slot_hint}"
                             "Previous tool call failed. Retry the "
                             "needed tool call(s) now with corrected arguments if "
                             f"required. Errors: {json.dumps(errors, default=str)}"
@@ -1667,7 +1665,6 @@ class AgentOrchestrator:
             {
                 "role": "user",
                 "content": (
-                    "/no_think\n"
                     f"Question:\n{question}\n\n"
                     "Evidence and caveats (JSON):\n"
                     + json.dumps(user_payload, default=str)
@@ -1679,23 +1676,12 @@ class AgentOrchestrator:
         raw_log: list[dict[str, Any]] = []
         prompt_chars = len(json.dumps(messages, default=str))
         synthesis_thinking = bool(self.settings.synthesis_thinking)
-        # Thinking needs the base Qwen template; the no-think alias pre-closes
-        # the think block and cannot deliberate.
-        synthesis_model = (
-            self.settings.model
-            if synthesis_thinking
-            else self.settings.request_model
-        )
+        synthesis_model = self.settings.model
         trajectory.append(
             {
                 "type": "synthesis_start",
                 "estimated_prompt_chars": prompt_chars,
-                "configured_num_ctx": self.settings.num_ctx,
-                "effective_num_ctx": getattr(
-                    self.provider, "effective_num_ctx", None
-                ),
                 "timeout_seconds": self.settings.synthesis_timeout_seconds,
-                "structured_mode": self.settings.structured_mode,
                 "synthesis_thinking": synthesis_thinking,
                 "synthesis_model": synthesis_model,
             }
@@ -1705,10 +1691,6 @@ class AgentOrchestrator:
                 {
                     "event": "synthesis_start",
                     "estimated_prompt_chars": prompt_chars,
-                    "configured_num_ctx": self.settings.num_ctx,
-                    "effective_num_ctx": getattr(
-                        self.provider, "effective_num_ctx", None
-                    ),
                     "timeout_seconds": self.settings.synthesis_timeout_seconds,
                     "synthesis_thinking": synthesis_thinking,
                     "synthesis_model": synthesis_model,
@@ -1787,7 +1769,6 @@ class AgentOrchestrator:
                         "prompt_tokens": reply.usage.get("prompt_tokens"),
                         "completion_tokens": reply.usage.get("completion_tokens"),
                         "latency_ms": round(reply.latency_ms, 2),
-                        "num_ctx": self.settings.num_ctx,
                     }
                 )
             )
@@ -1811,7 +1792,6 @@ class AgentOrchestrator:
                     "finish_reason": _finish_reason(reply.raw),
                     "prompt_tokens": reply.usage.get("prompt_tokens"),
                     "completion_tokens": reply.usage.get("completion_tokens"),
-                    "configured_num_ctx": self.settings.num_ctx,
                 }
             )
             try:
@@ -2819,8 +2799,66 @@ def _city_point_outside_coverage(
     )
 
 
+# Possessive utility names for the point-context sentence.
+_UTILITY_POSSESSIVE = {
+    "PGE": "Pacific Gas & Electric's",
+    "SCE": "Southern California Edison's",
+    "SDGE": "San Diego Gas & Electric's",
+    "PACIFICORP": "PacifiCorp's",
+    "Liberty": "Liberty Utilities'",
+    "BVES": "Bear Valley Electric Service's",
+}
+
+
+def _point_context_sentence(
+    summary: dict[str, Any], *, city_name: str | None, place_label: str | None
+) -> list[str]:
+    """Plain sentences for a point read: territory, county, HFTD tier, grid cell.
+
+    Example: "Modesto's city center is in Pacific Gas & Electric's service
+    territory, in Stanislaus County, outside the High Fire Threat District, in
+    risk grid cell 238."
+    """
+    iou = summary.get("iou") or {}
+    grid = summary.get("grid_cell") or {}
+    utility_id = iou.get("utility")
+    utility_name = iou.get("utility_name") or utility_id
+    parts: list[str] = []
+    subject = f"{city_name}'s city center" if city_name else "This point"
+    clauses: list[str] = []
+    if utility_name:
+        owner = _UTILITY_POSSESSIVE.get(str(utility_id), f"{utility_name}'s")
+        clauses.append(f"is in {owner} service territory")
+    else:
+        # Say it plainly rather than IOU=None.
+        parts.append(
+            "No investor-owned utility (IOU) territory contains "
+            f"{place_label or 'this point'}."
+        )
+    county = summary.get("county")
+    if county:
+        clauses.append(f"in {county} County")
+    tier = summary.get("hftd_tier")
+    if tier is None:
+        clauses.append("outside the High Fire Threat District")
+    else:
+        clauses.append(f"in High Fire Threat District Tier {tier}")
+    cell_id = grid.get("cell_id")
+    if cell_id is None:
+        clauses.append("outside the risk model grid")
+    else:
+        clauses.append(f"in risk grid cell {cell_id}")
+    if not clauses[0].startswith("is "):
+        clauses[0] = "is " + clauses[0]
+    parts.append(f"{subject} {', '.join(clauses)}.")
+    return parts
+
+
 def _render_deterministic(
-    executions: list[ToolExecution], *, place_label: str | None = None
+    executions: list[ToolExecution],
+    *,
+    place_label: str | None = None,
+    city_name: str | None = None,
 ) -> str:
     parts = []
     for item in [execution for execution in executions if execution.ok and not execution.qualification_call]:
@@ -2846,24 +2884,10 @@ def _render_deterministic(
                 parts.append(f"{line}.")
         elif item.tool == "data_query_spatial":
             if summary.get("kind") == "point":
-                iou = summary.get("iou") or {}
-                grid = summary.get("grid_cell") or {}
-                utility = iou.get("utility_name") or iou.get("utility")
-                if utility:
-                    iou_part = f"IOU={utility}, "
-                else:
-                    # Say it plainly rather than IOU=None.
-                    parts.append(
-                        "No investor-owned utility (IOU) territory contains "
-                        f"{place_label or 'this point'}."
+                parts.extend(
+                    _point_context_sentence(
+                        summary, city_name=city_name, place_label=place_label
                     )
-                    iou_part = ""
-                parts.append(
-                    "Point context: "
-                    f"{iou_part}"
-                    f"HFTD={summary.get('hftd_tier')}, "
-                    f"county={summary.get('county')}, "
-                    f"grid cell={grid.get('cell_id')}."
                 )
             else:
                 counts = summary.get("counts") or {}

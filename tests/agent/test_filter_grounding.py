@@ -68,7 +68,7 @@ def test_audit_flags_invented_utilities_and_filters():
 
 
 def test_model_path_drops_invented_filters_before_the_tool_runs(monkeypatch):
-    """Applies on the default (Ollama) settings too, not only OpenRouter."""
+    """Applies on the default settings with a fake provider; no network."""
     import asyncio
     from dataclasses import replace
 
@@ -130,7 +130,7 @@ def test_model_path_drops_invented_filters_before_the_tool_runs(monkeypatch):
             )
 
     settings = replace(AgentSettings.from_env(), jev_mode="off")
-    assert settings.llm_provider == "ollama"
+    assert settings.llm_provider == "openrouter"
     result = asyncio.run(
         AgentOrchestrator(settings, Provider(), Executor()).ask(
             "How many EPSS outages occurred in 2024?", force_model=True

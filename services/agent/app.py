@@ -13,7 +13,6 @@ from fastapi.responses import StreamingResponse
 
 from services.agent.artifacts import ArtifactStore
 from services.agent.config import AgentSettings
-from services.agent.model_setup import ensure_runtime_model
 from services.agent.orchestrator import AgentOrchestrator
 from services.agent.provider import OpenAICompatibleProvider
 from services.agent.schemas import AskRequest, AskResponse
@@ -30,39 +29,13 @@ orchestrator: AgentOrchestrator | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global provider, executor, orchestrator
-    runtime_settings = settings
-    try:
-        runtime_settings = await ensure_runtime_model(settings)
-    except Exception as exc:  # noqa: BLE001
-        print(f"[agent] model unavailable at startup (alias): {exc}")
-        runtime_settings = settings
-
-    provider = OpenAICompatibleProvider(runtime_settings)
-    context_info: dict[str, Any] = {}
-    try:
-        context_info = await provider.ensure_context_loaded()
-    except Exception as exc:  # noqa: BLE001
-        print(f"[agent] model unavailable at startup: {exc}")
-
-    executor = ToolExecutor(runtime_settings, artifacts)
-    orchestrator = AgentOrchestrator(
-        runtime_settings, provider, executor
-    )
+    provider = OpenAICompatibleProvider(settings)
+    executor = ToolExecutor(settings, artifacts)
+    orchestrator = AgentOrchestrator(settings, provider, executor)
     print(
-        f"[agent] Startup model={settings.model} "
-        f"runtime_model={runtime_settings.request_model} "
-        f"thinking={settings.thinking} structured_mode={settings.structured_mode} "
-        f"configured_num_ctx={runtime_settings.num_ctx} "
-        f"effective_num_ctx={context_info.get('effective_num_ctx')}"
+        f"[agent] Startup provider={settings.llm_provider} model={settings.model} "
+        f"fallback_model={settings.llm_fallback_model}"
     )
-    if (
-        context_info.get("effective_num_ctx") is not None
-        and int(context_info["effective_num_ctx"]) < runtime_settings.num_ctx
-    ):
-        print(
-            "[agent] WARNING: loaded context is below configured num_ctx; "
-            "synthesis may hang or truncate. Check Ollama memory limits."
-        )
     yield
     if orchestrator is not None and orchestrator.shadow is not None:
         orchestrator.shadow.shutdown(timeout=2)
@@ -157,10 +130,7 @@ async def health() -> dict[str, Any]:
     return {
         "status": status,
         "model": {
-            "provider": settings.provider,
             "name": settings.model,
-            "thinking": settings.thinking,
-            "structured_mode": settings.structured_mode,
             **model_health,
         },
         "services": services,
@@ -227,7 +197,7 @@ async def ask_stream(request: AskRequest, http_request: Request) -> StreamingRes
 
     async def watch_disconnect() -> None:
         # Model turns can emit no SSE for tens of seconds; poll disconnect so
-        # cancel_event trips while Ollama is still generating.
+        # cancel_event trips while the model is still generating.
         try:
             while not cancel_event.is_set() and not task.done():
                 if await http_request.is_disconnected():

@@ -9,7 +9,7 @@ so a case passes when:
 A "wrong answer" is status answer where the label is clarify or refuse, where the
 labeled tool or dataset did not run, or where an invented filter executed.
 
-    AGENT_LLM_PROVIDER=openrouter AGENT_ALLOW_REMOTE_PROVIDER=true \\
+    AGENT_ALLOW_REMOTE_PROVIDER=true \\
       python -m services.agent.eval.hosted_holdout_run --holdout v1=path.json --cap-usd 0.8
 """
 
@@ -110,8 +110,6 @@ def score(row: dict[str, Any], response: dict[str, Any]) -> dict[str, Any]:
 
 async def run(args: argparse.Namespace) -> int:
     settings = AgentSettings.from_env()
-    if not settings.hosted_llm:
-        raise SystemExit("Set AGENT_LLM_PROVIDER=openrouter; this runner must not call the Ollama host.")
     provider = MeteredProvider(settings, args.cap_usd)
     records: list[dict[str, Any]] = []
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")

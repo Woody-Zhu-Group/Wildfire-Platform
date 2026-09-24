@@ -550,8 +550,13 @@ def test_no_iou_is_said_in_a_sentence_not_iou_none():
     text = response["answer_text"]
     assert "No investor-owned utility (IOU) territory contains the center point of Anaheim." in text
     assert "IOU=None" not in text
+    assert "Anaheim's city center is in Orange County, outside the High Fire Threat District, in risk grid cell 582." in text
     chico, _ = _run_with_point("Which utility territory contains Chico?", _POINT_SUMMARY)
-    assert "IOU=Pacific Gas and Electric" in chico["answer_text"]
+    assert (
+        "Chico's city center is in Pacific Gas & Electric's service territory, in Butte County, "
+        "outside the High Fire Threat District, in risk grid cell 212."
+    ) in chico["answer_text"]
+    assert "IOU=" not in chico["answer_text"] and "Point context" not in chico["answer_text"]
 
 
 def test_shasta_lake_is_the_city_not_shasta_county():

@@ -143,8 +143,8 @@ def compare(det_path: Path, model_path: Path) -> str:
         "argument validation, year guards, retry bounding, relative-date resolution, "
         "and unsupported refusals.",
         "",
-        "**Latency note:** these numbers are from the current CPU/local runtime and "
-        "will not reflect GPU EC2 deployment latency.",
+        "**Latency note:** these numbers are from the runtime the comparison was "
+        "made on and may not reflect production latency.",
         "",
         f"- Deterministic run: `{det_path}`",
         f"- Model-only run: `{model_path}`",

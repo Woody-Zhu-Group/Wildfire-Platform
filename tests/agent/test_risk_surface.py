@@ -184,7 +184,7 @@ def test_statewide_surface_answer_is_grounded_end_to_end():
 def test_the_model_cannot_call_the_router_only_surface_tool():
     class GuessingProvider:
         async def complete(self, **kwargs):
-            if kwargs.get("constrained_tool_routing"):
+            if kwargs.get("tool_routing"):
                 return ModelReply(
                     content="",
                     tool_calls=[

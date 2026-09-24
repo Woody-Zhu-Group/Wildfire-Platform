@@ -1,4 +1,8 @@
-"""Jev chooses the model-path tool. Qwen still writes the answer. Default off."""
+"""Jev chooses the model-path tool. The LLM still writes the answer. Default off.
+
+The path label "qwen" in ToolPickDecision and the shadow log means the model
+loop (now the hosted LLM). It is kept so older shadow logs and reports parse.
+"""
 
 from __future__ import annotations
 
@@ -77,7 +81,7 @@ def decide_tool_pick(
     candidates: list[str],
     settings: AgentSettings,
 ) -> ToolPickDecision:
-    """Ask Jev which tool to call. Any failure returns a qwen fallback."""
+    """Ask Jev which tool to call. Any failure returns a model-loop fallback."""
     try:
         from services.agent.decisions.typesafe_backend import make_backend
 
@@ -176,7 +180,7 @@ def requires_multiple_primary_tools(question: str, decision: Any) -> bool:
 
 
 def template_intent(question: str, executions: list[Any]) -> str | None:
-    """Intent the template can answer. None means qwen still writes the prose."""
+    """Intent the template can answer. None means the LLM still writes the prose."""
     primary = [
         item
         for item in executions
@@ -216,7 +220,7 @@ def arguments_for_tool(
     slots: dict[str, Any],
     question: str = "",
 ) -> dict[str, Any] | None:
-    """Arguments from route slots. Missing required fields fall back to qwen."""
+    """Arguments from route slots. Missing required fields fall back to the model loop."""
     if tool == "data_query_records":
         return _records_args(slots)
     if tool == "visualization_create":
