@@ -76,3 +76,36 @@ def test_ordinary_cpuc_ignition_questions_are_unchanged(question):
     assert decision.slots["dataset"] == "cpuc_ignitions"
     assert decision.rule != "unexpressable_county_filter"
     assert all(args["dataset"] == "cpuc_ignitions" for _, args in decision.tool_calls)
+
+
+# ---- Review of PR 68: false positives and the comparison clarification ----
+
+
+def test_cpuc_ignitions_from_all_causes_stay_a_cpuc_count():
+    decision = route_question("How many CPUC ignitions from all causes did PGE report in 2023?")
+    assert decision.slots["dataset"] == "cpuc_ignitions"
+    assert decision.path == "deterministic"
+    assert [(args["dataset"], args.get("utility")) for _, args in decision.tool_calls] == [
+        ("cpuc_ignitions", "PGE")
+    ]
+
+
+def test_sampled_circuits_stay_a_circuits_count():
+    decision = route_question("How many PGE circuits were sampled for inspection in 2023?")
+    assert decision.slots["dataset"] == "circuits"
+    assert [args["dataset"] for _, args in decision.tool_calls] == ["circuits"]
+
+
+def test_a_utility_before_sampled_ignitions_keeps_cpuc():
+    decision = route_question("How many sampled PGE ignitions were there in 2022?")
+    assert decision.slots["dataset"] == "cpuc_ignitions"
+
+
+def test_a_cpuc_and_sample_comparison_in_a_state_offers_both_sides():
+    decision = route_question(
+        "Compare CPUC ignitions with the US ignition sample in California for 2022"
+    )
+    assert (decision.path, decision.rule) == ("clarification", "unexpressable_county_filter")
+    answer = decision.answer
+    assert "CPUC's California utility-ignition count beside the national sample count" in answer
+    assert "not directly comparable" in answer

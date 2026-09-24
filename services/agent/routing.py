@@ -1527,19 +1527,55 @@ _IGNITION_QUALIFIER = re.compile(
     r"\s+(?:wildfire\s+)?$",
     re.I,
 )
-# Wording that names the US ignitions sample (FireCastRL). "Sample" alone is
-# list wording ("a sample of PGE ignitions"), so it counts only next to
-# "ignitions" or as "US/national sample"; "all causes" only beside ignitions.
-_US_SAMPLE_WORDING = (
+# Wording that names the US ignitions sample (FireCastRL) outright.
+_US_SAMPLE_NAMED = re.compile(
     r"\b(?:us|u\.s\.|national)\s+(?:wildfire\s+)?ignitions?\b|"
-    r"\bsampled\b|"
-    r"\bsample\s+(?:us\s+|u\.s\.\s+)?(?:wildfire\s+)?ignitions?\b|"
     r"\b(?:us|u\.s\.|national)\s+(?:ignitions?\s+)?sample\b|"
     r"\bignitions?\s+sample\b|"
-    r"\ball[- ]causes?\s+(?:wildfire\s+)?ignitions?\b|"
-    r"\bignitions?\b[^.?!]{0,80}\b(?:of|from)\s+all\s+causes\b|"
-    r"\bfirecast"
+    r"\bfirecast",
+    re.I,
 )
+# "sampled/sample ... ignitions" with up to three words between, never across
+# "of" ("a sample of PGE ignitions" is list wording).
+_SAMPLE_BEFORE_IGNITIONS = re.compile(
+    r"\bsampled?\s+(?:(?!of\b)[\w&'-]+\s+){0,3}$", re.I
+)
+_ALL_CAUSES_BEFORE_IGNITIONS = re.compile(
+    r"\ball[- ]causes?\s+(?:wildfire\s+)?$", re.I
+)
+_ALL_CAUSES_AFTER_IGNITIONS = re.compile(
+    r"^[^.?!]{0,80}?\b(?:of|from)\s+all\s+causes\b", re.I
+)
+# CPUC or a utility named right before "ignitions" means CPUC ignitions, even
+# with sample or all-causes wording around it.
+_CPUC_OR_UTILITY_BEFORE_IGNITIONS = re.compile(
+    r"(?:\bcpuc\b|\butility[- ](?:caused|attributed|tagged)\b|"
+    + "|".join(f"(?:{pattern})" for pattern in UTILITY_PATTERNS.values())
+    + r")(?:\W+[\w&'-]+){0,2}\W*$",
+    re.I,
+)
+
+
+def _names_us_sample(text: str) -> bool:
+    """True when the question names the US ignitions sample.
+
+    Sample and all-causes wording counts only beside "ignitions", and not when
+    CPUC or a utility names whose ignitions they are.
+    """
+    lower = " ".join(text.lower().split())
+    if _US_SAMPLE_NAMED.search(lower):
+        return True
+    for match in re.finditer(r"\bignitions?\b", lower):
+        before, after = lower[: match.start()], lower[match.end() :]
+        if _CPUC_OR_UTILITY_BEFORE_IGNITIONS.search(before):
+            continue
+        if (
+            _SAMPLE_BEFORE_IGNITIONS.search(before)
+            or _ALL_CAUSES_BEFORE_IGNITIONS.search(before)
+            or _ALL_CAUSES_AFTER_IGNITIONS.search(after)
+        ):
+            return True
+    return False
 _US_STATE_NAME = re.compile(
     r"\b(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|"
     r"delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|"
@@ -1562,9 +1598,8 @@ def _has_bare_ignitions(text: str) -> bool:
 
 
 def _datasets(text: str) -> list[str]:
-    candidates: list[str] = []
+    candidates: list[str] = ["us_ignitions"] if _names_us_sample(text) else []
     checks = [
-        ("us_ignitions", _US_SAMPLE_WORDING),
         ("epss_outages", r"\bepss\b|\bfast[- ]trip\b"),
         ("psps_events", r"\bpsps\b|\bpublic safety power shutoff"),
         ("calfire_incidents", r"\bcal\s*fire\b|\bcalfire\b"),
@@ -2562,16 +2597,30 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         state = _US_STATE_NAME.search(lower)
         if state:
             name = " ".join(word.capitalize() for word in state.group(0).split())
+            limit = (
+                f"The US ignitions sample has no state or county column, so I "
+                f"cannot count only the {name} events."
+            )
+            if "cpuc_ignitions" in _datasets(text):
+                # The question compares CPUC with the sample: offer both sides.
+                offer = (
+                    " I can put CPUC's California utility-ignition count beside "
+                    "the national sample count for the same period. They count "
+                    "different things (utility-reported ignitions against an "
+                    "all-cause national sample) and are not directly comparable. "
+                    "Should I do that?"
+                )
+            else:
+                offer = (
+                    " I can give the national sample count for the same period, "
+                    "or a CPUC utility-ignition or CAL FIRE incident count for "
+                    "California. Which should I use?"
+                )
             return RouteDecision(
                 "clarification",
                 "unexpressable_county_filter",
                 f"Question restricts the US ignitions sample to {name}, which it cannot filter by",
-                answer=(
-                    f"The US ignitions sample has no state or county column, so I "
-                    f"cannot count only the {name} events. I can give the national "
-                    "sample count for the same period, or a CPUC utility-ignition "
-                    "or CAL FIRE incident count for California. Which should I use?"
-                ),
+                answer=limit + offer,
                 slots=slots,
             )
 
