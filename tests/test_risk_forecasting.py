@@ -157,6 +157,13 @@ def test_metrics_match_persisted_cnhpp_row(risk_api):
     response = risk_api.get("/metrics")
     assert response.status_code == 200, response.text
     body = response.json()
+    provenance = {
+        "xi", "train_years", "eval_year", "eval_start", "eval_end", "params_sha256",
+        "not_applicable_reason", "baselines",
+    }
+    assert provenance <= set(body)
+    assert body["params_sha256"] == expected["params_sha256"]
+    body = {k: v for k, v in body.items() if k not in provenance}
     assert body == {
         "model": expected["model"],
         "log_likelihood": float(expected["log_likelihood"]),

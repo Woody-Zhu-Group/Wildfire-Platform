@@ -161,6 +161,8 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+The research plots in `services/risk_forecasting/analysis.py` also need `pip install -r requirements-analysis.txt` (matplotlib, geopandas); nothing else does.
+
 Create `.env` from [`.env.example`](.env.example) on first setup, then review its database and data-directory settings. On Windows, set these in each service terminal when needed:
 
 ```powershell
@@ -346,7 +348,7 @@ uvicorn services.risk_forecasting.app:app --port 8001 --reload --app-dir .
 - Optional: `&lookback_days=30` (default **90**, overridable via `LOOKBACK_DAYS`)
 - `GET /surface`: the full 824-cell hindcast for one date (the risk surface panel)
 - `GET /observed` and `GET /observed-training`: per-cell CPUC ignition counts, the second using the training cell assignment (the residual map)
-- `GET /metrics`: fitted cNHPP model metrics
+- `GET /metrics`: fitted cNHPP model metrics on 2024, scored from the committed `cnhpp_params.npz`; returns 503 if `outputs/metrics_table.csv` was not produced from that file (regenerate with `python -m services.risk_forecasting.evaluate_metrics`)
 
 The model outputs Poisson intensity λ. The primary `risk` field is **P(≥1 ignition)** for the requested place: `1 - exp(-sum(λ_i))` (independent cells; documented because cNHPP vs NHPP OOS ΔLL is a statistical tie). `expected_count` is `sum(λ)` so large territories that saturate near 1 stay interpretable. Single-cell `intensity` is λ; multi-cell responses include `mean_intensity`. Place cells come from warehouse polygons (`wildfire.grid_cells` ∩ counties / IOU territories). A batch wrapper scores all 824 cells in one forward pass.
 

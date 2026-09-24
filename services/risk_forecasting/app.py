@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import csv
 from contextlib import asynccontextmanager
 from datetime import date
-from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Query
@@ -14,6 +12,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from services.risk_forecasting.config import DATA_DIR, lookback_days_from_env
+from services.risk_forecasting.evaluate_metrics import (
+    MetricsMismatch,
+    load_verified_rows,
+)
 from services.risk_forecasting.observed import (
     observed_surface,
     observed_training_surface,
@@ -134,16 +136,57 @@ class ObservedResponse(BaseModel):
     cells: list[ObservedCell]
 
 
-class MetricsResponse(BaseModel):
+class ModelMetrics(BaseModel):
     model: str
     log_likelihood: float
-    top5_precision: float
-    top1_precision: float
-    lift_top5: float
+    top5_precision: Optional[float] = Field(
+        ..., description="Null when not applicable; see not_applicable_reason"
+    )
+    top1_precision: Optional[float] = Field(
+        ..., description="Null when not applicable; see not_applicable_reason"
+    )
+    lift_top5: Optional[float] = Field(
+        ..., description="Null when not applicable; see not_applicable_reason"
+    )
     auc: float = Field(
         ...,
         description="Secondary ranking diagnostic; not a headline Poisson count metric",
     )
+    not_applicable_reason: Optional[str] = Field(
+        None,
+        description="Why top-k precision and lift are null (a model with one intensity for every cell)",
+    )
+
+
+class MetricsResponse(ModelMetrics):
+    xi: float
+    train_years: list[int]
+    eval_year: int
+    eval_start: date
+    eval_end: date
+    params_sha256: str = Field(
+        ..., description="sha256 of artifacts/cnhpp_params.npz the row was scored from"
+    )
+    baselines: list[ModelMetrics] = Field(
+        default_factory=list,
+        description="HPP and NHPP scored on the same evaluation year and training years",
+    )
+
+
+def _optional_float(value: str) -> Optional[float]:
+    return float(value) if value not in ("", None) else None
+
+
+def _model_metrics(row: dict[str, str]) -> dict[str, Any]:
+    return {
+        "model": row["model"],
+        "log_likelihood": float(row["log_likelihood"]),
+        "top5_precision": _optional_float(row["top5%_precision"]),
+        "top1_precision": _optional_float(row["top1%_precision"]),
+        "lift_top5": _optional_float(row["lift_top5%"]),
+        "auc": float(row["AUC"]),
+        "not_applicable_reason": row.get("not_applicable_reason") or None,
+    }
 
 
 class HealthResponse(BaseModel):
@@ -192,28 +235,30 @@ def health():
 
 @app.get("/metrics", response_model=MetricsResponse)
 def metrics() -> MetricsResponse:
-    """Return the persisted cNHPP evaluation row; no model recomputation."""
-    metrics_path = Path(__file__).resolve().parent / "outputs" / "metrics_table.csv"
-    try:
-        with metrics_path.open(newline="", encoding="utf-8") as handle:
-            row = next(
-                item
-                for item in csv.DictReader(handle)
-                if item["model"].strip().lower() == "cnhpp"
-            )
-    except (FileNotFoundError, StopIteration, KeyError) as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"cNHPP metrics are unavailable in {metrics_path}",
-        ) from exc
+    """Return the persisted cNHPP evaluation row; no model recomputation.
 
+    Refuses (503) a table that was not scored from the committed
+    artifacts/cnhpp_params.npz, rather than serving stale numbers.
+    """
+    try:
+        rows = load_verified_rows()
+    except MetricsMismatch as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    row = rows["cnhpp"]
     return MetricsResponse(
-        model=row["model"],
-        log_likelihood=float(row["log_likelihood"]),
-        top5_precision=float(row["top5%_precision"]),
-        top1_precision=float(row["top1%_precision"]),
-        lift_top5=float(row["lift_top5%"]),
-        auc=float(row["AUC"]),
+        **_model_metrics(row),
+        baselines=[
+            ModelMetrics(**_model_metrics(rows[name]))
+            for name in ("hpp", "nhpp")
+            if name in rows
+        ],
+        xi=float(row["xi"]),
+        train_years=[int(year) for year in row["train_years"].split(";")],
+        eval_year=int(row["eval_year"]),
+        eval_start=date.fromisoformat(row["eval_start"]),
+        eval_end=date.fromisoformat(row["eval_end"]),
+        params_sha256=row["params_sha256"],
     )
 
 

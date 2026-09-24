@@ -13,6 +13,10 @@
 > `services/risk_forecasting/artifacts/cnhpp_params.npz`. The `cnhpp_wildfire/`
 > tree and `/mnt/user-data/outputs` paths below no longer apply. See the repo
 > `README.md` for current data caveats.
+>
+> `outputs/metrics_table.csv` was regenerated on 2026-09-23 from the committed
+> `cnhpp_params.npz` (issue #60) with `python -m services.risk_forecasting.evaluate_metrics`.
+> The table this handoff describes, whose cNHPP row equalled NHPP, is gone.
 
 This documents exactly what persisted from the prior session and what did not.
 Read this before assuming anything is available.

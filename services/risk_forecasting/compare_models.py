@@ -1,7 +1,8 @@
 """
 HPP vs NHPP vs cNHPP on corrected data, with uncertainty on OOS ΔLL.
 
-Default: leave-one-year-out over 2020-2024 (Dec 2-31 2020 always excluded).
+Default holdouts: 2022, 2023, and 2024, each trained on the other years in
+2020-2024 (Dec 2-31 2020 always excluded). Pass --holdouts to change them.
 For each holdout year:
   - fit HPP / NHPP / cNHPP on the other years (cNHPP ξ by train LL)
   - score Poisson LL on the holdout year
@@ -9,7 +10,7 @@ For each holdout year:
 
 Usage:
   python -m services.risk_forecasting.compare_models
-  python -m services.risk_forecasting.compare_models --holdouts 2022,2023,2024
+  python -m services.risk_forecasting.compare_models --holdouts 2020,2021,2022,2023,2024
 """
 
 from __future__ import annotations
