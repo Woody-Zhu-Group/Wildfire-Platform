@@ -62,6 +62,11 @@ REGEX_ONLY = {
         "A warehouse coverage fact: EPSS rows exist only for PG&E, so another "
         "utility's EPSS read is absent, not zero. Checked on the tool arguments."
     ),
+    "us_sample_utility_filter": (
+        "A warehouse coverage fact: the US ignitions sample has no utility "
+        "column, so no utility filter applies to it (label rule J). Checked on "
+        "the named utility and dataset."
+    ),
     "hftd_constraint_unavailable": (
         "Tool-schema gap: no read intersects circuits with an HFTD tier or "
         "measures HFTD polygon area."

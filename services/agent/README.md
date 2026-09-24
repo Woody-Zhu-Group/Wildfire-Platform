@@ -25,6 +25,10 @@ dataset/metric, scope, and required time/location slots are explicit:
 - an EPSS read for a utility other than PG&E (count, series, map, or pair) →
   clarification `epss_non_pge_utility`: EPSS rows exist only for PG&E, so the
   result would be absent, not zero
+- a US-sample question restricted to a utility (map, count, series, rank, or a
+  comparison with CPUC) → clarification `us_sample_utility_filter` (label rule
+  J): the sample has no utility column, so the router offers the national
+  sample or that utility's CPUC ignitions instead of passing or dropping it
 - coordinate context → `data_query_spatial`
 - map/time series/detail → a visualization tool
 - fully specified utility/region/period comparison → `comparison_run`

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.clarify_missing import complete_clarification
+from services.agent.clarify_missing import _UTILITY_LABELS, complete_clarification
 from services.agent.places import (
     GAZETTEER_VINTAGE,
     CityPoint,
@@ -2749,6 +2749,26 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 slots=slots,
             )
 
+    # Label rule J: the US sample has no utility column either, so a US-sample
+    # question restricted to a utility clarifies on every route (map, count,
+    # series, rank) rather than passing the utility to a tool that cannot apply
+    # it or dropping it and answering with the national count.
+    if utilities and (dataset == "us_ignitions" or "us_ignitions" in _datasets(text)):
+        name = _UTILITY_LABELS.get(utilities[0], utilities[0])
+        return RouteDecision(
+            "clarification",
+            "us_sample_utility_filter",
+            f"Question restricts the US ignitions sample to {name}, which it cannot filter by",
+            answer=(
+                f"The US ignitions sample has no utility column, so I cannot count "
+                f"or map only the {name} events in it. I can give the national "
+                f"sample for the same period, or {name}'s CPUC utility ignitions. "
+                f"They count different things (an all-cause national sample "
+                f"against utility-reported ignitions). Which should I use?"
+            ),
+            slots=slots,
+        )
+
     ranking_decision = _route_ranking(
         text=text,
         lower=lower,
@@ -3356,18 +3376,12 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             args["county"] = county
         tool_calls = [("visualization_create", args)]
         rule, reason = "map", "Explicit map, dataset, and time filter"
-        us_sample_utility = dataset == "us_ignitions" and bool(utilities)
-        if (
-            has_count_clause
-            and viz_dataset in _TIME_SERIES_VIZ
-            and not us_sample_utility
-        ):
+        if has_count_clause and viz_dataset in _TIME_SERIES_VIZ:
             # A map plus a count ("and how many there were") is two results.
             # The count runs with the map's filters; the map alone would
             # silently drop the number. Only event datasets count this way,
-            # the US sample included; hftd and circuits do not. The US sample
-            # has no utility column, so a utility-scoped sample count is not
-            # built here.
+            # the US sample included; hftd and circuits do not. A US-sample
+            # map with a utility never reaches here (label rule J).
             count_args: dict[str, Any] = {
                 "dataset": dataset,
                 "result_mode": "count",

@@ -786,6 +786,7 @@ Every gold label change is a written rule with an author and date, recorded on t
 | G | A utility service-area outline, boundary, polygon, or footprint with no count and no dataset word is the territory boundary map (Michael, 2026-09-23; PR #58) | `cases.json` (`router_sce_service_area`), `jev_paraphrases.json` (`para_territory_boundary`) | 2 rows (one only changed its recorded router path) |
 | H | A US-sample question restricted to a state is clarify / `unexpressable_county_filter`, matching rule F (Michael, 2026-09-23; PR #46) | `jev_holdout.json`, `jev_holdout_v2.json` | ho_021, ho_030, hv2_011 |
 | I | An EPSS question naming a utility other than PG&E is clarify / `epss_non_pge_utility`, because EPSS covers PG&E only and a count would be absent, not zero (Michael, 2026-09-24; PR #82) | `jev_holdout.json`, `jev_holdout_v2.json` | ho_080, hv2_002 |
+| J | A US-sample question restricted to a utility is clarify / `us_sample_utility_filter`, because the sample has no utility column; the clarification offers the national sample or that utility's CPUC ignitions (Michael, 2026-09-24; PR #86) | router only; no eval row names a utility with the US sample | 0 rows |
 
 ### 11.4 The route snapshot, the false-positive list, and independent review
 
