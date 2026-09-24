@@ -513,7 +513,7 @@ def plan_views(
         visuals = _cap_visuals(visuals)
         _stamp_series_mode(visuals, slots.get("series_mode"))
         _stamp_hdw(visuals, slots.get("show_hdw"))
-        views = stats[:_MAX_STATS] + visuals
+        views = _cap_stats(stats) + visuals
         if not views:
             return PlannedViews(views=[], view_status="none", view_scope=scope)
         grounded = ground_views(views, executions)
@@ -1197,6 +1197,25 @@ def _specs_for_execution(item: ToolExecution) -> list[ComponentSpec]:
             )
         ]
     return []
+
+
+def _cap_stats(stats: list[ComponentSpec]) -> list[ComponentSpec]:
+    """Keep every count card; cap the other stat kinds at _MAX_STATS.
+
+    A multi-entity count answer (PG&E and SCE in 2020 and 2023) has one count
+    per entity and period. The website renders only ranking comparisons, so
+    there is no utility-by-year view to fold them into, and a global cap
+    silently dropped the fourth count.
+    """
+    kept: list[ComponentSpec] = []
+    others = 0
+    for spec in stats:
+        if spec.params.get("kind") == "count":
+            kept.append(spec)
+        elif others < _MAX_STATS:
+            kept.append(spec)
+            others += 1
+    return kept
 
 
 def _cap_visuals(visuals: list[ComponentSpec]) -> list[ComponentSpec]:

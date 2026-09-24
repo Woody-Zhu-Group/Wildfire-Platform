@@ -16,6 +16,12 @@ from pydantic import ValidationError
 
 from services.agent.caveats import collect_qualifications
 from services.agent.config import AgentSettings
+from services.agent.derived import (
+    DERIVED_TOOL,
+    derive_arithmetic,
+    derived_quantity_values,
+    render_derived,
+)
 from services.agent.domain import DOMAIN_REFERENCE
 from services.agent.grounding import (
     ground_model_filters,
@@ -88,6 +94,10 @@ Answer the user's question in 2-4 sentences covering:
 
 Use only numbers that appear in the JSON payload's evidence or caveats.
 Do not invent figures and do not copy numbers from this instruction text.
+Never do arithmetic yourself. When the question asks for a change, difference,
+percent change, or ratio, state only the values in the derived_arithmetic
+evidence (computed by the harness from the cited counts) and cite its evidence
+ID. If no derived value answers that part, say it was not computed.
 When caveats are supplied, weave the relevant ones into the prose rather than
 ignoring them. If sample_examples lists an incident name, you may mention one. If it is
 absent, omit any example sentence. Never write that an example is unavailable.
@@ -666,6 +676,21 @@ class AgentOrchestrator:
                 status = "error"
                 qualifications = []
             elif need_synthesis:
+                # Changes, differences, percents, and ratios come from the
+                # harness, never from the model; synthesis cites this evidence.
+                derived = derive_arithmetic(question, executions)
+                if derived is not None:
+                    executions.append(derived)
+                    trajectory.append(
+                        {
+                            "type": "derived_evidence",
+                            "tool": derived.tool,
+                            "evidence_id": derived.evidence_id,
+                            "source_evidence_ids": derived.arguments["source_evidence_ids"],
+                            "operations": derived.arguments["operations"],
+                            "derivation_count": len(derived.summary["derivations"]),
+                        }
+                    )
                 await self._emit(
                     on_event,
                     "synthesizing",
@@ -2345,6 +2370,7 @@ def _quantity_context_values(
 ) -> set[int]:
     """Totals plus metadata/count/caveat figures the model may cite in a brief."""
     values = set(_tool_quantity_values(executions))
+    values |= derived_quantity_values(executions)
     for execution in executions:
         if not execution.ok:
             continue
@@ -2964,6 +2990,8 @@ def _render_deterministic(
                 f"Retrieved {summary.get('kind')} details: "
                 f"{summary.get('utility_name') or summary.get('attributes') or summary.get('id')}."
             )
+        elif item.tool == DERIVED_TOOL:
+            parts.append(render_derived(summary))
         elif item.tool == "risk_forecast":
             parts.append(_render_risk_answer(summary))
         elif item.tool == "risk_surface":
