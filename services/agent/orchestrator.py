@@ -169,6 +169,15 @@ class AgentOrchestrator:
             )
         if decision.path == "model":
             decision.slots.setdefault("candidate_tools", candidate_tools(question))
+        # Who made the answer, clarify, or refuse decision, on the final route.
+        from services.agent.decisions.provenance import decision_source
+
+        decision.slots["decision_source"] = decision_source(
+            path=decision.path,
+            rule=decision.rule,
+            slots=decision.slots,
+            jev_mode=self.settings.jev_mode,
+        )
         shadow = self.shadow
         if shadow is not None:
             try:
@@ -277,7 +286,9 @@ class AgentOrchestrator:
                     error=f"{type(exc).__name__}: {exc}",
                 )
         record = result.log_record(question, request_id)
-        if result.disagrees or result.error:
+        # A decline with a different reason is logged even when the router's
+        # wording was kept, so Jev's reason is recorded somewhere.
+        if result.disagrees or result.error or result.reason_differs:
             print(json.dumps(record, default=str))
             try:
                 from services.agent.decisions.shadow_log import ShadowLog, resolve_log_path
@@ -300,6 +311,7 @@ class AgentOrchestrator:
                 "jev_disposition": result.jev_disposition,
                 "jev_rule": result.jev_rule,
                 "jev_confidence": result.jev_confidence,
+                "wording": result.wording,
             },
         }
         return final
@@ -337,6 +349,7 @@ class AgentOrchestrator:
                 "reason": decision.reason,
                 "slot_resolution": _slot_resolution(decision),
                 "expect_slow": decision.path == "model",
+                "decision_source": decision.slots.get("decision_source"),
             },
         )
         trajectory: list[dict[str, Any]] = [
@@ -1974,6 +1987,7 @@ class AgentOrchestrator:
             "request_id": request_id,
             "status": status,
             "answer_text": answer,
+            "decision_source": decision.slots.get("decision_source"),
             "route": {
                 "path": decision.path,
                 "rule": decision.rule,

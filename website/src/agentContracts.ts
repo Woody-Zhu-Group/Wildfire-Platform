@@ -109,10 +109,22 @@ export interface AgentEvidence {
   summary: Record<string, unknown>;
   qualification_call?: boolean;
 }
+/** Who made the answer, clarify, or refuse decision (agent decision_source). */
+export interface AgentDecisionSource {
+  source: 'backstop' | 'jev' | 'router';
+  mode: string;
+  rule?: string | null;
+  disposition?: 'answer' | 'clarify' | 'unsupported' | null;
+  confidence?: number | null;
+  why?: string | null;
+  jev_disposition?: string | null;
+  jev_confidence?: number | null;
+}
 export interface AgentAnswer {
   request_id?: string;
   answer_text: string;
   status: string;
+  decision_source?: AgentDecisionSource | null;
   route?: Record<string, unknown>;
   qualifications?: {id?: string; text: string; source?: string}[];
   evidence?: AgentEvidence[];

@@ -1,4 +1,46 @@
-import type { AgentAnswer, AgentStreamEvent, AgentTrajectoryStep } from './agentContracts.ts';
+import type { AgentAnswer, AgentDecisionSource, AgentStreamEvent, AgentTrajectoryStep } from './agentContracts.ts';
+
+const BACKSTOP_LABELS: Record<string, string> = {
+  unsupported_live_web: 'live data',
+  risk_future_date: 'future date',
+  unsupported_future_prediction: 'future prediction',
+  city_needs_place: 'city needs a place',
+  hftd_constraint_unavailable: 'HFTD constraint unavailable',
+};
+const ROUTER_REASONS: Record<string, string> = {
+  jev_below_gate: 'Jev below confidence gate',
+  jev_error: 'Jev error',
+  jev_timeout: 'Jev timed out',
+  verified_fact: 'verified fact',
+  router_only_route: 'router-only route',
+  jev_agreed: 'Jev agreed',
+  jev_off: 'Jev off',
+  jev_shadow: 'Jev in shadow mode',
+  jev_tool_pick: 'Jev picks tools only',
+  jev_skipped: 'Jev skipped',
+};
+
+/** One line for the Tool chain: who made the answer, clarify, or refuse decision. */
+export function decisionSourceLabel(source: AgentDecisionSource | null | undefined): string | null {
+  if (!source) return null;
+  if (source.source === 'jev') {
+    return typeof source.confidence === 'number' ? `Decided by Jev (${source.confidence.toFixed(2)})` : 'Decided by Jev';
+  }
+  if (source.source === 'backstop') {
+    const rule = source.rule ?? '';
+    const label = BACKSTOP_LABELS[rule] ?? rule.replace(/^unsupported_/, '').replaceAll('_', ' ');
+    return label ? `Safety rule: ${label}` : 'Safety rule';
+  }
+  const why = source.why ? ROUTER_REASONS[source.why] ?? source.why.replaceAll('_', ' ') : null;
+  return why ? `Router (${why})` : 'Router';
+}
+
+/** The decision source from the final answer, or from the streamed routing event before it. */
+export function decisionSource(answer: AgentAnswer | undefined, events: readonly AgentStreamEvent[]): AgentDecisionSource | null {
+  if (answer?.decision_source) return answer.decision_source;
+  const routed = events.find(event => event.event === 'routing')?.data.decision_source;
+  return routed && typeof routed === 'object' ? routed as AgentDecisionSource : null;
+}
 
 export interface TraceStep {
   tool: string;

@@ -214,7 +214,12 @@ Each answer has a default-collapsed **Tool chain** when routing or tool activity
 is available. It shows services, tool names, executed arguments, status, timing
 and evidence references. Activity is available while streaming and remains after
 failure or cancellation. The final trajectory includes qualification calls and
-replaces the streamed trace so completed calls are not duplicated.
+replaces the streamed trace so completed calls are not duplicated. One line in
+the Tool chain says who made the answer, clarify, or refuse decision, from the
+agent's `decision_source`: "Decided by Jev (0.93)", "Safety rule: live data",
+or "Router (Jev below confidence gate)" (`decisionSourceLabel` in
+`src/agentTrace.ts`). It is taken from the streamed routing event until the
+answer arrives, and it never appears in the answer text.
 
 Seasonal inspection uses `No data` for incomplete weeks and missing yearly
 values; observed zeros remain `0`. Detail fields retain a literal source

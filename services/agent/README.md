@@ -94,6 +94,7 @@ suppressed rather than returned without its qualification.
   runs the Jev-first decider right after `route_question`: backstops first, then
   Jev's disposition behind a 0.8 decline gate and a 0.9 answer gate
   ([`docs/JEV_DECIDE.md`](../../docs/JEV_DECIDE.md), `decisions/decide_mode.py`).
+  Jev owns the disposition and the router owns the clarification or refusal wording.
 - `AGENT_SLOT_PLAN` (off by default) plans a deferred multi-entity question as
   several deterministic calls from router slots
   ([`docs/JEV_MULTI_TOOL.md`](../../docs/JEV_MULTI_TOOL.md)). With decide on,
@@ -119,6 +120,16 @@ uvicorn services.agent.app:app --port 8004 --app-dir .
 - `GET /health`
 - `POST /ask` with `{"question":"How many PG&E ignitions were there in 2024?"}`: leave this path unchanged for eval
 - `POST /ask/stream`: SSE harness progress for the website Ask panel (not a second answer path)
+
+Both carry `decision_source`, who made the answer, clarify, or refuse decision: in the `/ask` response and in the stream's `routing` event (`services/agent/decisions/provenance.py`). It never includes Jev's raw payload.
+
+| `source` | Fields | When |
+|---|---|---|
+| `backstop` | `rule` | A router hard backstop fired (`decide_mode.BACKSTOP_RULES`), in any mode |
+| `jev` | `disposition`, `confidence` | `AGENT_JEV_MODE=decide` applied Jev's answer, clarify, or refuse |
+| `router` | `why` | The router's decision stands |
+
+`why` for the router: `jev_below_gate` and `jev_agreed` (both with `jev_disposition` and `jev_confidence`), `jev_error`, `jev_timeout`, `verified_fact` (the resolver proved the time or place, decide's `code_verified` or `contradicts_slot`), `router_only_route` (decide's `regex_only` or `router_only_tool`), `jev_off`, `jev_shadow` and `jev_tool_pick` (modes where Jev does not make this decision), and `jev_skipped` (decide mode skipped a forced-model eval request). Every value also carries `mode`, the `AGENT_JEV_MODE` in force.
 - `GET /artifacts/{ref}` for a non-expired full backend payload
 
 The service is single-exchange: it stores no conversation history.
