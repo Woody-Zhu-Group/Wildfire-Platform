@@ -27,19 +27,37 @@ def _service_sources():
     return {path: path.read_text(encoding="utf-8") for path in SERVICES.rglob("*.py")}
 
 
-def test_simplification_appears_only_in_the_map_expression():
-    hits = [
+def test_simplification_appears_only_in_the_map_and_opt_in_download_expressions():
+    hits = sorted(
         (path.relative_to(SERVICES).as_posix(), line.strip())
         for path, text in _service_sources().items()
         for line in text.splitlines()
-        if re.search(r"ST_Simplify", line, re.I)
-    ]
+        # SQL calls only, not prose that names the function.
+        if re.search(r"ST_Simplify\w*\(", line, re.I)
+    )
     assert hits == [
+        # data_query /hftd and /iou-territories, only when `simplify` is passed.
+        (
+            "data_query/queries.py",
+            'f"ST_AsGeoJSON(ST_Multi(ST_SimplifyPreserveTopology({alias}.geom, %s)), 5)",',
+        ),
         (
             "visualization/queries.py",
             'f"ST_AsGeoJSON(ST_Multi(ST_SimplifyPreserveTopology(geom, {MAP_SIMPLIFY_DEGREES})), "',
-        )
+        ),
     ]
+
+
+def test_the_download_expression_is_used_only_by_the_boundary_downloads():
+    users = {
+        name
+        for name, func in inspect.getmembers(data_query, inspect.isfunction)
+        if func.__module__ == data_query.__name__ and "_boundary_geojson(" in inspect.getsource(func)
+        and name != "_boundary_geojson"
+    }
+    assert users == {"query_hftd", "query_iou"}
+    # Without `simplify` the expression is the full geometry.
+    assert data_query._boundary_geojson("h", None) == ("ST_AsGeoJSON(h.geom)", ())
 
 
 def test_only_the_map_layer_functions_use_the_simplified_expression():

@@ -44,6 +44,8 @@ denominators.
   or from the publisher's FeatureServer when there is no cache or
   `--refresh` is given. With no cache and no network, the load stops with
   the fix in the message, before any table is touched.
+  Downloads stop after 20 pages (the layers need one), so a server that
+  ignores the page offset fails with a clear error instead of looping.
 - **Completeness.** Before truncating, the cached or fetched features must be
   exactly the expected set: every utility (PG&E, SCE, PacifiCorp, SDG&E, LU,
   BVES) and both tiers, each once. A partial download is refused and is not
@@ -53,7 +55,11 @@ denominators.
     (outer) that contains it. A hole with no containing outer ring stops the
     load.
   - Rings with fewer than 4 points are dropped and counted.
-  - A ring with exactly zero area stops the load.
+  - A degenerate ring stops the load: its local planar area is under
+    1 mm2, or under 1e-9 of its bounding-box diagonal squared. The relative
+    test catches float-collinear rings, whose area is tiny but not zero and
+    grows with length. Across all 1,189 real CPUC rings, the smallest area is
+    0.0015 m2 and the smallest ratio is 4.6e-5, so every real sliver loads.
   - Slivers under 1 m2 are counted and kept. Tier 2 has 4, which are
     digitizing artifacts in CPUC's layer.
   - An outer ring nested directly inside another outer ring is counted and
@@ -79,6 +85,11 @@ denominators.
   - `load_all` uses the same combined load. If the boundaries fail (no
     source, or a failed gate), `load_all` keeps their previous rows, loads
     every other table, and exits non-zero.
+- **Downloads.** data_query's `GET /hftd` and `GET /iou-territories` return
+  the full stored geometry by default, the same polygons behind every count
+  and point answer. Pass `simplify=<degrees>` (up to 0.01) for a smaller,
+  display-only payload; the response `meta.geometry_simplified_degrees`
+  records it.
 - **Web map.** The Historical Map and the website draw these layers from the
   database through the visualization service (`/map-layer?dataset=hftd` and
   `/utility-territory`), not from files. Those two queries now draw
