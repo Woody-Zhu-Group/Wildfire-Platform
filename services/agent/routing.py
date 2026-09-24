@@ -1523,7 +1523,33 @@ _EVENT_DATASETS_BESIDE_IGNITIONS = frozenset(
 )
 # A word right before "ignitions" that already names whose ignitions they are.
 _IGNITION_QUALIFIER = re.compile(
-    r"(?:\bus|\bnational|\bcal\s*fire|\bcalfire|\bepss|\bpsps)\s+$", re.I
+    r"(?:\bus|\bnational|\bsampled?|\ball[- ]causes?|\bcal\s*fire|\bcalfire|\bepss|\bpsps)"
+    r"\s+(?:wildfire\s+)?$",
+    re.I,
+)
+# Wording that names the US ignitions sample (FireCastRL). "Sample" alone is
+# list wording ("a sample of PGE ignitions"), so it counts only next to
+# "ignitions" or as "US/national sample"; "all causes" only beside ignitions.
+_US_SAMPLE_WORDING = (
+    r"\b(?:us|u\.s\.|national)\s+(?:wildfire\s+)?ignitions?\b|"
+    r"\bsampled\b|"
+    r"\bsample\s+(?:us\s+|u\.s\.\s+)?(?:wildfire\s+)?ignitions?\b|"
+    r"\b(?:us|u\.s\.|national)\s+(?:ignitions?\s+)?sample\b|"
+    r"\bignitions?\s+sample\b|"
+    r"\ball[- ]causes?\s+(?:wildfire\s+)?ignitions?\b|"
+    r"\bignitions?\b[^.?!]{0,80}\b(?:of|from)\s+all\s+causes\b|"
+    r"\bfirecast"
+)
+_US_STATE_NAME = re.compile(
+    r"\b(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|"
+    r"delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|"
+    r"kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|"
+    r"mississippi|missouri|montana|nebraska|nevada|new\s+hampshire|new\s+jersey|"
+    r"new\s+mexico|new\s+york|north\s+carolina|north\s+dakota|ohio|oklahoma|"
+    r"oregon|pennsylvania|rhode\s+island|south\s+carolina|south\s+dakota|"
+    r"tennessee|texas|utah|vermont|virginia|washington|west\s+virginia|"
+    r"wisconsin|wyoming)\b",
+    re.I,
 )
 
 
@@ -1538,7 +1564,7 @@ def _has_bare_ignitions(text: str) -> bool:
 def _datasets(text: str) -> list[str]:
     candidates: list[str] = []
     checks = [
-        ("us_ignitions", r"\b(?:us|national)\s+ignitions?\b"),
+        ("us_ignitions", _US_SAMPLE_WORDING),
         ("epss_outages", r"\bepss\b|\bfast[- ]trip\b"),
         ("psps_events", r"\bpsps\b|\bpublic safety power shutoff"),
         ("calfire_incidents", r"\bcal\s*fire\b|\bcalfire\b"),
@@ -2527,6 +2553,27 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         return _city_point_route(
             city_plan, text=text, time_resolution=time_resolution, slots=slots
         )
+
+    # Label rules F and H: the US ignitions sample has no state column, so a
+    # US-sample question restricted to a state clarifies rather than answering
+    # with the national count. This holds when the sample is one of several
+    # datasets named ("the sampled California ignitions inside HFTD").
+    if dataset == "us_ignitions" or "us_ignitions" in _datasets(text):
+        state = _US_STATE_NAME.search(lower)
+        if state:
+            name = " ".join(word.capitalize() for word in state.group(0).split())
+            return RouteDecision(
+                "clarification",
+                "unexpressable_county_filter",
+                f"Question restricts the US ignitions sample to {name}, which it cannot filter by",
+                answer=(
+                    f"The US ignitions sample has no state or county column, so I "
+                    f"cannot count only the {name} events. I can give the national "
+                    "sample count for the same period, or a CPUC utility-ignition "
+                    "or CAL FIRE incident count for California. Which should I use?"
+                ),
+                slots=slots,
+            )
 
     ranking_decision = _route_ranking(
         text=text,
