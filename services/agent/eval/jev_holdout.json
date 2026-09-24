@@ -231,14 +231,25 @@
     "id": "ho_016",
     "question": "Map PacifiCorp's utility-caused ignition reports from 2021.",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "map",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "cpuc_ignitions",
-    "expected_tool_pick": "visualization_create",
-    "expected_clarify_reason": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "dataset_not_covered",
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "A named utility and year on a map is a CPUC map."
+    "label_rationale": "PacifiCorp's CPUC rows start 2025-04-24, so a 2021 map would be absent data, not an empty map.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "map",
+      "expected_tool_pick": "visualization_create",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null,
+      "needs_human_review": false,
+      "label_rationale": "A named utility and year on a map is a CPUC map."
+    },
+    "rule": "K",
+    "rule_text": "Rule K, written by Michael on 2026-09-24: a question whose dataset has no measured coverage for the named utility and period is clarify / dataset_not_covered, because a count would be absent, not zero. Coverage is measured by the loaders (shared/dataset_coverage.json). Applied to collision_this_year_count (cases.json), para_bear_valley and para_liberty_2021 (jev_paraphrases.json), ho_016 and ho_024 (jev_holdout.json), hv2_007, hv2_012, and hv2_030 (jev_holdout_v2.json), and hv3_016 (jev_holdout_v3_labels_chatgpt.json). needs_human_review cleared on the rows rule K decided."
   },
   {
     "id": "ho_017",
@@ -360,14 +371,25 @@
     "id": "ho_024",
     "question": "Within Kern County, what was SCE's utility-caused ignition count for 2019?",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "count",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "cpuc_ignitions",
-    "expected_tool_pick": "data_query_records",
-    "expected_clarify_reason": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "dataset_not_covered",
     "expected_unsupported_topic": null,
     "needs_human_review": false,
-    "label_rationale": "A named county, utility, and year is a CPUC count."
+    "label_rationale": "SCE's CPUC rows start 2020-01-01, so a 2019 count would be absent, not zero.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "count",
+      "expected_tool_pick": "data_query_records",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null,
+      "needs_human_review": false,
+      "label_rationale": "A named county, utility, and year is a CPUC count."
+    },
+    "rule": "K",
+    "rule_text": "Rule K, written by Michael on 2026-09-24: a question whose dataset has no measured coverage for the named utility and period is clarify / dataset_not_covered, because a count would be absent, not zero. Coverage is measured by the loaders (shared/dataset_coverage.json). Applied to collision_this_year_count (cases.json), para_bear_valley and para_liberty_2021 (jev_paraphrases.json), ho_016 and ho_024 (jev_holdout.json), hv2_007, hv2_012, and hv2_030 (jev_holdout_v2.json), and hv3_016 (jev_holdout_v3_labels_chatgpt.json). needs_human_review cleared on the rows rule K decided."
   },
   {
     "id": "ho_025",

@@ -339,21 +339,27 @@
   },
   {
     "id": 16,
-    "disposition": "answer",
-    "reason": null,
-    "tool_calls": [
-      {
-        "tool": "comparison_run",
-        "key_filters": {
-          "metric": "ignition_count",
-          "utilities": [
-            "Liberty",
-            "Bear Valley"
-          ],
-          "date_range": "2019-01-01 to 2023-12-31"
+    "disposition": "clarify",
+    "reason": "dataset_not_covered",
+    "tool_calls": [],
+    "rule": "K",
+    "previous": {
+      "disposition": "answer",
+      "reason": null,
+      "tool_calls": [
+        {
+          "tool": "comparison_run",
+          "key_filters": {
+            "metric": "ignition_count",
+            "utilities": [
+              "Liberty",
+              "Bear Valley"
+            ],
+            "date_range": "2019-01-01 to 2023-12-31"
+          }
         }
-      }
-    ]
+      ]
+    }
   },
   {
     "id": 17,
@@ -1157,6 +1163,17 @@
       "hv2_057",
       "hv2_062"
     ]
+  },
+  {
+    "rule": "K",
+    "kind": "label_rule",
+    "written_by": "Michael",
+    "date": "2026-09-24",
+    "text": "Rule K, written by Michael on 2026-09-24: a question whose dataset has no measured coverage for the named utility and period is clarify / dataset_not_covered, because a count would be absent, not zero. Coverage is measured by the loaders (shared/dataset_coverage.json). Applied to collision_this_year_count (cases.json), para_bear_valley and para_liberty_2021 (jev_paraphrases.json), ho_016 and ho_024 (jev_holdout.json), hv2_007, hv2_012, and hv2_030 (jev_holdout_v2.json), and hv3_016 (jev_holdout_v3_labels_chatgpt.json). needs_human_review cleared on the rows rule K decided.",
+    "applied_rows": [
+      16
+    ],
+    "pending_rows": []
   },
   {
     "kind": "frozen",

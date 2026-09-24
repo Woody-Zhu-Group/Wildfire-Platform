@@ -227,7 +227,7 @@ covered side (a utility, or one of two periods) runs, and the uncovered side
 comes back null with its reason. The orchestrator turns a `not_covered` result
 into a clarification on the deterministic path, the Jev template path, and the
 model loop (which stops at the first one). The router checks the same call
-before it answers (`dataset_not_covered`, or `epss_non_pge_utility` and
+before it answers (`dataset_not_covered`, label rule K, or `epss_non_pge_utility` and
 `us_sample_utility_filter` when a named utility has no rows in EPSS or the US
 sample at all: label rules I and J), and a `*_missing_year` clarification
 becomes the not-covered one when the dataset has no rows for the named utility

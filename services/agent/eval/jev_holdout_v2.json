@@ -118,17 +118,29 @@
     "id": "hv2_007",
     "question": "List all PSPS events associated with PG&E during 2019, including the event dates.",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "records_list",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "psps_events",
-    "expected_tool_pick": "data_query_records",
-    "expected_clarify_reason": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "dataset_not_covered",
     "expected_unsupported_topic": null,
-    "gold_plan": [
-      "data_query_records"
-    ],
+    "gold_plan": null,
     "needs_human_review": false,
-    "label_rationale": "A named utility and year is a PSPS list."
+    "label_rationale": "PG&E's PSPS rows start 2021-10-11, so a 2019 list would be absent data, not an empty list.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "records_list",
+      "expected_tool_pick": "data_query_records",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null,
+      "gold_plan": [
+        "data_query_records"
+      ],
+      "needs_human_review": false,
+      "label_rationale": "A named utility and year is a PSPS list."
+    },
+    "rule": "K",
+    "rule_text": "Rule K, written by Michael on 2026-09-24: a question whose dataset has no measured coverage for the named utility and period is clarify / dataset_not_covered, because a count would be absent, not zero. Coverage is measured by the loaders (shared/dataset_coverage.json). Applied to collision_this_year_count (cases.json), para_bear_valley and para_liberty_2021 (jev_paraphrases.json), ho_016 and ho_024 (jev_holdout.json), hv2_007, hv2_012, and hv2_030 (jev_holdout_v2.json), and hv3_016 (jev_holdout_v3_labels_chatgpt.json). needs_human_review cleared on the rows rule K decided."
   },
   {
     "id": "hv2_008",
@@ -218,17 +230,29 @@
     "id": "hv2_012",
     "question": "Could you map Liberty's utility-caused ignition reports from 2017 to 2021 and show the county names?",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "multi_intent",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "cpuc_ignitions",
-    "expected_tool_pick": "visualization_create",
-    "expected_clarify_reason": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "dataset_not_covered",
     "expected_unsupported_topic": null,
-    "gold_plan": [
-      "visualization_create"
-    ],
-    "needs_human_review": true,
-    "label_rationale": "A map plus county names. The map may not list county names as a second result."
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "CPUC has no Liberty rows (measured coverage), so the map would be absent data, not an empty map.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "multi_intent",
+      "expected_tool_pick": "visualization_create",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null,
+      "gold_plan": [
+        "visualization_create"
+      ],
+      "needs_human_review": true,
+      "label_rationale": "A map plus county names. The map may not list county names as a second result."
+    },
+    "rule": "K",
+    "rule_text": "Rule K, written by Michael on 2026-09-24: a question whose dataset has no measured coverage for the named utility and period is clarify / dataset_not_covered, because a count would be absent, not zero. Coverage is measured by the loaders (shared/dataset_coverage.json). Applied to collision_this_year_count (cases.json), para_bear_valley and para_liberty_2021 (jev_paraphrases.json), ho_016 and ho_024 (jev_holdout.json), hv2_007, hv2_012, and hv2_030 (jev_holdout_v2.json), and hv3_016 (jev_holdout_v3_labels_chatgpt.json). needs_human_review cleared on the rows rule K decided."
   },
   {
     "id": "hv2_013",
@@ -529,17 +553,29 @@
     "id": "hv2_030",
     "question": "liberty vs bear valley ignition reports from 2018 through 2022 by year",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "compare",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "cpuc_ignitions",
-    "expected_tool_pick": "comparison_run",
-    "expected_clarify_reason": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "dataset_not_covered",
     "expected_unsupported_topic": null,
-    "gold_plan": [
-      "comparison_run"
-    ],
-    "needs_human_review": true,
-    "label_rationale": "Two utilities by year across five years does not fit one periods call."
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "CPUC has no Liberty or Bear Valley rows (measured coverage), so every side would be absent, not zero.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "compare",
+      "expected_tool_pick": "comparison_run",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null,
+      "gold_plan": [
+        "comparison_run"
+      ],
+      "needs_human_review": true,
+      "label_rationale": "Two utilities by year across five years does not fit one periods call."
+    },
+    "rule": "K",
+    "rule_text": "Rule K, written by Michael on 2026-09-24: a question whose dataset has no measured coverage for the named utility and period is clarify / dataset_not_covered, because a count would be absent, not zero. Coverage is measured by the loaders (shared/dataset_coverage.json). Applied to collision_this_year_count (cases.json), para_bear_valley and para_liberty_2021 (jev_paraphrases.json), ho_016 and ho_024 (jev_holdout.json), hv2_007, hv2_012, and hv2_030 (jev_holdout_v2.json), and hv3_016 (jev_holdout_v3_labels_chatgpt.json). needs_human_review cleared on the rows rule K decided."
   },
   {
     "id": "hv2_031",
