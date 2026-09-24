@@ -179,9 +179,10 @@ def test_decide_live_falls_back_to_the_router_when_the_cap_is_reached():
 
 
 def test_exempt_routes_do_not_spend_the_budget():
-    decision = route_question("Who is the CEO of PG&E?")  # a backstop refusal
+    question = "What wildfires are burning right now?"  # a hard live backstop
+    decision = route_question(question)
     budget = DailyCallBudget(3)
-    result = decide_live("Who is the CEO of PG&E?", decision, backend=FakeBackend(), gate=0.8, budget=budget)
+    result = decide_live(question, decision, backend=FakeBackend(), gate=0.8, budget=budget)
     assert result.why == "backstop"
     assert budget.calls_today == 0
 

@@ -764,11 +764,28 @@ UNSUPPORTED = {
     "damage": (
         r"\b(?:property damages?|expected loss(?:es)?|insured loss(?:es)?|fatalit(?:y|ies))\b"
     ),
-    "live_web": (
-        r"\b(?:current active fires?|active fires?.*right now|live fires?|"
-        r"web search|according to the web|today'?s fires?)\b"
-    ),
+    # Live wording (_LIVE_WEB_LIVE) or web wording (_LIVE_WEB_WEB), set below.
+    "live_web": "",
 }
+_LIVE_WEB_LIVE = (
+    r"\b(?:current active fires?|active fires?.*right now|live fires?|today'?s fires?)\b"
+)
+_LIVE_WEB_WEB = r"\b(?:web search|according to the web)\b"
+UNSUPPORTED["live_web"] = f"{_LIVE_WEB_LIVE}|{_LIVE_WEB_WEB}"
+
+# Hard safety rules versus topic judgments (issue #97). Live or real-time data
+# and future prediction stay router backstops in every mode: an answer from the
+# warehouse would present history as the present or as a forecast. Every other
+# unsupported-topic keyword (cost, leadership, optimization, damage, CPZ, air
+# quality, evacuation, translation, personnel, satellite, and web-search
+# wording) is a judgment about what the question asks for, and a keyword also
+# matches a passing mention ("budget meeting", "CEO testified"). In decide mode
+# Jev's off_topic fact decides these; the keyword rule is the fallback when Jev
+# is below the gate, errors, or is off. The advice rule (_asks_for_advice) is
+# not a keyword and stays with the router: off_topic offers no advice option,
+# so Jev cannot name it (docs/JEV_DECIDE.md).
+TOPIC_JUDGMENT_KEYS = frozenset(key for key in UNSUPPORTED if key != "live_web")
+TOPIC_JUDGMENT_RULES = frozenset(f"unsupported_{key}" for key in TOPIC_JUDGMENT_KEYS)
 
 # Live wording. "current" counts only next to a live noun, "live" only next
 # to fires, outages, or conditions, and none of it fires when the question
@@ -2239,13 +2256,22 @@ def _city_point_route(
     )
 
 
-def route_question(question: str, *, force_model: bool = False) -> RouteDecision:
+def route_question(
+    question: str, *, force_model: bool = False, skip_topic_judgments: bool = False
+) -> RouteDecision:
     """Route one question. A clarification asks for every missing item at once.
 
     The rule and path come from _route_question alone; only the clarification
     text is completed, from the same slots.
+
+    skip_topic_judgments: route as if no topic-judgment keyword matched (the
+    TOPIC_JUDGMENT_KEYS patterns and web-search wording). Decide mode uses it
+    when Jev reads the question as on topic. Live wording, future prediction,
+    and the advice rule still refuse.
     """
-    decision = _route_question(question, force_model=force_model)
+    decision = _route_question(
+        question, force_model=force_model, skip_topic_judgments=skip_topic_judgments
+    )
     if decision.path == "clarification":
         decision.answer = complete_clarification(
             decision.rule,
@@ -2309,7 +2335,9 @@ def _predict_word_is_model_skill(text: str, lower: str) -> bool:
     )
 
 
-def _route_question(question: str, *, force_model: bool = False) -> RouteDecision:
+def _route_question(
+    question: str, *, force_model: bool = False, skip_topic_judgments: bool = False
+) -> RouteDecision:
     text = " ".join(question.strip().split())
     lower = text.lower()
     utilities = _utilities(text)
@@ -2335,6 +2363,11 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
     }
 
     for key, pattern in UNSUPPORTED.items():
+        if skip_topic_judgments:
+            if key in TOPIC_JUDGMENT_KEYS:
+                continue
+            if key == "live_web":
+                pattern = _LIVE_WEB_LIVE
         if re.search(pattern, lower, re.I):
             return RouteDecision(
                 "unsupported",

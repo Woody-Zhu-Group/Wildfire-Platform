@@ -22,7 +22,10 @@ imports `typesafe_sdk`, and the default `off` mode never imports it.
 `AGENT_JEV_BACKEND` is `typesafe` (default, `api.typesafe.ai`) or `openrouter`
 (same request body sent to OpenRouter).
 - `decide`: router backstops first, then Jev's derived disposition behind a decline
-  gate and a higher answer gate. Jev owns the disposition and the router owns the
+  gate and a higher answer gate. Topic keyword refusals (cost, leadership, and the
+  others in `routing.TOPIC_JUDGMENT_RULES`) are not backstops: Jev's `off_topic` refuses
+  them at the decline gate and lifts them only at the answer gate; below those gates the
+  keyword rule stands (issue #97). Jev owns the disposition and the router owns the
   wording: when both decline the same way the router's text stands (except the generic
   `ranking_missing_slots`, which yields to Jev's more specific clarification), and a Jev
   clarification that changes the disposition goes through clarify-all-missing; see [`docs/JEV_DECIDE.md`](../../../docs/JEV_DECIDE.md)

@@ -19,16 +19,59 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
 
 1. **Router hard backstops decide first.** Jev is not called. The exact set
    (`BACKSTOP_RULES`):
-   - `unsupported_live_web`
+   - `unsupported_live_web` when live wording made it (`_asks_live`, or the live half of
+     the `live_web` keyword: current active fires, live fires, today's fires)
    - `risk_future_date`
    - `unsupported_future_prediction`
    - `city_needs_place`
    - `hftd_constraint_unavailable`
-   - the explicit unsupported topics, one per `routing.UNSUPPORTED` key:
-     `unsupported_cpz`, `unsupported_cost`, `unsupported_air_quality`,
-     `unsupported_evacuation`, `unsupported_translation`, `unsupported_personnel`,
-     `unsupported_satellite`, `unsupported_leadership`, `unsupported_optimization`,
-     `unsupported_damage`
+
+   **Topic keywords are Jev's judgment, not backstops (issue #97).** The other unsupported
+   topics (`routing.TOPIC_JUDGMENT_RULES`: `unsupported_cpz`, `unsupported_cost`,
+   `unsupported_air_quality`, `unsupported_evacuation`, `unsupported_translation`,
+   `unsupported_personnel`, `unsupported_satellite`, `unsupported_leadership`,
+   `unsupported_optimization`, `unsupported_damage`), and `unsupported_live_web` when only
+   web-search wording made it, match a word anywhere in the question, so they also refuse
+   in-scope questions that mention the word in passing ("After the budget meeting, how many
+   PG&E ignitions were there in 2022?"). In decide mode Jev is asked, and its `off_topic`
+   Choice decides (`decide_mode.is_topic_judgment`, `_topic_judgment`):
+   - An off-topic option at or above the decline gate (0.8) refuses, through the usual
+     decline policy in step 3: the router's refusal text stands, and Jev's option goes to
+     the log when it names a different topic.
+   - `on_topic` at or above the answer gate (0.9, `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE`) sets
+     the keyword aside. Lifting a refusal is a Jev answer over a router decline, so it needs
+     the same higher gate as every other one. The question is routed
+     again with `route_question(question, skip_topic_judgments=True)`, and that route goes
+     through this same order: live or future wording behind the keyword still hits its
+     backstop, the advice rule still refuses, and Jev's other facts can still clarify.
+     When the new route stands because of Jev's reading, the winner is `jev` with why
+     `on_topic`, and the log carries `topic_keyword_rule`.
+   - Below its gate (an off-topic reading under 0.8, an `on_topic` reading under 0.9), on a
+     timeout or error, past the daily cap, or with decide off, the keyword refusal stands, as
+     on main.
+
+   Why each rule is where it is:
+   - Live or real-time data stays a backstop: an answer from the warehouse to a live
+     question presents history as the present, the one error an analyst cannot see.
+   - Future prediction and `risk_future_date` stay backstops: an answer presents a
+     historical count or fitted risk as a forecast. Both are decided from phrasing and year
+     arithmetic in code, and `unsupported_future_prediction` has no Jev fact yet
+     (`CONTEXT_DEFERRED_RULES`).
+   - `city_needs_place` and `hftd_constraint_unavailable` stay: they are a gazetteer fact and
+     a tool-schema gap, not topics.
+   - Cost, CPZ, optimization, damage, and web-search wording are topic judgments: each has
+     its own `off_topic` option (`cost_or_budget`, `cpz`, `optimization_or_scheduling`,
+     `damage_or_loss`, `live_or_web`, whose description already excludes words that only
+     sound current).
+   - Leadership, air quality, evacuation, translation, personnel, and satellite are topic
+     judgments: `other_off_topic` names each of them in its description.
+   - The advice rule (`routing._asks_for_advice`: the CPUC or a utility as the subject of
+     should, recommend, or penalize) stays with the router (why `regex_only`), although its
+     rule id is `unsupported_optimization`. `off_topic` offers no advice option, so Jev can
+     be confidently wrong: on the stored v3 call for "Which utility should the CPUC penalize
+     based on its wildfire record?" (`hv3_068`) it reads `on_topic` at 0.99. Moving advice
+     to Jev needs a new option, which changes the payload. The advice rule matches a
+     sentence structure, not one word, so it is less exposed to passing mentions.
 2. **Routes Jev cannot express are decided by the router.** Jev is not called. A route is
    exempt when its rule is in `jev_policy.REGEX_ONLY`, or when its deterministic call uses a
    tool outside Jev's tool vocabulary (`schemas.TOOL_MODELS`); today those are `risk_surface`,
@@ -144,12 +187,14 @@ Every router versus Jev disagreement, every Jev decline whose rule differs from 
 rule (for example both clarify, with the router's wording kept), and every Jev error or
 timeout is logged as a `jev_decide` JSON line on stdout and in `AGENT_JEV_LOG_PATH`, with
 the router path and rule, Jev's disposition, rule, and confidence, the winner, why (`gate`,
-`below_gate`, `contradicts_slot`, `slot_unused`, `code_verified`, `error`, `timeout`), and `wording`
-(`router`, `jev`, or null). The response slots carry the same summary under `jev_decide`.
+`below_gate`, `on_topic`, `contradicts_slot`, `slot_unused`, `code_verified`, `error`, `timeout`),
+`wording` (`router`, `jev`, or null), and `topic_keyword_rule` (the topic keyword rule Jev set
+aside as on topic, else null). The response slots carry the same summary under `jev_decide`.
 
 **Who decided.** Every `/ask` response and `/ask/stream` routing event carries
 `decision_source` (`services/agent/decisions/provenance.py`, documented in
-`services/agent/README.md`): `backstop` with the rule id, `jev` with the disposition and
+`services/agent/README.md`): `backstop` with the rule id (outside decide mode a topic
+keyword refusal is reported as a backstop too, as before issue #97), `jev` with the disposition and
 confidence when the winner is Jev, or `router` with why (`jev_below_gate`, `jev_error`,
 `jev_timeout`, `jev_daily_cap`, `verified_fact` for `code_verified`, `contradicts_slot`, and
 `slot_unused`,
@@ -298,6 +343,88 @@ Jev wrongly decline are not in these sets. **No new value is recommended**: 0.80
 the production `jev_decide` log (Jev declines that lost at `below_gate` with confidence
 between 0.60 and 0.80, judged by hand) is the evidence that could justify moving it.
 
+## Topic judgments replay (issue #97, 2026-09-24)
+
+Stored calls, `platform/main` (`da3103a`) against this branch on all 313 labeled replayed
+rows (dev 137, v1 63, v2 42, v3 65, smoke 6), at the default gates (off-topic refusal 0.8,
+on-topic lift 0.9). The store already held a call for every topic-keyword row, because
+exempt rows are captured too. No labeled row has a topic refusal with `on_topic` between 0.8
+and 0.9, so moving the on-topic lift from the decline gate to the answer gate changes no
+labeled row.
+
+- **Final decisions: 0 of 313 change** (path and rule), so every accuracy number in the
+  table below is unchanged.
+- **31 decision records change** (winner or why), all on router topic refusals that Jev is
+  now asked about. Every one still refuses with the router's rule and text:
+  - 13 `agree`: Jev reads the same topic at or above 0.8 (`unsupported_cpz`,
+    `unsupported_cost` x9 including `ho_057`, `ho_060`, `hv2_052`, `hv2_058`, `hv2_064`,
+    `unsupported_optimization`, `unsupported_damage` x2 including `ho_064`).
+  - 13 `gate`, wording `router`: Jev refuses with a different option at or above 0.8
+    (`other_off_topic` on the air quality, leadership, evacuation, translation, personnel,
+    and satellite rows, `hv3_046`; `damage_or_loss` 0.80 on `hv2_063`, router `unsupported_cost`).
+  - 3 `below_gate`: the keyword refusal stands as the fallback
+    (`holdout_unsupported_budget`, `optimization_or_scheduling` 0.74; `hv3_052`,
+    `damage_or_loss` 0.79; `router_translation`, where `other_off_topic` passes but the
+    `prompt_injection` fact reads 0.5).
+  - 2 `regex_only`: the advice rule (`hv3_058`, `hv3_068`), which stays with the router.
+    Without that rule `hv3_068` became a Jev risk clarification (Jev read `on_topic` at
+    0.99), a wrong disposition; that is how the missing advice option was found, on v3,
+    which is tuned data.
+- `off_topic` on the true off-topic rows (gold `unsupported` and a topic-judgment router
+  refusal; 29 rows: dev 20, v1 3, v2 4, v3 2): an off-topic option on 29 of 29, the option
+  naming the router's topic on 26 of 29, at or above the gate on 27 of 29, mean confidence
+  0.961 (dev 0.985, v1 0.993, v2 0.903, v3 0.800). All four sets are seen or tuned, not clean.
+- Routes (`route_question`, off mode) are unchanged against main on all 398 questions in
+  `cases.json`, `jev_paraphrases.json`, and holdouts v1, v2, and v3 (rows marked
+  `needs_human_review` included), and on the 18 issue #97 probes.
+
+**Issue #97 probes** (`services/agent/eval/issue97_probes.json`, replay set `probes97`): the
+8 passing mentions refused on main (`p97_01` to `p97_08`), the 5 PR #94 plural probes
+(`p97_09` to `p97_13`), and 5 questions using the phrases named in the issue (`p97_14` to
+`p97_18`), plus 4 advice-like leadership questions outside the advice rule (`p97_19` to
+`p97_22`, added before merge). They have no gold labels, so the replay reports their decisions and does not score
+them; they are clean (nothing was tuned on them). Captured 2026-09-24 with
+`capture --sets probes97 --cap-usd 0.05` through the OpenRouter backend
+(`typesafe/jev-1.13-20260917`, cross-backend: the store's first pass is TypeSafe
+`jev-latest`), 110,778 input tokens, $0.0047 at the TypeSafe rate, 0 errors. The four
+advice-like questions were captured the same way (`--cap-usd 0.02`): 24,621 input tokens,
+$0.0010, 0 errors.
+
+| Probe | Router (off mode) | `off_topic` | Decide |
+|---|---|---|---|
+| `p97_01` ignitions 2022, "cost memo" | `unsupported_cost` | on_topic 0.83 | refused (below the 0.9 lift gate) |
+| `p97_02` county ranking, "budget allocation planning" | `unsupported_cost` | on_topic 0.74 | refused (below gate) |
+| `p97_03` compare utilities, "cost-allocation meeting" | `unsupported_cost` | cost_or_budget 0.43 | refused (below gate) |
+| `p97_04` "Our CEO wants" Sonoma count | `unsupported_leadership` | on_topic 1.00 | `filtered_records` (jev, on_topic) |
+| `p97_05` "The CEO of our utility asked" SCE Tier 3 | `unsupported_leadership` | on_topic 0.99 | `filtered_records` (jev, on_topic) |
+| `p97_06` "What schedule of PSPS events happened in 2019?" | `unsupported_optimization` | on_topic 0.97 | model path `open_ended` (jev, on_topic) |
+| `p97_07` LA County incidents, "repair schedule" | `unsupported_optimization` | on_topic 0.94 | `filtered_records` (jev, on_topic) |
+| `p97_08` "Without doing a web search" | `unsupported_live_web` (web wording) | on_topic 1.00 | model path `open_ended` (jev, on_topic) |
+| `p97_09` "Before we look at prices", map | `map` | on_topic 1.00 | `map` (agree) |
+| `p97_10` "I'll handle costs separately" | `open_ended` | on_topic 0.96 | model path (agree) |
+| `p97_11` "not prices", map | `map` | on_topic 1.00 | `map` (agree) |
+| `p97_12` "across all utility schedules" | `filtered_records` | on_topic 1.00 | `filtered_records` (agree) |
+| `p97_13` "It feeds our budgets" | `ranked_records` | on_topic 0.74 | `ranked_records` (agree) |
+| `p97_14` "After the budget meeting" | `unsupported_cost` | on_topic 0.97 | `filtered_records` (jev, on_topic) |
+| `p97_15` "The CEO testified last week" | `unsupported_leadership` | on_topic 0.98 | `filtered_records` (jev, on_topic) |
+| `p97_16` "Our schedule is tight" | `unsupported_optimization` | on_topic 1.00 | `filtered_records` (jev, on_topic) |
+| `p97_17` "For a cost report", map | `unsupported_cost` | on_topic 0.60 | refused (below gate) |
+| `p97_18` "price cap hearing" | `unsupported_cost` | on_topic 0.97 | `filtered_records` (jev, on_topic) |
+| `p97_19` "Should the CEO of SDG&E be held responsible for 2019 ignitions?" | `unsupported_leadership` | other_off_topic 1.00 | refused (below gate: `prompt_injection` reads 0.5) |
+| `p97_20` "Is the chief executive of SDG&E to blame ..." | `unsupported_leadership` | other_off_topic 1.00 | refused (jev, gate) |
+| `p97_21` "Does the SDG&E CEO deserve the blame ..." | `unsupported_leadership` | other_off_topic 0.99 | refused (jev, gate) |
+| `p97_22` "Would it be fair to hold the CEO of SDG&E accountable ..." | `unsupported_leadership` | other_off_topic 0.99 | refused (jev, gate) |
+
+Of the 13 probes the router refuses, decide answers 9 and keeps 4 refusals, all
+cost-keyword questions where Jev's `on_topic` reading is weak (0.43 to 0.83). This answers
+the issue's open question: a cost word next to a data request does pull `off_topic` down,
+and the keyword refusal stands then. Only `p97_01` (0.83) differs between an on-topic lift at
+the decline gate and at the answer gate. The 5 probes the router already answers stay
+answered. The four advice-like leadership questions (`p97_19` to `p97_22`) are not matched by
+the advice rule, so they reach Jev through the leadership keyword; Jev reads all four as
+`other_off_topic` at 0.99 or 1.00 and none is answered. That is Jev's reading of the CEO, not
+of the judgment: `off_topic` still has no advice or judgment option (`hv3_068` above).
+
 ## Replay and live check (2026-09-23, replay refreshed 2026-09-24)
 
 `python -m services.agent.eval.jev_decide_replay capture | replay | sweep | sweep-gate | live`.
@@ -348,13 +475,16 @@ generic-wording rules below):
 
 | Set | n | Status | Router alone | Jev alone | Decide | Jev won (fixed / broke) |
 |---|---|---|---|---|---|---|
-| dev | 137 | used for tuning | 0.934 | 0.978 | 0.971 | 7 (5 / 0) |
+| dev | 137 | used for tuning | 0.934 | 0.978 | 0.971 | 18 (5 / 0) |
 | v1 | 63 | seen, now development data | 0.905 | 0.952 | 0.952 | 7 (3 / 0) |
-| v2 | 42 | seen, now development data | 0.881 | 0.857 | 0.929 | 3 (2 / 0) |
-| v3 | 65 | **tuned**, reported only, not used for any choice | 0.723 | 0.708 | 0.815 | 9 (6 / 0) |
+| v2 | 42 | seen, now development data | 0.881 | 0.857 | 0.929 | 4 (2 / 0) |
+| v3 | 65 | **tuned**, reported only, not used for any choice | 0.723 | 0.708 | 0.815 | 10 (6 / 0) |
 | smoke | 6 | production smoke test questions (five captured 2026-09-24 through OpenRouter, cross-backend) | 1.000 | 0.833 | 1.000 | 0 |
 
-Across all four sets Jev's wins fix 16 decisions and break 0. The slot and code-verified
+Across all four sets Jev's wins fix 16 decisions and break 0. Since issue #97 Jev also
+wins 13 topic refusals it confirms with a different `off_topic` option than the router's
+keyword (for example `other_off_topic` on `unsupported_leadership`); those change no
+disposition, so the fixed and broke counts are unchanged (section below). The slot and code-verified
 rules changed the recorded reason on four rows and no final decision:
 `timeline_missing_year` (router `trend_missing_year`, Jev answered at 0.47, now
 `code_verified`), and `hv3_079`, `hv2_036`, and `hv2_047` (router `forecast_missing_date`

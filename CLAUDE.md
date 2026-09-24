@@ -27,7 +27,7 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 
 On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is `AGENT_JEV_MODE=decide` (off by default, `docs/JEV_DECIDE.md`); Jev owns the disposition and the router owns the wording, except that the generic `ranking_missing_slots` question yields to Jev's more specific clarification; the slot planner is `AGENT_SLOT_PLAN` (off by default, `docs/JEV_MULTI_TOOL.md`). With both on, decide runs first and the slot planner acts only on questions decide leaves as answer.
 
-1. Router hard backstops fire first (`services/agent/routing.py`): live and current, future dates, city_needs_place, hftd_constraint_unavailable, explicit unsupported topics.
+1. Router hard backstops fire first (`services/agent/routing.py`): live and current, future dates, city_needs_place, hftd_constraint_unavailable. Unsupported-topic keywords (cost, leadership, optimization, damage, and the rest of `routing.TOPIC_JUDGMENT_RULES`) are refusals in off mode; in decide mode Jev's off_topic refuses them at the decline gate (0.8), lifts them only at the answer gate (0.9), and the keyword rule is the fallback (issue #97, `docs/JEV_DECIDE.md`). The advice rule stays with the router.
 2. Jev decides answer, clarify, or refuse (`services/agent/decisions/`, policy in `jev_policy.py`, schema in `v3.py`).
 3. Router regex extracts slots (years, utilities, counties, dataset, dates).
 4. Tools run: the router's deterministic call when it has one; otherwise Jev tool pick, template answers, or the slot planner for multi-part questions.

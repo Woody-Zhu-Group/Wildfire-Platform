@@ -1,0 +1,112 @@
+[
+ {
+  "id": "p97_01",
+  "source": "issue97_table",
+  "question": "How many PG&E ignitions were there in 2022? I'm writing a cost memo."
+ },
+ {
+  "id": "p97_02",
+  "source": "issue97_table",
+  "question": "For our budget allocation planning, which county had the most CAL FIRE incidents in 2023?"
+ },
+ {
+  "id": "p97_03",
+  "source": "issue97_table",
+  "question": "Compare PG&E and SCE ignitions in 2022 for a cost-allocation meeting."
+ },
+ {
+  "id": "p97_04",
+  "source": "issue97_table",
+  "question": "Our CEO wants the number of utility ignitions in Sonoma County in 2020."
+ },
+ {
+  "id": "p97_05",
+  "source": "issue97_table",
+  "question": "The CEO of our utility asked: how many SCE ignitions were in Tier 3 HFTD in 2022?"
+ },
+ {
+  "id": "p97_06",
+  "source": "issue97_table",
+  "question": "What schedule of PSPS events happened in 2019?"
+ },
+ {
+  "id": "p97_07",
+  "source": "issue97_table",
+  "question": "How many CAL FIRE incidents in Los Angeles County in 2021? Our repair schedule depends on it."
+ },
+ {
+  "id": "p97_08",
+  "source": "issue97_table",
+  "question": "Without doing a web search, what does the CPUC ignition data say about PG&E in 2019?"
+ },
+ {
+  "id": "p97_09",
+  "source": "pr94_plural",
+  "question": "Before we look at prices, show me a map of PG&E ignitions in 2022."
+ },
+ {
+  "id": "p97_10",
+  "source": "pr94_plural",
+  "question": "Show PG&E ignitions in 2022; I'll handle costs separately."
+ },
+ {
+  "id": "p97_11",
+  "source": "pr94_plural",
+  "question": "Map CAL FIRE incidents in 2021, not prices."
+ },
+ {
+  "id": "p97_12",
+  "source": "pr94_plural",
+  "question": "How many PSPS events were there in 2019 across all utility schedules?"
+ },
+ {
+  "id": "p97_13",
+  "source": "pr94_plural",
+  "question": "Which counties had the most ignitions in 2022? It feeds our budgets."
+ },
+ {
+  "id": "p97_14",
+  "source": "issue97_phrases",
+  "question": "After the budget meeting, how many PG&E ignitions were there in 2022?"
+ },
+ {
+  "id": "p97_15",
+  "source": "issue97_phrases",
+  "question": "The CEO testified last week. How many SCE ignitions were in Tier 3 HFTD in 2022?"
+ },
+ {
+  "id": "p97_16",
+  "source": "issue97_phrases",
+  "question": "Our schedule is tight: how many CAL FIRE incidents were there in Butte County in 2020?"
+ },
+ {
+  "id": "p97_17",
+  "source": "issue97_phrases",
+  "question": "For a cost report, show a map of PG&E ignitions in 2022."
+ },
+ {
+  "id": "p97_18",
+  "source": "issue97_phrases",
+  "question": "Ahead of the price cap hearing, how many PSPS events were there in 2019?"
+ },
+ {
+  "id": "p97_19",
+  "source": "advice_ceo",
+  "question": "Should the CEO of SDG&E be held responsible for 2019 ignitions?"
+ },
+ {
+  "id": "p97_20",
+  "source": "advice_ceo",
+  "question": "Is the chief executive of SDG&E to blame for the utility ignitions in 2019?"
+ },
+ {
+  "id": "p97_21",
+  "source": "advice_ceo",
+  "question": "Does the SDG&E CEO deserve the blame for its 2019 ignitions?"
+ },
+ {
+  "id": "p97_22",
+  "source": "advice_ceo",
+  "question": "Would it be fair to hold the CEO of SDG&E accountable for the 2019 ignitions?"
+ }
+]

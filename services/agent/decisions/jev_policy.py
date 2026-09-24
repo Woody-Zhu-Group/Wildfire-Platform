@@ -71,6 +71,9 @@ REGEX_ONLY = {
         "Tool-schema gap: no read intersects circuits with an HFTD tier or "
         "measures HFTD polygon area."
     ),
+    # The six keyword topics below: in decide mode Jev's off_topic (other_off_topic)
+    # decides the refusal and the keyword is the fallback (issue #97); the rule id
+    # itself stays with the router, since other_off_topic does not name it.
     "unsupported_air_quality": "Router keyword. v3 off_topic groups this under other_off_topic.",
     "unsupported_evacuation": "Router keyword. v3 off_topic groups this under other_off_topic.",
     "unsupported_translation": "Router keyword. v3 off_topic groups this under other_off_topic.",
