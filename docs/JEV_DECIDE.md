@@ -381,11 +381,14 @@ labeled row.
 **Issue #97 probes** (`services/agent/eval/issue97_probes.json`, replay set `probes97`): the
 8 passing mentions refused on main (`p97_01` to `p97_08`), the 5 PR #94 plural probes
 (`p97_09` to `p97_13`), and 5 questions using the phrases named in the issue (`p97_14` to
-`p97_18`). They have no gold labels, so the replay reports their decisions and does not score
+`p97_18`), plus 4 advice-like leadership questions outside the advice rule (`p97_19` to
+`p97_22`, added before merge). They have no gold labels, so the replay reports their decisions and does not score
 them; they are clean (nothing was tuned on them). Captured 2026-09-24 with
 `capture --sets probes97 --cap-usd 0.05` through the OpenRouter backend
 (`typesafe/jev-1.13-20260917`, cross-backend: the store's first pass is TypeSafe
-`jev-latest`), 110,778 input tokens, $0.0047 at the TypeSafe rate, 0 errors.
+`jev-latest`), 110,778 input tokens, $0.0047 at the TypeSafe rate, 0 errors. The four
+advice-like questions were captured the same way (`--cap-usd 0.02`): 24,621 input tokens,
+$0.0010, 0 errors.
 
 | Probe | Router (off mode) | `off_topic` | Decide |
 |---|---|---|---|
@@ -407,13 +410,20 @@ them; they are clean (nothing was tuned on them). Captured 2026-09-24 with
 | `p97_16` "Our schedule is tight" | `unsupported_optimization` | on_topic 1.00 | `filtered_records` (jev, on_topic) |
 | `p97_17` "For a cost report", map | `unsupported_cost` | on_topic 0.60 | refused (below gate) |
 | `p97_18` "price cap hearing" | `unsupported_cost` | on_topic 0.97 | `filtered_records` (jev, on_topic) |
+| `p97_19` "Should the CEO of SDG&E be held responsible for 2019 ignitions?" | `unsupported_leadership` | other_off_topic 1.00 | refused (below gate: `prompt_injection` reads 0.5) |
+| `p97_20` "Is the chief executive of SDG&E to blame ..." | `unsupported_leadership` | other_off_topic 1.00 | refused (jev, gate) |
+| `p97_21` "Does the SDG&E CEO deserve the blame ..." | `unsupported_leadership` | other_off_topic 0.99 | refused (jev, gate) |
+| `p97_22` "Would it be fair to hold the CEO of SDG&E accountable ..." | `unsupported_leadership` | other_off_topic 0.99 | refused (jev, gate) |
 
 Of the 13 probes the router refuses, decide answers 9 and keeps 4 refusals, all
 cost-keyword questions where Jev's `on_topic` reading is weak (0.43 to 0.83). This answers
 the issue's open question: a cost word next to a data request does pull `off_topic` down,
 and the keyword refusal stands then. Only `p97_01` (0.83) differs between an on-topic lift at
 the decline gate and at the answer gate. The 5 probes the router already answers stay
-answered.
+answered. The four advice-like leadership questions (`p97_19` to `p97_22`) are not matched by
+the advice rule, so they reach Jev through the leadership keyword; Jev reads all four as
+`other_off_topic` at 0.99 or 1.00 and none is answered. That is Jev's reading of the CEO, not
+of the judgment: `off_topic` still has no advice or judgment option (`hv3_068` above).
 
 ## Replay and live check (2026-09-23, replay refreshed 2026-09-24)
 

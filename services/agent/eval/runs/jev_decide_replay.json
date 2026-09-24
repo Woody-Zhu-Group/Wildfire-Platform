@@ -79,11 +79,11 @@
    "status": "production smoke test questions (scripts/smoke_test.sh)"
   },
   "probes97": {
-   "n": 18,
-   "jev_won": 9,
+   "n": 22,
+   "jev_won": 12,
    "jev_errors": 0,
    "decide_dispositions": {
-    "unsupported": 4,
+    "unsupported": 8,
     "answer": 14
    },
    "status": "issue #97 review probes, unlabeled, clean (not tuned on); reported, not scored",
@@ -8337,6 +8337,98 @@
    "off_topic": [
     "on_topic",
     0.97
+   ]
+  },
+  "probes97|p97_19": {
+   "question": "Should the CEO of SDG&E be held responsible for 2019 ignitions?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_leadership"
+   ],
+   "jev": [
+    "unsupported",
+    "prompt_injection",
+    0.5
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_leadership",
+    "router",
+    "below_gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
+   ]
+  },
+  "probes97|p97_20": {
+   "question": "Is the chief executive of SDG&E to blame for the utility ignitions in 2019?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_leadership"
+   ],
+   "jev": [
+    "unsupported",
+    "other_off_topic",
+    1.0
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_leadership",
+    "jev",
+    "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
+   ]
+  },
+  "probes97|p97_21": {
+   "question": "Does the SDG&E CEO deserve the blame for its 2019 ignitions?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_leadership"
+   ],
+   "jev": [
+    "unsupported",
+    "other_off_topic",
+    0.99
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_leadership",
+    "jev",
+    "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.99
+   ]
+  },
+  "probes97|p97_22": {
+   "question": "Would it be fair to hold the CEO of SDG&E accountable for the 2019 ignitions?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_leadership"
+   ],
+   "jev": [
+    "unsupported",
+    "other_off_topic",
+    0.99
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_leadership",
+    "jev",
+    "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.99
    ]
   }
  }
