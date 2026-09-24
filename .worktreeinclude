@@ -1,0 +1,17 @@
+# Local secrets / DB + LLM settings (loaded by shared/db.py and the agent)
+.env
+
+# Personal Claude Code permissions
+.claude/settings.local.json
+
+# Risk forecasting inputs (regenerable but slow; needed for fit/predict)
+services/risk_forecasting/data/daily_gridded_CA_*.nc
+services/risk_forecasting/data/grid_weather_*.csv
+services/risk_forecasting/data/events_*.csv
+services/risk_forecasting/data/grid_W.pkl
+
+# National ignitions extract (used by db.loaders; raw 1.1GB source intentionally excluded)
+data/north_america/us_ignitions_extracted.csv
+
+# Cached Census TIGER county polygons (avoids re-download at load)
+data/boundaries/cb_2023_us_county_500k.zip
