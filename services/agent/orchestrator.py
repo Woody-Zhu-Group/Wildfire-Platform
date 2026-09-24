@@ -284,7 +284,9 @@ class AgentOrchestrator:
                     error=f"{type(exc).__name__}: {exc}",
                 )
         record = result.log_record(question, request_id)
-        if result.disagrees or result.error:
+        # A decline with a different reason is logged even when the router's
+        # wording was kept, so Jev's reason is recorded somewhere.
+        if result.disagrees or result.error or result.reason_differs:
             print(json.dumps(record, default=str))
             try:
                 from services.agent.decisions.shadow_log import ShadowLog, resolve_log_path
@@ -307,6 +309,7 @@ class AgentOrchestrator:
                 "jev_disposition": result.jev_disposition,
                 "jev_rule": result.jev_rule,
                 "jev_confidence": result.jev_confidence,
+                "wording": result.wording,
             },
         }
         return final

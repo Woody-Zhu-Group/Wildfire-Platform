@@ -6,7 +6,11 @@ Order for one question:
 3. Otherwise Jev's v3_hybrid facts go through derive_outcome (the same policy,
    including the measure gate, that the offline combined decider scored).
    - Jev clarify or refuse at or above the decline gate (default 0.8) returns
-     that decision and reason.
+     that disposition. Jev owns the disposition; the router owns the wording.
+     When the router also declined the same way (both clarify, or both refuse),
+     the router's text, rule, and reason stand and Jev's rule goes to the log only.
+     When Jev changes the disposition, its clarification goes through the same
+     clarify-all-missing composition as the router's, using the router's slots.
    - A Jev clarification about an item the router already resolved (the time,
      or the place: county, utility, coordinates, or a geocoded city) is ignored.
    - Jev answer where the router declined wins only at or above the separate,
@@ -33,6 +37,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
+from services.agent.clarify_missing import complete_clarification
 from services.agent.decisions.backend import Answer
 from services.agent.decisions.jev_policy import (
     OFF_TOPIC_RULES,
@@ -230,6 +235,9 @@ class DecideResult:
     jev_rule: str | None = None
     jev_confidence: float | None = None
     error: str | None = None
+    # "router" when Jev won a decline the router made the same way and the
+    # router's wording was kept; "jev" when Jev's own text is shown.
+    wording: str | None = None
     latency_ms: float | None = None
     input_tokens: int = 0
     extra: dict[str, Any] = field(default_factory=dict)
@@ -243,6 +251,11 @@ class DecideResult:
         return self.jev_disposition is not None and self.jev_disposition != ROUTER_DISPOSITION.get(
             self.router_path
         )
+
+    @property
+    def reason_differs(self) -> bool:
+        """Jev declined for a different reason than the router's final rule."""
+        return self.jev_disposition in {"clarify", "unsupported"} and self.jev_rule != self.decision.rule
 
     def log_record(self, question: str, request_id: str) -> dict[str, Any]:
         return {
@@ -258,6 +271,7 @@ class DecideResult:
             },
             "winner": self.winner,
             "why": self.why,
+            "wording": self.wording,
             "final": {"path": self.decision.path, "rule": self.decision.rule},
             "error": self.error,
             "latency_ms": self.latency_ms,
@@ -295,14 +309,37 @@ def _jev_rule(outcome: DerivedOutcome) -> str:
     return "answer"
 
 
-def _decline_decision(rule: str, disposition: str, slots: dict[str, Any]) -> RouteDecision:
+# The facts that would have declined the question. Jev's confidence in an answer
+# is the lowest confidence among them (each one on the "no" side).
+_ANSWER_FACTS: tuple[str, ...] = (
+    "prompt_injection",
+    "off_topic",
+    "vague_proximity",
+    "broad_region",
+    "vague_time",
+)
+
+
+def answer_confidence(answers: dict[str, Any]) -> float | None:
+    """Jev's confidence that no decline fact holds, or None without those facts."""
+    values = [_answer_confidence(answers.get(name)) for name in _ANSWER_FACTS]
+    values = [value for value in values if value is not None]
+    return min(values) if values else None
+
+
+def _decline_decision(
+    rule: str, disposition: str, slots: dict[str, Any], question: str = ""
+) -> RouteDecision:
     if disposition == "clarify":
+        text = _REASON_TEXT.get(rule, "Could you clarify the question?")
+        # Same composition the router applies: ask for every missing item, with an
+        # example, from the router's slots.
         return RouteDecision(
             "clarification",
             rule,
             f"Jev decide: {rule}",
             slots=slots,
-            answer=_REASON_TEXT.get(rule, "Could you clarify the question?"),
+            answer=complete_clarification(rule, " ".join(question.strip().split()), slots, text),
         )
     key = rule.removeprefix("unsupported_")
     return RouteDecision(
@@ -359,13 +396,16 @@ def decide_from_answers(
             # Jev asks for something the router already resolved from the question.
             return DecideResult("router", "contradicts_slot", decision, **info, **base)
         if confidence is not None and confidence >= gate:
-            return DecideResult(
-                "jev", "gate", _decline_decision(jev_rule, jev_disposition, decision.slots), **info, **base
-            )
+            if router_disposition == jev_disposition:
+                # Both declined the same way: the router's wording stands.
+                return DecideResult("jev", "gate", decision, wording="router", **info, **base)
+            declined = _decline_decision(jev_rule, jev_disposition, decision.slots, question)
+            return DecideResult("jev", "gate", declined, wording="jev", **info, **base)
         return DecideResult("router", "below_gate", decision, **info, **base)
 
     # Jev says answer.
     if router_disposition == "answer":
+        info["jev_confidence"] = answer_confidence(answers)
         return DecideResult("router", "agree", decision, **info, **base)
     # The router declined. A missing time or place its resolver proved in code stands.
     confidence = rule_confidence(decision.rule, answers)
