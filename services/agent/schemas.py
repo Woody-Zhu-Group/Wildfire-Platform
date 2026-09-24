@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from services.shared.dataset_registry import (
     AGENT_DATASET_VALUES,
@@ -126,12 +127,17 @@ class DataQuerySpatialArgs(StrictModel):
     hftd_tier: HftdTier | None = None
     start_date: date | None = None
     end_date: date | None = None
+    # Harness only: the router sets this for Census city center points. It is
+    # left out of the model-facing JSON schema, so the model never sees it.
+    snap_shoreline: SkipJsonSchema[bool] = False
 
     @model_validator(mode="after")
     def validate_kind(self) -> "DataQuerySpatialArgs":
         if self.kind == "point":
             if self.lat is None or self.lon is None:
                 raise ValueError("point requires lat and lon")
+        elif self.snap_shoreline:
+            raise ValueError("snap_shoreline applies only to a point")
         else:
             if (self.utility is None) == (self.hftd_tier is None):
                 raise ValueError("summary requires exactly one utility or hftd_tier")

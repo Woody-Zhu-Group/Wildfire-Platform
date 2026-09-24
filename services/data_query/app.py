@@ -733,9 +733,17 @@ def iou_territories(
 def spatial_point(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
+    snap_shoreline: bool = Query(
+        False,
+        description=(
+            "For a point just off a mapped coastline (a Census city center), use the "
+            "nearest IOU within 50 m (never from inside a hole) and the nearest county "
+            "within 150 m, when exactly one is in range. HFTD and grid cell never snap."
+        ),
+    ),
     conn: psycopg.Connection = Depends(get_conn),
 ) -> dict[str, Any]:
-    return queries.spatial_point(conn, lat=lat, lon=lon)
+    return queries.spatial_point(conn, lat=lat, lon=lon, snap_shoreline=snap_shoreline)
 
 
 @app.get("/spatial/summary")

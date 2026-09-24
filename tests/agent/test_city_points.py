@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import json
 
 import pytest
 
@@ -17,6 +18,14 @@ CHICO = (39.758951, -121.81772)
 
 def _point_call(lat: float, lon: float) -> tuple[str, dict]:
     return ("data_query_spatial", {"kind": "point", "lat": lat, "lon": lon})
+
+
+def _city_call(lat: float, lon: float) -> tuple[str, dict]:
+    """City center reads ask for the shoreline snap; explicit coordinates do not."""
+    return (
+        "data_query_spatial",
+        {"kind": "point", "lat": lat, "lon": lon, "snap_shoreline": True},
+    )
 
 
 def test_places_file_is_california_only_with_known_place_types():
@@ -66,7 +75,7 @@ def test_city_point_context_calls_the_spatial_point_tool(question):
     decision = route_question(question)
     assert decision.path == "deterministic", question
     assert decision.rule == "city_point_context", question
-    assert decision.tool_calls == [_point_call(*CHICO)]
+    assert decision.tool_calls == [_city_call(*CHICO)]
     assert decision.slots["city_point"]["name"] == "Chico"
     assert decision.answer is None
 
@@ -79,7 +88,7 @@ def test_city_point_risk_on_a_past_date_chains_point_to_risk():
     ):
         decision = route_question(question)
         assert decision.rule == "city_point_risk_chain", question
-        assert decision.tool_calls[0] == _point_call(*CHICO)
+        assert decision.tool_calls[0] == _city_call(*CHICO)
         assert decision.tool_calls[1][0] == "risk_forecast"
         assert decision.tool_calls[1][1]["cell_id"] == "$grid_cell_id"
 
@@ -132,8 +141,6 @@ def test_city_names_holding_a_county_name_are_not_that_county():
         # Two cities, or a city and a county.
         "Which utility territory contains Chico and Oroville?",
         "Which utility territory contains Chico in Butte County?",
-        # Explicit coordinates keep the existing route.
-        "Which utility territory contains Chico at 39.7, -121.8?",
         # Near a city without a risk question has no defined area.
         "What utility territory is near Chico?",
         # Who supplies power is not territory containment: the IOU layer
@@ -148,6 +155,15 @@ def test_questions_a_center_point_cannot_answer_still_clarify(question):
     assert decision.path == "clarification", question
     assert not decision.rule.startswith("city_point"), question
     assert decision.tool_calls == [], question
+
+
+def test_explicit_coordinates_win_over_a_city_name():
+    # The coordinates are the place and the city is a label, so the user's
+    # point is used, never the city center.
+    decision = route_question("Which utility territory contains Chico at 39.7, -121.8?")
+    assert decision.rule == "coordinate_context"
+    assert decision.tool_calls == [_point_call(39.7, -121.8)]
+    assert "city_point" not in decision.slots
 
 
 def test_cities_not_in_the_list_are_not_resolved():
@@ -286,10 +302,7 @@ def test_orchestrator_answers_a_city_risk_question_with_the_caveat():
     )
     response = result.response
     assert response["status"] == "answer"
-    assert calls[0] == (
-        "data_query_spatial",
-        {"kind": "point", "lat": CHICO[0], "lon": CHICO[1]},
-    )
+    assert calls[0] == _city_call(*CHICO)
     assert calls[1][0] == "risk_forecast"
     assert calls[1][1]["cell_id"] == 212
     ids = {item["id"] for item in response["qualifications"]}
@@ -360,6 +373,47 @@ def test_city_point_context_without_a_county_clarifies():
     assert "not inside any county in" in response["answer_text"]
 
 
+def test_a_territory_question_does_not_need_a_grid_cell():
+    # Santa Monica's snapped point has a county and an IOU but is outside the
+    # fitted model grid. The territory is still answerable.
+    santa_monica = dict(
+        _CORONADO_POINT, iou={"utility": "SCE", "utility_name": "Southern California Edison"},
+        county="Los Angeles",
+    )
+    response, _ = _run_with_point("What IOU territory is Santa Monica in?", santa_monica)
+    assert response["status"] == "answer"
+    asked = _run_with_point("What grid cell is Santa Monica in?", santa_monica)[0]
+    assert asked["status"] == "clarification"
+    assert "model grid cell" in asked["answer_text"]
+
+
+def test_a_risk_question_still_needs_a_grid_cell():
+    with_county = dict(_CORONADO_POINT, county="San Diego")
+    response, calls = _run_with_point(
+        "What was the ignition risk in Coronado, California on 2023-08-01?", with_county
+    )
+    assert response["status"] == "clarification"
+    assert [tool for tool, _ in calls] == ["data_query_spatial"]
+    assert "not inside any model grid cell" in response["answer_text"]
+
+
+def test_a_shoreline_snap_is_disclosed_in_a_caveat():
+    albany = (37.89065, -122.318116)
+    snapped = dict(
+        _POINT_SUMMARY, lat=albany[0], lon=albany[1], county="Alameda",
+        metadata={"shoreline_snap": {"iou_limit_m": 50.0, "county_limit_m": 150.0,
+                                     "snapped": {"iou": 3.5}}},
+    )
+    response, calls = _run_with_point("Which utility territory contains Albany?", snapped)
+    assert calls[0] == _city_call(*albany)
+    assert response["status"] == "answer"
+    caveats = {item["id"]: item["text"] for item in response["qualifications"]}
+    assert "utility territory 3.5 m away" in caveats["city_shoreline_snap"]
+    assert "never applies inside a territory's hole" in caveats["city_shoreline_snap"]
+    plain, _ = _run_with_point("Which utility territory contains Chico?", _POINT_SUMMARY)
+    assert "city_shoreline_snap" not in {item["id"] for item in plain["qualifications"]}
+
+
 def test_explicit_coordinates_outside_coverage_keep_their_behavior():
     # The check is for city center points only; explicit coordinates are the
     # user's own choice and keep the existing path.
@@ -367,3 +421,23 @@ def test_explicit_coordinates_outside_coverage_keep_their_behavior():
     assert route_question(question).rule == "coordinate_context"
     response, _ = _run_with_point(question, _CORONADO_POINT)
     assert response["status"] == "answer"
+
+
+def test_the_snap_flag_is_hidden_from_the_model_and_sent_only_when_set():
+    from services.agent.artifacts import ArtifactStore
+    from services.agent.schemas import DataQuerySpatialArgs
+    from services.agent.tools import ToolExecutor
+
+    assert "snap_shoreline" not in json.dumps(DataQuerySpatialArgs.model_json_schema())
+    executor = ToolExecutor(AgentSettings(), ArtifactStore(60))
+    _, plain = executor._map_spatial(DataQuerySpatialArgs(kind="point", lat=1.0, lon=2.0))
+    assert plain == {"lat": 1.0, "lon": 2.0}
+    _, snapped = executor._map_spatial(
+        DataQuerySpatialArgs(kind="point", lat=1.0, lon=2.0, snap_shoreline=True)
+    )
+    assert snapped == {"lat": 1.0, "lon": 2.0, "snap_shoreline": "true"}
+    with pytest.raises(ValueError, match="only to a point"):
+        DataQuerySpatialArgs(
+            kind="summary", utility="PGE", start_date="2024-01-01",
+            end_date="2024-12-31", snap_shoreline=True,
+        )

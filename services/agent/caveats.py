@@ -342,6 +342,30 @@ async def collect_qualifications(
     if city and any(_is_point_read_at(item, city) for item in working):
         add("city_center_point", city_point_caveat(city), "census_gazetteer")
         add("iou_territory_not_provider", IOU_TERRITORY_NOT_PROVIDER, "data_gap")
+        snapped = next(
+            (
+                ((item.summary.get("metadata") or {}).get("shoreline_snap") or {}).get("snapped")
+                for item in working
+                if _is_point_read_at(item, city)
+            ),
+            None,
+        )
+        if snapped:
+            layers = {"iou": "utility territory", "county": "county"}
+            detail = ", ".join(
+                f"{layers.get(layer, layer)} {distance:g} m away" for layer, distance in snapped.items()
+            )
+            add(
+                "city_shoreline_snap",
+                (
+                    f"{city.name}'s center point sits just off the mapped shoreline, "
+                    f"so the answer uses the nearest {detail}. A shoreline snap is "
+                    "limited to 50 m for utility territories and 150 m for counties, "
+                    "never applies inside a territory's hole (such as a municipal "
+                    "utility), and never applies to HFTD tiers or grid cells."
+                ),
+                "harness_geocode",
+            )
 
     return qualifications, companion, None
 

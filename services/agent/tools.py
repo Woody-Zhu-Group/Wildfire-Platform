@@ -445,6 +445,9 @@ class ToolExecutor:
     ) -> tuple[str, dict[str, Any]]:
         params = args.model_dump(mode="json", exclude_none=True)
         kind = params.pop("kind")
+        # Sent only when set, so other point calls keep their exact URL.
+        if params.pop("snap_shoreline", False):
+            params["snap_shoreline"] = "true"
         if kind == "point":
             return self.settings.data_query_url + "/spatial/point", params
         if "hftd_tier" in params:

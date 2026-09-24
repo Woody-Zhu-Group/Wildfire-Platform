@@ -2156,9 +2156,16 @@ def _city_point_route(
     slots: dict[str, Any],
 ) -> RouteDecision:
     """Spatial context or the spatial to risk chain at a city center point."""
+    # A city center can sit just off a mapped shoreline (Albany is 3.5 m
+    # outside PG&E's polygon), so city points ask for the shoreline snap.
     point_call = (
         "data_query_spatial",
-        {"kind": "point", "lat": plan.point.lat, "lon": plan.point.lon},
+        {
+            "kind": "point",
+            "lat": plan.point.lat,
+            "lon": plan.point.lon,
+            "snap_shoreline": True,
+        },
     )
     if plan.kind == "context":
         return RouteDecision(

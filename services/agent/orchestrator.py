@@ -341,7 +341,7 @@ class AgentOrchestrator:
                         return OrchestrationResult(
                             response=response, raw_log=raw_log
                         )
-                    outside = _city_point_outside_coverage(decision, execution)
+                    outside = _city_point_outside_coverage(decision, execution, question)
                     if outside:
                         response = self._response(
                             request_id=request_id,
@@ -2682,13 +2682,16 @@ def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> s
 
 
 def _city_point_outside_coverage(
-    decision: RouteDecision, execution: ToolExecution
+    decision: RouteDecision, execution: ToolExecution, question: str = ""
 ) -> str | None:
-    """Clarification when a city center point has no county or grid cell.
+    """Clarification when a city center point has no county or needed grid cell.
 
-    Some internal points (Coronado) fall outside the county polygons and the
-    model grid. Ask for a place inside coverage instead of calling risk with
-    no cell or reporting an empty county.
+    The point read already snaps a city center that sits just off a mapped
+    shoreline (IOU within 50 m, county within 150 m). A point still in no
+    county is outside coverage. A missing grid cell matters only when the
+    answer needs one: a risk question, or a question about the grid cell.
+    Some cities (Santa Monica, Manhattan Beach, Los Angeles, Coronado) are outside
+    the fitted model grid, but their territory and tier are still answerable.
     """
     if not decision.rule.startswith("city_point"):
         return None
@@ -2699,7 +2702,10 @@ def _city_point_outside_coverage(
     missing = []
     if not execution.summary.get("county"):
         missing.append("county")
-    if grid.get("cell_id") is None:
+    needs_cell = decision.rule == "city_point_risk_chain" or bool(
+        re.search(r"\b(?:grid|cells?)\b", question.lower())
+    )
+    if needs_cell and grid.get("cell_id") is None:
         missing.append("model grid cell")
     if not missing:
         return None
