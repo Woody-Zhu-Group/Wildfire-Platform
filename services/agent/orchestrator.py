@@ -44,9 +44,10 @@ from services.agent.schemas import (
 )
 from services.agent.streaming import ProgressCallback
 from services.agent.time_resolve import CallWindows, call_window, named_month_periods
-from services.agent.tools import ToolExecution, ToolExecutor
+from services.agent.tools import ToolExecution, ToolExecutor, not_covered_notes
 from services.agent.views import dump_planned, empty_views_payload, plan_views
 from services.shared.dataset_registry import (
+    DATASETS,
     EVENT_DATASET_WORDS,
     REASON_CIRCUITS_PGE,
     REASON_EPSS_PGE_ONLY,
@@ -2174,7 +2175,8 @@ class AgentOrchestrator:
                 quantity_mismatches = _quantity_mismatches(
                     answer.answer, executions, caveat_texts
                 )
-                if unsupported or quantity_mismatches:
+                uncovered_claims = _uncovered_count_claims(answer.answer, executions)
+                if unsupported or quantity_mismatches or uncovered_claims:
                     trajectory.append(
                         {
                             "type": "grounding_error",
@@ -2182,6 +2184,7 @@ class AgentOrchestrator:
                             "step": attempt,
                             "unsupported_numbers": sorted(unsupported),
                             "quantity_mismatches": sorted(quantity_mismatches),
+                            "uncovered_count_claims": uncovered_claims,
                         }
                     )
                     messages.extend(
@@ -2767,6 +2770,38 @@ def _primary_calls(executions: list[ToolExecution]) -> list[tuple[str, dict[str,
     ]
 
 
+def _uncovered_count_claims(text: str, executions: list[ToolExecution]) -> list[str]:
+    """Numbers an answer states for a count the executor marked not covered.
+
+    A number can be grounded elsewhere in the evidence (a 0 in a companion's
+    metadata) and still be wrong beside that dataset's name, so the check is
+    by dataset: its registry aliases and label, next to a number.
+    """
+    # Underscores read as spaces on both sides ("epss_outages=0").
+    lower = " ".join((text or "").lower().replace("_", " ").split())
+    hits: list[str] = []
+    for execution in executions:
+        if not execution.ok:
+            continue
+        for gap in ((execution.summary or {}).get("not_covered") or {}).values():
+            spec = DATASETS[gap["dataset"]]
+            names = {spec.key, *spec.aliases, spec.stat_label or spec.key}
+            words = "|".join(
+                sorted(
+                    (re.escape(name.lower().replace("_", " ")) for name in names),
+                    key=len,
+                    reverse=True,
+                )
+            )
+            number = r"\d[\d,]*(?:\.\d+)?"
+            pattern = (
+                rf"\b{number}\s+(?:[a-z&-]+\s+){{0,2}}?(?:{words})\b"
+                rf"|\b(?:{words})\s*(?:[:=]|was|were|is|of|at|totaled|totalled|numbered)\s*{number}"
+            )
+            hits.extend(match.group(0) for match in re.finditer(pattern, lower))
+    return hits
+
+
 def _quantity_mismatches(
     answer: str,
     executions: list[ToolExecution],
@@ -2968,12 +3003,25 @@ def _ensure_readable_answer(answer: str, executions: list[ToolExecution]) -> str
     text = (answer or "").strip()
     if not text:
         rendered = _render_deterministic(executions)
-        return rendered or text
+        return _with_not_covered_notes(rendered or text, executions)
     if re.fullmatch(r"[\d,]+(?:\.\d+)?", text):
         rendered = _render_deterministic(executions)
         if rendered:
-            return rendered
-    return _strip_ungrounded_example_clause(text, executions)
+            return _with_not_covered_notes(rendered, executions)
+    return _with_not_covered_notes(
+        _strip_ungrounded_example_clause(text, executions), executions
+    )
+
+
+def _with_not_covered_notes(text: str, executions: list[ToolExecution]) -> str:
+    """Every answer path states each uncovered count once, whoever wrote the text.
+
+    A count for a dataset that does not cover the named utility was replaced
+    with None by the executor; the answer names it as not covered rather than
+    leaving the reader to take its absence, or a model's zero, as a count.
+    """
+    notes = [note for note in not_covered_notes(executions) if note not in text]
+    return " ".join([text, *notes]).strip() if notes else text
 
 
 def _scope_phrase(arguments: dict[str, Any], summary: dict[str, Any]) -> str:
@@ -3295,9 +3343,15 @@ def _render_deterministic(
                 )
             else:
                 counts = summary.get("counts") or {}
+                uncovered = summary.get("not_covered") or {}
+                # An uncovered count is None, not zero; its reason is appended
+                # to the answer once by _with_not_covered_notes.
                 parts.append(
                     f"Spatial counts for {_format_region(summary.get('region'))}: "
-                    + ", ".join(f"{key}={value}" for key, value in counts.items())
+                    + ", ".join(
+                        f"{key}=not covered" if key in uncovered else f"{key}={value}"
+                        for key, value in counts.items()
+                    )
                     + "."
                 )
         elif item.tool == "visualization_create":

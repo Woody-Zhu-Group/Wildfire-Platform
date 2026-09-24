@@ -95,13 +95,36 @@ def _parse_count(token: str) -> int | None:
     return WORD_NUMBERS.get(token)
 
 
-def month_from_text(text: str) -> tuple[int, str] | None:
-    """Return (month_number, phrase) when a calendar month is named."""
+# A month word is a month only where a date can stand. "may" and "march" are
+# also verbs ("which may be higher", "so I can march this to my boss"), so a
+# month word counts next to a year or a day ("August 2023", "June 15", "15
+# June"), after in, during, or for ("in March", "during the month of May",
+# "for early June"), or where it ends the question or a sentence ("... cpuc
+# august"). Anywhere else, before a comma included ("you may, if needed"), it
+# is an ordinary word.
+_DAY_NUMBER = r"\d{1,2}(?:st|nd|rd|th)?"
+_MONTH_IN_CONTEXT = re.compile(
+    rf"\b(?:in|during|for)\s+(?:the\s+month\s+of\s+|(?:early|mid|late)[\s-]+)?(?P<after>{_MONTH_ALT})\b"
+    rf"|\b(?P<before>{_MONTH_ALT})\.?,?\s+(?:of\s+)?(?:20\d{{2}}|{_DAY_NUMBER})\b"
+    rf"|\b(?:20\d{{2}}|{_DAY_NUMBER})\s+(?:of\s+)?(?P<following>{_MONTH_ALT})\b"
+    rf"|\b(?P<ending>{_MONTH_ALT})\s*(?:[?!]|\.(?:\s|$)|$)"
+)
+
+
+def months_from_text(text: str) -> list[tuple[int, str]]:
+    """Every (month_number, word) named as a month, in the order written."""
     lower = " ".join(text.lower().split())
-    for name, number in sorted(MONTHS.items(), key=lambda item: -len(item[0])):
-        if re.search(rf"\b{re.escape(name)}\b", lower):
-            return number, name
-    return None
+    found: list[tuple[int, str]] = []
+    for match in _MONTH_IN_CONTEXT.finditer(lower):
+        name = next(group for group in match.groups() if group)
+        found.append((MONTHS[name], name))
+    return found
+
+
+def month_from_text(text: str) -> tuple[int, str] | None:
+    """The first (month_number, word) named as a month, or None."""
+    found = months_from_text(text)
+    return found[0] if found else None
 
 
 def named_months(text: str) -> list[tuple[int, str]]:

@@ -12,6 +12,7 @@ import pytest
 
 from services.agent.decisions.decide_mode import BACKSTOP_RULES
 from services.agent.routing import _counties, _county, route_question
+from services.shared.dataset_registry import UTILITY_CLARIFY_LABELS
 
 
 FORECAST_AND_PREDICT = [
@@ -775,7 +776,9 @@ def test_review_82_a_non_pge_utility_on_epss_never_returns_zero(question):
     assert decision.rule == "epss_non_pge_utility", (question, decision.rule)
     assert decision.tool_calls == [], question
     assert "PG&E-only" in decision.answer and "absent, not zero" in decision.answer
-    assert decision.slots["utilities"] and decision.slots["utilities"][0] in decision.answer
+    # Named as the reader knows it (SDG&E, not the code SDGE).
+    utility = decision.slots["utilities"][0]
+    assert UTILITY_CLARIFY_LABELS.get(utility, utility) in decision.answer
 
 
 @pytest.mark.parametrize(

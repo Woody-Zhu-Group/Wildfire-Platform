@@ -23,7 +23,11 @@ from services.agent.orchestrator import AgentOrchestrator, _render_comparison_an
 from services.agent.provider import ModelReply
 from services.agent.routing import route_question
 from services.agent.tools import ToolExecutor
-from services.shared.dataset_registry import REASON_EPSS_PGE_ONLY, REASON_NO_COUNTY
+from services.shared.dataset_registry import (
+    REASON_EPSS_PGE_ONLY,
+    REASON_NO_COUNTY,
+    UTILITY_CLARIFY_LABELS,
+)
 
 PRODUCTION_QUESTION = (
     "hey how bad was fire season for Edison customers in 2020 vs 2021, outage-wise?"
@@ -41,8 +45,9 @@ def _assert_rule_i_comparison_clarification(question: str, utilities: list[str])
     assert "PG&E-only" in decision.answer
     assert "absent, not zero" in decision.answer
     assert "PSPS events or CPUC ignitions" in decision.answer
+    # Named as the reader knows it (SDG&E, not the code SDGE).
     for utility in utilities:
-        assert utility in decision.answer
+        assert UTILITY_CLARIFY_LABELS.get(utility, utility) in decision.answer
 
 
 def test_the_production_question_clarifies_instead_of_comparing_nulls():

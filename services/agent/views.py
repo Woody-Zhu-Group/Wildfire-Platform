@@ -190,7 +190,9 @@ class RecordTableViewParams(StrictModel):
 
 class StatCardViewParams(StrictModel):
     kind: Literal["count", "risk", "spatial_metric", "model_metrics"]
-    value: float
+    # None only with not_covered_reason: the dataset holds no rows for the
+    # named utility, so the card shows "not covered", never a zero.
+    value: float | None
     label: str
     scope: str
     period: str
@@ -206,9 +208,14 @@ class StatCardViewParams(StrictModel):
     # model_metrics only: the evaluation the card must show.
     eval_year: int | None = Field(None, ge=1900, le=2100)
     params_sha256: str | None = None
+    not_covered_reason: str | None = None
 
     @model_validator(mode="after")
     def validate_model_metrics(self) -> "StatCardViewParams":
+        if (self.value is None) != bool(self.not_covered_reason):
+            raise ValueError("a stat card has a value or a not_covered_reason, not both")
+        if self.value is None and self.kind not in {"count", "spatial_metric"}:
+            raise ValueError("only a count card can be not covered")
         metrics = self.kind == "model_metrics"
         if metrics != (self.stat_mode == "model_metrics"):
             raise ValueError("kind model_metrics pairs with stat_mode model_metrics")
@@ -741,6 +748,15 @@ def _ground_stat(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
     summary = item.summary or {}
     kind = params.get("kind")
     value = params.get("value")
+    if value is None:
+        # A not-covered card cites the result that marked that count uncovered.
+        uncovered = summary.get("not_covered") or {}
+        source = params.get("source_dataset")
+        if source not in uncovered and _DQ_TO_VIZ.get(source or "", source) not in uncovered:
+            raise GroundingError(
+                f"stat_card {source!r} has no value, but the cited result covers it"
+            )
+        return
     if kind == "count":
         expected = summary.get("total")
         if not _numbers_equal(value, expected):
@@ -1138,20 +1154,23 @@ def _specs_for_execution(item: ToolExecution) -> list[ComponentSpec]:
         period = _period_label(args, summary)
         scope = _spatial_scope_label(args, summary)
         specs: list[ComponentSpec] = []
+        uncovered = summary.get("not_covered") or {}
         for key, label in _SPATIAL_COUNT_LABELS.items():
             if key not in counts:
                 continue
+            gap = uncovered.get(key)
             specs.append(
                 ComponentSpec(
                     type="stat_card",
                     params=StatCardViewParams(
                         kind="spatial_metric",
-                        value=float(counts[key]),
+                        value=None if gap else float(counts[key]),
                         label=label,
                         scope=scope,
                         period=period,
                         source_dataset=key,
                         unit="events",
+                        not_covered_reason=gap.get("message") if gap else None,
                     ).model_dump(mode="json"),
                     evidence_ids=evidence,
                     artifact_refs=refs,

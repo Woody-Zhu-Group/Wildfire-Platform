@@ -16,7 +16,6 @@ from services.agent.decisions.integrity import question_hash
 from services.agent.decisions.v3 import tool_pick_call
 from services.agent.routing import (
     _COUNTY_CAPABLE_DATASETS,
-    _EPSS_COMPARISON_METRICS,
     _asks_map_view,
     _comparison_metric,
     _ignition_definition,
@@ -24,10 +23,12 @@ from services.agent.routing import (
     comparison_uncarried_constraints,
 )
 from services.shared.dataset_registry import (
+    COMPARISON_METRIC_DATASETS,
     HFTD_TIER_BY_NUMBER,
     HFTD_TIER_NAMES,
     LAYER_VIZ_KEYS,
     TIER_DIGIT_PATTERN,
+    utility_coverage_gap,
 )
 
 
@@ -218,9 +219,13 @@ def arguments_for_tool(
     return None
 
 
-def _non_pge_epss(dataset: Any, utilities: list[str]) -> bool:
-    """Label rule I: EPSS is PG&E-only, so a non-PG&E EPSS read is absent, not zero."""
-    return dataset == "epss_outages" and any(u != "PGE" for u in utilities)
+def _not_covered(dataset: Any, utilities: list[str]) -> bool:
+    """The dataset holds no rows for the named utility (label rules I and J).
+
+    Such a read is absent, not zero, so the template falls back to the model
+    loop, where the router's clarification or the executor's check applies.
+    """
+    return bool(dataset) and utility_coverage_gap(str(dataset), utilities) is not None
 
 
 def _records_args(slots: dict[str, Any]) -> dict[str, Any] | None:
@@ -232,9 +237,9 @@ def _records_args(slots: dict[str, Any]) -> dict[str, Any] | None:
     if len(utilities) > 1:
         return None
     args: dict[str, Any] = {"dataset": dataset, "result_mode": "count", **time_args}
-    if len(utilities) == 1 and _non_pge_epss(dataset, utilities):
+    if _not_covered(dataset, utilities):
         return None
-    if len(utilities) == 1 and dataset != "us_ignitions":
+    if len(utilities) == 1:
         args["utility"] = utilities[0]
     county = slots.get("county")
     if county and dataset in _COUNTY_CAPABLE_DATASETS:
@@ -266,7 +271,7 @@ def _visualization_args(slots: dict[str, Any], question: str) -> dict[str, Any] 
             return None
         args["interval"] = interval.group(1)
     utilities = list(slots.get("utilities") or [])
-    if _non_pge_epss(dataset, utilities):
+    if _not_covered(dataset, utilities):
         return None
     if len(utilities) == 1:
         args["utility"] = utilities[0]
@@ -292,8 +297,9 @@ def _comparison_slot_args(slots: dict[str, Any], question: str) -> dict[str, Any
     if metric is None or "us ignition" in lower:
         return None
     utilities = list(slots.get("utilities") or [])
-    if metric in _EPSS_COMPARISON_METRICS and utilities and "PGE" not in utilities:
-        # Label rule I: every side would be null. The router clarifies these.
+    if utility_coverage_gap(COMPARISON_METRIC_DATASETS[metric], utilities):
+        # The metric's dataset covers none of the named utilities (label rule
+        # I), so every side would be null. The router clarifies these.
         return None
     years = list(slots.get("years") or [])
     if len(years) == 2 and len(utilities) == 1:

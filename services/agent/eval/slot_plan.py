@@ -10,14 +10,14 @@ so the plan never answers a narrower question than the one asked.
 
 from __future__ import annotations
 
-import calendar
 import itertools
 import re
 from datetime import date
 from typing import Any
 
-from services.agent.routing import RouteDecision, route_question
-from services.shared.dataset_registry import DATASETS, LAYER_VIZ_KEYS
+from services.agent.routing import NOT_COVERED_RULES, RouteDecision, route_question
+from services.agent.time_resolve import months_from_text
+from services.shared.dataset_registry import DATASETS, LAYER_VIZ_KEYS, utility_coverage_gap
 
 MAX_ENTITY_CALLS = 10
 _VIZ = LAYER_VIZ_KEYS
@@ -79,22 +79,6 @@ _UNRESOLVED_WINDOW = re.compile(
     r"spring|summer|fall|autumn|winter)\b",
     re.I,
 )
-_MONTH_NAMES = {
-    name.lower(): number for number, name in enumerate(calendar.month_name) if name
-}
-_MONTH_NAMES.update(
-    {
-        name.lower(): number
-        for number, name in enumerate(calendar.month_abbr)
-        if name and name.lower() != "may"
-    }
-)
-_MONTH_NAMES["sept"] = 9
-_MONTH_WORD = re.compile(
-    r"\b(" + "|".join(sorted(_MONTH_NAMES, key=len, reverse=True)) + r")\b", re.I
-)
-
-
 def _dataset_filters(dataset: str) -> set[str]:
     spec = DATASETS.get(dataset) or next(
         (item for item in DATASETS.values() if item.agent_key == dataset), None
@@ -103,11 +87,8 @@ def _dataset_filters(dataset: str) -> set[str]:
 
 
 def _months_named(lower: str) -> set[int]:
-    """Calendar months the question names. 'may' counts only next to a number."""
-    months = {_MONTH_NAMES[m.group(1).lower()] for m in _MONTH_WORD.finditer(lower)}
-    if re.search(r"\bmay\s+\d|\d\s+may\b", lower):
-        months.add(5)
-    return months
+    """Calendar months the question names, by the shared date parser's rule."""
+    return {number for number, _word in months_from_text(lower)}
 
 
 def _resolved_window(slots: dict[str, Any]) -> tuple[str, str] | None:
@@ -161,12 +142,14 @@ def _unrepresented(
     # Dataset: every call reads the resolved dataset.
     if any(_call_dataset(name, args) != dataset for name, args in calls):
         return "dataset"
-    # Label rule I: EPSS is PG&E-only, so a non-PG&E EPSS count would read as
-    # zero when the data is absent. The plan is refused and the deferral stands.
-    if dataset == "epss_outages" and any(
-        args.get("utility") not in (None, "PGE") for _name, args in calls
-    ):
-        return "epss_non_pge_utility"
+    # A count for a utility the dataset holds no rows for (label rule I: EPSS
+    # is PG&E only) would read as zero when the data is absent. The plan is
+    # refused and the deferral stands.
+    for _name, args in calls:
+        if args.get("utility"):
+            gap = utility_coverage_gap(dataset, [str(args["utility"])])
+            if gap is not None:
+                return NOT_COVERED_RULES[gap["dataset"]]
 
     # Output form and measure.
     if _MAP_ASK.search(lower) and not any(

@@ -32,10 +32,9 @@ from services.agent.time_resolve import CallWindows, apply_harness_years
 from services.shared.counties import UnknownCountyError, normalize_county
 from services.shared.dataset_registry import (
     COMPARISON_METRIC_DATASETS,
-    STAT_LABELS,
-    UTILITY_DISPLAY_LABELS,
     data_query_path,
     group_code_and_label,
+    not_covered_message,
     utility_coverage_gap,
 )
 
@@ -374,6 +373,9 @@ class ToolExecutor:
                 self.fault_scenario = None
                 raw = {"unexpected": "partial response with HTTP 200"}
             summary = self._validate_and_summarize(tool, parsed, raw)
+            mark_uncovered_counts(
+                tool, parsed.model_dump(mode="json", exclude_none=True), summary
+            )
             artifact = self.artifacts.put(tool, raw)
             result = ToolExecution(
                 tool=tool,
@@ -1170,35 +1172,69 @@ def _summarize_risk_surface(args: RiskSurfaceArgs, raw: dict[str, Any]) -> dict[
     }
 
 
+def _named_utilities(tool: str, arguments: dict[str, Any]) -> list[str]:
+    """The utilities a call is scoped to, whichever argument names them."""
+    if tool == "comparison_run":
+        kind = arguments.get("kind")
+        if kind == "utilities":
+            return [str(item) for item in arguments.get("utilities") or []]
+        if kind == "periods" and arguments.get("scope_type") == "utility":
+            return [str(arguments["scope"])] if arguments.get("scope") else []
+        return []
+    utility = arguments.get("utility")
+    return [str(utility)] if utility else []
+
+
 def coverage_gap(tool: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
     """The registry coverage gap a call would hit, or None when every read is covered."""
     if tool in {"data_query_records", "data_query_rank", "visualization_create"}:
-        utility = arguments.get("utility")
         return utility_coverage_gap(
-            arguments.get("dataset"), [str(utility)] if utility else []
+            arguments.get("dataset"), _named_utilities(tool, arguments)
         )
     if tool == "comparison_run":
-        dataset = COMPARISON_METRIC_DATASETS.get(str(arguments.get("metric")))
-        kind = arguments.get("kind")
-        if kind == "utilities":
-            utilities = [str(item) for item in arguments.get("utilities") or []]
-        elif kind == "periods" and arguments.get("scope_type") == "utility":
-            utilities = [str(arguments["scope"])] if arguments.get("scope") else []
-        else:
-            utilities = []
-        return utility_coverage_gap(dataset, utilities)
+        # Validated arguments carry a known metric; an unmapped one is a
+        # registry gap and must fail here rather than skip the check.
+        dataset = COMPARISON_METRIC_DATASETS[str(arguments.get("metric"))]
+        return utility_coverage_gap(dataset, _named_utilities(tool, arguments))
     return None
 
 
-def not_covered_message(gap: dict[str, Any]) -> str:
-    """The reason, that the result is absent rather than zero, and what data exists."""
-    label = STAT_LABELS.get(gap["dataset"], gap["dataset"])
-    named = " and ".join(UTILITY_DISPLAY_LABELS.get(u, u) for u in gap["utilities"])
-    text = (
-        f"{gap.get('reason') or label + ' do not cover this utility'}, so there are "
-        f"no {named} rows in {label}: that result would be absent, not zero."
-    )
-    alternatives = [STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []]
-    if alternatives:
-        text += f" {named} data that does exist: {' and '.join(alternatives)}."
-    return text
+def mark_uncovered_counts(
+    tool: str, arguments: dict[str, Any], summary: dict[str, Any]
+) -> None:
+    """Replace each count for a dataset that does not cover the named utility.
+
+    A result can hold counts for several datasets at once (a spatial summary
+    counts ignitions, EPSS outages, and CAL FIRE incidents inside one
+    territory). Each count key is resolved to its dataset through the
+    registry; where that dataset holds no rows for the named utility, the
+    count becomes None and ``summary["not_covered"][key]`` records why, so no
+    answer, view, or grounding check can read it as a zero. An unknown count
+    key raises: a count that cannot be traced to a dataset is not rendered.
+    """
+    counts = summary.get("counts")
+    utilities = _named_utilities(tool, arguments)
+    if not isinstance(counts, dict) or not utilities:
+        return
+    for key in list(counts):
+        gap = utility_coverage_gap(key, utilities)
+        if gap is None:
+            continue
+        counts[key] = None
+        summary.setdefault("not_covered", {})[key] = {
+            **gap,
+            "message": not_covered_message(gap, subject="count"),
+        }
+
+
+def not_covered_notes(executions: list[Any]) -> list[str]:
+    """One sentence per uncovered count across the cited results, in order."""
+    notes: list[str] = []
+    for execution in executions:
+        if not getattr(execution, "ok", False):
+            continue
+        for gap in ((execution.summary or {}).get("not_covered") or {}).values():
+            message = gap.get("message")
+            if message and message not in notes:
+                notes.append(message)
+    return notes

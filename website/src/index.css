@@ -291,6 +291,7 @@ html.is-reordering-panels, html.is-reordering-panels * { cursor: grabbing !impor
 .record-scroll td:first-child, .record-scroll th:first-child { padding-left: 0; }
 .stat-value { width: fit-content; padding: 18px 0 0; font-size: 62px; line-height: 1; color: var(--stat); letter-spacing: -.04em; }
 .stat-value span { display: block; font-size: 13px; margin-top: 12px; color: var(--muted-strong); letter-spacing: normal; }
+.stat-value.stat-not-covered { font-size: 28px; color: var(--muted-strong); letter-spacing: normal; }
 .back-to-panels { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--overlay-20); border-radius: 50%; background: var(--back-button); color: var(--text-secondary); z-index: 5; }
 .back-to-panels:hover { background: var(--surface-well-hover); color: var(--text-bright); }
 .chat-messages { width: 100%; max-width: 672px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 8px 12px 8px 8px; }

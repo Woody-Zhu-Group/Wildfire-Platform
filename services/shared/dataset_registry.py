@@ -752,16 +752,18 @@ def caveat_texts(dataset: str) -> list[str]:
     return [CAVEAT_TEXT[cid] for cid in entry.caveat_ids if cid in CAVEAT_TEXT]
 
 
-# Comparison metrics and the dataset each one reads.
-COMPARISON_METRIC_DATASETS: dict[str, str] = {
-    "ignition_count": "cpuc_ignitions",
-    "epss_outage_count": "epss_outages",
-    "epss_to_ignition_ratio": "epss_outages",
-    "calfire_incident_count": "calfire_incidents",
-    "acres_burned": "calfire_incidents",
-    "psps_event_count": "psps_events",
-    "customers_deenergized": "psps_events",
-}
+def __getattr__(name: str) -> Any:
+    """COMPARISON_METRIC_DATASETS: comparison metric -> the dataset it reads.
+
+    The comparison service owns its metrics, so the map is its own
+    (``services.comparison.metrics.METRIC_DATASETS``), read on first use because
+    that module imports this one.
+    """
+    if name == "COMPARISON_METRIC_DATASETS":
+        from services.comparison.metrics import METRIC_DATASETS
+
+        return METRIC_DATASETS
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def utility_coverage_gap(dataset: str | None, utilities: list[str]) -> dict[str, Any] | None:
@@ -769,14 +771,15 @@ def utility_coverage_gap(dataset: str | None, utilities: list[str]) -> dict[str,
 
     A read that names at least one covered utility runs; the service returns
     the uncovered side as null with its reason (a comparison), so only a read
-    with no covered utility at all is refused.
+    with no covered utility at all is refused. An unknown dataset raises: a
+    coverage check that cannot find its dataset must not pass silently.
     """
     if not dataset or not utilities:
         return None
     try:
         spec = DATASETS[to_canonical(dataset)]
-    except (KeyError, ValueError):
-        return None
+    except (KeyError, ValueError) as exc:
+        raise ValueError(f"utility coverage: unknown dataset {dataset!r}") from exc
     covered = spec.covered_utilities
     if covered is None:
         return None
@@ -790,3 +793,59 @@ def utility_coverage_gap(dataset: str | None, utilities: list[str]) -> dict[str,
         "reason": spec.not_covered_reason,
         "alternatives": list(spec.not_covered_alternatives),
     }
+
+
+def single_utility_dataset(dataset: str | None) -> bool:
+    """True when the dataset holds rows for exactly one utility (EPSS: PG&E).
+
+    Such a dataset has no utility dimension to rank or group by.
+    """
+    if not dataset:
+        return False
+    covered = DATASETS[to_canonical(dataset)].covered_utilities
+    return covered is not None and len(covered) == 1
+
+
+def _utility_names(codes: list[str]) -> str:
+    return " and ".join(UTILITY_CLARIFY_LABELS.get(code, code) for code in codes)
+
+
+def not_covered_message(gap: dict[str, Any], *, subject: str = "result") -> str:
+    """The reason, that the result is absent rather than zero, and what data exists."""
+    label = STAT_LABELS.get(gap["dataset"], gap["dataset"])
+    named = _utility_names(gap["utilities"])
+    text = (
+        f"{gap.get('reason') or label + ' do not cover this utility'}, so there are "
+        f"no {named} rows in {label}: that {subject} would be absent, not zero."
+    )
+    alternatives = [STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []]
+    if alternatives:
+        text += f" {named} data that does exist: {' and '.join(alternatives)}."
+    return text
+
+
+def not_covered_question(gap: dict[str, Any], *, comparison: bool = False) -> str:
+    """Clarification for an uncovered read: the reason, then what to use instead."""
+    label = STAT_LABELS.get(gap["dataset"], gap["dataset"])
+    named = _utility_names(gap["utilities"])
+    covered = _utility_names(list(gap.get("covered_utilities") or []))
+    alternatives = " or ".join(
+        STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []
+    )
+    reason = gap.get("reason") or f"{label} do not cover {named}"
+    head = (
+        f"{reason}, so there are no {named} rows in {label}: that "
+        f"{'comparison' if comparison else 'result'} would be absent, not zero."
+    )
+    offers: list[str] = []
+    if comparison:
+        if alternatives:
+            offers.append(f"compare {named}'s {alternatives} instead")
+        if covered:
+            offers.append(f"{covered}'s {label}")
+        return f"{head} Do you want to {', or '.join(offers)}?" if offers else head
+    if covered:
+        offers.append(f"{covered}'s {label} for that period")
+    if alternatives:
+        offers.append(f"{named}'s {alternatives} instead")
+    return f"{head} Do you want {', or '.join(offers)}?" if offers else head

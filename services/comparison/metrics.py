@@ -23,17 +23,20 @@ MetricName = Literal[
     "customers_deenergized",
 ]
 
-METRICS: frozenset[str] = frozenset(
-    {
-        "ignition_count",
-        "epss_outage_count",
-        "epss_to_ignition_ratio",
-        "calfire_incident_count",
-        "acres_burned",
-        "psps_event_count",
-        "customers_deenergized",
-    }
-)
+# Each metric and the dataset whose rows it counts (queries.raw_metric). A
+# ratio's dataset is its numerator's, which decides utility coverage. The
+# shared registry exposes this map as COMPARISON_METRIC_DATASETS.
+METRIC_DATASETS: dict[str, str] = {
+    "ignition_count": "cpuc_ignitions",
+    "epss_outage_count": "epss_outages",
+    "epss_to_ignition_ratio": "epss_outages",
+    "calfire_incident_count": "calfire_incidents",
+    "acres_burned": "calfire_incidents",
+    "psps_event_count": "psps_events",
+    "customers_deenergized": "psps_events",
+}
+
+METRICS: frozenset[str] = frozenset(METRIC_DATASETS)
 
 NormalizeMode = Literal["none", "per_circuit", "per_km2"]
 NORMALIZATIONS: frozenset[str] = frozenset({"none", "per_circuit", "per_km2"})

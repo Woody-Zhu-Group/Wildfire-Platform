@@ -28,6 +28,7 @@ from services.agent.time_resolve import (
 )
 from services.shared.dataset_registry import (
     SERIES_DATASETS,
+    ALLOWED_RANK_PAIRS,
     ALL_CAUSES_AFTER_IGNITIONS_PATTERN,
     ALL_CAUSES_BEFORE_IGNITIONS_PATTERN,
     BARE_IGNITIONS_PATTERN,
@@ -52,6 +53,9 @@ from services.shared.dataset_registry import (
     UTILITY_ADVICE_SUBJECT_WORDS,
     UTILITY_CLARIFY_LABELS,
     UTILITY_PATTERNS,
+    not_covered_question,
+    single_utility_dataset,
+    utility_coverage_gap,
 )
 
 
@@ -1220,38 +1224,34 @@ def _county_expressed(args: dict[str, Any], county: str) -> bool:
     return isinstance(value, str) and value.lower() == county.lower()
 
 
-_EPSS_COMPARISON_METRICS = frozenset({"epss_outage_count", "epss_to_ignition_ratio"})
+# The clarification rule for a read the dataset does not cover, per dataset
+# with limited coverage (DatasetSpec.covered_utilities is not None). Label rule
+# I is EPSS (PG&E only); label rule J is the US sample (no utility column).
+NOT_COVERED_RULES = {
+    "epss_outages": "epss_non_pge_utility",
+    "us_ignitions": "us_sample_utility_filter",
+}
 
 
-def _epss_non_pge_clarification(
-    utilities: list[str],
+def _not_covered_clarification(
+    gap: dict[str, Any],
     slots: dict[str, Any],
     *,
     comparison: bool = False,
 ) -> RouteDecision:
-    """Label rule I: EPSS is PG&E-only, so a non-PG&E EPSS answer is absent, not zero."""
-    named = " and ".join(utilities)
-    if comparison:
-        # Rule I on comparison routes: every side of the comparison would be
-        # null, so offer the datasets those utilities do have.
-        answer = (
-            f"EPSS outages in this warehouse are PG&E-only, so there are no "
-            f"{named} EPSS rows: that comparison would be absent, not zero. "
-            f"Do you want to compare {named}'s PSPS events or CPUC ignitions "
-            f"instead, or PG&E's EPSS outages?"
-        )
-    else:
-        answer = (
-            f"EPSS outages in this warehouse are PG&E-only, so there are no "
-            f"{named} EPSS rows: that result would be absent, not zero. "
-            f"Do you want PG&E's EPSS outages for that period, or "
-            f"{named}'s PSPS events or CPUC ignitions instead?"
-        )
+    """A read the dataset holds no rows for is absent, not zero (label rules I, J).
+
+    The reason, the covered utilities, and the alternatives all come from the
+    registry entry, so the text follows the data rather than a fixed sentence.
+    On a comparison every side would be null, so it offers the datasets those
+    utilities do have.
+    """
+    named = " and ".join(gap["utilities"])
     return RouteDecision(
         "clarification",
-        "epss_non_pge_utility",
-        f"EPSS is PG&E-only; {named} has no EPSS rows",
-        answer=answer,
+        NOT_COVERED_RULES[gap["dataset"]],
+        f"{gap.get('reason')}; {named} has no {gap['dataset']} rows",
+        answer=not_covered_question(gap, comparison=comparison),
         slots=slots,
     )
 
@@ -1372,20 +1372,13 @@ def _block_unexpressed_constraints(
     reason: str,
 ) -> RouteDecision | None:
     """Refuse a deterministic answer that would silently drop asked filters."""
-    epss_utility = next(
-        (
-            str(args.get("utility"))
-            for _tool, args in tool_calls
-            if args.get("dataset") in {"epss_outages", "epss"}
-            and args.get("utility")
-            and str(args.get("utility")) != "PGE"
-        ),
-        None,
-    )
-    if epss_utility:
-        # EPSS rows exist only for PG&E. Another utility's EPSS read would come
-        # back as 0 or an empty series, which is absent data, not zero events.
-        return _epss_non_pge_clarification([epss_utility], slots)
+    for _tool, args in tool_calls:
+        # A read for a utility the dataset holds no rows for (EPSS is PG&E
+        # only) would come back as 0 or an empty series: absent, not zero.
+        if args.get("dataset") and args.get("utility"):
+            gap = utility_coverage_gap(args["dataset"], [str(args["utility"])])
+            if gap is not None:
+                return _not_covered_clarification(gap, slots)
     dropped: list[str] = []
     county = slots.get("county")
     if county and not any(
@@ -2235,15 +2228,21 @@ def _route_ranking(
             slots=slots,
         )
 
-    if group_by == "utility" and dataset == "epss_outages":
+    if group_by == "utility" and single_utility_dataset(dataset):
+        # A dataset with rows for one utility (EPSS: PG&E) has no utility
+        # dimension; offer the groupings the registry does rank it by.
+        spec = DATASETS[dataset]
+        label = STAT_LABELS.get(spec.key, spec.key)
+        groupings = sorted({group for key, group, _m in ALLOWED_RANK_PAIRS if key == spec.key})
+        by = f"rank {label} by {' or '.join(groupings)}, or " if groupings else ""
         return RouteDecision(
             "unsupported",
             "unsupported_rank_epss_utility",
-            "EPSS is PG&E-only; no utility dimension to rank",
+            f"{spec.not_covered_reason}; no utility dimension to rank",
             answer=(
-                "EPSS outages in this warehouse are PG&E-only; there is no "
-                "utility dimension to rank. I can rank EPSS circuits, or "
-                "compare named utilities on a metric that exists for them."
+                f"{spec.not_covered_reason}; there is no utility dimension to "
+                f"rank. I can {by}compare named utilities on a metric that "
+                "exists for them."
             ),
             slots=slots,
         )
@@ -3215,11 +3214,17 @@ def _route_question(
     if re.search(r"\bcompare|versus|\bvs\.?\b", lower):
         metric = _comparison_metric(lower)
 
-        # Label rule I on comparisons: an EPSS comparison where no named
-        # utility is PG&E would be all nulls, so clarify. With PG&E named it
-        # runs, and the non-PG&E side comes back null with its reason.
-        if metric in _EPSS_COMPARISON_METRICS and utilities and "PGE" not in utilities:
-            return _epss_non_pge_clarification(list(utilities), slots, comparison=True)
+        # A comparison whose metric's dataset covers none of the named
+        # utilities (label rule I: EPSS without PG&E) would be all nulls, so
+        # clarify. With a covered utility named it runs, and the uncovered side
+        # comes back null with its reason.
+        gap = (
+            utility_coverage_gap(COMPARISON_METRIC_DATASETS[metric], list(utilities))
+            if metric
+            else None
+        )
+        if gap is not None:
+            return _not_covered_clarification(gap, slots, comparison=True)
 
         # Two calendar years + one utility → periods. Two utilities + one year
         # → utilities. Never infer periods from a single relative year.
