@@ -58,12 +58,15 @@ What stays separate, and why:
 - **`frontend/assets/js`**: the legacy static map page keeps its own layer labels and utility seed list. It loads no module, so it cannot import the registry; it is out of scope until it is retired or reads `shared/naming.json`.
 - **`analysis/`** and **`services/risk_forecasting/legacy/`**: one-off research scripts and superseded reference code, left as written.
 
-Open inconsistencies this PR recorded and did not change (each would change behavior):
+Open inconsistency recorded and not changed (it would change behavior):
 
-- `db/loaders/validate.py` counts `non_wildfire_typed` as `incident_type IS DISTINCT FROM 'Wildfire'`, so its 38 `Fire` rows count as non-wildfire, unlike the Wildfire+Fire default everywhere else.
-- `/rank` with `group_by=utility` returns codes (`PGE`); `/grouped-counts` returns display labels (`PG&E`).
-- The data_query aggregate and rank endpoints accept only canonical dataset keys, not registry aliases, and `parse_viz_dataset` does not accept the `cal fire` or `wildfire_incidents` aliases that `to_canonical` accepts.
-- `normalize_psps_utility` passes an unknown source spelling through unchanged instead of failing.
+- `/rank` with `group_by=utility` returns codes (`PGE`); `/grouped-counts` returns display labels (`PG&E`). Issue #89 proposes adding a `code` and a `label` field to each row rather than changing the existing values.
+
+Resolved in `naming-followups` (2026-09-24):
+
+- `db/loaders/validate.py` counts typed CAL FIRE rows outside the registry default (`calfire_default_type_sql`), so the 38 `Fire` rows no longer count as non-wildfire. On the local warehouse the count went from 42 to 4 (2 Flood, 1 Earthquake, 1 Hazmat); the line now reads "incident_type outside the Wildfire,Fire default".
+- Every endpoint that takes a dataset accepts the registry aliases. `/rank`, `/grouped-counts`, and `/summary` resolve the name with `parse_dataset` (`services/data_query/filters.py`), and `parse_viz_dataset` falls back to `to_viz_key`, which covers `/map-layer`, `/time-series`, and `/event-detail`. A name the registry does not know still gets each endpoint's own 400.
+- `normalize_psps_utility` raises `UnknownPspsUtilityError` on a spelling that matches no utility code. The current `psps_events.geojson` has 61 events in four spellings (SCE 37, PGE 14, SDGE 5, Liberty 5), all known.
 
 ### EPSS cause codes (written rule, 2026-09-24)
 

@@ -183,13 +183,28 @@ def report_orphans(
     print(f"    sample: {sample}")
 
 
+class UnknownPspsUtilityError(ValueError):
+    """A PSPS source IOU spelling that matches no warehouse utility code."""
+
+
 def normalize_psps_utility(iou_raw: str) -> str:
+    """Map a PSPS source IOU spelling to its warehouse utility code, or raise.
+
+    An unknown spelling fails the load instead of passing through, because a
+    passed-through value would never match a utility filter and would read
+    as zero events for that utility.
+    """
     s = (iou_raw or "").strip().upper().replace("&", "")
     # PG&E -> PGE, SDG&E -> SDGE after & removal; also handle spaced forms
     s = s.replace(" ", "")
     # Each warehouse code, keyed by its upper-case form ("LIBERTY" -> "Liberty").
     mapping = {code.upper(): code for code in UTILITY_CODES}
-    return mapping.get(s, iou_raw.strip())
+    if s not in mapping:
+        raise UnknownPspsUtilityError(
+            f"unknown PSPS IOU spelling {iou_raw!r}; known codes: "
+            f"{', '.join(UTILITY_CODES)}"
+        )
+    return mapping[s]
 
 
 def load_geojson(path: Path) -> dict:

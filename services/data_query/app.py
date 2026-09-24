@@ -18,6 +18,7 @@ from services.data_query.filters import (
     parse_cause,
     parse_circuit_id,
     parse_county,
+    parse_dataset,
     parse_date_param,
     parse_format,
     parse_incident_type,
@@ -131,7 +132,7 @@ def rank(
     conn: psycopg.Connection = Depends(get_conn),
 ) -> dict[str, Any]:
     """Single-dataset top-N ranking. Does not mix warehouse datasets."""
-    dataset_key = dataset.strip().lower()
+    dataset_key = parse_dataset(dataset)
     group_key = group_by.strip().lower()
     metric_key = metric.strip().lower()
     if dataset_key == "us_ignitions":
@@ -236,7 +237,7 @@ def grouped_counts(
     conn: psycopg.Connection = Depends(get_conn),
 ) -> dict[str, Any]:
     """All-group counts for the workspace client (not a top-N ranking)."""
-    dataset_key = dataset.strip().lower()
+    dataset_key = parse_dataset(dataset)
     group_key = group_by.strip().lower()
     util = parse_utility(utility) if utility else None
     start = parse_date_param(start_date, "start_date")
@@ -270,7 +271,7 @@ def summary(
     conn: psycopg.Connection = Depends(get_conn),
 ) -> dict[str, Any]:
     """Filtered totals plus the dataset's workspace summary metrics."""
-    dataset_key = dataset.strip().lower()
+    dataset_key = parse_dataset(dataset)
     util = parse_utility(utility) if utility else None
     start = parse_date_param(start_date, "start_date")
     end = parse_date_param(end_date, "end_date")

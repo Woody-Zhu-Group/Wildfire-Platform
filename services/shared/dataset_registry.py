@@ -640,6 +640,12 @@ def parse_viz_dataset(value: str) -> str:
     ds = _VIZ_PARSE_ALIASES.get(ds, ds)
     allowed = set(DATASET_STYLES) | {"circuits"}
     if ds not in allowed:
+        # Every registry alias ("cal fire", "wildfire_incidents") as well.
+        try:
+            ds = to_viz_key(value)
+        except KeyError:
+            pass
+    if ds not in allowed:
         raise ValueError(
             f"unknown dataset {value!r}; allowed: {', '.join(sorted(allowed))}"
         )
