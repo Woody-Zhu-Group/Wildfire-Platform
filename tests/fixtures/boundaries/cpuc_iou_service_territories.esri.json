@@ -1,0 +1,257 @@
+{
+ "source_url": "fixture:https://services2.arcgis.com/VofPZYDe2pLxSP5G/arcgis/rest/services/IOU_Service_Territories/FeatureServer/0",
+ "fetched_at": "2026-09-24T00:00:00+00:00",
+ "layer_name": "fixture cpuc_iou_service_territories",
+ "native_wkid": 102599,
+ "data_last_edit": "2026-09-24T00:00:00+00:00",
+ "features": [
+  {
+   "attributes": {
+    "OBJECTID": 1,
+    "UtilityID": "PG&E",
+    "Name": "Pacific Gas & Electric Company",
+    "Shape__Area": 18345543691.36137
+   },
+   "geometry": {
+    "rings": [
+     [
+      [
+       -122.3,
+       37.9
+      ],
+      [
+       -122.3,
+       38.25
+      ],
+      [
+       -121.8,
+       38.25
+      ],
+      [
+       -121.8,
+       37.9
+      ],
+      [
+       -122.3,
+       37.9
+      ]
+     ],
+     [
+      [
+       -122.11710232122437,
+       38.02106763467982
+      ],
+      [
+       -121.96329767877563,
+       38.02106763467982
+      ],
+      [
+       -121.96329767877563,
+       38.14213236532019
+      ],
+      [
+       -122.11710232122437,
+       38.14213236532019
+      ],
+      [
+       -122.11710232122437,
+       38.02106763467982
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "attributes": {
+    "OBJECTID": 2,
+    "UtilityID": "SCE",
+    "Name": "Southern California Edison Company",
+    "Shape__Area": 4131497541.2605267
+   },
+   "geometry": {
+    "rings": [
+     [
+      [
+       -118.0,
+       34.0
+      ],
+      [
+       -118.0,
+       34.2
+      ],
+      [
+       -117.8,
+       34.2
+      ],
+      [
+       -117.8,
+       34.0
+      ],
+      [
+       -118.0,
+       34.0
+      ]
+     ],
+     [
+      [
+       -117.95,
+       34.05
+      ],
+      [
+       -117.9,
+       34.05
+      ],
+      [
+       -117.9,
+       34.1
+      ],
+      [
+       -117.95,
+       34.1
+      ],
+      [
+       -117.95,
+       34.05
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "attributes": {
+    "OBJECTID": 3,
+    "UtilityID": "PacifiCorp",
+    "Name": "Pacific Power",
+    "Shape__Area": 995893782.809287
+   },
+   "geometry": {
+    "rings": [
+     [
+      [
+       -122.6,
+       41.6
+      ],
+      [
+       -122.6,
+       41.7
+      ],
+      [
+       -122.5,
+       41.7
+      ],
+      [
+       -122.5,
+       41.6
+      ],
+      [
+       -122.6,
+       41.6
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "attributes": {
+    "OBJECTID": 4,
+    "UtilityID": "SDG&E",
+    "Name": "San Diego Gas & Electric Company",
+    "Shape__Area": 1117464613.5782673
+   },
+   "geometry": {
+    "rings": [
+     [
+      [
+       -117.1,
+       32.8
+      ],
+      [
+       -117.1,
+       32.9
+      ],
+      [
+       -117.0,
+       32.9
+      ],
+      [
+       -117.0,
+       32.8
+      ],
+      [
+       -117.1,
+       32.8
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "attributes": {
+    "OBJECTID": 5,
+    "UtilityID": "LU",
+    "Name": "Liberty Utilities",
+    "Shape__Area": 1031538787.4857837
+   },
+   "geometry": {
+    "rings": [
+     [
+      [
+       -120.1,
+       39.2
+      ],
+      [
+       -120.1,
+       39.3
+      ],
+      [
+       -120.0,
+       39.3
+      ],
+      [
+       -120.0,
+       39.2
+      ],
+      [
+       -120.1,
+       39.2
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "attributes": {
+    "OBJECTID": 6,
+    "UtilityID": "BVES",
+    "Name": "Bear Valley Electric Services",
+    "Shape__Area": 164984816.2774661
+   },
+   "geometry": {
+    "rings": [
+     [
+      [
+       -116.95,
+       34.23
+      ],
+      [
+       -116.95,
+       34.26
+      ],
+      [
+       -116.9,
+       34.26
+      ],
+      [
+       -116.9,
+       34.23
+      ],
+      [
+       -116.95,
+       34.23
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

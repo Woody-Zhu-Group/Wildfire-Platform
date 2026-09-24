@@ -429,57 +429,59 @@ def get_circuit(conn: psycopg.Connection, circuit_id: str) -> dict[str, Any] | N
     return rows[0] if rows else None
 
 
+# /hftd and /iou-territories return the full stored geometry by default: the
+# same polygons every count and point answer uses, so a downloaded boundary
+# matches the numbers. A client that only draws can pass `simplify` (degrees)
+# for a smaller payload; the map layers use 0.001.
+SIMPLIFY_MAX_DEGREES = 0.01
+
+
+def _boundary_geojson(alias: str, simplify: float | None) -> tuple[str, tuple]:
+    if simplify is None:
+        return f"ST_AsGeoJSON({alias}.geom)", ()
+    return (
+        f"ST_AsGeoJSON(ST_Multi(ST_SimplifyPreserveTopology({alias}.geom, %s)), 5)",
+        (simplify,),
+    )
+
+
 def query_hftd(
-    conn: psycopg.Connection, *, tier: str | None
+    conn: psycopg.Connection, *, tier: str | None, simplify: float | None = None
 ) -> list[dict[str, Any]]:
+    geom_sql, geom_params = _boundary_geojson("h", simplify)
+    where, where_params = ("WHERE h.tier = %s", (tier,)) if tier is not None else ("", ())
     with conn.cursor(row_factory=dict_row) as cur:
-        if tier is None:
-            cur.execute(
-                """
-                SELECT h.tier, h.objectid, h.shape_length, h.shape_area,
-                       ST_AsGeoJSON(h.geom) AS _geom_geojson
-                FROM wildfire.hftd_tiers h
-                ORDER BY h.tier
-                """
-            )
-        else:
-            cur.execute(
-                """
-                SELECT h.tier, h.objectid, h.shape_length, h.shape_area,
-                       ST_AsGeoJSON(h.geom) AS _geom_geojson
-                FROM wildfire.hftd_tiers h
-                WHERE h.tier = %s
-                ORDER BY h.tier
-                """,
-                (tier,),
-            )
+        cur.execute(
+            f"""
+            SELECT h.tier, h.objectid, h.shape_length, h.shape_area,
+                   {geom_sql} AS _geom_geojson
+            FROM wildfire.hftd_tiers h
+            {where}
+            ORDER BY h.tier
+            """,
+            geom_params + where_params,
+        )
         return list(cur.fetchall())
 
 
 def query_iou(
-    conn: psycopg.Connection, *, utility: str | None
+    conn: psycopg.Connection, *, utility: str | None, simplify: float | None = None
 ) -> list[dict[str, Any]]:
+    geom_sql, geom_params = _boundary_geojson("i", simplify)
+    where, where_params = (
+        ("WHERE i.utility = %s", (utility,)) if utility is not None else ("", ())
+    )
     with conn.cursor(row_factory=dict_row) as cur:
-        if utility is None:
-            cur.execute(
-                """
-                SELECT i.utility, i.utility_name,
-                       ST_AsGeoJSON(i.geom) AS _geom_geojson
-                FROM wildfire.iou_territories i
-                ORDER BY i.utility
-                """
-            )
-        else:
-            cur.execute(
-                """
-                SELECT i.utility, i.utility_name,
-                       ST_AsGeoJSON(i.geom) AS _geom_geojson
-                FROM wildfire.iou_territories i
-                WHERE i.utility = %s
-                ORDER BY i.utility
-                """,
-                (utility,),
-            )
+        cur.execute(
+            f"""
+            SELECT i.utility, i.utility_name,
+                   {geom_sql} AS _geom_geojson
+            FROM wildfire.iou_territories i
+            {where}
+            ORDER BY i.utility
+            """,
+            geom_params + where_params,
+        )
         return list(cur.fetchall())
 
 

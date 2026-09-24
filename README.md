@@ -358,8 +358,11 @@ Also returned: `local_percentile` (this place’s P(≥1) vs the same place on c
 
 | Env var | Default | Purpose |
 |---------|---------|---------|
+| `RISK_FORECASTING_ROOT` | `services/risk_forecasting` | Service root; the data and artifacts defaults sit under it |
 | `RISK_FORECASTING_DATA_DIR` | `services/risk_forecasting/data` | Data root |
 | `RISK_FORECASTING_ARTIFACTS_DIR` | `services/risk_forecasting/artifacts` | Params root |
+
+These three may be set in the repo `.env` or the process environment (the process wins). Relative paths resolve from the repo root, not the working directory.
 | `TRAIN_YEARS` | `2020,2021,2022,2023` | Fit years |
 | `VAL_YEAR` | `2024` | Validation year used for xi selection |
 | `LOOKBACK_DAYS` | `90` | Trailing window for `/predict` |

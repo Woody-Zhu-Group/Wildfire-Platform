@@ -30,8 +30,8 @@ Connection settings come from repo-root `.env` via `shared/db.py` (default port 
 | `GET /psps/events/{event_name}/circuits` | `{event_name:path}` so names like `PGE PSPS Event 10/11/21` work; orphans return `geometry: null` |
 | `GET /calfire/incidents` | Default types `Wildfire`,`Fire` only; `incident_type=untyped\|all` (or one exact type); `min_acres`, `county` |
 | `GET /circuits` / `GET /circuits/{id}` | List filters: `circuit_id`, `division`, `substation`. IDs are 9-digit TEXT (leading zeros kept) |
-| `GET /hftd` | Optional `tier=Tier 2\|Tier 3` |
-| `GET /iou-territories` | Optional `utility` |
+| `GET /hftd` | Optional `tier=Tier 2\|Tier 3`. Full stored geometry by default (the polygons every count and point answer uses); `simplify=<degrees>` (0 < s <= 0.01) returns a display-only simplified outline and records it in `meta.geometry_simplified_degrees` |
+| `GET /iou-territories` | Optional `utility`. Same `simplify` option as `/hftd` |
 | `GET /spatial/point` | `lat`, `lon` (required). IOU + HFTD + grid cell + county (Census TIGER PIP) |
 | `GET /spatial/summary` | Counts inside utility **or** HFTD polygon. Exactly one of `utility` / `hftd_tier`; `start_date` and `end_date` required |
 | `GET /rank` | Single-dataset top-N (`dataset=cpuc_ignitions\|calfire_incidents\|epss_outages`, `group_by=county\|utility\|circuit`, `metric=count\|acres_burned`, default limit 10, cap 25). Allowed pairs: CPUC by county or utility (count), CAL FIRE by county (count or acres), EPSS by circuit (count). Ties at the cutoff are included. Not US-by-state or EPSS-by-utility (both 400). |
