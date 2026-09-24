@@ -80,3 +80,6 @@ services/agent/logs/
 /.github/hooks/hooks.json.malformed-*
 /.codex/hooks.json
 /.codex/hooks.json.malformed-*
+
+# Claude Code worktrees
+.claude/worktrees/
