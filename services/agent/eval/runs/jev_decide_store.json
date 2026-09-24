@@ -87497,7 +87497,1447 @@
    },
    "error": null,
    "exempt": null
+  },
+  "smoke|multi": {
+   "question": "Give me the 2022 ignition count for PG&E, SCE, and SDG&E",
+   "answers": {
+    "has_time_scope": {
+     "kind": "noul",
+     "value": 0.96,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_time": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "future_time": {
+     "kind": "noul",
+     "value": 0.01,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_specific_place": {
+     "kind": "noul",
+     "value": 0.52,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_proximity": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "broad_region": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "asks_risk": {
+     "kind": "noul",
+     "value": 0.04,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_risk_metric": {
+     "kind": "noul",
+     "value": 0.88,
+     "confidence": null,
+     "probabilities": null
+    },
+    "prompt_injection": {
+     "kind": "noul",
+     "value": 0.06,
+     "confidence": null,
+     "probabilities": null
+    },
+    "off_topic": {
+     "kind": "choice",
+     "value": "on_topic",
+     "confidence": 1.0,
+     "probabilities": {
+      "damage_or_loss": 0.0,
+      "optimization_or_scheduling": 0.0,
+      "cost_or_budget": 0.0,
+      "cpz": 0.0,
+      "live_or_web": 0.0,
+      "on_topic": 1.0,
+      "other_off_topic": 0.0
+     }
+    },
+    "intent": {
+     "kind": "choice",
+     "value": "compare",
+     "confidence": 0.39,
+     "probabilities": {
+      "compare": 0.43,
+      "map": 0.0,
+      "territory_boundary": 0.0,
+      "exploratory_overview": 0.0,
+      "count": 0.37,
+      "rank": 0.0,
+      "circuit_detail": 0.0,
+      "risk": 0.0,
+      "records_list": 0.02,
+      "spatial_context": 0.01,
+      "multi_intent": 0.17,
+      "other": 0.0,
+      "map_plus_trend": 0.0,
+      "trend": 0.0
+     }
+    },
+    "dataset": {
+     "kind": "choice",
+     "value": "cpuc_ignitions",
+     "confidence": 1.0,
+     "probabilities": {
+      "iou_territories": 0.0,
+      "epss_outages": 0.0,
+      "none": 0.0,
+      "psps_events": 0.0,
+      "us_ignitions": 0.0,
+      "cpuc_ignitions": 1.0,
+      "hftd": 0.0,
+      "multiple": 0.0,
+      "calfire_incidents": 0.0,
+      "circuits": 0.0
+     }
+    },
+    "is_multi_intent": {
+     "kind": "noul",
+     "value": 0.06,
+     "confidence": null,
+     "probabilities": null
+    },
+    "rank_dimension": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 0.95,
+     "probabilities": {
+      "cell": 0.0,
+      "division": 0.0,
+      "utility": 0.04,
+      "none": 0.96,
+      "state": 0.0,
+      "county": 0.0,
+      "circuit": 0.0
+     }
+    },
+    "mentions_multiple_datasets": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "measure": {
+     "kind": "choice",
+     "value": "event_count",
+     "confidence": 1.0,
+     "probabilities": {
+      "supported_rate": 0.0,
+      "other_measure": 0.0,
+      "historical_risk": 0.0,
+      "customers_affected": 0.0,
+      "acres_burned": 0.0,
+      "record_list": 0.0,
+      "event_count": 1.0
+     }
+    },
+    "clarify_reason": {
+     "kind": "choice",
+     "value": "not_applicable",
+     "confidence": 0.93,
+     "probabilities": {
+      "ambiguous_risk_place": 0.0,
+      "undefined_region": 0.0,
+      "ambiguous_relative_time": 0.0,
+      "records_missing_year": 0.02,
+      "risk_future_date": 0.0,
+      "time_out_of_coverage": 0.04,
+      "spatial_missing_year": 0.01,
+      "trend_missing_year": 0.0,
+      "map_plus_trend_missing_year": 0.0,
+      "series_mode_missing_dataset": 0.0,
+      "map_missing_year": 0.0,
+      "ranking_missing_slots": 0.0,
+      "ranking_missing_year": 0.0,
+      "series_mode_missing_year": 0.0,
+      "medical_exposure_missing_year": 0.0,
+      "ambiguous_risk_metric": 0.0,
+      "forecast_missing_date": 0.0,
+      "missing_location": 0.0,
+      "ranking_county_contradiction": 0.0,
+      "not_applicable": 0.93,
+      "risk_missing_place": 0.0,
+      "unexpressed_filter_constraints": 0.0,
+      "undefined_spatial_scope": 0.0
+     }
+    },
+    "utility_PGE": {
+     "kind": "noul",
+     "value": 0.91,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SCE": {
+     "kind": "noul",
+     "value": 0.97,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SDGE": {
+     "kind": "noul",
+     "value": 0.95,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_PACIFICORP": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_Liberty": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_BVES": {
+     "kind": "noul",
+     "value": 0.04,
+     "confidence": null,
+     "probabilities": null
+    },
+    "county": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 1.0,
+     "probabilities": {
+      "san_joaquin": 0.0,
+      "tehama": 0.0,
+      "santa_clara": 0.0,
+      "alpine": 0.0,
+      "siskiyou": 0.0,
+      "yuba": 0.0,
+      "madera": 0.0,
+      "yolo": 0.0,
+      "none": 1.0,
+      "napa": 0.0,
+      "el_dorado": 0.0,
+      "ventura": 0.0,
+      "kern": 0.0,
+      "modoc": 0.0,
+      "lassen": 0.0,
+      "butte": 0.0,
+      "humboldt": 0.0,
+      "riverside": 0.0,
+      "san_mateo": 0.0,
+      "sonoma": 0.0,
+      "sierra": 0.0,
+      "sacramento": 0.0,
+      "san_luis_obispo": 0.0,
+      "mariposa": 0.0,
+      "orange": 0.0,
+      "merced": 0.0,
+      "placer": 0.0,
+      "mendocino": 0.0,
+      "colusa": 0.0,
+      "san_bernardino": 0.0,
+      "calaveras": 0.0,
+      "trinity": 0.0,
+      "san_benito": 0.0,
+      "nevada": 0.0,
+      "alameda": 0.0,
+      "marin": 0.0,
+      "tuolumne": 0.0,
+      "plumas": 0.0,
+      "sutter": 0.0,
+      "kings": 0.0,
+      "monterey": 0.0,
+      "san_diego": 0.0,
+      "san_francisco": 0.0,
+      "solano": 0.0,
+      "shasta": 0.0,
+      "del_norte": 0.0,
+      "mono": 0.0,
+      "stanislaus": 0.0,
+      "lake": 0.0,
+      "santa_barbara": 0.0,
+      "contra_costa": 0.0,
+      "imperial": 0.0,
+      "inyo": 0.0,
+      "amador": 0.0,
+      "fresno": 0.0,
+      "los_angeles": 0.0,
+      "santa_cruz": 0.0,
+      "tulare": 0.0,
+      "glenn": 0.0
+     }
+    }
+   },
+   "error": null,
+   "exempt": null,
+   "backend": "openrouter",
+   "model_request": "typesafe/jev-1.13-20260917",
+   "captured": "2026-09-24"
+  },
+  "smoke|modesto": {
+   "question": "What utility service territory contains Modesto?",
+   "answers": {
+    "has_time_scope": {
+     "kind": "noul",
+     "value": 0.23,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_time": {
+     "kind": "noul",
+     "value": 0.07,
+     "confidence": null,
+     "probabilities": null
+    },
+    "future_time": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_specific_place": {
+     "kind": "noul",
+     "value": 0.17,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_proximity": {
+     "kind": "noul",
+     "value": 0.04,
+     "confidence": null,
+     "probabilities": null
+    },
+    "broad_region": {
+     "kind": "noul",
+     "value": 0.04,
+     "confidence": null,
+     "probabilities": null
+    },
+    "asks_risk": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_risk_metric": {
+     "kind": "noul",
+     "value": 0.1,
+     "confidence": null,
+     "probabilities": null
+    },
+    "prompt_injection": {
+     "kind": "noul",
+     "value": 0.08,
+     "confidence": null,
+     "probabilities": null
+    },
+    "off_topic": {
+     "kind": "choice",
+     "value": "on_topic",
+     "confidence": 0.89,
+     "probabilities": {
+      "on_topic": 0.9,
+      "other_off_topic": 0.08,
+      "cpz": 0.02,
+      "optimization_or_scheduling": 0.0,
+      "cost_or_budget": 0.0,
+      "live_or_web": 0.0,
+      "damage_or_loss": 0.0
+     }
+    },
+    "intent": {
+     "kind": "choice",
+     "value": "spatial_context",
+     "confidence": 0.98,
+     "probabilities": {
+      "compare": 0.0,
+      "rank": 0.0,
+      "territory_boundary": 0.01,
+      "records_list": 0.0,
+      "circuit_detail": 0.0,
+      "multi_intent": 0.0,
+      "risk": 0.0,
+      "spatial_context": 0.98,
+      "trend": 0.0,
+      "exploratory_overview": 0.0,
+      "map_plus_trend": 0.0,
+      "count": 0.0,
+      "map": 0.0,
+      "other": 0.01
+     }
+    },
+    "dataset": {
+     "kind": "choice",
+     "value": "iou_territories",
+     "confidence": 0.99,
+     "probabilities": {
+      "epss_outages": 0.0,
+      "us_ignitions": 0.0,
+      "none": 0.01,
+      "calfire_incidents": 0.0,
+      "cpuc_ignitions": 0.0,
+      "multiple": 0.0,
+      "hftd": 0.0,
+      "circuits": 0.0,
+      "psps_events": 0.0,
+      "iou_territories": 0.99
+     }
+    },
+    "is_multi_intent": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "rank_dimension": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 1.0,
+     "probabilities": {
+      "utility": 0.0,
+      "none": 1.0,
+      "division": 0.0,
+      "county": 0.0,
+      "cell": 0.0,
+      "circuit": 0.0,
+      "state": 0.0
+     }
+    },
+    "mentions_multiple_datasets": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "measure": {
+     "kind": "choice",
+     "value": "other_measure",
+     "confidence": 0.96,
+     "probabilities": {
+      "historical_risk": 0.0,
+      "supported_rate": 0.0,
+      "customers_affected": 0.0,
+      "other_measure": 0.97,
+      "event_count": 0.0,
+      "acres_burned": 0.0,
+      "record_list": 0.03
+     }
+    },
+    "clarify_reason": {
+     "kind": "choice",
+     "value": "not_applicable",
+     "confidence": 0.97,
+     "probabilities": {
+      "ambiguous_relative_time": 0.0,
+      "series_mode_missing_year": 0.0,
+      "undefined_spatial_scope": 0.0,
+      "records_missing_year": 0.0,
+      "missing_location": 0.0,
+      "ambiguous_risk_metric": 0.0,
+      "ranking_county_contradiction": 0.0,
+      "spatial_missing_year": 0.0,
+      "ranking_missing_slots": 0.0,
+      "unexpressed_filter_constraints": 0.0,
+      "series_mode_missing_dataset": 0.0,
+      "trend_missing_year": 0.0,
+      "forecast_missing_date": 0.0,
+      "medical_exposure_missing_year": 0.0,
+      "not_applicable": 0.98,
+      "time_out_of_coverage": 0.0,
+      "map_missing_year": 0.0,
+      "ambiguous_risk_place": 0.0,
+      "undefined_region": 0.0,
+      "risk_future_date": 0.0,
+      "ranking_missing_year": 0.0,
+      "map_plus_trend_missing_year": 0.0,
+      "risk_missing_place": 0.02
+     }
+    },
+    "utility_PGE": {
+     "kind": "noul",
+     "value": 0.67,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SCE": {
+     "kind": "noul",
+     "value": 0.07,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SDGE": {
+     "kind": "noul",
+     "value": 0.05,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_PACIFICORP": {
+     "kind": "noul",
+     "value": 0.11,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_Liberty": {
+     "kind": "noul",
+     "value": 0.14,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_BVES": {
+     "kind": "noul",
+     "value": 0.19,
+     "confidence": null,
+     "probabilities": null
+    },
+    "county": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 0.99,
+     "probabilities": {
+      "madera": 0.0,
+      "san_diego": 0.0,
+      "imperial": 0.0,
+      "sacramento": 0.0,
+      "placer": 0.0,
+      "amador": 0.0,
+      "san_bernardino": 0.0,
+      "plumas": 0.0,
+      "sutter": 0.0,
+      "tulare": 0.0,
+      "none": 0.99,
+      "butte": 0.0,
+      "inyo": 0.0,
+      "los_angeles": 0.0,
+      "shasta": 0.0,
+      "mendocino": 0.0,
+      "merced": 0.0,
+      "lassen": 0.0,
+      "mariposa": 0.0,
+      "calaveras": 0.0,
+      "solano": 0.0,
+      "san_francisco": 0.0,
+      "santa_cruz": 0.0,
+      "san_benito": 0.0,
+      "sierra": 0.0,
+      "san_mateo": 0.0,
+      "ventura": 0.0,
+      "napa": 0.0,
+      "lake": 0.0,
+      "santa_clara": 0.0,
+      "san_luis_obispo": 0.0,
+      "alpine": 0.0,
+      "el_dorado": 0.0,
+      "del_norte": 0.0,
+      "fresno": 0.0,
+      "yuba": 0.0,
+      "trinity": 0.0,
+      "modoc": 0.0,
+      "kern": 0.0,
+      "humboldt": 0.0,
+      "tehama": 0.0,
+      "siskiyou": 0.0,
+      "contra_costa": 0.0,
+      "yolo": 0.0,
+      "san_joaquin": 0.0,
+      "riverside": 0.0,
+      "mono": 0.0,
+      "colusa": 0.0,
+      "marin": 0.0,
+      "tuolumne": 0.0,
+      "sonoma": 0.0,
+      "nevada": 0.0,
+      "monterey": 0.0,
+      "kings": 0.0,
+      "orange": 0.0,
+      "stanislaus": 0.01,
+      "alameda": 0.0,
+      "glenn": 0.0,
+      "santa_barbara": 0.0
+     }
+    }
+   },
+   "error": null,
+   "exempt": null,
+   "backend": "openrouter",
+   "model_request": "typesafe/jev-1.13-20260917",
+   "captured": "2026-09-24"
+  },
+  "smoke|modesto_count": {
+   "question": "How many CAL FIRE incidents were there in Modesto in 2023?",
+   "answers": {
+    "has_time_scope": {
+     "kind": "noul",
+     "value": 0.96,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_time": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "future_time": {
+     "kind": "noul",
+     "value": 0.01,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_specific_place": {
+     "kind": "noul",
+     "value": 0.36,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_proximity": {
+     "kind": "noul",
+     "value": 0.06,
+     "confidence": null,
+     "probabilities": null
+    },
+    "broad_region": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "asks_risk": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_risk_metric": {
+     "kind": "noul",
+     "value": 0.74,
+     "confidence": null,
+     "probabilities": null
+    },
+    "prompt_injection": {
+     "kind": "noul",
+     "value": 0.06,
+     "confidence": null,
+     "probabilities": null
+    },
+    "off_topic": {
+     "kind": "choice",
+     "value": "on_topic",
+     "confidence": 1.0,
+     "probabilities": {
+      "cpz": 0.0,
+      "on_topic": 1.0,
+      "live_or_web": 0.0,
+      "optimization_or_scheduling": 0.0,
+      "other_off_topic": 0.0,
+      "damage_or_loss": 0.0,
+      "cost_or_budget": 0.0
+     }
+    },
+    "intent": {
+     "kind": "choice",
+     "value": "count",
+     "confidence": 0.9,
+     "probabilities": {
+      "trend": 0.0,
+      "risk": 0.0,
+      "territory_boundary": 0.0,
+      "map": 0.0,
+      "map_plus_trend": 0.0,
+      "spatial_context": 0.08,
+      "other": 0.01,
+      "exploratory_overview": 0.0,
+      "multi_intent": 0.0,
+      "rank": 0.0,
+      "circuit_detail": 0.0,
+      "count": 0.91,
+      "records_list": 0.0,
+      "compare": 0.0
+     }
+    },
+    "dataset": {
+     "kind": "choice",
+     "value": "calfire_incidents",
+     "confidence": 1.0,
+     "probabilities": {
+      "iou_territories": 0.0,
+      "none": 0.0,
+      "hftd": 0.0,
+      "psps_events": 0.0,
+      "calfire_incidents": 1.0,
+      "multiple": 0.0,
+      "cpuc_ignitions": 0.0,
+      "epss_outages": 0.0,
+      "us_ignitions": 0.0,
+      "circuits": 0.0
+     }
+    },
+    "is_multi_intent": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "rank_dimension": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 0.99,
+     "probabilities": {
+      "none": 1.0,
+      "circuit": 0.0,
+      "county": 0.0,
+      "state": 0.0,
+      "cell": 0.0,
+      "division": 0.0,
+      "utility": 0.0
+     }
+    },
+    "mentions_multiple_datasets": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "measure": {
+     "kind": "choice",
+     "value": "event_count",
+     "confidence": 1.0,
+     "probabilities": {
+      "supported_rate": 0.0,
+      "customers_affected": 0.0,
+      "record_list": 0.0,
+      "historical_risk": 0.0,
+      "other_measure": 0.0,
+      "event_count": 1.0,
+      "acres_burned": 0.0
+     }
+    },
+    "clarify_reason": {
+     "kind": "choice",
+     "value": "unexpressed_filter_constraints",
+     "confidence": 0.61,
+     "probabilities": {
+      "records_missing_year": 0.01,
+      "forecast_missing_date": 0.0,
+      "time_out_of_coverage": 0.01,
+      "series_mode_missing_year": 0.0,
+      "risk_future_date": 0.0,
+      "ranking_missing_year": 0.0,
+      "ambiguous_risk_metric": 0.0,
+      "unexpressed_filter_constraints": 0.63,
+      "missing_location": 0.03,
+      "not_applicable": 0.16,
+      "undefined_region": 0.0,
+      "ranking_county_contradiction": 0.0,
+      "ambiguous_relative_time": 0.0,
+      "map_missing_year": 0.0,
+      "trend_missing_year": 0.0,
+      "ambiguous_risk_place": 0.0,
+      "medical_exposure_missing_year": 0.0,
+      "ranking_missing_slots": 0.0,
+      "undefined_spatial_scope": 0.08,
+      "series_mode_missing_dataset": 0.0,
+      "map_plus_trend_missing_year": 0.0,
+      "risk_missing_place": 0.01,
+      "spatial_missing_year": 0.07
+     }
+    },
+    "utility_PGE": {
+     "kind": "noul",
+     "value": 0.09,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SCE": {
+     "kind": "noul",
+     "value": 0.05,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SDGE": {
+     "kind": "noul",
+     "value": 0.04,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_PACIFICORP": {
+     "kind": "noul",
+     "value": 0.04,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_Liberty": {
+     "kind": "noul",
+     "value": 0.06,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_BVES": {
+     "kind": "noul",
+     "value": 0.05,
+     "confidence": null,
+     "probabilities": null
+    },
+    "county": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 0.91,
+     "probabilities": {
+      "trinity": 0.0,
+      "mono": 0.0,
+      "san_mateo": 0.0,
+      "san_francisco": 0.0,
+      "mendocino": 0.0,
+      "nevada": 0.0,
+      "kings": 0.0,
+      "shasta": 0.0,
+      "yolo": 0.0,
+      "yuba": 0.0,
+      "imperial": 0.0,
+      "santa_cruz": 0.0,
+      "merced": 0.0,
+      "riverside": 0.0,
+      "san_joaquin": 0.01,
+      "los_angeles": 0.0,
+      "modoc": 0.0,
+      "san_benito": 0.0,
+      "san_bernardino": 0.0,
+      "san_diego": 0.0,
+      "tehama": 0.0,
+      "san_luis_obispo": 0.0,
+      "stanislaus": 0.07,
+      "sutter": 0.0,
+      "santa_barbara": 0.0,
+      "butte": 0.0,
+      "mariposa": 0.0,
+      "marin": 0.0,
+      "del_norte": 0.0,
+      "tulare": 0.0,
+      "plumas": 0.0,
+      "sierra": 0.0,
+      "contra_costa": 0.0,
+      "glenn": 0.0,
+      "sacramento": 0.0,
+      "napa": 0.0,
+      "lake": 0.0,
+      "sonoma": 0.0,
+      "none": 0.92,
+      "calaveras": 0.0,
+      "ventura": 0.0,
+      "colusa": 0.0,
+      "santa_clara": 0.0,
+      "orange": 0.0,
+      "alpine": 0.0,
+      "madera": 0.0,
+      "siskiyou": 0.0,
+      "tuolumne": 0.0,
+      "humboldt": 0.0,
+      "inyo": 0.0,
+      "lassen": 0.0,
+      "amador": 0.0,
+      "el_dorado": 0.0,
+      "fresno": 0.0,
+      "monterey": 0.0,
+      "placer": 0.0,
+      "kern": 0.0,
+      "alameda": 0.0,
+      "solano": 0.0
+     }
+    }
+   },
+   "error": null,
+   "exempt": "backstop",
+   "backend": "openrouter",
+   "model_request": "typesafe/jev-1.13-20260917",
+   "captured": "2026-09-24"
+  },
+  "smoke|epss_rank": {
+   "question": "Rank utilities by EPSS events in 2023",
+   "answers": {
+    "has_time_scope": {
+     "kind": "noul",
+     "value": 0.95,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_time": {
+     "kind": "noul",
+     "value": 0.03,
+     "confidence": null,
+     "probabilities": null
+    },
+    "future_time": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_specific_place": {
+     "kind": "noul",
+     "value": 0.04,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_proximity": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "broad_region": {
+     "kind": "noul",
+     "value": 0.05,
+     "confidence": null,
+     "probabilities": null
+    },
+    "asks_risk": {
+     "kind": "noul",
+     "value": 0.09,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_risk_metric": {
+     "kind": "noul",
+     "value": 0.51,
+     "confidence": null,
+     "probabilities": null
+    },
+    "prompt_injection": {
+     "kind": "noul",
+     "value": 0.09,
+     "confidence": null,
+     "probabilities": null
+    },
+    "off_topic": {
+     "kind": "choice",
+     "value": "on_topic",
+     "confidence": 0.98,
+     "probabilities": {
+      "other_off_topic": 0.01,
+      "damage_or_loss": 0.0,
+      "cpz": 0.0,
+      "cost_or_budget": 0.0,
+      "live_or_web": 0.0,
+      "on_topic": 0.99,
+      "optimization_or_scheduling": 0.0
+     }
+    },
+    "intent": {
+     "kind": "choice",
+     "value": "rank",
+     "confidence": 0.98,
+     "probabilities": {
+      "multi_intent": 0.0,
+      "exploratory_overview": 0.0,
+      "count": 0.0,
+      "rank": 0.98,
+      "spatial_context": 0.0,
+      "map": 0.0,
+      "map_plus_trend": 0.0,
+      "other": 0.02,
+      "compare": 0.0,
+      "territory_boundary": 0.0,
+      "risk": 0.0,
+      "records_list": 0.0,
+      "circuit_detail": 0.0,
+      "trend": 0.0
+     }
+    },
+    "dataset": {
+     "kind": "choice",
+     "value": "epss_outages",
+     "confidence": 0.61,
+     "probabilities": {
+      "cpuc_ignitions": 0.03,
+      "epss_outages": 0.66,
+      "psps_events": 0.22,
+      "multiple": 0.0,
+      "none": 0.09,
+      "us_ignitions": 0.0,
+      "iou_territories": 0.0,
+      "hftd": 0.0,
+      "circuits": 0.0,
+      "calfire_incidents": 0.0
+     }
+    },
+    "is_multi_intent": {
+     "kind": "noul",
+     "value": 0.06,
+     "confidence": null,
+     "probabilities": null
+    },
+    "rank_dimension": {
+     "kind": "choice",
+     "value": "utility",
+     "confidence": 0.91,
+     "probabilities": {
+      "county": 0.01,
+      "division": 0.0,
+      "cell": 0.0,
+      "circuit": 0.06,
+      "utility": 0.92,
+      "state": 0.0,
+      "none": 0.01
+     }
+    },
+    "mentions_multiple_datasets": {
+     "kind": "noul",
+     "value": 0.05,
+     "confidence": null,
+     "probabilities": null
+    },
+    "measure": {
+     "kind": "choice",
+     "value": "event_count",
+     "confidence": 0.99,
+     "probabilities": {
+      "acres_burned": 0.0,
+      "customers_affected": 0.0,
+      "record_list": 0.0,
+      "event_count": 0.99,
+      "supported_rate": 0.0,
+      "historical_risk": 0.0,
+      "other_measure": 0.01
+     }
+    },
+    "clarify_reason": {
+     "kind": "choice",
+     "value": "ranking_missing_slots",
+     "confidence": 0.44,
+     "probabilities": {
+      "risk_missing_place": 0.0,
+      "not_applicable": 0.35000000000000003,
+      "time_out_of_coverage": 0.07,
+      "ambiguous_risk_place": 0.0,
+      "ambiguous_risk_metric": 0.0,
+      "series_mode_missing_dataset": 0.0,
+      "undefined_region": 0.0,
+      "ranking_county_contradiction": 0.0,
+      "medical_exposure_missing_year": 0.0,
+      "ranking_missing_slots": 0.47000000000000003,
+      "ambiguous_relative_time": 0.0,
+      "series_mode_missing_year": 0.0,
+      "risk_future_date": 0.0,
+      "ranking_missing_year": 0.09999999999999999,
+      "map_plus_trend_missing_year": 0.0,
+      "spatial_missing_year": 0.0,
+      "records_missing_year": 0.0,
+      "forecast_missing_date": 0.0,
+      "unexpressed_filter_constraints": 0.0,
+      "trend_missing_year": 0.0,
+      "undefined_spatial_scope": 0.0,
+      "missing_location": 0.0,
+      "map_missing_year": 0.0
+     }
+    },
+    "utility_PGE": {
+     "kind": "noul",
+     "value": 0.32,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SCE": {
+     "kind": "noul",
+     "value": 0.27,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SDGE": {
+     "kind": "noul",
+     "value": 0.22,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_PACIFICORP": {
+     "kind": "noul",
+     "value": 0.62,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_Liberty": {
+     "kind": "noul",
+     "value": 0.55,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_BVES": {
+     "kind": "noul",
+     "value": 0.55,
+     "confidence": null,
+     "probabilities": null
+    },
+    "county": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 1.0,
+     "probabilities": {
+      "mariposa": 0.0,
+      "santa_barbara": 0.0,
+      "los_angeles": 0.0,
+      "monterey": 0.0,
+      "humboldt": 0.0,
+      "madera": 0.0,
+      "sutter": 0.0,
+      "mendocino": 0.0,
+      "tulare": 0.0,
+      "nevada": 0.0,
+      "contra_costa": 0.0,
+      "inyo": 0.0,
+      "alpine": 0.0,
+      "butte": 0.0,
+      "ventura": 0.0,
+      "yuba": 0.0,
+      "tuolumne": 0.0,
+      "imperial": 0.0,
+      "modoc": 0.0,
+      "none": 1.0,
+      "el_dorado": 0.0,
+      "lake": 0.0,
+      "sonoma": 0.0,
+      "sacramento": 0.0,
+      "san_francisco": 0.0,
+      "merced": 0.0,
+      "shasta": 0.0,
+      "mono": 0.0,
+      "riverside": 0.0,
+      "colusa": 0.0,
+      "kings": 0.0,
+      "stanislaus": 0.0,
+      "placer": 0.0,
+      "solano": 0.0,
+      "amador": 0.0,
+      "plumas": 0.0,
+      "tehama": 0.0,
+      "san_mateo": 0.0,
+      "san_bernardino": 0.0,
+      "san_joaquin": 0.0,
+      "calaveras": 0.0,
+      "san_luis_obispo": 0.0,
+      "fresno": 0.0,
+      "yolo": 0.0,
+      "napa": 0.0,
+      "san_benito": 0.0,
+      "marin": 0.0,
+      "sierra": 0.0,
+      "glenn": 0.0,
+      "del_norte": 0.0,
+      "santa_cruz": 0.0,
+      "santa_clara": 0.0,
+      "san_diego": 0.0,
+      "kern": 0.0,
+      "alameda": 0.0,
+      "trinity": 0.0,
+      "siskiyou": 0.0,
+      "lassen": 0.0,
+      "orange": 0.0
+     }
+    }
+   },
+   "error": null,
+   "exempt": null,
+   "backend": "openrouter",
+   "model_request": "typesafe/jev-1.13-20260917",
+   "captured": "2026-09-24"
+  },
+  "smoke|live": {
+   "question": "What wildfires are burning right now?",
+   "answers": {
+    "has_time_scope": {
+     "kind": "noul",
+     "value": 0.59,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_time": {
+     "kind": "noul",
+     "value": 0.84,
+     "confidence": null,
+     "probabilities": null
+    },
+    "future_time": {
+     "kind": "noul",
+     "value": 0.06,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_specific_place": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "vague_proximity": {
+     "kind": "noul",
+     "value": 0.09,
+     "confidence": null,
+     "probabilities": null
+    },
+    "broad_region": {
+     "kind": "noul",
+     "value": 0.09,
+     "confidence": null,
+     "probabilities": null
+    },
+    "asks_risk": {
+     "kind": "noul",
+     "value": 0.06,
+     "confidence": null,
+     "probabilities": null
+    },
+    "names_risk_metric": {
+     "kind": "noul",
+     "value": 0.09,
+     "confidence": null,
+     "probabilities": null
+    },
+    "prompt_injection": {
+     "kind": "noul",
+     "value": 0.07,
+     "confidence": null,
+     "probabilities": null
+    },
+    "off_topic": {
+     "kind": "choice",
+     "value": "live_or_web",
+     "confidence": 1.0,
+     "probabilities": {
+      "damage_or_loss": 0.0,
+      "optimization_or_scheduling": 0.0,
+      "cost_or_budget": 0.0,
+      "cpz": 0.0,
+      "live_or_web": 1.0,
+      "on_topic": 0.0,
+      "other_off_topic": 0.0
+     }
+    },
+    "intent": {
+     "kind": "choice",
+     "value": "other",
+     "confidence": 0.54,
+     "probabilities": {
+      "map_plus_trend": 0.0,
+      "map": 0.0,
+      "rank": 0.0,
+      "exploratory_overview": 0.01,
+      "count": 0.0,
+      "territory_boundary": 0.0,
+      "circuit_detail": 0.0,
+      "records_list": 0.42,
+      "risk": 0.0,
+      "spatial_context": 0.0,
+      "multi_intent": 0.0,
+      "other": 0.57,
+      "compare": 0.0,
+      "trend": 0.0
+     }
+    },
+    "dataset": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 0.76,
+     "probabilities": {
+      "iou_territories": 0.0,
+      "epss_outages": 0.0,
+      "none": 0.78,
+      "psps_events": 0.0,
+      "us_ignitions": 0.0,
+      "cpuc_ignitions": 0.0,
+      "hftd": 0.0,
+      "multiple": 0.0,
+      "calfire_incidents": 0.22,
+      "circuits": 0.0
+     }
+    },
+    "is_multi_intent": {
+     "kind": "noul",
+     "value": 0.04,
+     "confidence": null,
+     "probabilities": null
+    },
+    "rank_dimension": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 1.0,
+     "probabilities": {
+      "cell": 0.0,
+      "division": 0.0,
+      "utility": 0.0,
+      "circuit": 0.0,
+      "state": 0.0,
+      "county": 0.0,
+      "none": 1.0
+     }
+    },
+    "mentions_multiple_datasets": {
+     "kind": "noul",
+     "value": 0.02,
+     "confidence": null,
+     "probabilities": null
+    },
+    "measure": {
+     "kind": "choice",
+     "value": "other_measure",
+     "confidence": 0.55,
+     "probabilities": {
+      "other_measure": 0.62,
+      "supported_rate": 0.0,
+      "historical_risk": 0.0,
+      "customers_affected": 0.0,
+      "event_count": 0.01,
+      "acres_burned": 0.0,
+      "record_list": 0.37
+     }
+    },
+    "clarify_reason": {
+     "kind": "choice",
+     "value": "ambiguous_relative_time",
+     "confidence": 0.46,
+     "probabilities": {
+      "ambiguous_risk_place": 0.0,
+      "undefined_region": 0.0,
+      "ambiguous_relative_time": 0.49,
+      "records_missing_year": 0.0,
+      "risk_future_date": 0.0,
+      "time_out_of_coverage": 0.04,
+      "spatial_missing_year": 0.0,
+      "trend_missing_year": 0.0,
+      "map_plus_trend_missing_year": 0.0,
+      "series_mode_missing_dataset": 0.0,
+      "map_missing_year": 0.0,
+      "ranking_missing_slots": 0.0,
+      "ranking_missing_year": 0.0,
+      "series_mode_missing_year": 0.0,
+      "medical_exposure_missing_year": 0.0,
+      "ambiguous_risk_metric": 0.0,
+      "ranking_county_contradiction": 0.0,
+      "missing_location": 0.0,
+      "forecast_missing_date": 0.0,
+      "not_applicable": 0.47,
+      "risk_missing_place": 0.0,
+      "unexpressed_filter_constraints": 0.0,
+      "undefined_spatial_scope": 0.0
+     }
+    },
+    "utility_PGE": {
+     "kind": "noul",
+     "value": 0.11,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SCE": {
+     "kind": "noul",
+     "value": 0.13,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_SDGE": {
+     "kind": "noul",
+     "value": 0.11,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_PACIFICORP": {
+     "kind": "noul",
+     "value": 0.1,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_Liberty": {
+     "kind": "noul",
+     "value": 0.1,
+     "confidence": null,
+     "probabilities": null
+    },
+    "utility_BVES": {
+     "kind": "noul",
+     "value": 0.08,
+     "confidence": null,
+     "probabilities": null
+    },
+    "county": {
+     "kind": "choice",
+     "value": "none",
+     "confidence": 1.0,
+     "probabilities": {
+      "amador": 0.0,
+      "nevada": 0.0,
+      "trinity": 0.0,
+      "kings": 0.0,
+      "riverside": 0.0,
+      "ventura": 0.0,
+      "san_bernardino": 0.0,
+      "contra_costa": 0.0,
+      "san_joaquin": 0.0,
+      "sacramento": 0.0,
+      "solano": 0.0,
+      "modoc": 0.0,
+      "butte": 0.0,
+      "inyo": 0.0,
+      "santa_cruz": 0.0,
+      "colusa": 0.0,
+      "santa_barbara": 0.0,
+      "fresno": 0.0,
+      "alpine": 0.0,
+      "lassen": 0.0,
+      "placer": 0.0,
+      "santa_clara": 0.0,
+      "san_francisco": 0.0,
+      "tuolumne": 0.0,
+      "madera": 0.0,
+      "plumas": 0.0,
+      "san_benito": 0.0,
+      "kern": 0.0,
+      "merced": 0.0,
+      "glenn": 0.0,
+      "imperial": 0.0,
+      "calaveras": 0.0,
+      "san_mateo": 0.0,
+      "mendocino": 0.0,
+      "mariposa": 0.0,
+      "los_angeles": 0.0,
+      "sierra": 0.0,
+      "del_norte": 0.0,
+      "sutter": 0.0,
+      "tulare": 0.0,
+      "stanislaus": 0.0,
+      "none": 1.0,
+      "orange": 0.0,
+      "sonoma": 0.0,
+      "alameda": 0.0,
+      "tehama": 0.0,
+      "shasta": 0.0,
+      "napa": 0.0,
+      "marin": 0.0,
+      "lake": 0.0,
+      "san_diego": 0.0,
+      "el_dorado": 0.0,
+      "yuba": 0.0,
+      "yolo": 0.0,
+      "mono": 0.0,
+      "siskiyou": 0.0,
+      "humboldt": 0.0,
+      "monterey": 0.0,
+      "san_luis_obispo": 0.0
+     }
+    }
+   },
+   "error": null,
+   "exempt": "backstop",
+   "backend": "openrouter",
+   "model_request": "typesafe/jev-1.13-20260917",
+   "captured": "2026-09-24"
   }
  },
- "input_tokens": 1885479
+ "input_tokens": 1916127
 }
