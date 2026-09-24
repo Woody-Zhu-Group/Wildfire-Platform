@@ -36,8 +36,16 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
 3. **Otherwise Jev's derived disposition decides.** The three v3_hybrid disposition calls
    (facts, topic, places; the same payloads the offline hybrid sends, no tool_pick call) go
    through `jev_policy.derive_outcome`, including the measure gate.
-   - Jev clarify or refuse at or above the decline gate (0.8) returns that clarification or
-     refusal with Jev's reason.
+   - Jev clarify or refuse at or above the decline gate (0.8) wins the disposition. **Jev
+     owns the disposition; the router owns the wording.** When the router also declined the
+     same way (both clarify, or both refuse), the router's clarification or refusal text,
+     rule, and reason stand, including the clarify-all-missing additions
+     (`services/agent/clarify_missing.py`), and Jev's rule is recorded in the log only
+     (`wording: "router"`). When Jev changes the disposition (a clarify or refuse over a
+     router answer, or a clarify over a router refusal), Jev's clarification goes through
+     the same clarify-all-missing composition with the router's slots, so every
+     clarification the user sees asks for everything missing, with an example
+     (`wording: "jev"`).
    - **A Jev decline never contradicts a slot the router resolved.** A Jev clarification
      about the time (`*_missing_year`, `ambiguous_relative_time`, `forecast_missing_date`)
      is ignored when the router resolved the time, and one about the place
@@ -69,15 +77,21 @@ so the planner leaves it alone (`test_decide_runs_before_the_slot_planner_on_the
 Confidence of a Jev decision is the lowest confidence among the facts behind the rule that
 fired (`_RULE_FACTS`). A Noul counts as max(p, 1 - p); a Choice uses its own confidence.
 
+Jev's confidence in an answer, logged when the router and Jev both answer, is the lowest
+confidence among the decline facts Jev answered no to (`prompt_injection`, `off_topic`,
+`vague_proximity`, `broad_region`, `vague_time`; `decide_mode.answer_confidence`). Before
+this, an agreed answer logged a null confidence.
+
 Jev reasons reuse the router's wording where the router has the same rule, including
 `risk_future_date` and `unexpressable_county_filter`. The router has no prompt-injection
 rule, so a Jev `prompt_injection` refusal uses the router's generic unsupported answer.
 
-Every router versus Jev disagreement, and every Jev error or timeout, is logged as a
-`jev_decide` JSON line on stdout and in `AGENT_JEV_LOG_PATH`, with the router path and
-rule, Jev's disposition, rule, and confidence, the winner, and why (`gate`, `below_gate`,
-`contradicts_slot`, `code_verified`, `error`, `timeout`). The response slots carry the same
-summary under `jev_decide`.
+Every router versus Jev disagreement, every Jev decline whose rule differs from the final
+rule (for example both clarify, with the router's wording kept), and every Jev error or
+timeout is logged as a `jev_decide` JSON line on stdout and in `AGENT_JEV_LOG_PATH`, with
+the router path and rule, Jev's disposition, rule, and confidence, the winner, why (`gate`,
+`below_gate`, `contradicts_slot`, `code_verified`, `error`, `timeout`), and `wording`
+(`router`, `jev`, or null). The response slots carry the same summary under `jev_decide`.
 
 **Who decided.** Every `/ask` response and `/ask/stream` routing event carries
 `decision_source` (`services/agent/decisions/provenance.py`, documented in
@@ -85,7 +99,8 @@ summary under `jev_decide`.
 confidence when the winner is Jev, or `router` with why (`jev_below_gate`, `jev_error`,
 `jev_timeout`, `verified_fact` for `code_verified` and `contradicts_slot`,
 `router_only_route` for `regex_only` and `router_only_tool`, `jev_agreed`). When Jev and the
-router agree, the router is recorded as the decider, as in the log. The website shows it as
+router agree, the router is recorded as the decider, as in the log, with Jev's confidence
+(for an agreed answer, the answer confidence above). The website shows it as
 one line in the Ask panel's Tool chain.
 
 **Threads.** All decide requests share one bounded pool (`decide_mode.MAX_WORKERS`, 8
@@ -156,9 +171,19 @@ Where Jev wins:
   (`inj_ignore_instructions`, `fp_orange_glow`, `ho_054` cost), missing years on open
   comparisons (`ho_035`, `hv2_045`), `undefined_region` for "up north".
 - Broke none.
-- Both declined but with different reasons in some rows: for "fires near Sacramento" the
-  router's `undefined_spatial_scope` (asks for a radius) becomes Jev's `missing_location`
-  (asks for coordinates). The disposition is the same; the clarifying question changes.
+- Both declined but with different reasons on 9 rows. Before the wording rule, for "fires
+  near Sacramento" the router's `undefined_spatial_scope` (asks for a radius, and for any
+  other missing item) became Jev's `missing_location` (asks only for coordinates). In
+  production this showed as "Show PSPS events around Santa Rosa" getting "What
+  latitude/longitude or bounding box should I use?" instead of the router's question plus
+  the missing year. Now the router's wording stands on all 9 (7 `undefined_spatial_scope`,
+  2 `ranking_missing_slots`); the disposition and winner are unchanged, and Jev's rule is
+  in the log.
+
+Replay of the wording change (stored calls, no new Jev calls, main's `decide_mode.py`
+against this one on all 307 stored rows): 307 of 307 dispositions and winners are the
+same, the accuracy table above is unchanged, 9 rows change rule and text as listed, and
+160 agreed rows now carry Jev's confidence instead of null.
 
 Live pass on dev only, with both gates (`runs/jev_decide_live_dev.json`): runtime
 `decide_live` against the replay of the same store. On 2026-09-23 the TypeSafe account had
