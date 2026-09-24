@@ -318,7 +318,7 @@ below):
 | dev | 137 | used for tuning | 0.934 | 0.971 | 0.971 | 7 (5 / 0) |
 | v1 | 63 | seen, now development data | 0.905 | 0.937 | 0.952 | 7 (3 / 0) |
 | v2 | 42 | seen, now development data | 0.881 | 0.857 | 0.929 | 3 (2 / 0) |
-| v3 | 65 | **tuned**, reported only, not used for any choice | 0.738 | 0.738 | 0.815 | 8 (5 / 0) |
+| v3 | 65 | **tuned**, reported only, not used for any choice | 0.723 | 0.738 | 0.800 | 8 (5 / 0) |
 | smoke | 6 | production smoke test questions (five captured 2026-09-24 through OpenRouter, cross-backend) | 1.000 | 0.833 | 1.000 | 0 |
 
 Across all four sets Jev's wins fix 15 decisions and break 0. The slot and code-verified
@@ -334,19 +334,28 @@ None of these sets is clean; production shadow logs are the next clean test.
 fires in 2023?" with the generic `ranking_missing_slots` question. The registry now holds the
 finite set of measures each grouping can be ranked or compared by (`RANK_MEASURES` from
 `ALLOWED_RANK_PAIRS`, `COMPARE_MEASURES` from the comparison queries, `MEASURE_LABELS`,
-`MEASURE_TERMS`, `MEASURE_QUALIFIER_WORDS`). A ranking or comparison whose wording resolves to
-none of them (`routing._unresolved_measure`) goes to `ambiguous_risk_metric`, with text that
-names the user's word, keeps the grouping and period, and lists the registry's measures. There
-is no list of judgment words. `jev_policy`'s `measure_is_judgment` check calls the same function,
-so Jev's `other_measure` on "worse" clarifies instead of refusing, while a measure outside the
-data (a rate per customer) is still refused. Rule `ambiguous_risk_metric` has no Jev fact, so a
-Jev answer never overrides it. Against main, the replay moved four rows: `amb_better_or_worse`
-(dev; Jev refused, now Jev clarifies and wins at 0.96, matching the label), `hv3_039` (router
-`ranking_missing_slots` below the gate, now router and Jev agree, matching the label), `hv3_071`
-(Jev refused at 0.83 and won, now router and Jev agree on `ambiguous_risk_metric`, matching the
-label), and `ho_064` (still refused as a backstop, now `unsupported_cost` rather than
-`unsupported_damage`, since the plural cost pattern matches "damage costs" first). v3 is tuned,
-and `hv3_071` is a backlog row, so the v3 gain is not clean evidence. No Jev call was made;
+`MEASURE_TERMS`, `MEASURE_QUALIFIER_WORDS`). Every word of a ranking or comparison's measure
+phrase must be one of those words (`routing._unresolved_measure`); any other word, however
+many, goes to `ambiguous_risk_metric`, because clarifying is the safe failure. The phrase is
+the words after most, more, or rank ... by, or what a comparison compares in any word order
+(after compare, the subject before it, or after two joined entities). A superlative or
+comparative word ("scariest", "worse") counts as such a word; a not-in-data word (damage, rate,
+cost) is left to the refusals. The text names the user's words, keeps the grouping and period,
+and lists the registry's measures. There is no list of judgment words. `jev_policy`'s
+`measure_is_judgment` check calls the same function, so Jev's `other_measure` on "worse"
+clarifies instead of refusing, while a measure outside the data (a rate per customer) is still
+refused. Rule `ambiguous_risk_metric` has no Jev fact, so a Jev answer never overrides it.
+Against main, the replay moved four rows: `amb_better_or_worse` (dev; Jev refused, now Jev
+clarifies and wins at 0.96, matching the label), `hv3_039` (router `ranking_missing_slots`
+below the gate, now router and Jev agree, matching the label), `hv3_071` (Jev refused at 0.83
+and won, now router and Jev agree on `ambiguous_risk_metric`, matching the label), and
+`hv3_044` ("Which circuits had the most equipment failures before an ignition in 2022?",
+label `unsupported`: the router's `unsupported_ranking` was right, and the router now asks
+which measure, which the label counts as wrong). Against main that leaves v3 router and decide
+unchanged (0.723 and 0.800) and dev Jev and decide up from 0.964 to 0.971. v3 is tuned, and
+`hv3_071` is a backlog row, so neither the v3 gain nor the v3 loss is clean evidence. The
+route report also moves `ho_062` and `hv2_059` ("safest ...", labeled `unsupported` with
+`needs_human_review`, so not replayed) from the model path to this clarification. No Jev call was made;
 stored answers and their confidences are unchanged.
 
 Where Jev wins:
