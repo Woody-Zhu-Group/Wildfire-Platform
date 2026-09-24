@@ -6,28 +6,25 @@ Jev's own planner (`AGENT_JEV_MODE=plan`, the breakdown, output_form, and also_c
 
 ## What the slot rule plans
 
-`services/agent/eval/slot_plan.py`, applied in the orchestrator only when `AGENT_SLOT_PLAN` is on and the model is not forced, and only to a `multi_entity_deferred` route:
+`services/agent/eval/slot_plan.py`, applied in the orchestrator only when `AGENT_SLOT_PLAN` is on and the model is not forced, and only to a `multi_entity_deferred` route. It builds candidate calls from router slots:
 
-- several utilities, one dataset, one year: one `data_query_records` count per utility, carrying a single named county when the dataset has a county column
-- several counties, one dataset, one year: one count per county
-- several explicit years, one dataset, at most one utility and one county: one count per year, carrying the utility and the county
-- a per-month breakdown with one dataset and one year: one monthly `visualization_create` series, plus a count when the question also asks for a total
-- a by-county ask with one dataset and one year: one `data_query_rank` by county, count metric
+- counts: one `data_query_records` count for every combination of the named utilities, the named counties, and the separately named years, each call carrying the resolved date window (including a month or other sub-year window)
+- a per-month breakdown: one monthly `visualization_create` series over the resolved window, plus a count when the question also asks for a total
+- a by-county ask: one `data_query_rank` by county, count metric, over the resolved window
 
 At most 10 calls. Each call keeps its own evidence id and caveats attach per tool.
 
-## When it falls back instead
+## The invariant, and when it falls back
 
-The rule returns no plan, and the deferral stands, whenever a plan would answer a narrower question than the one asked:
+A candidate plan stands only if every slot and constraint the router resolved is represented in the planned calls (`_unrepresented` in `slot_plan.py`). Otherwise the rule returns no plan and the deferral stands, so a plan never answers a narrower question than the one asked. The checks:
 
-- a single named county on a dataset with no county column
-- a map or a where question, which the slot rule cannot build
-- a sub-year window (a month name, a date range inside a year) across several years, because per-year counts would drop the window
-- a monthly or per-period breakdown together with several utilities or counties
-- a metric other than a count: acres, customers, a rate per circuit or per area
-- a question whose dataset the router did not resolve
+- dataset: every call reads the resolved dataset
+- each utility and each county: every call carries one of them, together the calls cover all of them, and the dataset can filter on it (from `allowed_filters` in the dataset registry; US ignitions and PSPS have no county filter)
+- date window: every call's window equals the resolved window, or, for separately named years, the calls cover exactly those years with full-year windows. A month named in the question must fall inside the window, a month window across several years falls back, and a part of a year the router does not resolve (a quarter, a half, a season) falls back
+- output form: map or where wording needs a map call, list or records wording needs record calls, series wording (monthly, trend, chart) needs a series call and a series needs that wording, and a by-county ask needs the rank
+- measure: acres, customers, or a rate cannot be carried by a count, so they fall back
 
-`tests/agent/test_slot_plan.py` holds the reviewer questions for each of these.
+`fallback_reason(question)` returns the first check a plan would fail. `tests/agent/test_slot_plan_fallbacks.py` holds the reviewer questions, the earlier fallback cases, and probes for each check; `tests/agent/test_slot_plan.py` covers the plans that stand.
 
 ## Label rule D
 
