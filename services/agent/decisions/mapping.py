@@ -69,6 +69,7 @@ RULE_TO_INTENT: dict[str, str] = {
     "unknown_county": "spatial_context",
     "county_place_ambiguous": "spatial_context",
     "epss_non_pge_utility": "other",
+    "us_sample_utility_filter": "other",
     "hftd_constraint_unavailable": "other",
     "undefined_region": "other",
     "ambiguous_relative_time": "other",
