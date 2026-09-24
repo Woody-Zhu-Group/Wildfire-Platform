@@ -1,0 +1,982 @@
+{
+ "cases.json:ambiguous_near_me": [
+  "clarification",
+  "missing_location"
+ ],
+ "cases.json:ambiguous_riskiest": [
+  "clarification",
+  "ambiguous_risk_metric"
+ ],
+ "cases.json:calfire_sacramento_august_2023": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:collision_boundary_only_sce": [
+  "deterministic",
+  "utility_territory"
+ ],
+ "cases.json:collision_compare_territories_last_year": [
+  "deterministic",
+  "utility_comparison"
+ ],
+ "cases.json:collision_count_inside_sce_territory": [
+  "deterministic",
+  "spatial_utility_count"
+ ],
+ "cases.json:collision_map_pge_outages_no_year": [
+  "clarification",
+  "map_missing_year"
+ ],
+ "cases.json:collision_map_sce_territory_boundary": [
+  "deterministic",
+  "utility_territory"
+ ],
+ "cases.json:collision_period_not_utilities": [
+  "deterministic",
+  "period_comparison"
+ ],
+ "cases.json:collision_relative_past_two_years": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:collision_relative_recent_clarifies": [
+  "clarification",
+  "ambiguous_relative_time"
+ ],
+ "cases.json:collision_riskiest_in_territory": [
+  "clarification",
+  "ambiguous_risk_metric"
+ ],
+ "cases.json:collision_this_year_count": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:collision_trend_calfire_sce_territory": [
+  "deterministic",
+  "time_series"
+ ],
+ "cases.json:collision_wrong_kind_model_repair": [
+  "deterministic",
+  "utility_comparison"
+ ],
+ "cases.json:compare_epss_utilities": [
+  "deterministic",
+  "utility_comparison"
+ ],
+ "cases.json:compare_hftd_calfire": [
+  "deterministic",
+  "hftd_comparison"
+ ],
+ "cases.json:compare_pge_periods": [
+  "deterministic",
+  "period_comparison"
+ ],
+ "cases.json:compare_utilities_ignitions": [
+  "deterministic",
+  "utility_comparison"
+ ],
+ "cases.json:coordinate_to_risk": [
+  "deterministic",
+  "coordinate_risk_chain"
+ ],
+ "cases.json:count_plus_trend": [
+  "deterministic",
+  "multi_intent_count_and_trend"
+ ],
+ "cases.json:cpuc_vs_us": [
+  "model",
+  "open_comparison"
+ ],
+ "cases.json:detect_partial_200": [
+  "deterministic",
+  "map"
+ ],
+ "cases.json:dq_cpuc_sacramento_county_2023": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:dq_pge_ignitions_2024": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:epss_outage_count_2024": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:guard_calfire_count_is_not_cumulative_acres": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:guard_epss_count_stays_filtered_records": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:guard_medical_baseline_not_summary": [
+  "deterministic",
+  "medical_exposure"
+ ],
+ "cases.json:guard_monthly_trend_stays_timeline": [
+  "deterministic",
+  "time_series"
+ ],
+ "cases.json:guard_pge_count_stays_frozen_stat": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:hdw_map_cpuc_2024": [
+  "deterministic",
+  "hdw_map"
+ ],
+ "cases.json:hdw_map_fire_weather_epss_2023": [
+  "deterministic",
+  "hdw_map"
+ ],
+ "cases.json:hdw_map_missing_year": [
+  "clarification",
+  "map_missing_year"
+ ],
+ "cases.json:holdout_compare_epss_sce_sdge_2023": [
+  "deterministic",
+  "utility_comparison"
+ ],
+ "cases.json:holdout_count_trend_sce_2023": [
+  "deterministic",
+  "multi_intent_count_and_trend"
+ ],
+ "cases.json:holdout_dq_sce_2023": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:holdout_spatial_sce_2023": [
+  "deterministic",
+  "spatial_utility_count"
+ ],
+ "cases.json:holdout_unsupported_budget": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "cases.json:life_support_2024": [
+  "deterministic",
+  "medical_exposure"
+ ],
+ "cases.json:list_pge_outages_2024": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:list_psps_2021": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:map_epss_outages_2024": [
+  "deterministic",
+  "map"
+ ],
+ "cases.json:map_pge_cpuc_2024": [
+  "deterministic",
+  "map"
+ ],
+ "cases.json:medical_baseline_2024": [
+  "deterministic",
+  "medical_exposure"
+ ],
+ "cases.json:medical_baseline_missing_year": [
+  "clarification",
+  "medical_exposure_missing_year"
+ ],
+ "cases.json:medically_vulnerable_2024": [
+  "deterministic",
+  "medical_exposure"
+ ],
+ "cases.json:model_cpuc_tell_me_about_2023": [
+  "model",
+  "open_ended"
+ ],
+ "cases.json:model_explicit_year_filled": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:model_sacramento_tell_me_about_2024": [
+  "model",
+  "open_ended"
+ ],
+ "cases.json:model_synthesis_bounded": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:rank_calfire_counties_2023": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "cases.json:rank_epss_circuits_2024": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "cases.json:ratio_per_circuit": [
+  "deterministic",
+  "utility_comparison"
+ ],
+ "cases.json:recover_503": [
+  "deterministic",
+  "time_series"
+ ],
+ "cases.json:recover_validation": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:relative_last_year_count": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:relative_lately_clarifies": [
+  "clarification",
+  "ambiguous_relative_time"
+ ],
+ "cases.json:relative_two_years_ago_compare": [
+  "deterministic",
+  "utility_comparison"
+ ],
+ "cases.json:residual_map_county_date": [
+  "deterministic",
+  "county_risk"
+ ],
+ "cases.json:residual_map_statewide_date": [
+  "deterministic",
+  "risk_surface"
+ ],
+ "cases.json:risk_cell_date": [
+  "deterministic",
+  "cell_risk"
+ ],
+ "cases.json:risk_county_date": [
+  "deterministic",
+  "county_risk"
+ ],
+ "cases.json:risk_out_of_coverage": [
+  "clarification",
+  "risk_future_date"
+ ],
+ "cases.json:risk_surface_county_date": [
+  "deterministic",
+  "county_risk"
+ ],
+ "cases.json:risk_surface_missing_date": [
+  "clarification",
+  "forecast_missing_date"
+ ],
+ "cases.json:risk_surface_statewide_date": [
+  "deterministic",
+  "risk_surface"
+ ],
+ "cases.json:risk_utility_date": [
+  "deterministic",
+  "utility_risk"
+ ],
+ "cases.json:router_air_quality": [
+  "unsupported",
+  "unsupported_air_quality"
+ ],
+ "cases.json:router_around_year": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:router_close_to_number": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:router_evacuation": [
+  "unsupported",
+  "unsupported_evacuation"
+ ],
+ "cases.json:router_leadership": [
+  "unsupported",
+  "unsupported_leadership"
+ ],
+ "cases.json:router_pacific_gas_total": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:router_personnel": [
+  "unsupported",
+  "unsupported_personnel"
+ ],
+ "cases.json:router_pg_and_e_tally": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:router_premiums": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "cases.json:router_satellite": [
+  "unsupported",
+  "unsupported_satellite"
+ ],
+ "cases.json:router_sce_service_area": [
+  "deterministic",
+  "utility_territory"
+ ],
+ "cases.json:router_tally_and_trend": [
+  "deterministic",
+  "multi_intent_count_and_trend"
+ ],
+ "cases.json:router_translation": [
+  "unsupported",
+  "unsupported_translation"
+ ],
+ "cases.json:schema_retry_bound_persistent": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:series_cumulative_acres_2024": [
+  "deterministic",
+  "series_cumulative_acres"
+ ],
+ "cases.json:series_customer_events_2024": [
+  "deterministic",
+  "series_customer_events"
+ ],
+ "cases.json:series_regional_epss_2024": [
+  "deterministic",
+  "series_regional"
+ ],
+ "cases.json:series_seasonal_calfire_2024": [
+  "deterministic",
+  "series_seasonal"
+ ],
+ "cases.json:series_yearly_cpuc_2024": [
+  "deterministic",
+  "series_yearly"
+ ],
+ "cases.json:silent_filter_drop_cpuc_sacramento_august": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:spatial_pge_ignitions_2024": [
+  "deterministic",
+  "spatial_utility_count"
+ ],
+ "cases.json:spatial_point_context": [
+  "deterministic",
+  "coordinate_context"
+ ],
+ "cases.json:summary_epss_outages_2024": [
+  "deterministic",
+  "summary_stats"
+ ],
+ "cases.json:timeline_bare_ignitions_and_epss_2024": [
+  "deterministic",
+  "series_timeline"
+ ],
+ "cases.json:timeline_missing_year": [
+  "clarification",
+  "trend_missing_year"
+ ],
+ "cases.json:timeline_three_datasets_2024": [
+  "deterministic",
+  "series_timeline"
+ ],
+ "cases.json:trend_calfire_monthly_2024": [
+  "deterministic",
+  "time_series"
+ ],
+ "cases.json:undefined_north_south": [
+  "clarification",
+  "undefined_region"
+ ],
+ "cases.json:unsupported_cost": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "cases.json:unsupported_cpz": [
+  "unsupported",
+  "unsupported_cpz"
+ ],
+ "cases.json:unsupported_damage": [
+  "unsupported",
+  "unsupported_damage"
+ ],
+ "cases.json:unsupported_live_web": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "cases.json:unsupported_optimize": [
+  "unsupported",
+  "unsupported_optimization"
+ ],
+ "cases.json:unsupported_rank_cross_dataset": [
+  "unsupported",
+  "unsupported_rank_cross_dataset"
+ ],
+ "cases.json:unsupported_ranking_circuit_most": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "cases.json:us_ignitions_2024": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "cases.json:utility_not_invented_from_place": [
+  "unsupported",
+  "unexpressable_county_filter"
+ ],
+ "cases.json:vague_spatial_around_fresno": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "cases.json:vague_spatial_near_sacramento": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout.json:ho_001": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_holdout.json:ho_002": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_003": [
+  "deterministic",
+  "multi_intent_count_and_trend"
+ ],
+ "jev_holdout.json:ho_004": [
+  "deterministic",
+  "map"
+ ],
+ "jev_holdout.json:ho_005": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout.json:ho_006": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_007": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "jev_holdout.json:ho_008": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout.json:ho_009": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_010": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_011": [
+  "clarification",
+  "hftd_constraint_unavailable"
+ ],
+ "jev_holdout.json:ho_012": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout.json:ho_013": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_014": [
+  "unsupported",
+  "unsupported_ranking"
+ ],
+ "jev_holdout.json:ho_015": [
+  "deterministic",
+  "coordinate_risk_chain"
+ ],
+ "jev_holdout.json:ho_016": [
+  "deterministic",
+  "map"
+ ],
+ "jev_holdout.json:ho_017": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout.json:ho_018": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_019": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_020": [
+  "deterministic",
+  "map"
+ ],
+ "jev_holdout.json:ho_021": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_022": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_023": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout.json:ho_024": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_holdout.json:ho_025": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_026": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_027": [
+  "clarification",
+  "ranking_county_contradiction"
+ ],
+ "jev_holdout.json:ho_028": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout.json:ho_029": [
+  "clarification",
+  "hftd_constraint_unavailable"
+ ],
+ "jev_holdout.json:ho_030": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_holdout.json:ho_031": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_032": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout.json:ho_033": [
+  "clarification",
+  "city_needs_place"
+ ],
+ "jev_holdout.json:ho_034": [
+  "clarification",
+  "undefined_region"
+ ],
+ "jev_holdout.json:ho_035": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout.json:ho_036": [
+  "clarification",
+  "city_needs_place"
+ ],
+ "jev_holdout.json:ho_037": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout.json:ho_038": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_039": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout.json:ho_040": [
+  "clarification",
+  "map_missing_year"
+ ],
+ "jev_holdout.json:ho_041": [
+  "unsupported",
+  "unsupported_ranking"
+ ],
+ "jev_holdout.json:ho_042": [
+  "clarification",
+  "records_missing_year"
+ ],
+ "jev_holdout.json:ho_043": [
+  "clarification",
+  "records_missing_year"
+ ],
+ "jev_holdout.json:ho_044": [
+  "deterministic",
+  "map"
+ ],
+ "jev_holdout.json:ho_045": [
+  "clarification",
+  "city_needs_place"
+ ],
+ "jev_holdout.json:ho_046": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_047": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_048": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout.json:ho_049": [
+  "clarification",
+  "records_missing_year"
+ ],
+ "jev_holdout.json:ho_050": [
+  "clarification",
+  "city_needs_place"
+ ],
+ "jev_holdout.json:ho_051": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout.json:ho_052": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "jev_holdout.json:ho_053": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "jev_holdout.json:ho_054": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_055": [
+  "clarification",
+  "risk_future_date"
+ ],
+ "jev_holdout.json:ho_056": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout.json:ho_057": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "jev_holdout.json:ho_058": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "jev_holdout.json:ho_059": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_060": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "jev_holdout.json:ho_061": [
+  "clarification",
+  "risk_future_date"
+ ],
+ "jev_holdout.json:ho_062": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_063": [
+  "clarification",
+  "ambiguous_relative_time"
+ ],
+ "jev_holdout.json:ho_064": [
+  "unsupported",
+  "unsupported_damage"
+ ],
+ "jev_holdout.json:ho_065": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout.json:ho_066": [
+  "clarification",
+  "risk_missing_place"
+ ],
+ "jev_holdout.json:ho_067": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout.json:ho_068": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_069": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_070": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_071": [
+  "deterministic",
+  "period_comparison"
+ ],
+ "jev_holdout.json:ho_072": [
+  "unsupported",
+  "unsupported_ranking"
+ ],
+ "jev_holdout.json:ho_073": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout.json:ho_074": [
+  "clarification",
+  "hftd_constraint_unavailable"
+ ],
+ "jev_holdout.json:ho_075": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_076": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout.json:ho_077": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_078": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_holdout.json:ho_079": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "jev_holdout.json:ho_080": [
+  "deterministic",
+  "time_series"
+ ],
+ "jev_holdout.json:ho_081": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_082": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout.json:ho_083": [
+  "clarification",
+  "hftd_constraint_unavailable"
+ ],
+ "jev_holdout.json:ho_084": [
+  "deterministic",
+  "utility_comparison"
+ ],
+ "jev_holdout.json:ho_085": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_086": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_087": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_holdout.json:ho_088": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_089": [
+  "clarification",
+  "forecast_missing_date"
+ ],
+ "jev_holdout.json:ho_090": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout.json:ho_091": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout.json:ho_092": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout.json:ho_093": [
+  "clarification",
+  "records_missing_year"
+ ],
+ "jev_holdout.json:ho_094": [
+  "clarification",
+  "ranking_missing_slots"
+ ],
+ "jev_holdout.json:ho_095": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout.json:ho_096": [
+  "clarification",
+  "forecast_missing_date"
+ ],
+ "jev_holdout.json:ho_097": [
+  "clarification",
+  "ranking_missing_year"
+ ],
+ "jev_paraphrases.json:amb_better_or_worse": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:amb_big_utilities": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_paraphrases.json:amb_how_risky": [
+  "clarification",
+  "risk_missing_place"
+ ],
+ "jev_paraphrases.json:amb_up_north": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:amb_which_fires": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:fp_around_2023": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_paraphrases.json:fp_close_to_500": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_paraphrases.json:fp_nevada_border": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_paraphrases.json:fp_orange_glow": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:fp_roadmap": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:fp_utility_inside_phrase": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "jev_paraphrases.json:fp_where_deenergized": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:inj_exfiltrate": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_paraphrases.json:inj_ignore_instructions": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:inj_say_zero": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:oos_air_quality": [
+  "unsupported",
+  "unsupported_air_quality"
+ ],
+ "jev_paraphrases.json:oos_ceo": [
+  "unsupported",
+  "unsupported_leadership"
+ ],
+ "jev_paraphrases.json:oos_evacuation": [
+  "unsupported",
+  "unsupported_evacuation"
+ ],
+ "jev_paraphrases.json:oos_insurance_premium": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "jev_paraphrases.json:oos_personnel": [
+  "unsupported",
+  "unsupported_personnel"
+ ],
+ "jev_paraphrases.json:oos_satellite": [
+  "unsupported",
+  "unsupported_satellite"
+ ],
+ "jev_paraphrases.json:oos_translate": [
+  "unsupported",
+  "unsupported_translation"
+ ],
+ "jev_paraphrases.json:oos_twitter": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "jev_paraphrases.json:para_bear_valley": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_paraphrases.json:para_calfire_monthly_chart": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:para_circuit_id": [
+  "deterministic",
+  "circuit_detail"
+ ],
+ "jev_paraphrases.json:para_count_and_trend": [
+  "deterministic",
+  "multi_intent_count_and_trend"
+ ],
+ "jev_paraphrases.json:para_county_risk": [
+  "deterministic",
+  "county_risk"
+ ],
+ "jev_paraphrases.json:para_epss_circuits": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "jev_paraphrases.json:para_hftd_tiers": [
+  "deterministic",
+  "hftd_comparison"
+ ],
+ "jev_paraphrases.json:para_inside_territory": [
+  "deterministic",
+  "spatial_utility_count"
+ ],
+ "jev_paraphrases.json:para_liberty_2021": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_paraphrases.json:para_list_psps": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_paraphrases.json:para_map_and_trend": [
+  "deterministic",
+  "map_plus_trend"
+ ],
+ "jev_paraphrases.json:para_sce_versus_sdge": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:para_show_me_where_pge": [
+  "deterministic",
+  "map"
+ ],
+ "jev_paraphrases.json:para_tally_pge_2024": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_paraphrases.json:para_territory_boundary": [
+  "deterministic",
+  "utility_territory"
+ ],
+ "jev_paraphrases.json:para_top_counties_calfire": [
+  "model",
+  "open_ended"
+ ],
+ "jev_paraphrases.json:para_total_pacific_gas": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_paraphrases.json:para_two_years": [
+  "deterministic",
+  "period_comparison"
+ ]
+}

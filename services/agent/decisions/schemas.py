@@ -149,6 +149,10 @@ _CONTEXT_INTRO = (
 # sentence changes DOMAIN_CONTEXT and therefore every payload hash, so each
 # entry waits for the next planned context change and its confidence report.
 CONTEXT_DEFERRED_RULES: dict[str, str] = {
+    "county_place_ambiguous": (
+        "A county word used as a different place, or a cue-required county word "
+        "without County, is clarified by the router before Jev runs."
+    ),
     "unsupported_future_prediction": (
         "A forward modal, expectation, or forecast of events or counts is refused "
         "by the router before Jev runs."
