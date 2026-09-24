@@ -24,7 +24,12 @@ dataset/metric, scope, and required time/location slots are explicit:
   map alone
 - an EPSS read for a utility other than PG&E (count, series, map, or pair) →
   clarification `epss_non_pge_utility`: EPSS rows exist only for PG&E, so the
-  result would be absent, not zero
+  result would be absent, not zero. The same rule covers every comparison on an
+  EPSS metric (`epss_outage_count`, `epss_to_ignition_ratio`: period, utility,
+  HFTD, or an open comparison) where no named utility is PG&E; that
+  clarification offers the utility's PSPS events or CPUC ignitions. A
+  comparison that names PG&E still runs, and the non-PG&E side is null with
+  its reason. "Outage" in a comparison means EPSS unless the question names PSPS
 - a US-sample question restricted to a utility (map, count, series, rank, or a
   comparison with CPUC) → clarification `us_sample_utility_filter` (label rule
   J): the sample has no utility column, so the router offers the national
@@ -188,6 +193,13 @@ Jev off) they stay out of the evidence, so neither synthesis nor the fallback
 text can show them, and the trajectory records `derived_evidence_withheld`.
 With Jev off, a change question over two model reads therefore gets both
 counts and no computed change.
+
+A comparison answer (`_render_comparison_answer` in `orchestrator.py`) is
+plain sentences on every comparison route. A null value is never shown as
+`None`: the sentence names the service's reason, says no change can be
+computed when either period is null, and names data that does exist (for
+EPSS, the utility's PSPS events and CPUC ignitions; for a county PSPS
+comparison, the datasets that carry a county).
 
 ## Views
 

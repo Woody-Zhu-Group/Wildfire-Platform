@@ -161,6 +161,12 @@ def _unrepresented(
     # Dataset: every call reads the resolved dataset.
     if any(_call_dataset(name, args) != dataset for name, args in calls):
         return "dataset"
+    # Label rule I: EPSS is PG&E-only, so a non-PG&E EPSS count would read as
+    # zero when the data is absent. The plan is refused and the deferral stands.
+    if dataset == "epss_outages" and any(
+        args.get("utility") not in (None, "PGE") for _name, args in calls
+    ):
+        return "epss_non_pge_utility"
 
     # Output form and measure.
     if _MAP_ASK.search(lower) and not any(

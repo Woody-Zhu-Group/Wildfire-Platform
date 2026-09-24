@@ -16,7 +16,9 @@ from services.agent.decisions.integrity import question_hash
 from services.agent.decisions.v3 import tool_pick_call
 from services.agent.routing import (
     _COUNTY_CAPABLE_DATASETS,
+    _EPSS_COMPARISON_METRICS,
     _asks_map_view,
+    _comparison_metric,
     _ignition_definition,
     _range_for_year,
 )
@@ -27,22 +29,6 @@ from services.shared.dataset_registry import (
     TIER_DIGIT_PATTERN,
 )
 
-
-def _comparison_metric(lower: str) -> str | None:
-    """Same metric words as the router's comparison block. None if unnamed."""
-    if "epss-to-ignition" in lower or "epss to ignition" in lower:
-        return "epss_to_ignition_ratio"
-    if "epss" in lower or "outage" in lower:
-        return "epss_outage_count"
-    if "cal fire" in lower or "calfire" in lower:
-        return "calfire_incident_count"
-    if (
-        "ignition" in lower
-        or "wildfire activity" in lower
-        or re.search(r"\bwildfire(?:s)?\b", lower)
-    ):
-        return "ignition_count"
-    return None
 
 _VIZ_DATASET = LAYER_VIZ_KEYS
 _SERIES_WORD = r"\b(?:trend|time series|weekly|monthly|daily)\b"
@@ -231,6 +217,11 @@ def arguments_for_tool(
     return None
 
 
+def _non_pge_epss(dataset: Any, utilities: list[str]) -> bool:
+    """Label rule I: EPSS is PG&E-only, so a non-PG&E EPSS read is absent, not zero."""
+    return dataset == "epss_outages" and any(u != "PGE" for u in utilities)
+
+
 def _records_args(slots: dict[str, Any]) -> dict[str, Any] | None:
     time_args = _time_args(slots)
     dataset = slots.get("dataset")
@@ -240,6 +231,8 @@ def _records_args(slots: dict[str, Any]) -> dict[str, Any] | None:
     if len(utilities) > 1:
         return None
     args: dict[str, Any] = {"dataset": dataset, "result_mode": "count", **time_args}
+    if len(utilities) == 1 and _non_pge_epss(dataset, utilities):
+        return None
     if len(utilities) == 1 and dataset != "us_ignitions":
         args["utility"] = utilities[0]
     county = slots.get("county")
@@ -272,6 +265,8 @@ def _visualization_args(slots: dict[str, Any], question: str) -> dict[str, Any] 
             return None
         args["interval"] = interval.group(1)
     utilities = list(slots.get("utilities") or [])
+    if _non_pge_epss(dataset, utilities):
+        return None
     if len(utilities) == 1:
         args["utility"] = utilities[0]
     elif len(utilities) > 1:
@@ -288,6 +283,9 @@ def _comparison_args(slots: dict[str, Any], question: str) -> dict[str, Any] | N
     if metric is None or "us ignition" in lower:
         return None
     utilities = list(slots.get("utilities") or [])
+    if metric in _EPSS_COMPARISON_METRICS and utilities and "PGE" not in utilities:
+        # Label rule I: every side would be null. The router clarifies these.
+        return None
     years = list(slots.get("years") or [])
     if len(years) == 2 and len(utilities) == 1:
         a_start, a_end = _range_for_year(int(years[0]))

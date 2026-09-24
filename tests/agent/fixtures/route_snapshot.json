@@ -136,8 +136,8 @@
   "map_missing_year"
  ],
  "cases.json:holdout_compare_epss_sce_sdge_2023": [
-  "deterministic",
-  "utility_comparison"
+  "clarification",
+  "epss_non_pge_utility"
  ],
  "cases.json:holdout_count_trend_sce_2023": [
   "deterministic",

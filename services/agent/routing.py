@@ -1217,6 +1217,65 @@ def _county_expressed(args: dict[str, Any], county: str) -> bool:
     return isinstance(value, str) and value.lower() == county.lower()
 
 
+_EPSS_COMPARISON_METRICS = frozenset({"epss_outage_count", "epss_to_ignition_ratio"})
+
+
+def _epss_non_pge_clarification(
+    utilities: list[str],
+    slots: dict[str, Any],
+    *,
+    comparison: bool = False,
+) -> RouteDecision:
+    """Label rule I: EPSS is PG&E-only, so a non-PG&E EPSS answer is absent, not zero."""
+    named = " and ".join(utilities)
+    if comparison:
+        # Rule I on comparison routes: every side of the comparison would be
+        # null, so offer the datasets those utilities do have.
+        answer = (
+            f"EPSS outages in this warehouse are PG&E-only, so there are no "
+            f"{named} EPSS rows: that comparison would be absent, not zero. "
+            f"Do you want to compare {named}'s PSPS events or CPUC ignitions "
+            f"instead, or PG&E's EPSS outages?"
+        )
+    else:
+        answer = (
+            f"EPSS outages in this warehouse are PG&E-only, so there are no "
+            f"{named} EPSS rows: that result would be absent, not zero. "
+            f"Do you want PG&E's EPSS outages for that period, or "
+            f"{named}'s PSPS events or CPUC ignitions instead?"
+        )
+    return RouteDecision(
+        "clarification",
+        "epss_non_pge_utility",
+        f"EPSS is PG&E-only; {named} has no EPSS rows",
+        answer=answer,
+        slots=slots,
+    )
+
+
+def _comparison_metric(lower: str) -> str | None:
+    """Metric a comparison question names. None if unnamed.
+
+    "Outage" means EPSS unless the question names PSPS: a PSPS outage is a
+    de-energization event, not an EPSS fast-trip outage.
+    """
+    if "epss-to-ignition" in lower or "epss to ignition" in lower:
+        return "epss_to_ignition_ratio"
+    if "epss" in lower or (
+        "outage" in lower and not re.search(r"\bpsps\b", lower)
+    ):
+        return "epss_outage_count"
+    if "cal fire" in lower or "calfire" in lower:
+        return "calfire_incident_count"
+    if (
+        "ignition" in lower
+        or "wildfire activity" in lower
+        or re.search(r"\bwildfire(?:s)?\b", lower)
+    ):
+        return "ignition_count"
+    return None
+
+
 def _block_unexpressed_constraints(
     *,
     question: str,
@@ -1239,18 +1298,7 @@ def _block_unexpressed_constraints(
     if epss_utility:
         # EPSS rows exist only for PG&E. Another utility's EPSS read would come
         # back as 0 or an empty series, which is absent data, not zero events.
-        return RouteDecision(
-            "clarification",
-            "epss_non_pge_utility",
-            f"EPSS is PG&E-only; {epss_utility} has no EPSS rows",
-            answer=(
-                f"EPSS outages in this warehouse are PG&E-only, so there are no "
-                f"{epss_utility} EPSS rows: that result would be absent, not zero. "
-                f"Do you want PG&E's EPSS outages for that period, or "
-                f"{epss_utility}'s PSPS events or CPUC ignitions instead?"
-            ),
-            slots=slots,
-        )
+        return _epss_non_pge_clarification([epss_utility], slots)
     dropped: list[str] = []
     county = slots.get("county")
     if county and not any(
@@ -3078,19 +3126,13 @@ def _route_question(
 
     # Explicit comparisons.
     if re.search(r"\bcompare|versus|\bvs\.?\b", lower):
-        metric: str | None = None
-        if "epss-to-ignition" in lower or "epss to ignition" in lower:
-            metric = "epss_to_ignition_ratio"
-        elif "epss" in lower or "outage" in lower:
-            metric = "epss_outage_count"
-        elif "cal fire" in lower or "calfire" in lower:
-            metric = "calfire_incident_count"
-        elif (
-            "ignition" in lower
-            or "wildfire activity" in lower
-            or re.search(r"\bwildfire(?:s)?\b", lower)
-        ):
-            metric = "ignition_count"
+        metric = _comparison_metric(lower)
+
+        # Label rule I on comparisons: an EPSS comparison where no named
+        # utility is PG&E would be all nulls, so clarify. With PG&E named it
+        # runs, and the non-PG&E side comes back null with its reason.
+        if metric in _EPSS_COMPARISON_METRICS and utilities and "PGE" not in utilities:
+            return _epss_non_pge_clarification(list(utilities), slots, comparison=True)
 
         # Two calendar years + one utility → periods. Two utilities + one year
         # → utilities. Never infer periods from a single relative year.

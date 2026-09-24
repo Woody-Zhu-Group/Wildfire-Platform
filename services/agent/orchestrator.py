@@ -46,7 +46,15 @@ from services.agent.streaming import ProgressCallback
 from services.agent.time_resolve import CallWindows, call_window, named_month_periods
 from services.agent.tools import ToolExecution, ToolExecutor
 from services.agent.views import dump_planned, empty_views_payload, plan_views
-from services.shared.dataset_registry import EVENT_DATASET_WORDS, UTILITY_POSSESSIVE_NAMES
+from services.shared.dataset_registry import (
+    EVENT_DATASET_WORDS,
+    REASON_CIRCUITS_PGE,
+    REASON_EPSS_PGE_ONLY,
+    REASON_NO_COUNTY,
+    REASON_NO_COUNTY_AREA,
+    UTILITY_DISPLAY_LABELS,
+    UTILITY_POSSESSIVE_NAMES,
+)
 
 _shadow_log = logging.getLogger("services.agent.decisions")
 
@@ -3217,23 +3225,7 @@ def _render_deterministic(
         elif item.tool == "data_query_rank":
             parts.append(_render_rank_answer(item.arguments or {}, summary))
         elif item.tool == "comparison_run":
-            if summary.get("kind") in {"utilities", "regions"}:
-                rendered = ", ".join(
-                    (
-                        f"{row.get('label') or row.get('key')}={row.get('value')}"
-                        if row.get("value") is not None
-                        else f"{row.get('label') or row.get('key')}=unavailable ({row.get('reason')})"
-                    )
-                    for row in summary.get("results") or []
-                )
-                parts.append(f"{summary.get('metric')} comparison: {rendered}.")
-            else:
-                parts.append(
-                    f"{summary.get('metric')} for {summary.get('scope')}: "
-                    f"period A={summary.get('period_a', {}).get('value')}, "
-                    f"period B={summary.get('period_b', {}).get('value')}, "
-                    f"delta={summary.get('delta', {}).get('value')}."
-                )
+            parts.append(_render_comparison_answer(item.arguments or {}, summary))
     # The same evidence rendered twice reads as two findings. One line each.
     unique = list(dict.fromkeys(part for part in parts if part))
     return " ".join(unique) or "The service returned no usable evidence."
@@ -3251,6 +3243,137 @@ def _turn_windows(tool_calls: list[dict[str, Any]]) -> list[tuple[str, str] | No
             continue
         windows.append(call_window(args) if isinstance(args, dict) else None)
     return windows
+
+
+_COMPARISON_METRIC_LABELS = {
+    "ignition_count": "CPUC ignition count",
+    "epss_outage_count": "EPSS outage count",
+    "epss_to_ignition_ratio": "EPSS-to-ignition ratio",
+    "calfire_incident_count": "CAL FIRE incident count",
+    "acres_burned": "acres burned",
+    "psps_event_count": "PSPS event count",
+    "customers_deenergized": "customers de-energized",
+}
+
+
+def _comparison_number(value: Any) -> str:
+    """Integral values with thousands separators; other floats as the service gave them."""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    if isinstance(value, int):
+        return f"{value:,}"
+    return _num_token(value) or str(value)
+
+
+def _comparison_entity(key: Any, *, scope_type: Any = None) -> str:
+    key = str(key)
+    if scope_type in (None, "utility") and key in UTILITY_DISPLAY_LABELS:
+        return UTILITY_DISPLAY_LABELS[key]
+    return key
+
+
+def _comparison_period(period: dict[str, Any], fallback: str) -> str:
+    start, end = period.get("start_date"), period.get("end_date")
+    if not (isinstance(start, str) and isinstance(end, str)):
+        return fallback
+    if start[:4] == end[:4] and start[5:] == "01-01" and end[5:] == "12-31":
+        return start[:4]
+    return f"{start} to {end}"
+
+
+def _comparison_reason(reason: Any) -> str:
+    text = str(reason or "the comparison service returned no value").strip().rstrip(".")
+    first = text.split(" ", 1)[0]
+    # Keep acronyms ("EPSS", "PGE") as written; lowercase an ordinary first word.
+    if any(char.isupper() for char in first[1:]):
+        return text
+    return text[:1].lower() + text[1:]
+
+
+def _comparison_alternative(reason: Any, entity: str) -> str | None:
+    """What the warehouse does hold when a comparison value is null."""
+    if reason == REASON_EPSS_PGE_ONLY:
+        return (
+            f"{entity}'s PSPS events and CPUC ignitions do exist in the warehouse "
+            "and can be compared instead."
+        )
+    if reason == REASON_CIRCUITS_PGE:
+        return f"The unnormalized count for {entity} does exist; ask without per circuit."
+    if reason == REASON_NO_COUNTY:
+        return (
+            "CPUC ignitions, CAL FIRE incidents, and EPSS outages do carry a "
+            "county and can be compared by county instead."
+        )
+    if reason == REASON_NO_COUNTY_AREA:
+        return f"The unnormalized count for {entity} does exist; ask without per square kilometer."
+    return None
+
+
+def _render_comparison_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> str:
+    """Plain sentences for a comparison. A null value names its reason, never None."""
+    metric = str(summary.get("metric") or arguments.get("metric") or "metric")
+    label = _COMPARISON_METRIC_LABELS.get(metric, metric.replace("_", " "))
+    if summary.get("kind") in {"utilities", "regions"}:
+        scope_type = "utility" if summary.get("kind") == "utilities" else "region"
+        present: list[str] = []
+        missing: list[str] = []
+        for row in summary.get("results") or []:
+            # The service row carries its registry label (PG&E); the key is the code.
+            entity = row.get("label") or _comparison_entity(row.get("key"), scope_type=scope_type)
+            if row.get("value") is not None:
+                present.append(f"{entity} {_comparison_number(row['value'])}")
+                continue
+            sentence = f"{entity} has no {label}: {_comparison_reason(row.get('reason'))}."
+            alternative = _comparison_alternative(row.get("reason"), entity)
+            missing.append(f"{sentence} {alternative}" if alternative else sentence)
+        lines = []
+        if present:
+            lines.append(f"{label[:1].upper()}{label[1:]} comparison: {', '.join(present)}.")
+        else:
+            lines.append(f"No compared {scope_type} has a {label} value.")
+        lines.extend(missing)
+        return " ".join(lines)
+
+    entity = _comparison_entity(summary.get("scope"), scope_type=summary.get("scope_type"))
+    period_a = summary.get("period_a") or {}
+    period_b = summary.get("period_b") or {}
+    name_a = _comparison_period(period_a, "period A")
+    name_b = _comparison_period(period_b, "period B")
+    value_a, value_b = period_a.get("value"), period_b.get("value")
+    delta = (summary.get("delta") or {}).get("value")
+    if value_a is not None and value_b is not None:
+        line = (
+            f"{entity} {label}: {_comparison_number(value_a)} in {name_a} and "
+            f"{_comparison_number(value_b)} in {name_b}"
+        )
+        if delta is not None:
+            line += f", a change of {_comparison_number(delta)}"
+        return line + "."
+    if value_a is None and value_b is None:
+        reasons = {period_a.get("reason"), period_b.get("reason")}
+        reason = period_a.get("reason") if len(reasons) == 1 else None
+        if reason is not None:
+            line = (
+                f"{entity} has no {label} for {name_a} or {name_b}: "
+                f"{_comparison_reason(reason)}, so no change can be computed."
+            )
+        else:
+            line = (
+                f"{entity} has no {label} for {name_a} "
+                f"({_comparison_reason(period_a.get('reason'))}) or {name_b} "
+                f"({_comparison_reason(period_b.get('reason'))}), so no change can be computed."
+            )
+        alternative = _comparison_alternative(reason, entity) if reason else None
+        return f"{line} {alternative}" if alternative else line
+    known_name, known_value = (name_a, value_a) if value_a is not None else (name_b, value_b)
+    missing_name, missing = (name_b, period_b) if value_a is not None else (name_a, period_a)
+    line = (
+        f"{entity} {label}: {_comparison_number(known_value)} in {known_name}. "
+        f"There is no value for {missing_name}: {_comparison_reason(missing.get('reason'))}, "
+        "so no change can be computed."
+    )
+    alternative = _comparison_alternative(missing.get("reason"), entity)
+    return f"{line} {alternative}" if alternative else line
 
 
 def _execution_event(execution: ToolExecution) -> dict[str, Any]:
