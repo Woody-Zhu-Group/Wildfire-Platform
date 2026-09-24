@@ -1,0 +1,497 @@
+{
+  "payload": "v3_hybrid live, PR 46 branch",
+  "today": "2026-09-23",
+  "spend_usd": 0.1254,
+  "input_tokens": 2986419,
+  "stopped_at_cap": false,
+  "hash_check": {
+    "dev": {
+      "tool_pick_units": 13,
+      "hash_equal": 13,
+      "hash_differs": 0
+    },
+    "holdout_v1": {
+      "tool_pick_units": 32,
+      "hash_equal": 32,
+      "hash_differs": 0
+    },
+    "holdout_v2": {
+      "tool_pick_units": 17,
+      "hash_equal": 17,
+      "hash_differs": 0
+    }
+  },
+  "sets": {
+    "dev_original_105": {
+      "fields": {
+        "disposition": {
+          "n": 105,
+          "accuracy": 0.962,
+          "mean_confidence": 0.97
+        },
+        "intent": {
+          "n": 66,
+          "accuracy": 0.955,
+          "mean_confidence": 0.937
+        },
+        "dataset": {
+          "n": 20,
+          "accuracy": 0.95,
+          "mean_confidence": 0.952
+        },
+        "tool_pick": {
+          "n": 12,
+          "accuracy": 1.0,
+          "mean_confidence": 0.721,
+          "clear_0_8": 4
+        },
+        "clarify_reason": {
+          "n": 13,
+          "accuracy": 1.0,
+          "mean_confidence": 0.901
+        },
+        "unsupported_topic": {
+          "n": 10,
+          "accuracy": 1.0,
+          "mean_confidence": 0.963
+        }
+      },
+      "last": {
+        "disposition": {
+          "n": 105,
+          "accuracy": 0.962,
+          "mean_confidence": 0.969
+        },
+        "intent": {
+          "n": 66,
+          "accuracy": 0.97,
+          "mean_confidence": 0.938
+        },
+        "dataset": {
+          "n": 20,
+          "accuracy": 0.95,
+          "mean_confidence": 0.947
+        },
+        "tool_pick": {
+          "n": 12,
+          "accuracy": 1.0,
+          "mean_confidence": 0.739,
+          "clear_0_8": 6
+        },
+        "clarify_reason": {
+          "n": 13,
+          "accuracy": 1.0,
+          "mean_confidence": 0.908
+        },
+        "unsupported_topic": {
+          "n": 10,
+          "accuracy": 0.9,
+          "mean_confidence": 0.967
+        }
+      },
+      "last_label": "PR 43 report, one pass"
+    },
+    "dev_all_148": {
+      "fields": {
+        "disposition": {
+          "n": 148,
+          "accuracy": 0.946,
+          "mean_confidence": 0.963
+        },
+        "intent": {
+          "n": 88,
+          "accuracy": 0.909,
+          "mean_confidence": 0.913
+        },
+        "dataset": {
+          "n": 20,
+          "accuracy": 0.95,
+          "mean_confidence": 0.952
+        },
+        "tool_pick": {
+          "n": 12,
+          "accuracy": 1.0,
+          "mean_confidence": 0.721,
+          "clear_0_8": 4
+        },
+        "clarify_reason": {
+          "n": 17,
+          "accuracy": 0.941,
+          "mean_confidence": 0.895
+        },
+        "unsupported_topic": {
+          "n": 17,
+          "accuracy": 0.647,
+          "mean_confidence": 0.978
+        }
+      },
+      "last": {
+        "disposition": {
+          "n": 148,
+          "accuracy": 0.939,
+          "mean_confidence": 0.962
+        },
+        "intent": {
+          "n": 88,
+          "accuracy": 0.92,
+          "mean_confidence": 0.914
+        },
+        "dataset": {
+          "n": 20,
+          "accuracy": 0.95,
+          "mean_confidence": 0.947
+        },
+        "tool_pick": {
+          "n": 12,
+          "accuracy": 1.0,
+          "mean_confidence": 0.739,
+          "clear_0_8": 6
+        },
+        "clarify_reason": {
+          "n": 17,
+          "accuracy": 0.941,
+          "mean_confidence": 0.888
+        },
+        "unsupported_topic": {
+          "n": 17,
+          "accuracy": 0.588,
+          "mean_confidence": 0.981
+        }
+      },
+      "last_label": "PR 43 report, one pass"
+    },
+    "holdout_v1": {
+      "fields": {
+        "disposition": {
+          "n": 65,
+          "accuracy": 0.923,
+          "mean_confidence": 0.97
+        },
+        "intent": {
+          "n": 32,
+          "accuracy": 0.812,
+          "mean_confidence": 0.879
+        },
+        "dataset": {
+          "n": 30,
+          "accuracy": 1.0,
+          "mean_confidence": 0.992
+        },
+        "tool_pick": {
+          "n": 32,
+          "accuracy": 0.688,
+          "mean_confidence": 0.875,
+          "clear_0_8": 27
+        },
+        "clarify_reason": {
+          "n": 24,
+          "accuracy": 0.667,
+          "mean_confidence": 0.644
+        },
+        "unsupported_topic": {
+          "n": 9,
+          "accuracy": 0.667,
+          "mean_confidence": 0.889
+        }
+      },
+      "last": {
+        "disposition": {
+          "n": 63,
+          "accuracy": 0.937,
+          "mean_confidence": 0.977
+        },
+        "intent": {
+          "n": 32,
+          "accuracy": 0.844,
+          "mean_confidence": 0.882
+        },
+        "dataset": {
+          "n": 30,
+          "accuracy": 1.0,
+          "mean_confidence": 0.991
+        },
+        "tool_pick": {
+          "n": 32,
+          "accuracy": 0.656,
+          "mean_confidence": 0.901
+        },
+        "clarify_reason": {
+          "n": 24,
+          "accuracy": 0.583,
+          "mean_confidence": 0.636
+        },
+        "unsupported_topic": {
+          "n": 7,
+          "accuracy": 0.857,
+          "mean_confidence": 0.926
+        }
+      },
+      "last_label": "PR 43 report, one pass"
+    },
+    "holdout_v1_same_63": {
+      "fields": {
+        "disposition": {
+          "n": 63,
+          "accuracy": 0.937,
+          "mean_confidence": 0.977
+        },
+        "intent": {
+          "n": 32,
+          "accuracy": 0.812,
+          "mean_confidence": 0.879
+        },
+        "dataset": {
+          "n": 30,
+          "accuracy": 1.0,
+          "mean_confidence": 0.992
+        },
+        "tool_pick": {
+          "n": 32,
+          "accuracy": 0.688,
+          "mean_confidence": 0.875,
+          "clear_0_8": 27
+        },
+        "clarify_reason": {
+          "n": 24,
+          "accuracy": 0.667,
+          "mean_confidence": 0.644
+        },
+        "unsupported_topic": {
+          "n": 7,
+          "accuracy": 0.857,
+          "mean_confidence": 0.934
+        }
+      },
+      "last": {
+        "disposition": {
+          "n": 63,
+          "accuracy": 0.937,
+          "mean_confidence": 0.977
+        },
+        "intent": {
+          "n": 32,
+          "accuracy": 0.844,
+          "mean_confidence": 0.882
+        },
+        "dataset": {
+          "n": 30,
+          "accuracy": 1.0,
+          "mean_confidence": 0.991
+        },
+        "tool_pick": {
+          "n": 32,
+          "accuracy": 0.656,
+          "mean_confidence": 0.901
+        },
+        "clarify_reason": {
+          "n": 24,
+          "accuracy": 0.583,
+          "mean_confidence": 0.636
+        },
+        "unsupported_topic": {
+          "n": 7,
+          "accuracy": 0.857,
+          "mean_confidence": 0.926
+        }
+      },
+      "last_label": "PR 43 report, one pass, same 63 rows"
+    },
+    "holdout_v2": {
+      "fields": {
+        "disposition": {
+          "n": 42,
+          "accuracy": 0.857,
+          "mean_confidence": 0.931
+        },
+        "intent": {
+          "n": 17,
+          "accuracy": 0.647,
+          "mean_confidence": 0.794
+        },
+        "dataset": {
+          "n": 16,
+          "accuracy": 0.938,
+          "mean_confidence": 0.969
+        },
+        "tool_pick": {
+          "n": 17,
+          "accuracy": 0.765,
+          "mean_confidence": 0.859,
+          "clear_0_8": 14
+        },
+        "clarify_reason": {
+          "n": 14,
+          "accuracy": 0.571,
+          "mean_confidence": 0.595
+        },
+        "unsupported_topic": {
+          "n": 11,
+          "accuracy": 0.545,
+          "mean_confidence": 0.826
+        }
+      },
+      "last": {
+        "disposition": {
+          "n": 42,
+          "accuracy": 0.857,
+          "mean_confidence": 0.935
+        },
+        "intent": {
+          "n": 17,
+          "accuracy": 0.647,
+          "mean_confidence": 0.795
+        },
+        "dataset": {
+          "n": 16,
+          "accuracy": 0.938,
+          "mean_confidence": 0.974
+        },
+        "tool_pick": {
+          "n": 17,
+          "accuracy": 0.824,
+          "mean_confidence": 0.862
+        },
+        "clarify_reason": {
+          "n": 14,
+          "accuracy": 0.571,
+          "mean_confidence": 0.599
+        },
+        "unsupported_topic": {
+          "n": 11,
+          "accuracy": 0.545,
+          "mean_confidence": 0.828
+        }
+      },
+      "last_label": "PR 43 report, one pass"
+    }
+  },
+  "new_questions": {
+    "dev": {
+      "breakdown": {
+        "questions": 148,
+        "repeats": 5,
+        "flip_rate": 0.0,
+        "mean_confidence": 0.908,
+        "majority_distribution": {
+          "none": 116,
+          "by_utility": 13,
+          "by_month": 7,
+          "by_week": 5,
+          "by_year": 4,
+          "by_county": 3
+        },
+        "questions_with_fewer_than_5_votes": 0
+      },
+      "output_form": {
+        "questions": 148,
+        "repeats": 5,
+        "flip_rate": 0.061,
+        "mean_confidence": 0.879,
+        "majority_distribution": {
+          "single_number": 56,
+          "record_list": 27,
+          "map": 22,
+          "comparison": 19,
+          "time_series": 16,
+          "ranking": 8
+        },
+        "questions_with_fewer_than_5_votes": 0
+      },
+      "also_chart": {
+        "questions": 148,
+        "repeats": 5,
+        "flip_rate": 0.02,
+        "mean_confidence": 0.916,
+        "majority_distribution": {
+          "no": 137,
+          "yes": 11
+        },
+        "questions_with_fewer_than_5_votes": 0
+      }
+    },
+    "holdout_v1": {
+      "breakdown": {
+        "questions": 65,
+        "repeats": 5,
+        "flip_rate": 0.015,
+        "mean_confidence": 0.869,
+        "majority_distribution": {
+          "none": 38,
+          "by_year": 11,
+          "by_utility": 9,
+          "by_county": 4,
+          "by_month": 3
+        },
+        "questions_with_fewer_than_5_votes": 0
+      },
+      "output_form": {
+        "questions": 65,
+        "repeats": 5,
+        "flip_rate": 0.0,
+        "mean_confidence": 0.902,
+        "majority_distribution": {
+          "single_number": 21,
+          "comparison": 12,
+          "record_list": 11,
+          "time_series": 8,
+          "ranking": 7,
+          "map": 6
+        },
+        "questions_with_fewer_than_5_votes": 0
+      },
+      "also_chart": {
+        "questions": 65,
+        "repeats": 5,
+        "flip_rate": 0.0,
+        "mean_confidence": 0.942,
+        "majority_distribution": {
+          "no": 63,
+          "yes": 2
+        },
+        "questions_with_fewer_than_5_votes": 0
+      }
+    },
+    "holdout_v2": {
+      "breakdown": {
+        "questions": 42,
+        "repeats": 5,
+        "flip_rate": 0.024,
+        "mean_confidence": 0.879,
+        "majority_distribution": {
+          "none": 21,
+          "by_year": 9,
+          "by_county": 7,
+          "by_utility": 3,
+          "by_month": 1,
+          "by_cause": 1
+        },
+        "questions_with_fewer_than_5_votes": 0
+      },
+      "output_form": {
+        "questions": 42,
+        "repeats": 5,
+        "flip_rate": 0.048,
+        "mean_confidence": 0.865,
+        "majority_distribution": {
+          "single_number": 11,
+          "record_list": 10,
+          "comparison": 9,
+          "time_series": 6,
+          "ranking": 4,
+          "map": 2
+        },
+        "questions_with_fewer_than_5_votes": 0
+      },
+      "also_chart": {
+        "questions": 42,
+        "repeats": 5,
+        "flip_rate": 0.0,
+        "mean_confidence": 0.942,
+        "majority_distribution": {
+          "no": 42
+        },
+        "questions_with_fewer_than_5_votes": 0
+      }
+    }
+  }
+}

@@ -20,8 +20,9 @@ from services.agent.schemas import (
     DataQueryRankArgs,
     DataQueryRecordsArgs,
     DataQuerySpatialArgs,
+    EXECUTABLE_TOOL_MODELS,
     RiskForecastArgs,
-    TOOL_MODELS,
+    RiskSurfaceArgs,
     VisualizationCreateArgs,
     VisualizationInspectArgs,
 )
@@ -85,6 +86,7 @@ class ToolExecutor:
         utilities: list[str] | None = None,
         time_resolution: dict[str, Any] | None = None,
         qualification_call: bool = False,
+        harness_call: bool = False,
     ) -> dict[str, Any]:
         """Return harness-normalized arguments without calling the backend.
 
@@ -107,7 +109,9 @@ class ToolExecutor:
                 normalized, utilities=utilities
             )
             normalized, _error = apply_harness_years(
-                normalized, time_resolution=time_resolution
+                normalized,
+                time_resolution=time_resolution,
+                hold_window=not harness_call,
             )
         return normalized
 
@@ -123,9 +127,10 @@ class ToolExecutor:
         years: list[int] | None = None,
         utilities: list[str] | None = None,
         time_resolution: dict[str, Any] | None = None,
+        harness_call: bool = False,
     ) -> ToolExecution:
         started = time.perf_counter()
-        if tool not in TOOL_MODELS:
+        if tool not in EXECUTABLE_TOOL_MODELS:
             print(
                 json.dumps(
                     {
@@ -161,13 +166,30 @@ class ToolExecutor:
             repair_comparison=True,
         )
         stripped_utilities: list[str] = []
+        time_corrections: list[dict[str, Any]] = []
         if not qualification_call:
             normalized_arguments, stripped_utilities = _strip_ungrounded_utilities(
                 normalized_arguments, utilities=utilities
             )
             normalized_arguments, year_error = apply_harness_years(
-                normalized_arguments, time_resolution=time_resolution
+                normalized_arguments,
+                time_resolution=time_resolution,
+                hold_window=not harness_call,
+                corrections=time_corrections,
             )
+            for correction in time_corrections:
+                print(
+                    json.dumps(
+                        {
+                            "event": "harness_time_correction",
+                            "request_id": request_id,
+                            "attempt": attempt,
+                            "tool": tool,
+                            **correction,
+                        },
+                        default=str,
+                    )
+                )
             if year_error:
                 print(
                     json.dumps(
@@ -204,12 +226,13 @@ class ToolExecutor:
                     "requested_arguments": arguments,
                     "qualification_call": qualification_call,
                     "stripped_utilities": stripped_utilities,
+                    "time_corrections": time_corrections,
                 },
                 default=str,
             )
         )
         try:
-            parsed = TOOL_MODELS[tool].model_validate(normalized_arguments)
+            parsed = EXECUTABLE_TOOL_MODELS[tool].model_validate(normalized_arguments)
         except ValidationError as exc:
             return self._error(
                 tool,
@@ -382,6 +405,8 @@ class ToolExecutor:
             return self._map_inspect(parsed)
         if tool == "risk_forecast":
             return self._map_risk(parsed)
+        if tool == "risk_surface":
+            return self._map_risk_surface(parsed)
         if tool == "comparison_run":
             return self._map_comparison(parsed)
         raise ValueError(f"Unsupported tool {tool}")
@@ -453,6 +478,12 @@ class ToolExecutor:
         params["id"] = params.pop("record_id")
         params.pop("utility", None)
         return self.settings.visualization_url + "/event-detail", params
+
+    def _map_risk_surface(self, args: RiskSurfaceArgs) -> tuple[str, dict[str, Any]]:
+        return (
+            self.settings.risk_url + "/surface",
+            args.model_dump(mode="json", exclude_none=True),
+        )
 
     def _map_risk(self, args: RiskForecastArgs) -> tuple[str, dict[str, Any]]:
         return (
@@ -613,6 +644,8 @@ class ToolExecutor:
                 "outage_count": len(raw.get("outages") or []),
                 "affected_circuit_count": len(raw.get("affected_circuits") or []),
             }
+        if tool == "risk_surface":
+            return _summarize_risk_surface(args, raw)
         if tool == "risk_forecast":
             for key in ("date", "risk", "xi", "lookback_days"):
                 if key not in raw:
@@ -842,3 +875,35 @@ def _human_record(row: Any) -> Any:
             if key not in {"geometry", "geom", "style"}
         }
     return selected
+
+
+_SURFACE_CELL_COUNT = 824
+
+
+def _summarize_risk_surface(args: RiskSurfaceArgs, raw: dict[str, Any]) -> dict[str, Any]:
+    """Check the whole grid came back for the asked day, then keep a small summary."""
+    asked = args.date.isoformat()
+    if raw.get("date") != asked:
+        raise ValueError(f"risk surface date {raw.get('date')!r} != requested {asked}")
+    cells = raw.get("cells")
+    if not isinstance(cells, list) or len(cells) != _SURFACE_CELL_COUNT:
+        raise ValueError("risk surface did not return the full 824-cell grid")
+    ids: set[int] = set()
+    for cell in cells:
+        risk = cell.get("risk") if isinstance(cell, dict) else None
+        cell_id = cell.get("cell_id") if isinstance(cell, dict) else None
+        if not isinstance(cell_id, int) or cell_id in ids:
+            raise ValueError("risk surface cell ids are missing or repeated")
+        if not isinstance(risk, (int, float)) or not 0 <= risk <= 1:
+            raise ValueError("risk surface cell risk is outside [0, 1]")
+        ids.add(cell_id)
+    top = max(cells, key=lambda cell: cell["risk"])
+    return {
+        "kind": "surface",
+        "date": asked,
+        "lookback_days": raw.get("lookback_days"),
+        "cell_count": len(cells),
+        "max_risk": top["risk"],
+        "max_risk_cell_id": top["cell_id"],
+        "includes_cell_461": 461 in ids,
+    }

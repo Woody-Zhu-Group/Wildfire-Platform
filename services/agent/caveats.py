@@ -527,7 +527,11 @@ def _is_calfire_count_comparison(execution: ToolExecution) -> bool:
 
 
 def _is_risk_forecast(execution: ToolExecution) -> bool:
-    return execution.tool == "risk_forecast" and execution.ok and not execution.qualification_call
+    return (
+        execution.tool in {"risk_forecast", "risk_surface"}
+        and execution.ok
+        and not execution.qualification_call
+    )
 
 
 def _needs_cnhpp_risk_caveats(executions: list[ToolExecution]) -> bool:

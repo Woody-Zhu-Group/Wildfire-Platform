@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 from pydantic import ValidationError
@@ -16,6 +18,11 @@ from services.agent.caveats import collect_qualifications
 from services.agent.config import AgentSettings
 from services.agent.constrained import ROUTING_CONSTRAINED_PROMPT
 from services.agent.domain import DOMAIN_REFERENCE
+from services.agent.grounding import (
+    ground_model_filters,
+    named_entities,
+    uncovered_entities,
+)
 from services.agent.provider import OpenAICompatibleProvider, SynthesisTimeoutError
 from services.agent.routing import (
     RouteDecision,
@@ -23,10 +30,17 @@ from services.agent.routing import (
     candidate_tools,
     route_question,
 )
-from services.agent.schemas import AgentAnswer, EvidenceClaim, openai_tools
+from services.agent.schemas import (
+    HARNESS_TOOL_MODELS,
+    AgentAnswer,
+    EvidenceClaim,
+    openai_tools,
+)
 from services.agent.streaming import ProgressCallback
 from services.agent.tools import ToolExecution, ToolExecutor
 from services.agent.views import dump_planned, empty_views_payload, plan_views
+
+_shadow_log = logging.getLogger("services.agent.decisions")
 
 MODEL_OFFLINE_ANSWER = (
     "The language model is offline. Counts, maps, and rankings still work. "
@@ -99,10 +113,16 @@ class AgentOrchestrator:
         settings: AgentSettings,
         provider: OpenAICompatibleProvider,
         executor: ToolExecutor,
+        shadow: Any = None,
     ) -> None:
         self.settings = settings
         self.provider = provider
         self.executor = executor
+        self.shadow = shadow
+        if shadow is None and settings.jev_mode == "shadow":
+            from services.agent.decisions.shadow import get_runner
+
+            self.shadow = get_runner(settings)
 
     async def ask(
         self,
@@ -115,6 +135,10 @@ class AgentOrchestrator:
         started = time.perf_counter()
         request_id = uuid.uuid4().hex
         decision = route_question(question, force_model=force_model)
+        if self.settings.slot_plan and not force_model:
+            from services.agent.eval.slot_plan import apply_slot_plan
+
+            decision = apply_slot_plan(decision, question)
         if (
             self.settings.disable_deterministic_routing
             and decision.path == "deterministic"
@@ -135,6 +159,69 @@ class AgentOrchestrator:
             )
         if decision.path == "model":
             decision.slots.setdefault("candidate_tools", candidate_tools(question))
+        shadow = self.shadow
+        if shadow is not None:
+            try:
+                forced = bool(
+                    force_model or self.settings.disable_deterministic_routing
+                )
+                tools = (
+                    list(decision.slots.get("candidate_tools") or [])
+                    if decision.path == "model"
+                    else None
+                )
+                shadow.submit_routing(
+                    request_id,
+                    question,
+                    decision,
+                    date.today().isoformat(),
+                    forced=forced,
+                    candidate_tools=tools,
+                )
+                if decision.path == "model" and not shadow.bundles_tool_pick:
+                    shadow.submit_tool_pick(
+                        request_id,
+                        question,
+                        list(decision.slots.get("candidate_tools") or []),
+                        forced=forced,
+                    )
+            except Exception as exc:  # noqa: BLE001
+                _shadow_log.warning(
+                    "Jev shadow submit failed: %s: %s", type(exc).__name__, exc
+                )
+        result: OrchestrationResult | None = None
+        try:
+            result = await self._ask_routed(
+                question,
+                on_event=on_event,
+                cancel_event=cancel_event,
+                request_id=request_id,
+                started=started,
+                decision=decision,
+            )
+            return result
+        finally:
+            if shadow is not None and shadow.was_admitted(request_id):
+                try:
+                    response = None if result is None else result.response
+                    shadow.record_outcome(request_id, question, response)
+                except Exception as exc:  # noqa: BLE001
+                    _shadow_log.warning(
+                        "Jev shadow outcome failed: %s: %s",
+                        type(exc).__name__,
+                        exc,
+                    )
+
+    async def _ask_routed(
+        self,
+        question: str,
+        *,
+        on_event: ProgressCallback | None = None,
+        cancel_event: asyncio.Event | None = None,
+        request_id: str,
+        started: float,
+        decision: RouteDecision,
+    ) -> OrchestrationResult:
         print(
             json.dumps(
                 {
@@ -220,6 +307,7 @@ class AgentOrchestrator:
                         resolved,
                         request_id=request_id,
                         start_attempt=index,
+                        harness_call=True,
                         year=decision.slots.get("year"),
                         years=decision.slots.get("years") or [],
                         utilities=decision.slots.get("utilities") or [],
@@ -260,29 +348,67 @@ class AgentOrchestrator:
                 answer = _render_deterministic(executions)
                 need_synthesis = False
             else:
-                (
-                    answer_status,
-                    answer,
-                    executions,
-                    trajectory,
-                    model_latency,
-                    direct_without_tool,
-                    model_turns,
-                    model_raw,
-                    _model_qualifications,
-                    _model_caveat_error,
-                ) = await self._model_loop(
-                    question,
-                    request_id,
-                    decision.slots["candidate_tools"],
-                    year=decision.slots.get("year"),
-                    years=decision.slots.get("years") or [],
-                    utilities=decision.slots.get("utilities") or [],
-                    county=decision.slots.get("county"),
-                    time_resolution=decision.slots.get("time_resolution"),
-                    on_event=on_event,
-                    cancel_event=cancel_event,
-                )
+                jev_ready = None
+                if self.settings.jev_mode in {"tool_pick", "tool_pick_template"}:
+                    from services.agent.decisions.tool_pick_mode import (
+                        ToolPickDecision,
+                        log_tool_pick,
+                        requires_multiple_primary_tools,
+                    )
+
+                    if requires_multiple_primary_tools(question, decision):
+                        log_tool_pick(
+                            self.settings,
+                            question,
+                            ToolPickDecision(
+                                None, None, "qwen", "multiple_primary_tools"
+                            ),
+                        )
+                    else:
+                        jev_ready = await self._jev_selected_tools(
+                            question=question,
+                            request_id=request_id,
+                            decision=decision,
+                            on_event=on_event,
+                            cancel_event=cancel_event,
+                        )
+                if jev_ready is None:
+                    (
+                        answer_status,
+                        answer,
+                        executions,
+                        trajectory,
+                        model_latency,
+                        direct_without_tool,
+                        model_turns,
+                        model_raw,
+                        _model_qualifications,
+                        _model_caveat_error,
+                    ) = await self._model_loop(
+                        question,
+                        request_id,
+                        decision.slots["candidate_tools"],
+                        year=decision.slots.get("year"),
+                        years=decision.slots.get("years") or [],
+                        utilities=decision.slots.get("utilities") or [],
+                        county=decision.slots.get("county"),
+                        time_resolution=decision.slots.get("time_resolution"),
+                        on_event=on_event,
+                        cancel_event=cancel_event,
+                    )
+                else:
+                    (
+                        answer_status,
+                        answer,
+                        executions,
+                        trajectory,
+                        model_latency,
+                        direct_without_tool,
+                        model_turns,
+                        model_raw,
+                        _model_qualifications,
+                        _model_caveat_error,
+                    ) = jev_ready
                 raw_log.extend(model_raw)
                 raw_log.extend(_raw_execution(item) for item in executions)
                 has_primary = any(
@@ -336,8 +462,11 @@ class AgentOrchestrator:
                     await self._emit(on_event, "answer", response)
                     return OrchestrationResult(response=response, raw_log=raw_log)
 
+                partial_stop = any(
+                    event.get("type") == "uncovered_entities_stop" for event in trajectory
+                )
                 if answer_status in {"clarification", "unsupported"} or (
-                    answer_status == "error" and not has_primary
+                    answer_status == "error" and (not has_primary or partial_stop)
                 ):
                     response = self._response(
                         request_id=request_id,
@@ -357,7 +486,21 @@ class AgentOrchestrator:
                     await self._emit(on_event, event, response)
                     return OrchestrationResult(response=response, raw_log=raw_log)
 
-                need_synthesis = True
+                if (
+                    self.settings.jev_mode == "tool_pick_template"
+                    and jev_ready is not None
+                ):
+                    from services.agent.decisions.tool_pick_mode import (
+                        template_can_answer,
+                    )
+
+                    if template_can_answer(question, executions):
+                        answer = _render_deterministic(executions)
+                        need_synthesis = False
+                    else:
+                        need_synthesis = True
+                else:
+                    need_synthesis = True
 
             self._raise_if_cancelled(cancel_event)
             # Single attachment point for every successful-tool path (det, model,
@@ -497,6 +640,16 @@ class AgentOrchestrator:
         if cancel_event is not None and cancel_event.is_set():
             raise asyncio.CancelledError()
 
+    def _turn_model(self, attempt: int, primary: str) -> str:
+        """Hosted retries after a failed first turn escalate to the fallback model.
+
+        Ollama keeps the same model on every turn, as before.
+        """
+        fallback = getattr(self.settings, "llm_fallback_model", None)
+        if attempt > 1 and getattr(self.settings, "hosted_llm", False) and fallback:
+            return fallback
+        return primary
+
     async def _execute_with_repair(
         self,
         tool: str,
@@ -512,8 +665,28 @@ class AgentOrchestrator:
         on_event: ProgressCallback | None = None,
         cancel_event: asyncio.Event | None = None,
         qualification_call: bool = False,
+        harness_call: bool = False,
     ) -> ToolExecution:
         self._raise_if_cancelled(cancel_event)
+        if tool in HARNESS_TOOL_MODELS and not harness_call:
+            # Router-only tools are never offered to the model; refuse a guessed name.
+            return ToolExecution(
+                tool=tool,
+                arguments=dict(args),
+                ok=False,
+                summary={},
+                raw=None,
+                error={
+                    "code": "unknown_tool",
+                    "message": f"Unknown tool {tool!r}",
+                    "recoverable": False,
+                    "suggested_action": "Choose one of the provided tools.",
+                    "field_errors": [],
+                },
+                artifact=None,
+                latency_ms=0.0,
+                qualification_call=qualification_call,
+            )
         # Trail/UI must show post-normalize args (harness year fill, aliases),
         # not only the raw model payload that omitted year=.
         preview = getattr(self.executor, "preview_arguments", None)
@@ -525,6 +698,7 @@ class AgentOrchestrator:
                 years=years,
                 utilities=utilities,
                 time_resolution=time_resolution,
+                harness_call=harness_call,
             )
             if callable(preview)
             else args
@@ -549,6 +723,7 @@ class AgentOrchestrator:
             utilities=utilities,
             time_resolution=time_resolution,
             qualification_call=qualification_call,
+            harness_call=harness_call,
         )
         if not result.ok and _should_harness_retry(result):
             # Keep the failed attempt visible for recovery scoring, then retry
@@ -585,6 +760,7 @@ class AgentOrchestrator:
                     years=years,
                     utilities=utilities,
                     time_resolution=time_resolution,
+                    harness_call=harness_call,
                 )
                 if callable(preview)
                 else args
@@ -609,6 +785,7 @@ class AgentOrchestrator:
                 utilities=utilities,
                 time_resolution=time_resolution,
                 qualification_call=qualification_call,
+                harness_call=harness_call,
             )
         await self._emit(
             on_event,
@@ -630,6 +807,92 @@ class AgentOrchestrator:
             },
         )
         return result
+
+    async def _jev_selected_tools(
+        self,
+        *,
+        question: str,
+        request_id: str,
+        decision: RouteDecision,
+        on_event: ProgressCallback | None,
+        cancel_event: asyncio.Event | None,
+    ):
+        """Run Jev's tool when it is confident. None means use the qwen loop."""
+        from services.agent.decisions.tool_pick_mode import (
+            ToolPickDecision,
+            arguments_for_tool,
+            decide_tool_pick,
+            log_tool_pick,
+        )
+
+        candidates = list(decision.slots.get("candidate_tools") or [])
+        picked = decide_tool_pick(question, candidates, self.settings)
+        if picked.path != "jev" or not picked.tool:
+            log_tool_pick(self.settings, question, picked)
+            return None
+        args = arguments_for_tool(picked.tool, decision.slots, question)
+        if args is None:
+            log_tool_pick(
+                self.settings,
+                question,
+                ToolPickDecision(
+                    picked.tool,
+                    picked.confidence,
+                    "qwen",
+                    "arguments_unavailable",
+                    picked.latency_ms,
+                ),
+            )
+            return None
+        trajectory: list[dict[str, Any]] = [
+            {
+                "type": "tool_pick_decision",
+                "path": "jev",
+                "tool": picked.tool,
+                "confidence": picked.confidence,
+                "reason": picked.reason,
+            }
+        ]
+        execution = await self._execute_with_repair(
+            picked.tool,
+            args,
+            request_id=request_id,
+            start_attempt=1,
+            year=decision.slots.get("year"),
+            years=decision.slots.get("years") or [],
+            utilities=decision.slots.get("utilities") or [],
+            time_resolution=decision.slots.get("time_resolution"),
+            trajectory=trajectory,
+            on_event=on_event,
+            cancel_event=cancel_event,
+        )
+        if not execution.ok:
+            log_tool_pick(
+                self.settings,
+                question,
+                ToolPickDecision(
+                    picked.tool,
+                    picked.confidence,
+                    "qwen",
+                    "tool_failed",
+                    picked.latency_ms,
+                ),
+            )
+            return None
+        log_tool_pick(self.settings, question, picked)
+        trajectory.append(_execution_event(execution))
+        return (
+            "tools_ready",
+            "",
+            [execution],
+            trajectory,
+            float(picked.latency_ms or 0.0),
+            0,
+            0,
+            [],
+            [],
+            None,
+        )
 
     async def _model_loop(
         self,
@@ -687,6 +950,21 @@ class AgentOrchestrator:
         blocked_tools: set[str] = set()
         active_candidates = list(candidates)
         catalog = openai_tools(active_candidates, profile="lean_enums")
+        # Failed or empty turns escalate to the fallback model; coverage
+        # continuation turns after a success do not.
+        failed_turns = 0
+        # Hosted models return one call per turn more often than the Ollama
+        # envelope's calls array did, so multi-part questions are checked for
+        # named entities no successful call has covered yet.
+        entities = named_entities(
+            question,
+            utilities=utilities,
+            county=county,
+            years=list(years or []) or ([year] if year else []),
+        )
+        check_coverage = bool(getattr(self.settings, "hosted_llm", False)) and any(
+            len(values) > 1 for values in entities.values()
+        )
         trajectory.append(
             {
                 "type": "tool_catalog",
@@ -718,7 +996,7 @@ class AgentOrchestrator:
                     candidate_tools=candidates,
                     cancel_event=cancel_event,
                     thinking=False,
-                    model=self.settings.request_model,
+                    model=self._turn_model(failed_turns + 1, self.settings.request_model),
                 )
             except asyncio.CancelledError:
                 raise
@@ -814,6 +1092,7 @@ class AgentOrchestrator:
                         ),
                     }
                 )
+                failed_turns += 1
                 continue
 
             # Verbose reasoning is dropped from history; only protocol-required
@@ -833,6 +1112,19 @@ class AgentOrchestrator:
                 tool = str(function.get("name") or "")
                 try:
                     args = json.loads(function.get("arguments") or "{}")
+                    args, dropped = ground_model_filters(
+                        args, question=question, county=county
+                    )
+                    for item in dropped:
+                        event = {
+                            "type": "filter_dropped",
+                            "phase": "routing",
+                            "step": step,
+                            "tool": tool,
+                            **item,
+                        }
+                        trajectory.append(event)
+                        print(json.dumps({"event": "filter_dropped", **event}, default=str))
                     canonical_args = json.dumps(args, sort_keys=True, default=str)
                 except json.JSONDecodeError as exc:
                     routing_messages.append(
@@ -994,6 +1286,33 @@ class AgentOrchestrator:
                     None,
                 )
 
+            missing = (
+                    uncovered_entities(entities, _primary_calls(executions))
+                    if check_coverage
+                    else []
+                )
+            if turn_had_success and not turn_had_failure and missing:
+                trajectory.append(
+                    {
+                        "type": "uncovered_entities_continue",
+                        "phase": "routing",
+                        "step": step,
+                        "missing": missing,
+                    }
+                )
+                routing_messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "The question names more items than the calls so far "
+                            f"cover. Still missing: {', '.join(missing)}. Call the "
+                            "tool(s) for each missing item now. Do not repeat calls "
+                            "already made and do not answer yet."
+                        ),
+                    }
+                )
+                continue
+
             if turn_had_success and not turn_had_failure:
                 if _is_exploratory_question(question):
                     enrichments = await self._enrich_exploratory_evidence(
@@ -1028,6 +1347,7 @@ class AgentOrchestrator:
             # (HTTP 400). Reset to a clean routing prompt that includes the
             # error so a second model attempt remains possible.
             if turn_had_failure:
+                failed_turns += 1
                 errors = [
                     item.error
                     for item in executions
@@ -1064,6 +1384,37 @@ class AgentOrchestrator:
                     }
                 )
 
+        still_missing = (
+            uncovered_entities(entities, _primary_calls(executions))
+            if check_coverage
+            else []
+        )
+        if still_missing and _primary_calls(executions):
+            # Never answer part of a multi-part question as if it were whole.
+            trajectory.append(
+                {
+                    "type": "uncovered_entities_stop",
+                    "phase": "routing",
+                    "missing": still_missing,
+                }
+            )
+            names = ", ".join(item.split(":", 1)[1] for item in still_missing)
+            return (
+                "error",
+                (
+                    "I could not retrieve data for every item in the question "
+                    f"(missing: {names}), so I am not giving a partial answer. "
+                    "Try asking about each item separately."
+                ),
+                executions,
+                trajectory,
+                model_latency,
+                direct_without_tool,
+                model_turns,
+                raw_log,
+                [],
+                None,
+            )
         return (
             "error",
             _user_facing_tool_failure(executions, set()),
@@ -1261,7 +1612,7 @@ class AgentOrchestrator:
                     phase="synthesis",
                     timeout_seconds=self.settings.synthesis_timeout_seconds,
                     thinking=synthesis_thinking,
-                    model=synthesis_model,
+                    model=self._turn_model(attempt, synthesis_model),
                 )
             except asyncio.CancelledError:
                 trajectory.append(
@@ -1591,9 +1942,9 @@ def _should_harness_retry(result: ToolExecution) -> bool:
     # field_errors) should be retried without another model turn.
     if code == "invalid_arguments" and not result.error.get("field_errors"):
         try:
-            from services.agent.schemas import TOOL_MODELS
+            from services.agent.schemas import EXECUTABLE_TOOL_MODELS
 
-            TOOL_MODELS[result.tool].model_validate(result.arguments)
+            EXECUTABLE_TOOL_MODELS[result.tool].model_validate(result.arguments)
             return True
         except Exception:  # noqa: BLE001
             return False
@@ -1883,6 +2234,12 @@ _QUANTITY_CLAIM_RE = re.compile(
     re.IGNORECASE,
 )
 
+_SAMPLE_CONTEXT_RE = re.compile(
+    r"\b(?:return(?:ed|s)?|show(?:s|n|ing)?|display(?:ed|s)?|list(?:ed|s)?|"
+    r"sample[sd]?|representative|example)\b",
+    re.IGNORECASE,
+)
+
 _SYNTHESIS_RECORD_KEEP_KEYS = (
     "incident_name",
     "name",
@@ -1954,6 +2311,14 @@ def _synthesis_evidence_payload(
     return payloads
 
 
+def _primary_calls(executions: list[ToolExecution]) -> list[tuple[str, dict[str, Any]]]:
+    return [
+        (item.tool, item.arguments)
+        for item in executions
+        if item.ok and not item.qualification_call
+    ]
+
+
 def _quantity_mismatches(
     answer: str,
     executions: list[ToolExecution],
@@ -1963,10 +2328,21 @@ def _quantity_mismatches(
     allowed = _quantity_context_values(executions, caveats)
     if not allowed:
         return set()
+    # A record-list sample size ("returned 10 records") is not a count claim.
+    sample_sizes = {
+        int(summary["returned"])
+        for summary in (item.summary or {} for item in executions if item.ok)
+        if summary.get("result_mode") == "records"
+        and isinstance(summary.get("returned"), int)
+    }
     mismatched: set[str] = set()
     for match in _QUANTITY_CLAIM_RE.finditer(answer):
         raw = next(group for group in match.groups() if group is not None)
         value = int(raw.replace(",", ""))
+        if value in sample_sizes and _SAMPLE_CONTEXT_RE.search(
+            answer[max(0, match.start() - 40) : match.end() + 40]
+        ):
+            continue
         if value not in allowed:
             mismatched.add(raw.replace(",", ""))
     return mismatched
@@ -2232,6 +2608,16 @@ def _render_risk_answer(summary: dict[str, Any]) -> str:
     return sentence
 
 
+def _render_surface_answer(summary: dict[str, Any]) -> str:
+    return (
+        f"Modeled ignition risk for all {summary.get('cell_count')} California grid "
+        f"cells on {summary.get('date')}. The highest cell, "
+        f"cell {summary.get('max_risk_cell_id')}, had a "
+        f"{_risk_percent_phrase(summary.get('max_risk'))} chance of at least one "
+        "ignition that day."
+    )
+
+
 def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> str:
     empty = summary.get("empty_reason")
     if empty:
@@ -2338,6 +2724,8 @@ def _render_deterministic(executions: list[ToolExecution]) -> str:
             )
         elif item.tool == "risk_forecast":
             parts.append(_render_risk_answer(summary))
+        elif item.tool == "risk_surface":
+            parts.append(_render_surface_answer(summary))
         elif item.tool == "data_query_rank":
             parts.append(_render_rank_answer(item.arguments or {}, summary))
         elif item.tool == "comparison_run":

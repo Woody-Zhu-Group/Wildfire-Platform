@@ -1,9 +1,11 @@
 # Local AI agent for wildfire data questions: summary for PI
 
+> Status, 2026-09-23: dated August 2026 summary; the results below are unchanged. Since then: `eval/cases.json` has grown to 107 cases; the agent's model default is `qwen2.5:7b` with constrained synthesis (this summary measured `qwen3:4b`) (`services/agent/config.py`); a hosted OpenRouter path that sends `tool_choice: "required"` is on main but off by default (`AGENT_LLM_PROVIDER=openrouter`, see [`docs/OPENROUTER.md`](../../../docs/OPENROUTER.md), which records `cpuc_vs_us` passing on that path on 2026-09-23); and CPUC versus US compare questions now companion-fetch the missing dataset in the harness (`services/agent/caveats.py`).
+
 **Date:** August 2026 (updated after synthesis-quality eval)  
 **Question we set out to answer:** Can a small language model running on a laptop reliably route policymaker questions to our existing wildfire data services, and return answers with the right scientific caveats?
 
-**Short answer:** Yes for this prototype scope, with most reliability coming from harness engineering around the model. On the current **57-case** suite (`qwen3:4b`, thinking off, constrained synthesis), **55/57** cases passed the measured checks. Synthesis now produces usable policymaker prose on CPU; interactive latency and multi-tool sequencing remain the main limits—and those argue for GPU or hosted inference, not a larger rewrite of the harness.
+**Short answer:** Yes for this prototype scope, with most reliability coming from harness engineering around the model. On the current **57-case** suite (`qwen3:4b`, thinking off, constrained synthesis), **55/57** cases passed the measured checks. Synthesis now produces usable policymaker prose on CPU; interactive latency and multi-tool sequencing remain the main limits, and those argue for GPU or hosted inference, not a larger rewrite of the harness.
 
 ---
 
@@ -28,8 +30,8 @@ Run tag: `synthesis-quality-20260811` · full report: `services/agent/eval/REPOR
 
 Failed cases:
 
-- `cpuc_vs_us` — systematic multi-tool miss (see below); synthesis prose is honest but incomplete.
-- `collision_wrong_kind_model_repair` — forced model repair of a wrong comparison kind; no successful tool call.
+- `cpuc_vs_us`: systematic multi-tool miss (see below); synthesis prose is honest but incomplete.
+- `collision_wrong_kind_model_repair`: forced model repair of a wrong comparison kind; no successful tool call.
 
 Harness-rescued (still scored OK when tools/caveats succeeded): `recover_validation`, `recover_503`, `holdout_count_trend_sce_2023`.
 
@@ -47,7 +49,7 @@ Harness-rescued (still scored OK when tools/caveats succeeded): `recover_validat
 
 > CAL FIRE recorded 11 wildfire incidents in Sacramento County during 2024 under the default incident-type filter. This count excludes untyped events (1,234 statewide records without incident type) and utility-tagged incidents (282 records without utility data), so it does not represent all fire events. One example is the Marsh Fire.
 
-That answer took **~96 seconds** end-to-end on this CPU laptop (~60 seconds in synthesis). Qualities like this—not pass rates alone—are what make the prototype useful for staff.
+That answer took **~96 seconds** end-to-end on this CPU laptop (~60 seconds in synthesis). Qualities like this, not pass rates alone, are what make the prototype useful for staff.
 
 ---
 
@@ -56,8 +58,8 @@ That answer took **~96 seconds** end-to-end on this CPU laptop (~60 seconds in s
 - **CPU latency.** Model-heavy questions commonly take **60–96 seconds** (sometimes longer). Correctness is achievable; interactive feel is not.
 - **Synthesis thinking on CPU.** Enabling thinking for synthesis (while keeping routing thinking-off) **timed out past 180 seconds** on every probe. Thinking needs a GPU or hosted endpoint; local default keeps it off.
 - **Multi-tool sequencing on 4B + Ollama.** `cpuc_vs_us` (“Compare CPUC and US ignition counts in 2024…”) fails **systematically** (10/10 in a flake probe; still failed in the full suite). Diagnosis:
-  1. **Baseline:** the model emits **one** successful `data_query_records` call (CPUC only). The harness treats a clean single-tool turn as done and synthesizes. It does **not** attempt a second call and fail—it never plans both.
-  2. **Explicit compare prompt:** telling the model to emit both `cpuc_ignitions` and `us_ignitions` in one turn gets **two calls every time (5/5)**—so intent is promptable—but both calls then fail schema validation (`county="null"`, invented `tier`). Dual *success* still fails.
+  1. **Baseline:** the model emits **one** successful `data_query_records` call (CPUC only). The harness treats a clean single-tool turn as done and synthesizes. It does **not** attempt a second call and fail; it never plans both.
+  2. **Explicit compare prompt:** telling the model to emit both `cpuc_ignitions` and `us_ignitions` in one turn gets **two calls every time (5/5)**, so intent is promptable, but both calls then fail schema validation (`county="null"`, invented `tier`). Dual *success* still fails.
   3. **PI takeaway:** this is the clearest remaining **model/provider capability limit**. Ollama cannot force multi-tool calls (`tool_choice` unsupported). Hosted inference with required parallel tools (or a stronger model) is the concrete fix; more harness prompts alone do not deliver reliable dual-dataset answers.
 - **Not a product chatbot.** Single exchange, loopback, read-only; no multi-user session memory.
 
@@ -89,4 +91,4 @@ A GPU makes answers feel instant. It does not replace the harness for caveats, r
 
 ## Bottom line for the PI
 
-We can run a small local model as a front door to wildfire services we already trust, provided the engineering around it owns easy routing, caveat attachment, recovery, and grounded synthesis. **Synthesis now writes useful briefs** (see Sacramento example). **Fallback is still ~27% of synthesis attempts**—better than constant rescue, not yet “rare.” The remaining hard limit for the PI narrative is precise: **4B + Ollama will not reliably execute two-dataset comparisons**; prompting can elicit the second call but not clean arguments, and the API cannot require tools. Next deployment step: GPU/hosted inference for latency and multi-tool control, plus a short pilot with real analyst questions under the same safety constraints.
+We can run a small local model as a front door to wildfire services we already trust, provided the engineering around it owns easy routing, caveat attachment, recovery, and grounded synthesis. **Synthesis now writes useful briefs** (see Sacramento example). **Fallback is still ~27% of synthesis attempts**: better than constant rescue, not yet “rare.” The remaining hard limit for the PI narrative is precise: **4B + Ollama will not reliably execute two-dataset comparisons**; prompting can elicit the second call but not clean arguments, and the API cannot require tools. Next deployment step: GPU/hosted inference for latency and multi-tool control, plus a short pilot with real analyst questions under the same safety constraints.

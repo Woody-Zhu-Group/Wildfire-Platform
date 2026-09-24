@@ -12,11 +12,19 @@ from typing import Any, Literal
 
 from pydantic import Field, ValidationError, model_validator
 
-from services.agent.schemas import Metric, StrictModel
+from services.agent.schemas import (
+    MapMode,
+    MedicalStatMode,
+    MedicalViewId,
+    Metric,
+    SeriesMode,
+    StrictModel,
+)
 from services.agent.tools import ToolExecution
 from services.shared.dataset_registry import (
     COUNT_MAP_DATASETS as _COUNT_MAP_DATASETS,
     DQ_TO_VIZ as _DQ_TO_VIZ,
+    HDW_YEARS as _HDW_YEARS,
     STAT_LABELS as _STAT_LABELS,
 )
 
@@ -35,6 +43,12 @@ _SPATIAL_COUNT_LABELS = {
     "epss_outages": "EPSS outages",
     "calfire_incidents": "CAL FIRE incidents",
 }
+# California event layers the HDW grid can play under (not the CONUS sample).
+_HDW_EVENT_LAYERS = frozenset({"ignitions", "epss", "psps", "calfire"})
+# Datasets the workspace timeline can overlay on one axis.
+_TIMELINE_DATASETS = ("ignitions", "epss", "calfire")
+# Risk calls that score one historical day; a grid map may cite either.
+_RISK_DAY_TOOLS = frozenset({"risk_forecast", "risk_surface"})
 _MAX_VISUAL = 2
 _MAX_STATS = 3
 _MONTH_NAMES = (
@@ -69,6 +83,9 @@ class MapViewParams(StrictModel):
     highlight_ids: list[str] = Field(default_factory=list)
     show_territory: bool = False
     show_hftd: bool = False
+    show_hdw: bool = False
+    map_mode: MapMode = "events"
+    risk_date: str | None = None
 
     @model_validator(mode="after")
     def validate_extent(self) -> "MapViewParams":
@@ -76,6 +93,19 @@ class MapViewParams(StrictModel):
         for item in self.datasets:
             if item not in allowed:
                 raise ValueError(f"unknown map dataset {item!r}")
+        if self.map_mode == "events":
+            if self.risk_date is not None:
+                raise ValueError("risk_date requires map_mode risk or residual")
+        else:
+            # The grid covers every cell for one day; no event layer rides along.
+            if not self.risk_date or self.datasets or self.show_hdw:
+                raise ValueError(f"map_mode={self.map_mode} takes only risk_date")
+            date.fromisoformat(self.risk_date)
+        if self.show_hdw:
+            if len(self.datasets) != 1 or self.datasets[0] not in _HDW_EVENT_LAYERS:
+                raise ValueError("HDW plays over exactly one California event layer")
+            if self.year not in _HDW_YEARS:
+                raise ValueError(f"HDW has no playback file for {self.year}")
         if self.extent == "territory" and not self.utility:
             raise ValueError("extent=territory requires utility")
         if self.extent == "conus" and "us_ignitions" not in self.datasets:
@@ -96,9 +126,21 @@ class TimeSeriesViewParams(StrictModel):
     utility: str | None = None
     county: str | None = None
     incident_type_mode: Literal["wildfire_default", "all", "untyped"] | None = None
+    series_mode: SeriesMode | None = None
+    datasets: list[str] | None = None
 
     @model_validator(mode="after")
     def validate_series(self) -> "TimeSeriesViewParams":
+        if self.series_mode == "timeline":
+            datasets = self.datasets or []
+            if len(datasets) < 2 or len(set(datasets)) != len(datasets):
+                raise ValueError("timeline needs two or more distinct datasets")
+            if any(item not in _TIMELINE_DATASETS for item in datasets):
+                raise ValueError("timeline datasets must be CPUC, EPSS, or CAL FIRE")
+            if datasets[0] != self.dataset:
+                raise ValueError("timeline dataset must be the first of datasets")
+        elif self.datasets is not None:
+            raise ValueError("datasets is only for series_mode timeline")
         if self.dataset not in {
             "ignitions",
             "us_ignitions",
@@ -155,6 +197,13 @@ class StatCardViewParams(StrictModel):
     period: str
     source_dataset: str
     unit: Literal["events", "risk", "percentile"] | None = "events"
+    stat_mode: MedicalStatMode | None = None
+    view_id: MedicalViewId | None = None
+    year: int | None = Field(None, ge=1900, le=2100)
+    start_date: str | None = None
+    end_date: str | None = None
+    utility: str | None = None
+    county: str | None = None
 
 
 class SpatialContextViewParams(StrictModel):
@@ -222,6 +271,172 @@ def format_view_scope(scope: dict[str, Any]) -> str:
     return ", ".join(bits)
 
 
+def _medical_exposure_views(primary: list[ToolExecution]) -> list[ComponentSpec]:
+    """One EPSS exposure card, grounded on the count that selected the year."""
+    for item in primary:
+        args = item.arguments or {}
+        summary = item.summary or {}
+        if item.tool != "data_query_records":
+            continue
+        dataset = str(summary.get("dataset") or args.get("dataset") or "")
+        if dataset not in {"epss_outages", "epss"}:
+            continue
+        if (summary.get("result_mode") or args.get("result_mode")) != "count":
+            continue
+        if summary.get("total") is None:
+            continue
+        year = _year_from_args(args, summary)
+        ref = (item.artifact or {}).get("ref")
+        params = StatCardViewParams(
+            kind="count",
+            value=float(summary.get("total") or 0),
+            label="EPSS outages",
+            scope=_scope_label(args, summary),
+            period=_period_label(args, summary, year=year),
+            source_dataset="epss_outages",
+            unit="events",
+            stat_mode="medical_exposure",
+            view_id="medical-exposure",
+            year=year,
+            start_date=_date_str(args.get("start_date")),
+            end_date=_date_str(args.get("end_date")),
+            utility=args.get("utility"),
+            county=args.get("county"),
+        )
+        return [
+            ComponentSpec(
+                type="stat_card",
+                params=params.model_dump(mode="json"),
+                evidence_ids=[item.evidence_id],
+                artifact_refs=[ref] if ref else [],
+            )
+        ]
+    return []
+
+
+def _summary_stat_views(primary: list[ToolExecution]) -> list[ComponentSpec]:
+    """One live summary panel, grounded on the count for that dataset and window."""
+    for item in primary:
+        args = item.arguments or {}
+        summary = item.summary or {}
+        if item.tool != "data_query_records":
+            continue
+        dataset = str(summary.get("dataset") or args.get("dataset") or "")
+        if not dataset:
+            continue
+        if (summary.get("result_mode") or args.get("result_mode")) != "count":
+            continue
+        if summary.get("total") is None:
+            continue
+        year = _year_from_args(args, summary)
+        ref = (item.artifact or {}).get("ref")
+        params = StatCardViewParams(
+            kind="count",
+            value=float(summary.get("total") or 0),
+            label="Summary",
+            scope=_scope_label(args, summary),
+            period=_period_label(args, summary, year=year),
+            source_dataset=dataset,
+            unit="events",
+            stat_mode="summary",
+            view_id="summary-stats",
+            year=year,
+            start_date=_date_str(args.get("start_date")),
+            end_date=_date_str(args.get("end_date")),
+            utility=args.get("utility"),
+            county=args.get("county"),
+        )
+        return [
+            ComponentSpec(
+                type="stat_card",
+                params=params.model_dump(mode="json"),
+                evidence_ids=[item.evidence_id],
+                artifact_refs=[ref] if ref else [],
+            )
+        ]
+    return []
+
+
+def _timeline_views(
+    primary: list[ToolExecution], requested: list[str]
+) -> list[ComponentSpec]:
+    """One multi-dataset timeline, only when every named dataset has its own series."""
+    found: dict[str, ToolExecution] = {}
+    for item in primary:
+        args = item.arguments or {}
+        if item.tool != "visualization_create" or args.get("kind") != "time_series":
+            continue
+        dataset = str(args.get("dataset"))
+        if dataset in requested and dataset not in found:
+            found[dataset] = item
+    if len(requested) < 2 or set(found) != set(requested):
+        return []
+    window = {
+        tuple(
+            (item.arguments or {}).get(key)
+            for key in ("interval", "year", "start_date", "end_date", "utility", "county")
+        )
+        for item in found.values()
+    }
+    if len(window) != 1:
+        return []
+    first = found[requested[0]]
+    args = first.arguments or {}
+    params = TimeSeriesViewParams(
+        dataset=requested[0],
+        datasets=list(requested),
+        interval=args.get("interval") or "weekly",
+        year=_year_from_args(args, first.summary or {}),
+        start_date=_date_str(args.get("start_date")),
+        end_date=_date_str(args.get("end_date")),
+        utility=args.get("utility"),
+        county=args.get("county"),
+        series_mode="timeline",
+    )
+    refs = [
+        (found[name].artifact or {}).get("ref")
+        for name in requested
+        if (found[name].artifact or {}).get("ref")
+    ]
+    return [
+        ComponentSpec(
+            type="time_series",
+            params=params.model_dump(mode="json"),
+            evidence_ids=[found[name].evidence_id for name in requested],
+            artifact_refs=refs,
+        )
+    ]
+
+
+def _risk_grid_map(primary: list[ToolExecution], map_mode: str) -> ComponentSpec | None:
+    """Risk surface or residual grid for the day a cited risk call scored."""
+    for item in primary:
+        if item.tool not in _RISK_DAY_TOOLS:
+            continue
+        scored = _date_str((item.summary or {}).get("date") or (item.arguments or {}).get("date"))
+        if not scored:
+            continue
+        return ComponentSpec(
+            type="map",
+            params=MapViewParams(
+                datasets=[],
+                map_mode=map_mode,
+                risk_date=scored,
+            ).model_dump(mode="json"),
+            evidence_ids=[item.evidence_id],
+            artifact_refs=[],
+        )
+    return None
+
+
+def _stamp_hdw(visuals: list[ComponentSpec], show_hdw: Any) -> None:
+    if show_hdw is not True:
+        return
+    for spec in visuals:
+        if spec.type == "map" and spec.artifact_refs:
+            spec.params["show_hdw"] = True
+
+
 def plan_views(
     executions: list[ToolExecution],
     *,
@@ -238,6 +453,48 @@ def plan_views(
     if not primary:
         return PlannedViews(views=[], view_status="none", view_scope=scope)
 
+    if slots.get("stat_mode") == "medical_exposure":
+        try:
+            views = _medical_exposure_views(primary)
+            if not views:
+                return PlannedViews(
+                    views=[], view_status="planner_fallback", view_scope=scope
+                )
+            grounded = ground_views(views, executions)
+        except (GroundingError, ValidationError, KeyError, TypeError, ValueError):
+            return PlannedViews(
+                views=[], view_status="planner_fallback", view_scope=scope
+            )
+        return PlannedViews(views=grounded, view_status="applied", view_scope=scope)
+
+    if slots.get("stat_mode") == "summary":
+        try:
+            views = _summary_stat_views(primary)
+            if not views:
+                return PlannedViews(
+                    views=[], view_status="planner_fallback", view_scope=scope
+                )
+            grounded = ground_views(views, executions)
+        except (GroundingError, ValidationError, KeyError, TypeError, ValueError):
+            return PlannedViews(
+                views=[], view_status="planner_fallback", view_scope=scope
+            )
+        return PlannedViews(views=grounded, view_status="applied", view_scope=scope)
+
+    if slots.get("series_mode") == "timeline":
+        try:
+            views = _timeline_views(primary, list(slots.get("timeline_datasets") or []))
+            if not views:
+                return PlannedViews(
+                    views=[], view_status="planner_fallback", view_scope=scope
+                )
+            grounded = ground_views(views, executions)
+        except (GroundingError, ValidationError, KeyError, TypeError, ValueError):
+            return PlannedViews(
+                views=[], view_status="planner_fallback", view_scope=scope
+            )
+        return PlannedViews(views=grounded, view_status="applied", view_scope=scope)
+
     try:
         stats: list[ComponentSpec] = []
         visuals: list[ComponentSpec] = []
@@ -247,9 +504,15 @@ def plan_views(
                     stats.append(spec)
                 else:
                     visuals.append(spec)
+        if slots.get("map_mode") in {"risk", "residual"}:
+            grid = _risk_grid_map(primary, slots["map_mode"])
+            if grid is not None:
+                visuals.append(grid)
         visuals = _drop_derived_maps_if_conflicting(visuals)
         visuals = _drop_derived_series_if_explicit(visuals)
         visuals = _cap_visuals(visuals)
+        _stamp_series_mode(visuals, slots.get("series_mode"))
+        _stamp_hdw(visuals, slots.get("show_hdw"))
         views = stats[:_MAX_STATS] + visuals
         if not views:
             return PlannedViews(views=[], view_status="none", view_scope=scope)
@@ -474,6 +737,21 @@ def _ground_stat(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
 
 def _ground_map(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
     params = spec.params
+    if (params.get("map_mode") or "events") != "events":
+        risk_date = params.get("risk_date")
+        scored = {
+            _date_str((item.summary or {}).get("date") or (item.arguments or {}).get("date"))
+            for item in cited
+            if item.tool in _RISK_DAY_TOOLS
+        }
+        if risk_date not in scored:
+            raise GroundingError(f"risk_date {risk_date!r} is not a scored risk date")
+        return
+    if params.get("show_hdw") and not any(
+        item.tool == "visualization_create" and (item.arguments or {}).get("kind") == "map"
+        for item in cited
+    ):
+        raise GroundingError("HDW overlay needs a cited event map layer")
     datasets = list(params.get("datasets") or [])
     evidenced: set[str] = set()
     for item in cited:
@@ -497,10 +775,49 @@ def _ground_map(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
             raise GroundingError(f"map datasets {leftover} not in cited map tools")
 
 
+_SERIES_MODE_DATASET = {
+    "cumulative_acres": "calfire",
+    "customer_events": "psps",
+    "regional": "epss",
+}
+
+
+def _stamp_series_mode(visuals: list[ComponentSpec], series_mode: Any) -> None:
+    if series_mode not in _SERIES_MODE_DATASET and series_mode not in {
+        "yearly",
+        "seasonal",
+    }:
+        return
+    for spec in visuals:
+        if spec.type == "time_series":
+            spec.params["series_mode"] = series_mode
+
+
 def _ground_time_series(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
+    params = spec.params
+    if params.get("series_mode") == "timeline":
+        datasets = list(params.get("datasets") or [])
+        if len(cited) != len(datasets):
+            raise GroundingError("timeline needs one cited series per dataset")
+        for dataset, item in zip(datasets, cited):
+            args = item.arguments or {}
+            if item.tool != "visualization_create" or args.get("kind") != "time_series":
+                raise GroundingError("timeline evidence must be time series tools")
+            if args.get("dataset") != dataset:
+                raise GroundingError(f"timeline dataset {dataset} does not match evidence")
+            if params.get("interval") != (args.get("interval") or "weekly"):
+                raise GroundingError("time_series interval does not match evidence")
+            _match_filters(
+                params, item, keys=("utility", "county", "year", "start_date", "end_date")
+            )
+        return
     item = cited[0]
     args = item.arguments or {}
-    params = spec.params
+    required = _SERIES_MODE_DATASET.get(params.get("series_mode"))
+    if required and params.get("dataset") != required:
+        raise GroundingError(
+            f"series_mode {params.get('series_mode')} requires dataset {required}"
+        )
     if item.tool == "data_query_records":
         ds = (item.summary or {}).get("dataset") or args.get("dataset")
         viz = _DQ_TO_VIZ.get(str(ds), str(ds) if ds else "")

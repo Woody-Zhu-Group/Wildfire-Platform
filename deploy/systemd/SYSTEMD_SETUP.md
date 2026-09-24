@@ -11,6 +11,25 @@ Units: `wildfire-data-query` (:8000), `wildfire-risk-forecasting` (:8001),
 optional and should remain disabled unless a new EC2/Ollama resource is
 explicitly configured. Services start in parallel after `network-online.target`.
 
+Each unit runs as `ubuntu` from `/home/ubuntu/Wildfire-Services` with the
+repo `.venv`, `PYTHONPATH` set to the repo root and `PYTHONIOENCODING=utf-8`.
+The uvicorn units bind `--host 0.0.0.0`, and the frontend unit runs
+`frontend/serve.py --bind 0.0.0.0 --port 8765`. That unit serves the older
+local `frontend/` app, not the Pages website built from `website/`.
+
+**No unit for historical risk.** There is no `wildfire-risk-forecasting`
+unit, so nothing here starts `services.risk_forecasting` on `:8001`. The
+agent's risk tool (default `RISK_FORECASTING_BASE_URL=http://127.0.0.1:8001`)
+and the website's risk surface and residual map panels need it. Start it
+separately if they are in use:
+
+```bash
+uvicorn services.risk_forecasting.app:app --port 8001 --app-dir .
+```
+
+It also needs the untracked covariate files and `grid_W.pkl`; see
+[`services/risk_forecasting/README.md`](../../services/risk_forecasting/README.md).
+
 ## Stop screen sessions first
 
 `enable --now` will fail to bind if a screen-launched uvicorn still owns the
@@ -21,7 +40,10 @@ port. Detach and quit those sessions before installing.
 Each unit sets `EnvironmentFile=/home/ubuntu/Wildfire-Services/.env`. systemd
 syntax is stricter than `python-dotenv`: no `export`, no `$VAR` expansion, no
 unquoted spaces, and an unquoted `#` starts a comment (quote passwords that
-contain `#`). Services also call `load_dotenv()` themselves.
+contain `#`). Services also load the repo `.env` themselves (`shared/db.py`
+for the database-backed services, `services/agent/config.py` and
+`services/gpu_control/config.py` for those two) without overriding values
+systemd has already set.
 
 On the box, flag problem lines without printing values:
 
@@ -32,7 +54,8 @@ grep -nE '^(export[[:space:]]|[A-Za-z_][A-Za-z0-9_]*=.*[[:space:]]|[A-Za-z_][A-Z
 
 ## Install and enable
 
-From the repo on the instance (after `git pull` so these files exist):
+From the repo on the instance (after `git pull` so these files exist). The
+`cp` glob also copies `wildfire-gpu-control.service`; it is not enabled below.
 
 ```bash
 sudo cp /home/ubuntu/Wildfire-Services/deploy/systemd/wildfire-*.service /etc/systemd/system/

@@ -4,9 +4,15 @@ This document is **superseded**. It assumed a **fixed Leaflet map** with widgets
 
 Do not implement from this file. See the agent-canvas plan (ViewPlanner first; no `render_view` tool; no second map; no void left pane; no CPUC+US overlay).
 
+**Status (2026-09-23).** The body below is kept as the original proposal. What shipped instead:
+
+- `frontend/` (local Historical Map): the planner in `services/agent/views.py` (`plan_views`) emits six component types (Map, TimeSeries, Comparison, RecordTable, StatCard, SpatialContext) that render on the left canvas, not in the Ask aside. Renderers and layouts are in `frontend/assets/js/sect-fasttrip-psps.js`; `frontend/assets/js/historical-agent-panel.js` applies `payload.views` and keeps the prose, qualifications, CSV download and collapsed audit `<details>` in the aside. The map is the existing Leaflet instance, reused as a component. See [`CANVAS.md`](CANVAS.md).
+- `website/` (React workspace published to `docs/`): Ask appends grounded views as ordinary workspace panels (`website/src/answerPanels.ts`: map, risk/residual grid map, time series, ranking comparison, record table, stat cards). Non-ranking comparison and spatial-context views show a "not supported here yet" notice. A collapsed Tool chain disclosure (`website/src/ToolTrace.tsx`) covers the audit role.
+- Not built as proposed: the aside widget registry, MapSyncNote, and a separate SpatialCounts widget (spatial summaries render as StatCards).
+
 ---
 
-# Canvas-style agent panel — design proposal (no implementation)
+# Canvas-style agent panel: design proposal (no implementation)
 
 
 Meeting feedback: the left panel should be **dynamic with canvas-style components**, rather than a fixed layout. This document is the design to review before any code.
@@ -49,8 +55,8 @@ Keep a small catalog. Prefer one primary widget plus optional secondaries, not a
 | **SpatialContext** | Point lookup | `data_query_spatial` kind=`point` (IOU, HFTD, cell, county) |
 | **SpatialCounts** | Polygon summary | `data_query_spatial` kind=`summary` `counts` |
 | **MapSyncNote** | Map filters actually changed | existing `applyAgentView` result (not a second map) |
-| **Unsupported / Clarify** | `status` in {unsupported, clarification, error} | `status` + `route.reason` — no data widgets |
-| **AuditDrawer** | Always, collapsed | `route`, tools, origin — never competes with the answer |
+| **Unsupported / Clarify** | `status` in {unsupported, clarification, error} | `status` + `route.reason`; no data widgets |
+| **AuditDrawer** | Always, collapsed | `route`, tools, origin; never competes with the answer |
 
 **Not a panel component:** a second Leaflet map. The page already has the map. Agent map tools should keep syncing the existing map (year / layer / utility / county) and only show MapSyncNote in the panel.
 
@@ -82,7 +88,7 @@ Artifact kind is a confirmation signal (`data_query_records` payload vs `visuali
 
 - The map and the year/layer controls remain the geographic context for the whole tab.
 - Panel widgets **replace each other across questions** (single-exchange), and **stack within one answer** when the tools justify it.
-- The existing Plotly chart under the map stays the *map-filter* chart. An agent TrendChart in the panel is the *question’s* series (correct buckets, correct filters). Today’s map-sync notice exists because those two series are not the same — a panel TrendChart is how we stop lying with the map chart.
+- The existing Plotly chart under the map stays the *map-filter* chart. An agent TrendChart in the panel is the *question’s* series (correct buckets, correct filters). Today’s map-sync notice exists because those two series are not the same; a panel TrendChart is how we stop lying with the map chart.
 
 Awkward but acceptable: two charts visible (panel trend + map year series). Label the panel chart “Asked series” and keep the map chart titled “Events over time” for the visible layers. Do not auto-hide the map chart; users still use it without the agent.
 
@@ -103,7 +109,7 @@ If the meeting wanted a persistent board of past answers, that is a different pr
 The answer sentence is the primary content (the UI quick win already pushes this). Widgets are evidence, not a substitute for grounded prose and qualifications.
 
 ```
-[ AnswerHero — the sentence ]
+[ AnswerHero: the sentence ]
 [ Primary widget: StatCard | ComparisonTable | TrendChart | … ]
 [ Optional secondary widget ]
 [ QualificationStrip ]

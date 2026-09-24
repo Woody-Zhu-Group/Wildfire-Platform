@@ -7,7 +7,9 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.time_resolve import month_from_text, resolve_time
+from services.agent.clarify_missing import complete_clarification
+from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
+from services.shared.dataset_registry import HDW_YEARS
 
 
 @dataclass
@@ -21,12 +23,12 @@ class RouteDecision:
 
 
 UTILITY_PATTERNS = {
-    "PGE": r"\b(?:pge|pg&e|pacific gas(?: and| &) electric)\b",
-    "SCE": r"\b(?:sce|southern california edison)\b",
-    "SDGE": r"\b(?:sdge|sdg&e|san diego gas(?: and| &) electric)\b",
+    "PGE": r"\b(?:pge|pg\s*&\s*e|pg\s+and\s+e|pacific gas(?:(?: and| &) electric)?)\b",
+    "SCE": r"\b(?:sce|socal edison|southern california edison|edison)\b",
+    "SDGE": r"\b(?:sdge|sdg\s*&\s*e|san diego gas(?:(?: and| &) electric)?)\b",
     "PACIFICORP": r"\bpacificorp\b",
     "Liberty": r"\bliberty\b",
-    "BVES": r"\b(?:bves|bear valley electric)\b",
+    "BVES": r"\b(?:bves|bear valley(?: electric)?)\b",
 }
 
 # California counties used for place/county constraint detection. Bare city
@@ -93,6 +95,546 @@ _CA_COUNTIES = (
     "Yuba",
 )
 
+# Cities that are not county names. A county-seat that shares the county name
+# (Sacramento, Fresno) stays a county. These names are not a grid cell, a
+# county polygon, or a utility territory, so the router must ask which of
+# those to use instead of answering with a statewide or county layer.
+_CA_CITIES = (
+    "rancho santa margarita",
+    "rolling hills estates",
+    "la canada flintridge",
+    "palos verdes estates",
+    "rancho palos verdes",
+    "san juan capistrano",
+    "south san francisco",
+    "desert hot springs",
+    "carmel-by-the-sea",
+    "san juan bautista",
+    "hawaiian gardens",
+    "huntington beach",
+    "la habra heights",
+    "rancho cucamonga",
+    "santa fe springs",
+    "south lake tahoe",
+    "twentynine palms",
+    "westlake village",
+    "american canyon",
+    "california city",
+    "fountain valley",
+    "huntington park",
+    "los altos hills",
+    "manhattan beach",
+    "west sacramento",
+    "cathedral city",
+    "citrus heights",
+    "east palo alto",
+    "imperial beach",
+    "mountain house",
+    "portola valley",
+    "rancho cordova",
+    "south el monte",
+    "south pasadena",
+    "west hollywood",
+    "arroyo grande",
+    "beverly hills",
+    "big bear lake",
+    "crescent city",
+    "grand terrace",
+    "half moon bay",
+    "hermosa beach",
+    "jurupa valley",
+    "laguna niguel",
+    "lake elsinore",
+    "mammoth lakes",
+    "mission viejo",
+    "monterey park",
+    "moreno valley",
+    "mountain view",
+    "national city",
+    "newport beach",
+    "pacific grove",
+    "pleasant hill",
+    "rancho mirage",
+    "redondo beach",
+    "rolling hills",
+    "santa clarita",
+    "scotts valley",
+    "thousand oaks",
+    "agoura hills",
+    "apple valley",
+    "baldwin park",
+    "bell gardens",
+    "corte madera",
+    "del rey oaks",
+    "farmersville",
+    "garden grove",
+    "grass valley",
+    "grover beach",
+    "hidden hills",
+    "hillsborough",
+    "indian wells",
+    "laguna beach",
+    "laguna hills",
+    "laguna woods",
+    "los alamitos",
+    "monte sereno",
+    "mount shasta",
+    "palm springs",
+    "port hueneme",
+    "redwood city",
+    "rohnert park",
+    "san clemente",
+    "san fernando",
+    "santa monica",
+    "sierra madre",
+    "solana beach",
+    "sutter creek",
+    "walnut creek",
+    "yucca valley",
+    "aliso viejo",
+    "amador city",
+    "angels camp",
+    "bakersfield",
+    "canyon lake",
+    "carpinteria",
+    "chino hills",
+    "chula vista",
+    "culver city",
+    "diamond bar",
+    "foster city",
+    "lake forest",
+    "lemon grove",
+    "mill valley",
+    "morgan hill",
+    "nevada city",
+    "orange cove",
+    "palm desert",
+    "paso robles",
+    "pico rivera",
+    "pismo beach",
+    "placerville",
+    "point arena",
+    "porterville",
+    "san anselmo",
+    "san gabriel",
+    "san jacinto",
+    "san leandro",
+    "santa maria",
+    "santa paula",
+    "shasta lake",
+    "signal hill",
+    "simi valley",
+    "suisun city",
+    "temple city",
+    "victorville",
+    "watsonville",
+    "west covina",
+    "westminster",
+    "westmorland",
+    "yorba linda",
+    "atascadero",
+    "bellflower",
+    "buena park",
+    "burlingame",
+    "calipatria",
+    "chowchilla",
+    "cloverdale",
+    "costa mesa",
+    "dana point",
+    "el cerrito",
+    "el segundo",
+    "emeryville",
+    "fort bragg",
+    "fort jones",
+    "greenfield",
+    "healdsburg",
+    "livingston",
+    "loma linda",
+    "long beach",
+    "marysville",
+    "menlo park",
+    "montebello",
+    "pleasanton",
+    "ridgecrest",
+    "san carlos",
+    "san marcos",
+    "san marino",
+    "san rafael",
+    "santa rosa",
+    "seal beach",
+    "sebastopol",
+    "south gate",
+    "st. helena",
+    "susanville",
+    "union city",
+    "villa park",
+    "yountville",
+    "belvedere",
+    "blue lake",
+    "brentwood",
+    "calabasas",
+    "calistoga",
+    "camarillo",
+    "claremont",
+    "clearlake",
+    "coachella",
+    "cupertino",
+    "daly city",
+    "dos palos",
+    "el centro",
+    "elk grove",
+    "encinitas",
+    "escondido",
+    "fairfield",
+    "firebaugh",
+    "fullerton",
+    "guadalupe",
+    "hawthorne",
+    "hollister",
+    "holtville",
+    "inglewood",
+    "irwindale",
+    "king city",
+    "kingsburg",
+    "la mirada",
+    "la puente",
+    "la quinta",
+    "lafayette",
+    "lancaster",
+    "livermore",
+    "los altos",
+    "los banos",
+    "los gatos",
+    "mcfarland",
+    "montclair",
+    "morro bay",
+    "oceanside",
+    "palo alto",
+    "paramount",
+    "patterson",
+    "pittsburg",
+    "placentia",
+    "red bluff",
+    "rio vista",
+    "riverbank",
+    "roseville",
+    "san bruno",
+    "san dimas",
+    "san pablo",
+    "san ramon",
+    "sand city",
+    "santa ana",
+    "sausalito",
+    "sunnyvale",
+    "tehachapi",
+    "vacaville",
+    "waterford",
+    "wheatland",
+    "yuba city",
+    "adelanto",
+    "alhambra",
+    "anderson",
+    "atherton",
+    "beaumont",
+    "berkeley",
+    "bradbury",
+    "brisbane",
+    "buellton",
+    "calexico",
+    "calimesa",
+    "campbell",
+    "capitola",
+    "carlsbad",
+    "cerritos",
+    "coalinga",
+    "commerce",
+    "corcoran",
+    "coronado",
+    "danville",
+    "dunsmuir",
+    "eastvale",
+    "el cajon",
+    "el monte",
+    "ferndale",
+    "fillmore",
+    "glendale",
+    "glendora",
+    "gonzales",
+    "hercules",
+    "hesperia",
+    "highland",
+    "industry",
+    "la habra",
+    "la palma",
+    "la verne",
+    "lakeport",
+    "lakewood",
+    "larkspur",
+    "lawndale",
+    "live oak",
+    "loyalton",
+    "maricopa",
+    "martinez",
+    "millbrae",
+    "milpitas",
+    "monrovia",
+    "montague",
+    "moorpark",
+    "murrieta",
+    "oroville",
+    "pacifica",
+    "palmdale",
+    "paradise",
+    "pasadena",
+    "petaluma",
+    "piedmont",
+    "plymouth",
+    "redlands",
+    "richmond",
+    "rio dell",
+    "rosemead",
+    "san jose",
+    "saratoga",
+    "stockton",
+    "temecula",
+    "torrance",
+    "trinidad",
+    "tulelake",
+    "whittier",
+    "wildomar",
+    "williams",
+    "woodlake",
+    "woodland",
+    "woodside",
+    "alturas",
+    "anaheim",
+    "antioch",
+    "arcadia",
+    "artesia",
+    "atwater",
+    "banning",
+    "barstow",
+    "belmont",
+    "benicia",
+    "brawley",
+    "burbank",
+    "clayton",
+    "compton",
+    "concord",
+    "corning",
+    "cypress",
+    "del mar",
+    "escalon",
+    "fairfax",
+    "fontana",
+    "fortuna",
+    "fremont",
+    "gardena",
+    "gridley",
+    "gustine",
+    "hanford",
+    "hayward",
+    "hughson",
+    "isleton",
+    "jackson",
+    "la mesa",
+    "lathrop",
+    "lemoore",
+    "lincoln",
+    "lindsay",
+    "lynwood",
+    "manteca",
+    "maywood",
+    "mendota",
+    "menifee",
+    "modesto",
+    "needles",
+    "norwalk",
+    "oakdale",
+    "oakland",
+    "ontario",
+    "parlier",
+    "portola",
+    "redding",
+    "reedley",
+    "rocklin",
+    "salinas",
+    "seaside",
+    "shafter",
+    "soledad",
+    "solvang",
+    "stanton",
+    "tiburon",
+    "truckee",
+    "turlock",
+    "vallejo",
+    "visalia",
+    "willits",
+    "willows",
+    "windsor",
+    "winters",
+    "yucaipa",
+    "albany",
+    "arcata",
+    "auburn",
+    "avalon",
+    "avenal",
+    "bishop",
+    "blythe",
+    "carson",
+    "clovis",
+    "colfax",
+    "colton",
+    "corona",
+    "cotati",
+    "covina",
+    "cudahy",
+    "delano",
+    "dinuba",
+    "dorris",
+    "downey",
+    "duarte",
+    "dublin",
+    "eureka",
+    "exeter",
+    "folsom",
+    "fowler",
+    "gilroy",
+    "goleta",
+    "irvine",
+    "kerman",
+    "lomita",
+    "lompoc",
+    "loomis",
+    "malibu",
+    "marina",
+    "moraga",
+    "newark",
+    "newman",
+    "novato",
+    "oakley",
+    "orinda",
+    "orland",
+    "oxnard",
+    "perris",
+    "pinole",
+    "pomona",
+    "rialto",
+    "sanger",
+    "santee",
+    "sonora",
+    "tustin",
+    "upland",
+    "vernon",
+    "walnut",
+    "arvin",
+    "azusa",
+    "biggs",
+    "ceres",
+    "chico",
+    "chino",
+    "colma",
+    "davis",
+    "dixon",
+    "hemet",
+    "huron",
+    "indio",
+    "norco",
+    "poway",
+    "ripon",
+    "selma",
+    "tracy",
+    "ukiah",
+    "vista",
+    "wasco",
+    "yreka",
+    "bell",
+    "brea",
+    "etna",
+    "galt",
+    "ione",
+    "lodi",
+    "ojai",
+    "ross",
+    "taft",
+    "weed",
+)
+
+_CITY_NOT_COUNTY = re.compile(
+    r"\b(?:"
+    + "|".join(re.escape(name) for name in sorted(set(_CA_CITIES), key=len, reverse=True))
+    + r")\b",
+    re.I,
+)
+
+# These municipality names are also ordinary words. Match them only with a
+# place cue, so "pine needles" or "the utility industry" is not a city.
+_AMBIGUOUS_CITIES = frozenset(
+    {
+        "industry", "commerce", "weed", "needles", "paradise", "coronado",
+        "santa ana", "winters", "marina", "vista", "bell", "ross", "davis",
+        "live oak", "highland",
+    }
+)
+# An ambiguous name that continues into a longer phrase is not that city:
+# Marina del Rey is not Marina, and Santa Ana winds are not Santa Ana.
+_CITY_CONTINUES = re.compile(r"\s+(?:del|de\s+la|de|winds?)\b", re.I)
+_CITY_CUE_BEFORE = re.compile(
+    r"(?:"
+    r"\b(?:city|town)\s+of"
+    r"|\bdowntown"
+    r"|\bout\s+of"
+    r"|\b(?:in|at|near|around|outside|inside|into|serving|contains|containing)"
+    r")\s+$",
+    re.I,
+)
+# Orange is a county and a color, and Kings, Lake, Mono, Trinity, Glenn, and
+# Alpine are ordinary words or parts of other place names. These need the word
+# County to count as the county.
+_COUNTY_REQUIRES_QUALIFIER = frozenset(
+    {"orange", "kings", "lake", "mono", "trinity", "glenn", "alpine"}
+)
+# A bare county name followed by a place noun is part of a longer place name
+# (Kings Canyon, Trinity Alps, Mono Basin, Lake Tahoe), not the county.
+_COUNTY_PLACE_NOUN_AFTER = re.compile(
+    r"\s+(?:canyon|river|creek|basin|alps|valley|peak|mountains?|forest|"
+    r"national\s+(?:park|forest)|park|tahoe|lake|reservoir|island|beach|"
+    r"pass|bay)\b",
+    re.I,
+)
+
+
+def _city_match(lower: str):
+    """A non-county city used as a place, or None.
+
+    A name followed by County is a county phrase, not the city. Ambiguous
+    names need a place cue such as "in Weed" or "Weed, California".
+    """
+    for match in _CITY_NOT_COUNTY.finditer(lower):
+        name = match.group(0).lower()
+        after = lower[match.end() :]
+        if re.match(r"\s+county\b", after):
+            continue
+        if name in _AMBIGUOUS_CITIES:
+            if _CITY_CONTINUES.match(after):
+                continue
+            before = lower[: match.start()]
+            cued = _CITY_CUE_BEFORE.search(before) or re.match(
+                r",?\s*california\b", after
+            )
+            if not cued:
+                continue
+        return match
+    return None
+
+
+def _city_named_as_county(lower: str) -> str | None:
+    """A municipality written as if it were a county, such as Weed County."""
+    for match in _CITY_NOT_COUNTY.finditer(lower):
+        if re.match(r"\s+county\b", lower[match.end() :]):
+            return match.group(0)
+    return None
+
 # Datasets whose warehouse tables expose a county column.
 _COUNTY_CAPABLE_DATASETS = {
     "calfire_incidents",
@@ -114,7 +656,28 @@ _TIME_SERIES_VIZ = frozenset(
 
 UNSUPPORTED = {
     "cpz": r"\b(?:cpz|circuit protection zone)\b",
-    "cost": r"\b(?:cost|price|budget|dollars?|economic)\b",
+    "cost": r"\b(?:cost|price|budget|dollars?|economic|premiums?)\b",
+    "air_quality": r"\bair quality\b",
+    "evacuation": r"\bevacuat",
+    # Translate to a grid cell, incidents that involved firefighters, and a
+    # satellite basemap are in scope, so these keys need their own context.
+    "translation": (
+        r"\btranslat\w*\b(?=.*\b(?:spanish|english|chinese|french|german|japanese|"
+        r"korean|vietnamese|tagalog|languages?)\b)|"
+        r"\b(?:spanish|english|chinese|french|german|japanese|korean|vietnamese|"
+        r"tagalog)\b.*\btranslat\w*|"
+        r"\btranslat\w*\s+(?:this|that|it|the\s+(?:answer|response|result))\b"
+    ),
+    "personnel": (
+        r"\b(?:how many|number of|count of|total)\s+(?:\w+\s+){0,2}firefighters?\b|"
+        r"\bfirefighters?\s+(?:were\s+|was\s+|are\s+)?(?:deployed|assigned|staffed|"
+        r"dispatched|on scene)\b|\bpersonnel\b|\bhuman resources\b"
+    ),
+    "satellite": (
+        r"\bsatellite\s+(?:\w+\s+)?(?:image|imagery|infrared|photos?|pictures?|"
+        r"view|data|feed|detections?)\b|\b(?:infrared|thermal)\s+satellite\b"
+    ),
+    "leadership": r"\b(?:ceo|chief executive)\b",
     "optimization": r"\b(?:optimi[sz]e|optimal|schedule|allocate)\b",
     "damage": r"\b(?:property damage|expected loss|insured loss|fatalit)\b",
     "live_web": (
@@ -123,7 +686,78 @@ UNSUPPORTED = {
     ),
 }
 
+# Live wording. "current" counts only next to a live noun, "live" only next
+# to fires, outages, or conditions, and none of it fires when the question
+# names an explicit past year or date, except "right now".
+_LIVE_NOW = re.compile(
+    r"\btoday(?:'s)?\b|"
+    r"\bcurrent(?:ly)?\s+(?:\w+\s+){0,2}?(?:risk|conditions?|outages?|fires?|"
+    r"weather|status|situation|alerts?)\b|"
+    r"\b(?:fires?|outages?|conditions?)\s+(?:are\s+|is\s+)?live\b|"
+    r"\blive\s+(?:fires?|outages?|conditions?|status|feed|data)\b",
+    re.I,
+)
+_RIGHT_NOW = re.compile(r"\bright now\b", re.I)
+
+
+def _asks_live(lower: str) -> bool:
+    if _RIGHT_NOW.search(lower):
+        return True
+    # An explicit year or date in the text makes today or current historical
+    # ("up to today" from 2024). A resolved relative date does not count.
+    if re.search(r"\b20\d{2}\b", lower):
+        return False
+    return bool(_LIVE_NOW.search(lower))
+
+
+_FUTURE_DATE = re.compile(
+    r"\b(?:tomorrow|next\s+summer|next\s+year|future\s+years?|"
+    r"this\s+fall|upcoming)\b|"
+    r"\bwill\b|"
+    r"\bexpected\b|"
+    r"\bpredict(?:ed|ion|ing|s)?\b|"
+    r"\bforecast(?:ed|s|ing)?\b",
+    re.I,
+)
+_PAST_FORECAST = re.compile(
+    r"\b(?:was|were|been)\b(?:\s+\w+){0,4}\s+"
+    r"(?:forecast|predict)(?:ed|ion|ing|s)?\b|"
+    r"\b(?:forecast|predict)(?:ed|ion|ing|s)?\s+(?:was|were)\b",
+    re.I,
+)
+# Advice: a utility or the CPUC is the subject of should or recommend
+# ("the CPUC should", "should PG&E", "recommend that SCE"), a strategy for a
+# utility, or the CPUC penalizing one. "Should I use", "would you recommend
+# for SCE", and "should I expect" are data questions.
+_ADVICE_SUBJECT = (
+    r"(?:the\s+)?(?:cpuc|commission|utilit(?:y|ies)|pge|pg\s*&\s*e|sce|sdge|"
+    r"sdg\s*&\s*e|pacificorp|liberty|bear\s+valley|bves|"
+    r"pacific\s+gas|southern\s+california\s+edison|san\s+diego\s+gas)"
+)
+_ADVICE = re.compile(
+    rf"\b{_ADVICE_SUBJECT}\b(?:\s+\w+){{0,3}}?\s+(?:should|ought\s+to|must)\b"
+    r"(?!\s+(?:i|we|you|one)\b)|"
+    rf"\b(?:should|must)\s+{_ADVICE_SUBJECT}\b|"
+    rf"\brecommend(?:s|ed)?\s+(?:that\s+)?{_ADVICE_SUBJECT}\b|"
+    rf"\b(?:best|optimal|right)\s+strateg(?:y|ies)\s+for\s+{_ADVICE_SUBJECT}\b|"
+    rf"\bpenali[sz]e[sd]?\s+{_ADVICE_SUBJECT}\b|"
+    rf"\b{_ADVICE_SUBJECT}\b(?:\s+\w+){{0,3}}?\s+penali[sz]e[sd]?\b",
+    re.I,
+)
+# The asked object is modeled risk. Predict and forecast alone are not risk
+# words here: a forecast of event counts is a prediction, not a risk score.
+_RISK_OBJECT = re.compile(
+    r"\b(?:risk|risky|riskiness|hotspots?|ignition probability|"
+    r"probability of ignition)\b",
+    re.I,
+)
+
 UNSUPPORTED_ANSWERS = {
+    "future_prediction": (
+        "This system reports historical records only and does not predict "
+        "future events or counts. I can count or chart past years through the "
+        "latest loaded data. Which past period should I use?"
+    ),
     "ranking": (
         "Ranking is not supported for that grouping. I can rank counties or "
         "utilities in CPUC ignitions, counties in CAL FIRE incidents, or "
@@ -146,7 +780,7 @@ ALL_MODEL_TOOLS = [
 def candidate_tools(question: str) -> list[str]:
     """Return the smallest plausible catalog without choosing tool arguments."""
     lower = " ".join(question.lower().split())
-    has_count = bool(re.search(r"\b(?:how many|count|number of)\b", lower))
+    has_count = _has_quantity_op(lower)
     has_map = _asks_map_view(lower)
     has_trend = bool(
         re.search(r"\b(?:trend|time series|weekly|monthly|daily)\b", lower)
@@ -217,27 +851,180 @@ def _utilities(text: str) -> list[str]:
     return found
 
 
-def _county(text: str) -> str | None:
-    """Extract a county / county-seat place constraint from the question."""
-    lower = " ".join(text.lower().split())
-    # Prefer explicit "X County" phrasing.
+_BREAKDOWN = re.compile(
+    r"\b(?:each|every|per)\s+months?\b|"
+    r"\b(?:each|every|per)\s+years?\b|"
+    r"\b(?:each|every|per)\s+count(?:y|ies)\b|"
+    r"\b(?:each|every|per)\s+utilit(?:y|ies)\b|"
+    r"\bby\s+months?\b|"
+    r"\bby\s+years?\b|"
+    r"\bby\s+count(?:y|ies)\b|"
+    r"\bby\s+utilit(?:y|ies)\b|"
+    r"\byear[- ]by[- ]year\b|"
+    r"\bannual(?:ly)?\b|"
+    r"\bin each month\b"
+)
+
+
+_COUNTY_PLACE_CUE = re.compile(
+    r"\b(?:in|at|near|around|for|within|inside|across|throughout|from)\s+$", re.I
+)
+
+
+def _qualified_counties(lower: str) -> list[str]:
+    """Counties named with the word County, or in an "X and Y counties" list."""
+    found: list[str] = []
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
-        pattern = rf"\b{re.escape(name.lower())}\s+county\b"
-        if re.search(pattern, lower):
-            return name
-    # Bare county / seat name (e.g. "in sacramento") — skip vague spatial
-    # phrasing which has its own clarification path.
-    if re.search(r"\b(?:near|around|close to)\b", lower):
+        if re.search(rf"\b{re.escape(name.lower())}\s+county\b", lower):
+            found.append(name)
+    # "Lake and Napa counties": the plural qualifies every name before it.
+    for match in re.finditer(r"\bcounties\b", lower):
+        window = lower[max(0, match.start() - 80) : match.start()]
+        for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+            if name not in found and re.search(rf"\b{re.escape(name.lower())}\b", window):
+                found.append(name)
+    return found
+
+
+def _unresolved_county_place(text: str) -> str | None:
+    """A county word used as a different place, with no qualified county.
+
+    "Napa Valley", "Kern River", and "Shasta Lake" are places, not the county
+    of the same name. "In Trinity" without the word County is ambiguous. With
+    no county qualified anywhere in the question, ask which county was meant
+    instead of answering statewide or for a county the user did not name.
+    """
+    lower = " ".join(text.lower().split())
+    if _qualified_counties(lower):
         return None
-    # Strip IOU phrases so "San Diego Gas & Electric" is not a county hit.
     scrubbed = lower
     for pattern in UTILITY_PATTERNS.values():
         scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
     scrubbed = " ".join(scrubbed.split())
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
-        if re.search(rf"\b{re.escape(name.lower())}\b", scrubbed):
-            return name
+        for match in re.finditer(rf"\b{re.escape(name.lower())}\b", scrubbed):
+            after = scrubbed[match.end() :]
+            noun = _COUNTY_PLACE_NOUN_AFTER.match(after)
+            if noun:
+                return (name.lower() + noun.group(0)).strip()
+            if name.lower() in _COUNTY_REQUIRES_QUALIFIER and _COUNTY_PLACE_CUE.search(
+                scrubbed[: match.start()]
+            ):
+                return name.lower()
     return None
+
+
+def _counties(text: str) -> list[str]:
+    """Every county named in the question, not just the first.
+
+    _county derives the single slot from this list, so the two always agree.
+    """
+    lower = " ".join(text.lower().split())
+    found = _qualified_counties(lower)
+    # Keep scanning bare names: "Napa and Sonoma County" names two counties.
+    if re.search(r"\b(?:near|around|close to)\b", lower):
+        return found
+    scrubbed = lower
+    for pattern in UTILITY_PATTERNS.values():
+        scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
+    scrubbed = " ".join(scrubbed.split())
+    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+        if name.lower() in _COUNTY_REQUIRES_QUALIFIER:
+            continue
+        if name in found:
+            continue
+        for match in re.finditer(rf"\b{re.escape(name.lower())}\b", scrubbed):
+            if _COUNTY_PLACE_NOUN_AFTER.match(scrubbed[match.end():]):
+                continue
+            found.append(name)
+            break
+    return found
+
+
+_PER_PERIOD_ASK = re.compile(
+    r"\b(?:which|what)\s+(?:year|month)s?\b|"
+    r"\b(?:highest|lowest|most|fewest|peak|busiest)\s+(?:\w+\s+){0,3}?(?:year|month)s?\b",
+    re.I,
+)
+_YEAR_RANGE = re.compile(
+    r"\b(20\d{2})\s*(?:to|through|until|-|\u2013)\s*(20\d{2})\b|"
+    r"\bbetween\s+(20\d{2})\s+and\s+(20\d{2})\b",
+    re.I,
+)
+
+
+def _enumerated_years(lower: str) -> bool:
+    """True when the named years are not exactly one matched range.
+
+    "from 2018 to 2020" is one window. More than two named years, or a named
+    year outside every matched range ("from 2018 to 2020 and in 2022"), is an
+    enumeration that one windowed call would silently drop.
+    """
+    named = sorted({int(item) for item in re.findall(r"\b20\d{2}\b", lower)})
+    if len(named) <= 1:
+        return False
+    if len(named) > 2:
+        return True
+    ranges = []
+    for match in _YEAR_RANGE.finditer(lower):
+        start = int(match.group(1) or match.group(3))
+        end = int(match.group(2) or match.group(4))
+        ranges.append((min(start, end), max(start, end)))
+    if not ranges:
+        return True
+    return any(not any(lo <= year <= hi for lo, hi in ranges) for year in named)
+
+
+def _single_call_would_collapse(
+    lower: str,
+    utilities: list[str],
+    counties: list[str],
+    *,
+    kind: str,
+) -> bool:
+    """True when one tool call would drop a named entity or flatten a breakdown."""
+    if len(utilities) > 1 or len(counties) > 1:
+        return True
+    named_years = set(re.findall(r"\b20\d{2}\b", lower))
+    # "from 2018 to 2020" is one window with start and end dates. Enumerated
+    # years, a range plus another year, or a breakdown word defer.
+    enumerated = _enumerated_years(lower)
+    # "Which year had the most" over a range is a per-year breakdown.
+    per_period = _PER_PERIOD_ASK.search(lower) and len(named_years) > 1
+    if kind == "count" and (enumerated or per_period or _BREAKDOWN.search(lower)):
+        return True
+    if kind == "series" and re.search(
+        r"\bannual(?:ly)?\b|\bper\s+years?\b|\byear[- ]by[- ]year\b|\beach\s+years?\b",
+        lower,
+    ):
+        return True
+    # A chart plus a total is two results; one series call would drop the total.
+    if kind == "series" and _asks_series_and_total(lower):
+        return True
+    if kind == "map" and _BREAKDOWN.search(lower):
+        return True
+    return False
+
+
+def _defer_collapsed(
+    slots: dict[str, Any],
+) -> RouteDecision:
+    return RouteDecision(
+        "model",
+        "multi_entity_deferred",
+        "A single call would drop a named entity or collapse a breakdown",
+        slots=slots,
+    )
+
+
+def _county(text: str) -> str | None:
+    """The one county the question names, from the same scan as _counties.
+
+    Several named counties give None, so no single-county hint is ever built
+    from a list.
+    """
+    counties = _counties(text)
+    return counties[0] if len(counties) == 1 else None
 
 
 def _time_filter_args(time_resolution) -> dict[str, Any]:
@@ -448,6 +1235,88 @@ _RISK_COVERAGE_LIMIT = (
 )
 
 
+def _strip_quotes(text: str) -> str:
+    return re.sub(r"(?:\"[^\"]*\"|'[^']*'|“[^”]*”)", " ", text)
+
+
+def _future_refusal_phrase(text: str, lower: str) -> str | None:
+    """Forward modal, expectation, or a year after warehouse coverage.
+
+    A past-tense forecast, an expected value in a covered year, and a
+    predict/forecast of historical risk on a covered date stay historical.
+    Years before coverage stay on the out-of-coverage clarify.
+    """
+    years = [int(item) for item in re.findall(r"\b(20\d{2})\b", text)]
+    today = date.today()
+    data_max = today.year
+    ahead = [year for year in years if year > data_max]
+    if ahead:
+        return str(max(ahead))
+    if not _FUTURE_DATE.search(lower):
+        return None
+    # Bare "will" is not a forward token: "Will you show me a map of 2024"
+    # asks about a covered year.
+    forward = re.search(
+        r"\b(?:upcoming|this\s+fall|tomorrow|next\s+(?:year|summer|month)|"
+        r"future\s+years?)\b",
+        lower,
+    )
+    if _PAST_FORECAST.search(lower) and not forward:
+        return None
+    # Every year or date in the text is inside completed coverage: a bare
+    # mention of the current year is not, a full date on or before today is.
+    iso_dates = re.findall(r"\b(20\d{2}-\d{2}-\d{2})\b", text)
+    iso_ok = True
+    for item in iso_dates:
+        try:
+            iso_ok = iso_ok and date.fromisoformat(item) <= today
+        except ValueError:
+            iso_ok = False
+    bare_current_year = re.search(rf"(?<![\d-]){data_max}(?![\d-])", text)
+    covered = (
+        bool(years)
+        and all(DATA_YEAR_MIN <= year <= data_max for year in years)
+        and not bare_current_year
+        and iso_ok
+    )
+    if covered and not forward:
+        return None
+    if re.search(r"\bexpected\s+value\b", lower) and covered and not forward:
+        return None
+    if re.search(r"\bhistorical\b", lower) and covered and not forward:
+        return None
+    match = _FUTURE_DATE.search(lower)
+    return match.group(0) if match else None
+
+
+# Passive and object forms: a recommended strategy, penalties for a utility,
+# something required of a utility, whether it is advisable for a utility.
+_ADVICE_OBJECT = re.compile(
+    rf"\brecommend(?:s|ed|ation)?\b(?:\s+\w+){{0,4}}?\s+strateg(?:y|ies)\b|"
+    rf"\bpenalt(?:y|ies)\b(?:\s+\w+){{0,6}}?\s+(?:for|to|on|against)\s+{_ADVICE_SUBJECT}\b|"
+    rf"\bshould\s+apply\s+to\s+{_ADVICE_SUBJECT}\b|"
+    rf"\bshould\b(?:\s+\w+){{1,6}}?\s+(?:be\s+)?(?:required|mandated|imposed|ordered|expected)"
+    rf"\s+(?:of|for|on|by|from)\s+{_ADVICE_SUBJECT}\b|"
+    rf"\b(?:advisable|wise|prudent|appropriate)\s+for\s+{_ADVICE_SUBJECT}\b",
+    re.I,
+)
+_ADVICE_ANY_SUBJECT = re.compile(rf"\b{_ADVICE_SUBJECT}\b", re.I)
+
+
+def _asks_for_advice(text: str) -> bool:
+    """What a utility or the CPUC should do. Quoted 'should' does not count.
+
+    The utility or the CPUC must be the subject of should or recommend, or
+    the object of a recommended strategy, a penalty, a requirement, or an
+    advisability question. A question where the analyst is the subject
+    ("should I use", "would you recommend for SCE") is a data question.
+    """
+    bare = _strip_quotes(text)
+    if _ADVICE.search(bare):
+        return True
+    return bool(_ADVICE_OBJECT.search(bare) and _ADVICE_ANY_SUBJECT.search(bare))
+
+
 def _forward_relative_phrase(lower: str) -> str | None:
     match = _FORWARD_RELATIVE.search(lower)
     return match.group("phrase") if match else None
@@ -516,6 +1385,25 @@ def _dataset(text: str) -> str | None:
     return candidates[0] if len(set(candidates)) == 1 else None
 
 
+# Event datasets that can sit next to bare "ignitions" as a second dataset.
+# Context layers (HFTD, circuits, territories) do not make ignitions a list.
+_EVENT_DATASETS_BESIDE_IGNITIONS = frozenset(
+    {"epss_outages", "psps_events", "calfire_incidents"}
+)
+# A word right before "ignitions" that already names whose ignitions they are.
+_IGNITION_QUALIFIER = re.compile(
+    r"(?:\bus|\bnational|\bcal\s*fire|\bcalfire|\bepss|\bpsps)\s+$", re.I
+)
+
+
+def _has_bare_ignitions(text: str) -> bool:
+    """True when some "ignitions" is not qualified as US, CAL FIRE, EPSS, or PSPS."""
+    return any(
+        not _IGNITION_QUALIFIER.search(text[: match.start()])
+        for match in re.finditer(r"\bignitions?\b", text, re.I)
+    )
+
+
 def _datasets(text: str) -> list[str]:
     candidates: list[str] = []
     checks = [
@@ -533,6 +1421,13 @@ def _datasets(text: str) -> list[str]:
             candidates.append(key)
     if not candidates and re.search(r"\bignitions?\b", text, re.I):
         candidates.append("cpuc_ignitions")
+    elif (
+        "cpuc_ignitions" not in candidates
+        and set(candidates) & _EVENT_DATASETS_BESIDE_IGNITIONS
+        and _has_bare_ignitions(text)
+    ):
+        # "ignitions and EPSS outages" names two datasets; bare ignitions are CPUC.
+        candidates.append("cpuc_ignitions")
     # Bare "outages" (without PSPS/EPSS) is treated as EPSS for map/count routing.
     if not candidates and re.search(r"\boutages?\b", text, re.I):
         candidates.append("epss_outages")
@@ -540,7 +1435,13 @@ def _datasets(text: str) -> list[str]:
 
 
 def _has_quantity_op(lower: str) -> bool:
-    return bool(re.search(r"\b(?:how many|count|number of)\b", lower))
+    return bool(
+        re.search(
+            r"\b(?:how many|count|number of|tally|total number|total of)\b|"
+            r"\bclose to\s+\d+\b",
+            lower,
+        )
+    )
 
 
 def _asks_map_view(lower: str) -> bool:
@@ -564,20 +1465,163 @@ def _has_list_op(lower: str) -> bool:
     return bool(re.search(r"\b(?:list|show me)\b", lower))
 
 
+# The ranking phrase itself names a change: largest increase, biggest drop,
+# most growth, grew the most. A change word elsewhere in the sentence
+# ("after the fast-trip changes") is not a change ranking.
+_CHANGE_OVER_TIME = re.compile(
+    r"\b(?:largest|biggest|greatest|highest|most|smallest|lowest|least|sharpest|"
+    r"fastest|steepest)\s+(?:\w+\s+)?(?:increases?|decreases?|drops?|changes?|"
+    r"growth|declines?|rises?|gains?|jumps?|falls?|reductions?|deltas?|"
+    r"differences?)\b|"
+    r"\b(?:grew|increased|decreased|dropped|declined|rose|fell|changed)\s+"
+    r"(?:the\s+)?(?:most|least|fastest)\b",
+    re.I,
+)
+
+
+def _asks_medical_exposure(lower: str) -> bool:
+    """True for the EPSS medical-baseline / life-support panel, not a generic outage ask."""
+    return bool(
+        re.search(
+            r"\b(?:medical\s+baseline|life[\s-]support|medically\s+vulnerable)\b",
+            lower,
+        )
+    )
+
+
+def _asks_summary_panel(lower: str) -> bool:
+    """True for a multi-metric summary, not a single how-many total."""
+    return bool(re.search(r"\b(?:summary|overview) of\b", lower))
+
+
+# A series or chart request that also asks for a total. One series call would
+# drop the total, so this defers as the count path does, until a deterministic
+# count-plus-series path exists.
+_SERIES_WORD = re.compile(
+    r"\b(?:chart|plot|graph|series|trend|over time|monthly|weekly|daily|by month)\b",
+    re.I,
+)
+_TOTAL_ASK = re.compile(
+    r"\bannual\s+totals?\b|\boverall\s+(?:count|total|number)\b|"
+    r"\btotal\s+(?:count|number)\b|\band\s+how\s+many\b|"
+    r"\b(?:plus|include|including|as well as|along with)\s+(?:the\s+|an?\s+)?"
+    r"(?:\w+\s+)?(?:total|count|sum)\b",
+    re.I,
+)
+
+
+def _asks_series_and_total(lower: str) -> bool:
+    return bool(_SERIES_WORD.search(lower) and _TOTAL_ASK.search(lower))
+
+
+def _series_mode_request(lower: str) -> tuple[str, str | None] | None:
+    """Map a series-panel phrase to (series_mode, fixed warehouse dataset).
+
+    A None dataset means the question must name CPUC, EPSS, or CAL FIRE.
+    """
+    if re.search(r"\bcumulative acres\b|\bacres burned over the year\b", lower):
+        return ("cumulative_acres", "calfire_incidents")
+    if re.search(r"\bcustomer events?\b|\bcustomers affected\b", lower):
+        return ("customer_events", "psps_events")
+    if re.search(r"\bepss\b", lower) and re.search(r"\bby region\b", lower):
+        return ("regional", "epss_outages")
+    if re.search(r"\bby division\b", lower) and re.search(
+        r"\b(?:epss|outages?)\b", lower
+    ):
+        return ("regional", "epss_outages")
+    if re.search(r"\byear over year\b|\bannual totals?\b", lower):
+        return ("yearly", None)
+    if re.search(r"\bseasonal\b|\bby month of year\b", lower):
+        return ("seasonal", None)
+    return None
+
+
+def _asks_hdw(lower: str) -> bool:
+    """True for the Hot-Dry-Windy playback overlay, the only weather layer on the map."""
+    return bool(
+        re.search(r"\bhdw\b|\bhot[\s-]+dry[\s-]+windy\b|\bfire[\s-]weather\b", lower)
+    )
+
+
+def _asks_residual(lower: str) -> bool:
+    """Observed minus modeled ignitions on the cNHPP grid."""
+    return bool(
+        re.search(
+            r"\bresiduals?\b|\b(?:observed|actual)\s+(?:vs\.?|versus)\s+"
+            r"(?:expected|predicted|modell?ed)\b",
+            lower,
+        )
+    )
+
+
+def _risk_map_mode(lower: str) -> str | None:
+    """Grid map for a risk question: the residual map or the risk surface."""
+    if _asks_residual(lower):
+        return "residual"
+    # Bare "where" is not enough here; it reads as advice as often as a map ask.
+    if re.search(r"\b(?:surface|maps?|mapped|heat\s*map)\b", lower):
+        return "risk"
+    return None
+
+
+_HDW_EVENT_DATASETS = frozenset(
+    {"cpuc_ignitions", "epss_outages", "psps_events", "calfire_incidents"}
+)
+# Datasets the workspace timeline can overlay on one axis.
+_TIMELINE_DATASETS = ("cpuc_ignitions", "epss_outages", "calfire_incidents")
+
+
+def _timeline_datasets(text: str, lower: str) -> list[str] | None:
+    """Two or more chartable datasets named in one trend ask, else None."""
+    if not re.search(r"\b(?:trends?|time series|timeline|over time)\b", lower):
+        return None
+    named = _datasets(text)
+    if len(named) < 2 or any(item not in _TIMELINE_DATASETS for item in named):
+        return None
+    return named
+
+
 def _asks_ranking(lower: str) -> bool:
     return bool(
         re.search(
+            r"\brank(?:s|ed|ing)?\b|"
             r"\b(?:circuit|count(?:y|ies)|utilit(?:y|ies)|states?|division|cell)s?\s+"
-            r"with\s+the\s+(?:most|highest|largest|greatest)\b|"
+            r"with\s+the\s+(?:most|highest|largest|greatest|biggest)\b|"
             r"\b(?:which|what)\s+(?:circuit|count(?:y|ies)|utilit(?:y|ies)|states?|"
-            r"division|cell)s?\b.{0,60}\b(?:most|highest|largest|greatest|top)\b|"
-            r"\bhad\s+the\s+(?:most|highest|largest|greatest)\b|"
-            r"\b(?:most|highest|largest)\s+(?:\w+\s+){0,4}"
+            r"division|cell)s?\b.{0,60}\b(?:most|highest|largest|greatest|biggest|top)\b|"
+            r"\bhad\s+the\s+(?:most|highest|largest|greatest|biggest)\b|"
+            r"\b(?:most|highest|largest|biggest)\s+(?:\w+\s+){0,4}"
             r"(?:outages?|ignitions?|incidents?|fires?|acres)\b|"
             r"\btop\s+\d+\s+(?:circuit|count(?:y|ies)|utilit|states?)",
             lower,
         )
     )
+
+
+_TIER_MENTION = re.compile(r"\bhftd\b|\bhigh fire threat|\btier\s*[23]\b", re.I)
+
+
+def _hftd_constraint_unavailable(lower: str) -> bool:
+    """Circuit inventory crossed with a tier, or a request to measure HFTD area.
+
+    A count of events inside one tier is a spatial summary, even if the
+    question mentions the circuits those events occurred on. A single-tier
+    HFTD map still uses the word "areas" for the layer itself, so only
+    acreage, square miles, or a singular "area" count as a measurement.
+    """
+    mentions_tier = bool(
+        re.search(r"\bhftd\b|\bhigh fire threat|\btier\s*[23]\b", lower)
+    )
+    if not mentions_tier:
+        return False
+    if re.search(r"\bacreage\b|\bsquare miles?\b|\barea of\b|\bhftd area\b", lower):
+        return True
+    if not re.search(r"\bcircuits?\b", lower):
+        return False
+    event_count = _has_quantity_op(lower) and re.search(
+        r"\b(?:events?|outages?|ignitions?|incidents?|fires?)\b", lower
+    )
+    return not event_count
 
 
 def _rank_dimension(lower: str) -> str | None:
@@ -628,7 +1672,17 @@ def _asks_spatial_containment(lower: str) -> bool:
 def _asks_territory_boundary(lower: str) -> bool:
     """True only when the user wants the polygon/boundary, not a count inside it."""
     if not re.search(r"\bterritor", lower):
-        return False
+        # Label rule G: a utility service-area outline, boundary, polygon, or
+        # footprint with no count and no dataset word is the territory map.
+        return bool(
+            re.search(r"\b(?:service[- ]area|outline|boundary|polygon|footprint)\b", lower)
+            and not _has_quantity_op(lower)
+            and not re.search(
+                r"\b(?:ignitions?|outages?|incidents?|events?|epss|psps|cal\s*fire|"
+                r"risk|compare|versus|trend|time series)\b",
+                lower,
+            )
+        )
     if _has_quantity_op(lower):
         return False
     if re.search(r"\b(?:compare|versus|\bvs\.?\b|trend|time series|forecast|predict)\b", lower):
@@ -637,9 +1691,12 @@ def _asks_territory_boundary(lower: str) -> bool:
         r"\b(?:ignitions?|outages?|incidents?|epss|psps|cal\s*fire)\b", lower
     ):
         return False
-    # Boundary asks: territory alone, or "territory map/boundary/geometry".
-    if re.search(r"\b(?:boundary|polygon|geometry|footprint|service area)\b", lower):
-        return True
+    # Boundary asks: "territory map", "show ... territory", "what is the
+    # territory", or a bare territory with no dataset word. A boundary noun
+    # (polygon, outline, service area) only ever appears here next to the
+    # word territory, and those questions already match the rules below, so
+    # a separate noun check was dead code (issue 32). Service-area phrasing
+    # without the word territory never reaches this function.
     if re.search(r"\b(?:map|show|display|draw)\b.*\bterritor|\bterritor\w*\b.*\b(?:map|layer)\b", lower):
         return True
     # "What is the SCE territory?" / "SCE utility territory"
@@ -788,8 +1845,33 @@ def _route_ranking(
     if not _asks_ranking(lower):
         return None
 
+    # "Largest increase" ranks a change between periods. A count rank would
+    # silently answer a different metric, so refuse it.
+    if _CHANGE_OVER_TIME.search(lower):
+        return RouteDecision(
+            "unsupported",
+            "unsupported_ranking",
+            "Ranking by change over time is not available",
+            answer=(
+                "Ranking by change over time is not supported. I can rank "
+                "counties, utilities, or circuits by a count or acres for one "
+                "year or date range, or compare two periods for one place. "
+                "Which do you want?"
+            ),
+            slots=slots,
+        )
+
     group_by = _rank_dimension(lower)
     named = _datasets(text)
+    # "Tier 3 circuits" names the HFTD constraint, not the circuits table and
+    # not the grouping, so a tier ranking keeps its real dataset and dimension.
+    tier_constraint = bool(_TIER_MENTION.search(lower))
+    if tier_constraint:
+        # "Tier 3 circuits" and "HFTD Tier 2 areas" name the constraint, not
+        # the circuits or hftd tables.
+        named = [item for item in named if item not in {"circuits", "hftd"}]
+        if group_by is None:
+            group_by = _rank_dimension(re.sub(r"\bcircuits?\b", " ", lower))
     # "circuit" is the grouping dimension, not the circuits inventory table.
     if group_by == "circuit":
         named = [item for item in named if item != "circuits"]
@@ -874,6 +1956,21 @@ def _route_ranking(
             slots=slots,
         )
 
+    # An allowed ranking restricted to an HFTD tier: no ranking tool takes a
+    # tier argument, so ask rather than rank statewide and drop it.
+    if tier_constraint:
+        return RouteDecision(
+            "clarification",
+            "hftd_constraint_unavailable",
+            "No tool restricts a ranking to an HFTD tier",
+            answer=(
+                f"I can rank {group_by} groups in that dataset statewide, but no "
+                "tool restricts a ranking to an HFTD tier. Rank statewide, or map "
+                "one HFTD tier?"
+            ),
+            slots=slots,
+        )
+
     time_args = _time_filter_args(time_resolution)
     if not time_args:
         return RouteDecision(
@@ -931,8 +2028,46 @@ def _route_ranking(
 
 
 def route_question(question: str, *, force_model: bool = False) -> RouteDecision:
+    """Route one question. A clarification asks for every missing item at once.
+
+    The rule and path come from _route_question alone; only the clarification
+    text is completed, from the same slots.
+    """
+    decision = _route_question(question, force_model=force_model)
+    if decision.path == "clarification":
+        decision.answer = complete_clarification(
+            decision.rule,
+            " ".join(question.strip().split()),
+            decision.slots,
+            decision.answer,
+        )
+    return decision
+
+
+def _route_question(question: str, *, force_model: bool = False) -> RouteDecision:
     text = " ".join(question.strip().split())
     lower = text.lower()
+    utilities = _utilities(text)
+    time_resolution = resolve_time(text)
+    year = time_resolution.year
+    years = list(time_resolution.years)
+    dataset = _dataset(text)
+    coords = _coords(text)
+    counties = _counties(text)
+    # Several named counties never collapse to one hint.
+    county = _county(text) if len(counties) <= 1 else None
+    slots = {
+        "utilities": utilities,
+        "year": year,
+        "years": years,
+        "dataset": dataset,
+        "coords": coords,
+        "county": county,
+        "counties": counties,
+        "time_resolution": time_resolution.as_slot(),
+        "start_date": time_resolution.start_date,
+        "end_date": time_resolution.end_date,
+    }
 
     for key, pattern in UNSUPPORTED.items():
         if re.search(pattern, lower, re.I):
@@ -940,6 +2075,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 "unsupported",
                 f"unsupported_{key}",
                 "No read-only backend service provides the requested information",
+                slots=slots,
                 answer=UNSUPPORTED_ANSWERS.get(
                     key,
                     (
@@ -949,11 +2085,61 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 ),
             )
 
+    if _asks_live(lower):
+        return RouteDecision(
+            "unsupported",
+            "unsupported_live_web",
+            "No read-only backend service provides the requested information",
+            slots=slots,
+            answer=UNSUPPORTED_ANSWERS.get(
+                "live_web",
+                (
+                    "This system cannot answer that question with its available "
+                    "read-only wildfire services."
+                ),
+            ),
+        )
+    future_phrase = _future_refusal_phrase(text, lower)
+    if future_phrase and _RISK_OBJECT.search(lower):
+        return RouteDecision(
+            "clarification",
+            "risk_future_date",
+            "Fitted risk has no forecast ingestion for a forward date",
+            slots=slots,
+            answer=(
+                f"{_RISK_COVERAGE_LIMIT}, so I can't answer about {future_phrase}. "
+                "Which past date should I score?"
+            ),
+        )
+    if future_phrase:
+        return RouteDecision(
+            "unsupported",
+            "unsupported_future_prediction",
+            "No read-only backend service predicts future events or counts",
+            slots=slots,
+            answer=UNSUPPORTED_ANSWERS["future_prediction"],
+        )
+    if _asks_for_advice(text):
+        return RouteDecision(
+            "unsupported",
+            "unsupported_optimization",
+            "No read-only backend service provides the requested information",
+            slots=slots,
+            answer=UNSUPPORTED_ANSWERS.get(
+                "optimization",
+                (
+                    "This system cannot answer that question with its available "
+                    "read-only wildfire services."
+                ),
+            ),
+        )
+
     if re.search(r"\b(?:riskiest|most risky|highest risk)\b", lower):
         return RouteDecision(
             "clarification",
             "ambiguous_risk_metric",
             "Risk could mean fitted cell intensity, ignition count, incidents, or outages",
+            slots=slots,
             answer=(
                 "Which risk measure and time period should I use—for example "
                 "ignition count, CAL FIRE incidents, EPSS outages, or fitted cell risk?"
@@ -964,13 +2150,18 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "clarification",
             "missing_location",
             "A location is required",
+            slots=slots,
             answer="What latitude/longitude or bounding box should I use?",
         )
     # "near/around/close to X" without an explicit radius or coordinates is an
     # undefined spatial scope; do not silently invent county containment.
+    proximity_is_numeric = re.search(
+        r"\b(?:around|close to|near)\s+(?:20\d{2}|a\s+)?\d+\b", lower
+    )
     if (
         re.search(r"\b(?:near|around|close to)\b", lower)
         and not re.search(r"\bnear me\b", lower)
+        and not proximity_is_numeric
         and _coords(text) is None
         and not re.search(
             r"(?:\b\d+(?:\.\d+)?\s*(?:km|mi|miles?|kilometers?)\b|\bradius\b)",
@@ -981,40 +2172,79 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             "clarification",
             "undefined_spatial_scope",
             "Near/around requires an explicit radius or polygon",
+            slots=slots,
             answer=(
                 "How should that nearby area be defined? Provide a radius "
                 "(for example 25 km) or a county/utility polygon to use."
             ),
         )
-    if re.search(r"\b(?:northern|southern)\s+california\b", lower):
+    county_place = _unresolved_county_place(text)
+    if county_place:
+        county_word = county_place.split()[0].title()
+        return RouteDecision(
+            "clarification",
+            "county_place_ambiguous",
+            "A county word is used as a different place, or without the word County",
+            slots=slots,
+            answer=(
+                f"{county_place.title()} is not a county filter in this warehouse. "
+                f"Did you mean {county_word} County, or another county?"
+            ),
+        )
+    named_county = _city_named_as_county(lower)
+    if named_county:
+        return RouteDecision(
+            "clarification",
+            "unknown_county",
+            "A municipality was written as a county",
+            slots=slots,
+            answer=(
+                f"{named_county.title()} County is not a county in this warehouse. "
+                "Which county should I use?"
+            ),
+        )
+    # Coordinates are the place; a city name beside them is a label.
+    city = _city_match(lower) if coords is None else None
+    if city:
+        return RouteDecision(
+            "clarification",
+            "city_needs_place",
+            "A city that is not a county name is not a query layer",
+            slots=slots,
+            answer=(
+                f"{city.group(0).title()} is a city, not a county or utility "
+                "territory. Which coordinates, county, or utility territory "
+                "should I use? I will not answer with a statewide or county layer."
+            ),
+        )
+    # A ranking that mentions a tier reaches _route_ranking first, where an
+    # unsupported ranking is refused before the tier constraint is considered.
+    if _hftd_constraint_unavailable(lower) and not _asks_ranking(lower):
+        return RouteDecision(
+            "clarification",
+            "hftd_constraint_unavailable",
+            "No tool intersects circuits with an HFTD tier or measures HFTD area",
+            slots=slots,
+            answer=(
+                "No tool can intersect circuits with an HFTD tier, or measure "
+                "HFTD area or acreage. I can map one HFTD tier, or list circuits "
+                "for one utility. Which of those do you want?"
+            ),
+        )
+    region_text = lower
+    for pattern in UTILITY_PATTERNS.values():
+        region_text = re.sub(pattern, " ", region_text, flags=re.I)
+    if re.search(r"\b(?:northern|southern)\s+california\b", region_text):
         return RouteDecision(
             "clarification",
             "undefined_region",
             "Northern/southern California boundaries are not defined by a service",
+            slots=slots,
             answer=(
                 "How should northern and southern California be defined? "
                 "The warehouse has no such region polygons."
             ),
         )
-
-    utilities = _utilities(text)
-    time_resolution = resolve_time(text)
-    year = time_resolution.year
-    years = list(time_resolution.years)
-    dataset = _dataset(text)
-    coords = _coords(text)
-    county = _county(text)
-    slots = {
-        "utilities": utilities,
-        "year": year,
-        "years": years,
-        "dataset": dataset,
-        "coords": coords,
-        "county": county,
-        "time_resolution": time_resolution.as_slot(),
-        "start_date": time_resolution.start_date,
-        "end_date": time_resolution.end_date,
-    }
 
     if time_resolution.status == "ambiguous":
         return RouteDecision(
@@ -1038,6 +2268,49 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 or "That time period is outside the years available in the warehouse."
             ),
             slots=slots,
+        )
+
+    if _asks_medical_exposure(lower):
+        time_args = _time_filter_args(time_resolution)
+        medical_slots = {
+            **slots,
+            "dataset": "epss",
+            "stat_mode": "medical_exposure",
+            "view_id": "medical-exposure",
+        }
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "medical_exposure_missing_year",
+                "Medical exposure panel lacks a time period",
+                answer="What year or date range should I use?",
+                slots=medical_slots,
+            )
+        args: dict[str, Any] = {
+            "dataset": "epss_outages",
+            "result_mode": "count",
+            **time_args,
+        }
+        if utilities:
+            args["utility"] = utilities[0]
+        if county:
+            args["county"] = county
+        tool_calls = [("data_query_records", args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=tool_calls,
+            slots=medical_slots,
+            rule="medical_exposure",
+            reason="Medical baseline or life support asks for the EPSS exposure panel",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "medical_exposure",
+            "Medical baseline or life support asks for the EPSS exposure panel",
+            tool_calls=tool_calls,
+            slots=medical_slots,
         )
 
     if force_model:
@@ -1090,6 +2363,53 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
         re.search(r"\b(?:trend|time series|weekly|monthly|daily)\b", lower)
     )
     if has_count_clause and has_trend_clause:
+        time_args = _time_filter_args(time_resolution)
+        viz_dataset = {
+            "cpuc_ignitions": "ignitions",
+            "us_ignitions": "us_ignitions",
+            "epss_outages": "epss",
+            "psps_events": "psps",
+            "calfire_incidents": "calfire",
+        }.get(dataset or "", "")
+        if dataset and time_args and viz_dataset in _TIME_SERIES_VIZ:
+            interval = _default_series_interval(lower, time_resolution)
+            records_args: dict[str, Any] = {
+                "dataset": dataset,
+                "result_mode": "count",
+                **time_args,
+            }
+            series_args: dict[str, Any] = {
+                "kind": "time_series",
+                "dataset": viz_dataset,
+                "interval": interval,
+                **time_args,
+            }
+            if len(utilities) == 1:
+                records_args["utility"] = utilities[0]
+                series_args["utility"] = utilities[0]
+            if county and dataset in _COUNTY_CAPABLE_DATASETS:
+                records_args["county"] = county
+                series_args["county"] = county
+            tool_calls = [
+                ("data_query_records", records_args),
+                ("visualization_create", series_args),
+            ]
+            blocked = _block_unexpressed_constraints(
+                question=text,
+                tool_calls=tool_calls,
+                slots=slots,
+                rule="multi_intent_count_and_trend",
+                reason="Count and time series are both explicit",
+            )
+            if blocked:
+                return blocked
+            return RouteDecision(
+                "deterministic",
+                "multi_intent_count_and_trend",
+                "Question explicitly requires both a scalar read and a time series",
+                tool_calls=tool_calls,
+                slots=slots,
+            )
         return RouteDecision(
             "model",
             "multi_intent_count_and_trend",
@@ -1110,8 +2430,16 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             slots=slots,
         )
 
+    # A residual map is scored like risk: one place and one past day. Every
+    # branch below returns, so the grid slot never leaks into a non-risk route.
+    risk_asked = _wants_risk(lower) or _asks_residual(lower)
+    if risk_asked:
+        grid_mode = _risk_map_mode(lower)
+        if grid_mode:
+            slots = {**slots, "map_mode": grid_mode}
+
     # Fixed two-step coordinate → cell → risk chain.
-    if coords and _wants_risk(lower):
+    if coords and risk_asked:
         on_date = _single_risk_date(text, time_resolution)
         if (
             _forward_relative_phrase(lower)
@@ -1155,7 +2483,7 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
 
     # Risk by explicit cell and date.
     cell_match = re.search(r"\bcell(?:_id)?\s*(\d{1,3})\b", lower)
-    wants_risk = _wants_risk(lower)
+    wants_risk = risk_asked
     if wants_risk and cell_match:
         on_date = _single_risk_date(text, time_resolution)
         if (
@@ -1241,6 +2569,26 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 ],
                 slots=slots,
             )
+        # A grid map with no place is the statewide surface for that day.
+        if slots.get("map_mode"):
+            if (
+                _forward_relative_phrase(lower)
+                or _date_after_risk_coverage(on_date)
+                or not on_date
+            ):
+                return _risk_date_clarification(
+                    text=text,
+                    time_resolution=time_resolution,
+                    reason="Statewide risk surface requires a scoreable past date",
+                    slots=slots,
+                )
+            return RouteDecision(
+                "deterministic",
+                "risk_surface",
+                "Grid map with a date and no place scores the statewide surface",
+                tool_calls=[("risk_surface", {"date": on_date})],
+                slots=slots,
+            )
         return RouteDecision(
             "clarification",
             "risk_missing_place",
@@ -1251,6 +2599,52 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
                 "or latitude/longitude, plus one historical calendar day."
             ),
             slots=slots,
+        )
+
+    timeline = _timeline_datasets(text, lower)
+    if timeline and not utilities and not county and not has_count_clause:
+        timeline_slots = {
+            **slots,
+            "series_mode": "timeline",
+            "timeline_datasets": [_VIZ_DATASET_NAME[item] for item in timeline],
+        }
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "trend_missing_year",
+                "Multi-dataset timeline lacks a year",
+                answer="What year should I chart?",
+                slots=timeline_slots,
+            )
+        interval = _default_series_interval(lower, time_resolution)
+        timeline_calls = [
+            (
+                "visualization_create",
+                {
+                    "kind": "time_series",
+                    "dataset": _VIZ_DATASET_NAME[item],
+                    "interval": interval,
+                    **time_args,
+                },
+            )
+            for item in timeline
+        ]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=timeline_calls,
+            slots=timeline_slots,
+            rule="series_timeline",
+            reason="Trend names several chartable datasets",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "series_timeline",
+            "Trend names several chartable datasets",
+            tool_calls=timeline_calls,
+            slots=timeline_slots,
         )
 
     # Explicit comparisons.
@@ -1356,6 +2750,78 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             slots=slots,
         )
 
+    # HDW exists only as a playback overlay on one California event layer.
+    # With no named layer this falls through rather than picking one.
+    if (
+        _asks_hdw(lower)
+        and dataset in _HDW_EVENT_DATASETS
+        and not has_count_clause
+        and not re.search(r"\b(?:trend|time series)\b", lower)
+    ):
+        hdw_slots = {**slots, "show_hdw": True}
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "map_missing_year",
+                "HDW map lacks a year",
+                answer=(
+                    "What year should I map with HDW? Daily HDW covers "
+                    f"{min(HDW_YEARS)} through {max(HDW_YEARS)}."
+                ),
+                slots=hdw_slots,
+            )
+        window_years = {
+            int(value[:4])
+            for value in (time_args.get("start_date"), time_args.get("end_date"))
+            if value
+        } or {int(time_args["year"])}
+        if len(window_years) > 1:
+            return RouteDecision(
+                "clarification",
+                "map_missing_year",
+                "HDW playback runs one year at a time",
+                answer="HDW plays one year at a time. Which year should I map?",
+                slots=hdw_slots,
+            )
+        if not window_years <= HDW_YEARS:
+            return RouteDecision(
+                "clarification",
+                "time_out_of_coverage",
+                "No HDW playback file for that year",
+                answer=(
+                    f"Daily HDW covers {min(HDW_YEARS)} through {max(HDW_YEARS)}. "
+                    "Which year in that range should I map?"
+                ),
+                slots=hdw_slots,
+            )
+        hdw_args: dict[str, Any] = {
+            "kind": "map",
+            "dataset": _VIZ_DATASET_NAME[dataset],
+            **time_args,
+        }
+        if utilities:
+            hdw_args["utility"] = utilities[0]
+        if county and dataset in _COUNTY_CAPABLE_DATASETS:
+            hdw_args["county"] = county
+        hdw_calls = [("visualization_create", hdw_args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=hdw_calls,
+            slots=hdw_slots,
+            rule="hdw_map",
+            reason="HDW overlay on a named event layer and year",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "hdw_map",
+            "HDW overlay on a named event layer and year",
+            tool_calls=hdw_calls,
+            slots=hdw_slots,
+        )
+
     # Explicit map / trend.
     # Map + named trend must fire both tools. Interval words alone ("monthly
     # map") are not a trend ask — those stay map-only.
@@ -1409,6 +2875,10 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             )
 
     if has_map_clause and dataset:
+        if _single_call_would_collapse(
+            lower, utilities, _counties(text), kind="map"
+        ):
+            return _defer_collapsed(slots)
         time_args = _time_filter_args(time_resolution)
         if not time_args and dataset != "hftd":
             return RouteDecision(
@@ -1451,7 +2921,112 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
             slots=slots,
         )
 
+    if _asks_summary_panel(lower) and dataset:
+        summary_slots = {**slots, "dataset": dataset, "stat_mode": "summary"}
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "records_missing_year",
+                "Summary panel lacks a time period",
+                answer="What year or date range should I use?",
+                slots=summary_slots,
+            )
+        summary_args: dict[str, Any] = {
+            "dataset": dataset,
+            "result_mode": "count",
+            **time_args,
+        }
+        if utilities:
+            summary_args["utility"] = utilities[0]
+        if county and dataset in _COUNTY_CAPABLE_DATASETS:
+            summary_args["county"] = county
+        summary_calls = [("data_query_records", summary_args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=summary_calls,
+            slots=summary_slots,
+            rule="summary_stats",
+            reason="Summary or overview asks for the live summary panel",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            "summary_stats",
+            "Summary or overview asks for the live summary panel",
+            tool_calls=summary_calls,
+            slots=summary_slots,
+        )
+
+    series_request = _series_mode_request(lower)
+    if series_request is not None and _asks_series_and_total(lower):
+        return _defer_collapsed(slots)
+    if series_request is not None:
+        series_mode, fixed_dataset = series_request
+        chartable = {"cpuc_ignitions", "epss_outages", "calfire_incidents"}
+        warehouse_dataset = fixed_dataset or (
+            dataset if dataset in chartable else None
+        )
+        mode_slots = {
+            **slots,
+            "dataset": warehouse_dataset,
+            "series_mode": series_mode,
+        }
+        if warehouse_dataset is None:
+            return RouteDecision(
+                "clarification",
+                "series_mode_missing_dataset",
+                "Yearly and seasonal charts need CPUC, EPSS, or CAL FIRE",
+                answer=(
+                    "Which dataset should I chart: CPUC ignitions, "
+                    "EPSS outages, or CAL FIRE incidents?"
+                ),
+                slots=mode_slots,
+            )
+        time_args = _time_filter_args(time_resolution)
+        if not time_args:
+            return RouteDecision(
+                "clarification",
+                "series_mode_missing_year",
+                "Series panel lacks a time period",
+                answer="What year or date range should I use?",
+                slots=mode_slots,
+            )
+        viz_dataset = _VIZ_DATASET_NAME.get(warehouse_dataset, warehouse_dataset)
+        series_args: dict[str, Any] = {
+            "kind": "time_series",
+            "dataset": viz_dataset,
+            "interval": "monthly",
+            **time_args,
+        }
+        if utilities:
+            series_args["utility"] = utilities[0]
+        if county and warehouse_dataset in _COUNTY_CAPABLE_DATASETS:
+            series_args["county"] = county
+        series_calls = [("visualization_create", series_args)]
+        blocked = _block_unexpressed_constraints(
+            question=text,
+            tool_calls=series_calls,
+            slots=mode_slots,
+            rule=f"series_{series_mode}",
+            reason=f"Series panel {series_mode} for {warehouse_dataset}",
+        )
+        if blocked:
+            return blocked
+        return RouteDecision(
+            "deterministic",
+            f"series_{series_mode}",
+            f"Series panel {series_mode} for {warehouse_dataset}",
+            tool_calls=series_calls,
+            slots=mode_slots,
+        )
+
     if re.search(r"\b(?:trend|time series|weekly|monthly|daily)\b", lower) and dataset:
+        if _single_call_would_collapse(
+            lower, utilities, _counties(text), kind="series"
+        ):
+            return _defer_collapsed(slots)
         time_args = _time_filter_args(time_resolution)
         if not time_args:
             return RouteDecision(
@@ -1586,6 +3161,10 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
     is_count = _has_quantity_op(lower)
     is_list = _has_list_op(lower)
     if (is_count or is_list) and dataset:
+        if _single_call_would_collapse(
+            lower, utilities, _counties(text), kind="count"
+        ):
+            return _defer_collapsed(slots)
         time_args = _time_filter_args(time_resolution)
         if not time_args:
             return RouteDecision(

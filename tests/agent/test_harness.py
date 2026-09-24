@@ -110,8 +110,11 @@ def test_router_place_based_risk():
     assert "2025-12-31" in (tomorrow.answer or "")
     assert "no forecast ingestion" in (tomorrow.answer or "")
 
+    today = route_question("What's the fire risk in Sacramento County today?")
+    assert today.path == "unsupported"
+    assert today.rule == "unsupported_live_web"
+
     for question, phrase in (
-        ("What's the fire risk in Sacramento County today?", "today"),
         ("What's the fire risk in Sacramento County this week?", "this week"),
         ("What's the fire risk in Sacramento County next week?", "next week"),
     ):

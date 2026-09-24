@@ -106,7 +106,6 @@ def test_place_resolution_county_utility_point(db_conn):
 
 def test_health_model_loaded(risk_api):
     r = risk_api.get("/health")
-    assert r.status_code == 200
     body = r.json()
     if not body.get("model_loaded"):
         pytest.fail(
@@ -114,6 +113,10 @@ def test_health_model_loaded(risk_api):
             f"Params file exists={PARAMS.is_file()} size="
             f"{PARAMS.stat().st_size if PARAMS.is_file() else 'n/a'}"
         )
+    assert r.status_code == 200, (
+        f"risk /health -> {r.status_code}, failed_stage={body.get('failed_stage')}: "
+        f"{body.get('detail')}"
+    )
     assert body["status"] == "ok"
 
 
@@ -122,8 +125,9 @@ def test_risk_api_allows_cross_origin_browser_requests(risk_api):
         "/health",
         headers={"Origin": "https://woody-zhu-group.github.io"},
     )
-    assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "*"
+    # /health is 503 when the model did not load; CORS must hold either way.
+    assert response.status_code in (200, 503)
+    assert response.headers.get("access-control-allow-origin") == "*"
     preflight = risk_api.options(
         "/health",
         headers={

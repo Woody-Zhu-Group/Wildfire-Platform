@@ -1,0 +1,29 @@
+{
+  "disposition": {
+    "instructions": "Should the assistant answer, ask a clarifying question, or refuse this as out of scope?",
+    "criteria": {
+      "answer": "Enough information is present to query the warehouse or historical risk model.",
+      "clarify": "A place, time, dataset, or metric is missing, so guessing would answer a different question.",
+      "unsupported": "No available dataset or tool covers what is being asked."
+    }
+  },
+  "intent": {
+    "instructions": "Which single product action is the user requesting?",
+    "criteria": {
+      "count": "One numeric total.",
+      "records_list": "A list of individual records rather than a total.",
+      "map": "A map of where events were.",
+      "trend": "A chart of counts over time.",
+      "map_plus_trend": "Both a map and a time chart.",
+      "compare": "A side-by-side comparison of utilities, regions, or two periods.",
+      "rank": "An ordered top-N inside one dataset.",
+      "risk": "A fitted historical ignition probability for one place and day.",
+      "spatial_context": "Which polygon contains a point, or a count inside a territory.",
+      "territory_boundary": "The utility service-area outline itself.",
+      "circuit_detail": "One circuit's detail record.",
+      "exploratory_overview": "A general briefing with no single metric.",
+      "multi_intent": "Two different requests in one question.",
+      "other": "None of these actions."
+    }
+  }
+}

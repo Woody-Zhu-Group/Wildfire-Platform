@@ -225,6 +225,10 @@
       "data_query_spatial",
       "risk_forecast"
     ],
+    "gold_plan": [
+      "data_query_spatial",
+      "risk_forecast"
+    ],
     "required_caveats": [
       "cnhpp_grid_resolution",
       "cnhpp_contagion_tie"
@@ -245,6 +249,10 @@
       "data_query_records",
       "data_query_records"
     ],
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records"
+    ],
     "required_caveats": [
       "us_ignitions_sample"
     ],
@@ -254,8 +262,12 @@
   {
     "id": "count_plus_trend",
     "question": "Give me the PGE ignition count and its monthly trend for 2024.",
-    "expected_route": "model",
+    "expected_route": "deterministic",
     "expected_tools": [
+      "data_query_records",
+      "visualization_create"
+    ],
+    "gold_plan": [
       "data_query_records",
       "visualization_create"
     ],
@@ -426,8 +438,12 @@
   {
     "id": "holdout_count_trend_sce_2023",
     "question": "Give me the SCE ignition count and its weekly trend for 2023.",
-    "expected_route": "model",
+    "expected_route": "deterministic",
     "expected_tools": [
+      "data_query_records",
+      "visualization_create"
+    ],
+    "gold_plan": [
       "data_query_records",
       "visualization_create"
     ],
@@ -918,5 +934,621 @@
     ],
     "expected_view_types": [],
     "expected_view_status": "none"
+  },
+  {
+    "id": "router_sce_service_area",
+    "question": "Draw the Southern California Edison service-area outline.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_inspect"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "label_rule": {
+      "id": "G",
+      "date": "2026-09-23",
+      "written_by": "Michael",
+      "text": "A utility service-area outline, boundary, polygon, or footprint request with no count and no dataset word is the territory boundary map (visualization_inspect, kind utility_territory). Applies to router_sce_service_area (cases.json) and para_territory_boundary (jev_paraphrases.json).",
+      "previous": {
+        "expected_route": "model",
+        "expected_tools": [],
+        "expected_view_types": [],
+        "expected_view_status": "none"
+      }
+    }
+  },
+  {
+    "id": "router_around_year",
+    "question": "Around 2023, how many CPUC ignitions were there?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_view_types": []
+  },
+  {
+    "id": "router_close_to_number",
+    "question": "Were CPUC ignitions close to 500 in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_view_types": []
+  },
+  {
+    "id": "router_tally_and_trend",
+    "question": "Give me the SCE ignition tally and its weekly trend for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records",
+      "visualization_create"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_view_types": []
+  },
+  {
+    "id": "router_premiums",
+    "question": "How much did home insurance premiums rise after the 2024 fires?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_air_quality",
+    "question": "What was the air quality index during the 2024 Park Fire?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_leadership",
+    "question": "Who is the CEO of PG&E?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_evacuation",
+    "question": "What is the best evacuation route out of Paradise?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_translation",
+    "question": "Translate how many fires into Spanish.",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_personnel",
+    "question": "How many firefighters were deployed to the 2024 Park Fire?",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_satellite",
+    "question": "Show me the satellite infrared image of the 2024 fire.",
+    "expected_route": "unsupported",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "unsupported",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "router_pg_and_e_tally",
+    "question": "Tally PG and E utility-attributed ignitions in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "ignition_definition_pge"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": []
+  },
+  {
+    "id": "router_pacific_gas_total",
+    "question": "What is the total number of Pacific Gas ignitions for 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "ignition_definition_pge"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": []
+  },
+  {
+    "id": "medical_baseline_2024",
+    "question": "show me medical baseline data 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
+  },
+  {
+    "id": "life_support_2024",
+    "question": "life support customers in 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
+  },
+  {
+    "id": "medically_vulnerable_2024",
+    "question": "medically vulnerable customers 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
+  },
+  {
+    "id": "medical_baseline_missing_year",
+    "question": "show me medical baseline data",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "clarification",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "epss_outage_count_2024",
+    "question": "How many EPSS outages were there in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "map_epss_outages_2024",
+    "question": "Map EPSS outages for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "map"
+    ]
+  },
+  {
+    "id": "rank_epss_circuits_2024",
+    "question": "Which EPSS circuits had the most outages in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_rank"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "comparison"
+    ]
+  },
+  {
+    "id": "list_pge_outages_2024",
+    "question": "Show me PG&E outages in 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "record_table"
+    ]
+  },
+  {
+    "id": "series_yearly_cpuc_2024",
+    "question": "Show year over year CPUC ignition totals for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "cpuc_utility_caused"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "series_seasonal_calfire_2024",
+    "question": "Show the seasonal profile of CAL FIRE incidents for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "calfire_missingness"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "series_cumulative_acres_2024",
+    "question": "Show cumulative acres burned over the year for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "calfire_missingness"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "series_customer_events_2024",
+    "question": "Show customers affected over time in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "series_regional_epss_2024",
+    "question": "Show EPSS outages by division in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "guard_monthly_trend_stays_timeline",
+    "question": "Show the monthly CPUC ignition trend for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "cpuc_utility_caused"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "guard_epss_count_stays_filtered_records",
+    "question": "How many EPSS outages were recorded in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "guard_calfire_count_is_not_cumulative_acres",
+    "question": "How many CAL FIRE incidents were there in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "calfire_missingness"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "summary_epss_outages_2024",
+    "question": "summary of EPSS outages in 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
+  },
+  {
+    "id": "guard_pge_count_stays_frozen_stat",
+    "question": "How many PG&E ignitions in 2024?",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "cpuc_utility_caused",
+      "ignition_definition_pge"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "guard_medical_baseline_not_summary",
+    "question": "show me medical baseline data 2024",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "data_query_records"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "stat_card"
+    ]
+  },
+  {
+    "id": "hdw_map_cpuc_2024",
+    "question": "Map CPUC ignitions with HDW for 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "map"
+    ]
+  },
+  {
+    "id": "hdw_map_fire_weather_epss_2023",
+    "question": "Show fire weather with EPSS outages in 2023.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2023,
+    "expected_view_types": [
+      "map"
+    ]
+  },
+  {
+    "id": "hdw_map_missing_year",
+    "question": "Map CAL FIRE incidents with HDW",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "clarification",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "risk_surface_county_date",
+    "question": "Show the modeled ignition risk surface for Sacramento County on 2024-08-15.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "risk_forecast"
+    ],
+    "required_caveats": [
+      "cnhpp_grid_resolution",
+      "cnhpp_contagion_tie"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "stat_card",
+      "stat_card",
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "residual_map_county_date",
+    "question": "Show the residual map for Sacramento County on 2024-08-15.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "risk_forecast"
+    ],
+    "required_caveats": [
+      "cnhpp_grid_resolution",
+      "cnhpp_contagion_tie"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "stat_card",
+      "stat_card",
+      "stat_card",
+      "map"
+    ]
+  },
+  {
+    "id": "risk_surface_missing_date",
+    "question": "Show the risk surface for Sacramento County",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "clarification",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "timeline_three_datasets_2024",
+    "question": "Show CPUC ignitions, EPSS outages, and CAL FIRE incidents over time in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create",
+      "visualization_create",
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only",
+      "calfire_missingness"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
+  },
+  {
+    "id": "timeline_missing_year",
+    "question": "Trend of CPUC ignitions and EPSS outages",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "clarification",
+    "expected_view_types": [],
+    "expected_view_status": "none"
+  },
+  {
+    "id": "risk_surface_statewide_date",
+    "question": "Show the risk surface for 2024-08-15.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "risk_surface"
+    ],
+    "required_caveats": [
+      "cnhpp_grid_resolution",
+      "cnhpp_contagion_tie"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "map"
+    ]
+  },
+  {
+    "id": "residual_map_statewide_date",
+    "question": "Show the residual map for 2024-08-15.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "risk_surface"
+    ],
+    "required_caveats": [
+      "cnhpp_grid_resolution",
+      "cnhpp_contagion_tie"
+    ],
+    "expected_status": "answer",
+    "expected_view_types": [
+      "map"
+    ]
+  },
+  {
+    "id": "timeline_bare_ignitions_and_epss_2024",
+    "question": "Show ignitions and EPSS outages over time in 2024.",
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_create",
+      "visualization_create"
+    ],
+    "required_caveats": [
+      "epss_pge_only"
+    ],
+    "expected_status": "answer",
+    "expected_tool_year": 2024,
+    "expected_view_types": [
+      "time_series"
+    ]
   }
 ]

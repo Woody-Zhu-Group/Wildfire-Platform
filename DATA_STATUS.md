@@ -1,5 +1,19 @@
 # DATA AND CODE STATUS (for new session handoff)
 
+> **Status note (2026-09-23):** This is a historical handoff from before the
+> Wildfire Services restructure. Its file layout is out of date. The grid model
+> code now lives in `services/risk_forecasting/` (`models.py`,
+> `grid_data_prep.py`, `analysis.py`, `prep_hrrr_grid.py`), and the superseded
+> circuit-level `data_prep.py`, `main.py`, and `prep_hrrr.py` are in
+> `services/risk_forecasting/legacy/`. `circuit_midpoints.csv` and
+> `grid_cells.csv` are in `services/risk_forecasting/data/`; the evaluation CSVs
+> are in `services/risk_forecasting/outputs/`. `grid_W.pkl` is rebuilt by
+> `services/risk_forecasting/adjacency.py` (`build_grid_adjacency`), and fitted
+> cNHPP parameters are committed at
+> `services/risk_forecasting/artifacts/cnhpp_params.npz`. The `cnhpp_wildfire/`
+> tree and `/mnt/user-data/outputs` paths below no longer apply. See the repo
+> `README.md` for current data caveats.
+
 This documents exactly what persisted from the prior session and what did not.
 Read this before assuming anything is available.
 

@@ -1,8 +1,8 @@
 # Wildfire Platform
 
-A wildfire research platform combining an interactive analysis website, a PostGIS event warehouse, modular FastAPI services, and a historical **cNHPP** (convolutional non-homogeneous Poisson process) ignition-risk model. The website supports recorded fire and outage exploration, weather playback, regional and seasonal analysis, and result exports.
+A wildfire research platform combining an interactive analysis website, a PostGIS event warehouse, modular FastAPI services, and a historical **cNHPP** (convolutional non-homogeneous Poisson process) ignition-risk model. The website supports recorded fire and outage exploration, weather playback, modeled risk and residual maps, regional and seasonal analysis, and result exports.
 
-The current website offers **13 analysis views in five panel categories**. Model scoring is a separate research capability: opening the website does not fit a model, start a GPU, or require a local database.
+The current website offers **18 analysis views in five panel categories**, and the Ask panel can open all 18 from a chat answer. Opening the website does not fit a model, start a GPU, or require a local database.
 
 ## Architecture
 
@@ -13,11 +13,13 @@ flowchart LR
     Web -->|POST /ask/stream| Agent["Agent prototype :8004"]
     Web -->|Explicitly configured SQL aggregates| Query
     Web -->|Load yearly assets| HDW["Bundled HDW cubes"]
+    Web -->|Risk surface and residual map| Risk
     Agent --> Viz
     Agent --> Query["Data Query API :8000"]
     Agent --> Compare["Comparison API :8003"]
     Agent --> Risk["Historical Risk API :8001"]
-    Agent -->|Model-tier requests| Ollama["Ollama / compatible model endpoint"]
+    Agent -->|Model-tier requests| LLM["Ollama (default) or OpenRouter"]
+    Agent -.->|Optional, off by default| Jev["Jev decisions: TypeSafe or OpenRouter"]
     Viz --> DB[(PostGIS warehouse)]
     Query --> DB
     Compare --> DB
@@ -26,9 +28,9 @@ flowchart LR
     Raw["Read-only source datasets"] --> Loaders["db/loaders"] --> DB
 ```
 
-Maps and record tables request complete filtered records from the Visualization API. Grouped comparisons, summary metrics and regional series use geometry-free SQL aggregates through the configured HTTPS Data Query endpoint. Calendar alignment and seasonal averages use the existing daily time-series buckets. HDW playback loads the supplied static weather cubes. The Agent API can additionally route questions to the Data Query, Comparison and Risk services and returns structured views alongside its answer.
+Maps and record tables request complete filtered records from the Visualization API. Grouped comparisons, summary metrics and regional series use geometry-free SQL aggregates through the configured HTTPS Data Query endpoint. Calendar alignment and seasonal averages use the existing daily time-series buckets. HDW playback loads the supplied static weather cubes. The risk surface and residual map panels read the Historical Risk API (`/surface`, `/observed-training`) directly. The Agent API can additionally route questions to the Data Query, Comparison and Risk services and returns structured views alongside its answer.
 
-The default website connects to the deployed APIs configured in [`website/src/api.ts`](website/src/api.ts). Local services are useful for backend development but are not prerequisites for previewing the built website. The agent remains a routing prototype; the website currently renders only the view contracts it can reproduce faithfully.
+The default website connects to the deployed APIs configured in [`website/src/api.ts`](website/src/api.ts). Local services are useful for backend development but are not prerequisites for previewing the built website. The agent is a research prototype: a deterministic router first, a model tier second, and harness-planned views that cite tool evidence.
 
 ## Layout
 
@@ -46,7 +48,9 @@ tests/                          # live API verification suite
 services/data_query/            # read API over warehouse tables
 services/visualization/         # styled GeoJSON / time series / detail
 services/comparison/            # cross-utility / region / period metrics
-services/agent/                 # local-LLM routing feasibility harness
+services/agent/                 # deterministic router, model harness, caveats, view planner
+  decisions/                    # optional Jev (TypeSafe) decision layer, off by default
+  eval/                         # eval cases, holdouts, runners, and stored run outputs
 services/gpu_control/           # optional EC2/Ollama control on port 8005
 services/risk_forecasting/
   models.py                     # HPP / NHPP / cNHPP (do not modify lightly)
@@ -98,11 +102,19 @@ The build updates `docs/index.html` and `docs/assets/workspace/`. Commit the web
 
 | Category | Current views |
 |---|---|
-| Map | Wildfire events, EPSS outage circuits, PSPS areas, Fire weather |
-| Time series | Event trends, Year comparison, Regional trends, Seasonal profile |
+| Map | Wildfire events, Outage circuits, PSPS areas, Fire weather, Modeled ignition risk surface, Model residual map |
+| Time series | Event trends, Year comparison, Regional trends, Seasonal profile, Cumulative acres burned within a season, Customers affected over time |
 | Comparison | County ranking, Utility comparison, Cause breakdown |
 | Record table | Event records |
-| Stat card | Summary metrics |
+| Stat card | Summary metrics, Medical baseline and life support customers affected by EPSS outages |
+
+The views are defined in [`website/src/panelViews.ts`](website/src/panelViews.ts).
+
+- **Workspace year:** a global year bar sets the year for every panel; a panel can pin its own year instead, and a badge marks the override.
+- **Event map playback:** event maps can step day by day through the selected period.
+- **Risk surface and residual map:** the risk surface maps the cNHPP hindcast for one historical date. The residual map compares observed CPUC ignitions with that hindcast using the training cell assignment. Both are statistical hindcasts, not forecasts.
+- **Dataset notes:** panel headers show the dataset caveats (for example EPSS is PG&E-only and PSPS totals are customer-events).
+- **Theme:** a light and dark theme toggle.
 
 **Seasonal profile:** select one to five years inside Filters. A single year is a solid weekly-count line; multiple years have dashed individual lines and a thicker solid average. The collapsed filter shows the number of selected years. **Regional trends:** PG&E divisions share the same vertical scale, with all regions available in expanded view and exports.
 
@@ -112,7 +124,7 @@ Panel names, order and settings are saved in browser local storage. Chat message
 
 [db/schema.sql](db/schema.sql) is the schema reference. EPSS is PG&E-only, and its cause categories describe outages. CPUC and CAL FIRE records do not supply the same cause field. PSPS customer totals count customer-events, not distinct households.
 
-The implemented views are a subset of the feature roadmap. Current rankings compare recorded counts, not modeled circuit risk or rates normalized by customers served. HDW playback is a supplied historical weather surface, not predicted ignition probability. Predicted risk surfaces, residual maps and model performance cards still require separate integration. Source date ranges reflect recorded events rather than verified collection completeness or last-scrape timestamps.
+Current rankings compare recorded counts, not modeled circuit risk or rates normalized by customers served. HDW playback is a supplied historical weather surface, not predicted ignition probability. The risk surface and residual map are historical hindcasts for dates with covariate files. A model performance card is not a workspace view yet; the risk API exposes the metrics at `GET /metrics`. Source date ranges reflect recorded events rather than verified collection completeness or last-scrape timestamps.
 
 ### Connecting the website to local APIs
 
@@ -123,6 +135,7 @@ in the frontend build environment:
 VITE_VISUALIZATION_URL=http://127.0.0.1:8002
 VITE_AGENT_URL=http://127.0.0.1:8004
 VITE_DATA_QUERY_URL=http://127.0.0.1:8000
+VITE_RISK_URL=http://127.0.0.1:8001
 ```
 
 Restart the development server or rebuild the website afterward. The checked-in
@@ -167,7 +180,7 @@ Run each API in a separate terminal from the repository root. These are the loca
 | GPU control (optional) | 8005 | Authenticated start/stop when EC2/Ollama is configured; disabled with no defaults |
 | PostGIS | 5433 | Local database host port; container port is 5432 |
 
-The current website's direct data panels need Visualization and its warehouse; SQL aggregation additionally requires the updated Data Query service. Ask uses Agent and the relevant downstream services. Historical scoring additionally requires the model input files described below.
+The current website's direct data panels need Visualization and its warehouse; SQL aggregation additionally requires the updated Data Query service. Ask uses Agent and the relevant downstream services. The risk surface and residual map panels need the Historical Risk API. Historical scoring additionally requires the model input files described below.
 
 ### PostGIS warehouse (map layers + grid)
 
@@ -179,7 +192,7 @@ docker compose up -d
 python -m db.loaders
 ```
 
-Source GeoJSON/CSV is read from the sibling `dataset_demo/assets/data` repo (read-only), or `DATASET_DEMO_DATA_DIR`. Large source files are not included in a fresh clone. Loaders truncate and repopulate their target tables, so verify the configured database before rerunning them. The local warehouse also needs the national source/extract if loading `us_ignitions`; see the database guide for its path and extraction command.
+Source GeoJSON/CSV is read from the sibling `dataset_demo/assets/data` repo (read-only), or `DATASET_DEMO_DATA_DIR`. HFTD tier and IOU territory polygons instead come from the CPUC FeatureServers, cached as Esri JSON in `data/boundaries/` and loaded together behind a validity and area gate (see [`db/README.md`](db/README.md) and [`docs/DATA_CHANGE_HFTD_IOU.md`](docs/DATA_CHANGE_HFTD_IOU.md)). Large source files are not included in a fresh clone. Loaders truncate and repopulate their target tables, so verify the configured database before rerunning them. The local warehouse also needs the national source/extract if loading `us_ignitions`; see the database guide for its path and extraction command.
 
 ### Data query API
 
@@ -192,12 +205,12 @@ uvicorn services.data_query.app:app --port 8000 --reload --app-dir .
 
 - Docs: http://localhost:8000/docs  
 - Examples: `/ignitions`, `/us-ignitions`, `/epss/outages`, `/psps/events`, `/calfire/incidents`, `/circuits`, `/hftd`, `/iou-territories`, `/spatial/point`, `/spatial/summary`, `/rank`  
-- Common params: `utility`, `year`, `county`, `start_date`, `end_date`, `bbox`, `format=json|geojson`, `geometry=true|false`, `limit`, `offset`. CPUC `county` is inferred at load from lat/lon against Census TIGER California polygons (`wildfire.counties`). `/spatial/point` returns that county. Circuit IDs are TEXT 9-digit zero-padded — never numeric.  
-- CAL FIRE defaults to `incident_type in (Wildfire, Fire)` (use `untyped` / `all`). Year-to-year CAL FIRE **count** comparisons are a map-feed artifact (2023→2024 listed 133→611; posting threshold dropped, median acres 70→43). That is not a 4.6× fire year — Redbook counts rose ~10%; warehouse acres still track Redbook ~95–97%. See [`analysis/calfire-2024-jump.md`](analysis/calfire-2024-jump.md).  
+- Common params: `utility`, `year`, `county`, `start_date`, `end_date`, `bbox`, `format=json|geojson`, `geometry=true|false`, `limit`, `offset`. CPUC `county` is inferred at load from lat/lon against Census TIGER California polygons (`wildfire.counties`). `/spatial/point` returns that county. Circuit IDs are TEXT 9-digit zero-padded: never numeric.  
+- CAL FIRE defaults to `incident_type in (Wildfire, Fire)` (use `untyped` / `all`). Year-to-year CAL FIRE **count** comparisons are a map-feed artifact (2023→2024 listed 133→611; posting threshold dropped, median acres 70→43). That is not a 4.6× fire year: Redbook counts rose ~10%; warehouse acres still track Redbook ~95–97%. See [`analysis/calfire-2024-jump.md`](analysis/calfire-2024-jump.md).  
 - `GET /rank` is single-dataset top-N (`group_by` county|utility|circuit); it rejects `us_ignitions` and EPSS-by-utility. Say “top N of M” and keep ties.  
 - Verification: `python tests/report_results.py` runs the repository's Python test suite and writes a report. Live tests require a populated database, the corresponding APIs and risk input files; it is separate from the website's Node tests.
 
-**Ignition counts — two definitions:** `utility=` filters use the CSV **attribute** tag; `/spatial/summary` uses **polygon containment**. For PGE 2024 these differ by 4 rows (inside territory but not tagged PGE). See `services/visualization/README.md`.
+**Ignition counts, two definitions:** `utility=` filters use the CSV **attribute** tag; `/spatial/summary` uses **polygon containment**. For PGE 2024 these differ by 4 rows (inside territory but not tagged PGE). See `services/visualization/README.md`.
 
 ### Visualization API
 
@@ -217,38 +230,44 @@ uvicorn services.comparison.app:app --port 8003 --app-dir .
 ```
 
 - Docs: http://localhost:8003/docs
-- `/compare-utilities`, `/compare-regions`, `/compare-periods` — see [`services/comparison/README.md`](services/comparison/README.md)
+- `/compare-utilities`, `/compare-regions`, `/compare-periods`: see [`services/comparison/README.md`](services/comparison/README.md)
 
 ### Agent prototype
 
-Read-only single-exchange router over all four services:
+Read-only single-exchange router over all four services (`POST /ask`, `POST /ask/stream`, `GET /health`, `GET /artifacts/{ref}`):
 
 ```bash
 uvicorn services.agent.app:app --port 8004 --app-dir .
 ```
 
-The deterministic tier handles fully specified reads, maps, comparisons,
-rankings, and risk lookups before invoking local Qwen3 through Ollama. Seven
-grouped HTTP tools, strict validation, response-contract checks, bounded
-retries, payload summarization, and deterministic caveat injection validate
-tool responses and attach source qualifications.
+**Routing.** `services/agent/routing.py` decides first:
 
-Run the staged 4B baseline with:
+- Hard refusals and clarifications fire before anything else: live or web questions, forward-dated risk, future predictions, cities that are not a county or territory, HFTD operations no tool can express, and the explicit unsupported topics (CPZ, cost, air quality, evacuation, translation, personnel, satellite imagery, leadership, optimization, damage).
+- Fully specified reads, maps, series, comparisons, rankings, summary and medical-exposure stats, and risk lookups (cell, coordinates, county, utility, or the statewide surface) run as deterministic tool calls.
+- Missing years, places, datasets, or metrics get a clarification. When more than one item is missing, one message asks for all of them with an example rephrasing built from what the question already named.
+- Everything else goes to the model tier with a candidate tool list.
 
-```bash
-python -m services.agent.eval.runner --models qwen3:4b --thinking off --modes prompt
-```
+**Model tier.** Seven grouped tools (`data_query_records`, `data_query_rank`, `data_query_spatial`, `visualization_create`, `visualization_inspect`, `risk_forecast`, `comparison_run`) with strict argument validation, response-contract checks, and bounded retries. `risk_surface` is router-only. The harness resolves relative dates and ranges, fills and checks harness years, strips invented utilities, and drops model-proposed filters (circuit, tier, county, coordinates) that the question does not name. Every factual claim in an answer cites tool `evidence_ids`, and views are planned by the harness, not the model.
 
-See [`services/agent/README.md`](services/agent/README.md) and the explicit
-[`services/agent/SECURITY.md`](services/agent/SECURITY.md) threat boundary.
+**Caveats.** Qualifications attach after any successful tool path: CPUC ignitions are utility-caused or utility-attributed, every utility ignition count is paired with the same-period spatial containment count, EPSS is PG&E-only, CAL FIRE answers report missing incident-type and utility-tag counts, CAL FIRE count comparisons that cross 2023 to 2024 carry the incident-map-feed caveat, US ignitions are a sample and not comparable to CPUC, and cNHPP answers note the grid resolution and the cNHPP versus NHPP tie. If a required companion call fails, the answer is suppressed rather than returned without its caveat.
 
-The agent binds `:8004` even when Ollama is down. Deterministic routes
+**Model provider.** The default is Ollama with `qwen2.5:7b` (`AGENT_MODEL`). `AGENT_LLM_PROVIDER=openrouter` sends routing and synthesis to OpenRouter (GPT-6 Luna, with Sol for retries) using native tool calls and strict structured outputs; it also needs `AGENT_ALLOW_REMOTE_PROVIDER=true` and `OPENROUTER_API_KEY`, and it is off by default. [`docs/OPENROUTER.md`](docs/OPENROUTER.md) covers the switch, prices, and measurements, and currently says not to switch production yet.
+
+**Jev decision layer (all off by default).** Jev is TypeSafe's non-generative decision model. `AGENT_JEV_MODE` is `off` by default; `shadow` logs Jev's decisions beside the router without changing answers; `tool_pick` lets Jev choose the model-path tool above `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (0.8); `tool_pick_template` adds template answers for simple reads. `AGENT_JEV_BACKEND` is `typesafe` or `openrouter`. A `decide` mode (router backstops first, then Jev's answer, clarify, or refuse behind a confidence gate) is proposed in open PR #49 and is not on `main`. See [`docs/JEV_SHADOW.md`](docs/JEV_SHADOW.md), [`docs/JEV_DETERMINISM.md`](docs/JEV_DETERMINISM.md), and [`docs/JEV_BACKLOG.md`](docs/JEV_BACKLOG.md).
+
+The agent binds `:8004` even when the model endpoint is down. Deterministic routes
 (counts, maps, rankings) keep working; model-tier questions return a clear
 offline sentence (HTTP 200), not a 500. `/health` stays a cheap `/v1/models`
 probe and does not warm the model. The website Ask panel uses SSE
-`POST /ask/stream`; leave `POST /ask` unchanged for eval. Relative dates and
-ranges like `2021 to 2025` / `August 2023 to September 2024` are resolved in
-the harness, not by the model.
+`POST /ask/stream`; leave `POST /ask` unchanged for eval.
+
+**Evaluation.** The eval runner defaults to `qwen3:4b`; to match production pass the model and mode explicitly:
+
+```bash
+python -m services.agent.eval.runner --models qwen2.5:7b --thinking off --modes constrained
+```
+
+Eval cases are `services/agent/eval/cases.json` and `jev_paraphrases.json` (development data, used for tuning) and holdout v1 (`jev_holdout.json`, seen). See [`services/agent/README.md`](services/agent/README.md), [`services/agent/SECURITY.md`](services/agent/SECURITY.md) for the threat boundary, and [`services/agent/eval/HARNESS_GUARDS.md`](services/agent/eval/HARNESS_GUARDS.md).
 
 ### GPU control (optional)
 
@@ -280,7 +299,7 @@ python frontend/serve.py
 # Open http://127.0.0.1:8765/index.html
 ```
 
-`serve.py` mounts sibling `dataset_demo` at `/dataset_demo/` so Planning Tool PNGs resolve. Do **not** run `python -m http.server` from `frontend/` — those plots 404. Local API URLs are in `frontend/assets/js/api-config.js`. Verification notes: [`frontend/VERIFICATION.md`](frontend/VERIFICATION.md).
+`serve.py` mounts sibling `dataset_demo` at `/dataset_demo/` so Planning Tool PNGs resolve. Do **not** run `python -m http.server` from `frontend/`: those plots 404. Local API URLs are in `frontend/assets/js/api-config.js`. Verification notes: [`frontend/VERIFICATION.md`](frontend/VERIFICATION.md).
 
 US Ignitions (`wildfire.us_ignitions`) are an IRWIN/FireCastRL all-cause sample (33,457 positives; not a census; not for cNHPP). They are not directly comparable to CPUC or CAL FIRE. See [`docs/dataset-comparison-cpuc-calfire-us.md`](docs/dataset-comparison-cpuc-calfire-us.md).
 
@@ -323,8 +342,11 @@ uvicorn services.risk_forecasting.app:app --port 8001 --reload --app-dir .
 ```
 
 - `GET /health`
-- `GET /predict` — exactly one place: `cell_id` **or** `lat`+`lon` **or** `county` **or** `utility` (PGE/SCE/SDGE), plus required `date`
+- `GET /predict`: exactly one place, `cell_id` **or** `lat`+`lon` **or** `county` **or** `utility` (PGE/SCE/SDGE), plus required `date`
 - Optional: `&lookback_days=30` (default **90**, overridable via `LOOKBACK_DAYS`)
+- `GET /surface`: the full 824-cell hindcast for one date (the risk surface panel)
+- `GET /observed` and `GET /observed-training`: per-cell CPUC ignition counts, the second using the training cell assignment (the residual map)
+- `GET /metrics`: fitted cNHPP model metrics
 
 The model outputs Poisson intensity λ. The primary `risk` field is **P(≥1 ignition)** for the requested place: `1 - exp(-sum(λ_i))` (independent cells; documented because cNHPP vs NHPP OOS ΔLL is a statistical tie). `expected_count` is `sum(λ)` so large territories that saturate near 1 stay interpretable. Single-cell `intensity` is λ; multi-cell responses include `mean_intensity`. Place cells come from warehouse polygons (`wildfire.grid_cells` ∩ counties / IOU territories). A batch wrapper scores all 824 cells in one forward pass.
 
@@ -383,3 +405,20 @@ Leave-one-year-out on 2022/2023/2024 (train = other years in 2020–2024; Dec 2�
 ## Scope
 
 Historical dates only for years with local covariate files. No live HRRR ingestion in this service.
+
+## Documentation
+
+| Doc | Covers |
+|---|---|
+| [`website/README.md`](website/README.md) | Website architecture, build, and local API configuration |
+| [`docs/README.md`](docs/README.md) | GitHub Pages build output and preview |
+| [`docs/CANVAS.md`](docs/CANVAS.md), [`docs/CANVAS_PANEL_PROPOSAL.md`](docs/CANVAS_PANEL_PROPOSAL.md) | Canvas and panel layout reference and proposal |
+| [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | Verification notes |
+| [`docs/dataset-comparison-cpuc-calfire-us.md`](docs/dataset-comparison-cpuc-calfire-us.md) | How CPUC, CAL FIRE, and US ignitions differ |
+| [`db/README.md`](db/README.md), [`docs/DATA_CHANGE_HFTD_IOU.md`](docs/DATA_CHANGE_HFTD_IOU.md) | Warehouse schema and loaders; the HFTD and IOU polygon rebuild from CPUC sources |
+| [`services/data_query/README.md`](services/data_query/README.md), [`services/visualization/README.md`](services/visualization/README.md), [`services/comparison/README.md`](services/comparison/README.md) | Service APIs |
+| [`services/agent/README.md`](services/agent/README.md), [`services/agent/SECURITY.md`](services/agent/SECURITY.md) | Agent routing, tools, qualifications, and threat boundary |
+| [`services/agent/eval/HARNESS_GUARDS.md`](services/agent/eval/HARNESS_GUARDS.md), [`services/agent/eval/ROUTING_EXPERIMENT.md`](services/agent/eval/ROUTING_EXPERIMENT.md) | Harness guards and the routing experiment |
+| [`docs/OPENROUTER.md`](docs/OPENROUTER.md) | OpenRouter LLM and Jev backends, prices, measurements, and the production switch |
+| [`docs/JEV_SHADOW.md`](docs/JEV_SHADOW.md), [`docs/JEV_DETERMINISM.md`](docs/JEV_DETERMINISM.md), [`docs/JEV_BACKLOG.md`](docs/JEV_BACKLOG.md) | Jev modes and flags, determinism, and deferred Jev work |
+| [`services/gpu_control/README.md`](services/gpu_control/README.md) | Optional GPU control service |

@@ -5,7 +5,7 @@ Cross-utility / region / period metric aggregates for the wildfire warehouse.
 ## Run
 
 ```powershell
-cd "C:\AI Coding Projects\Wildfire Services"
+# from the repo root
 $env:PYTHONPATH = "."
 uvicorn services.comparison.app:app --port 8003 --app-dir .
 ```
@@ -17,9 +17,11 @@ Docs: http://127.0.0.1:8003/docs
 | Path | Purpose |
 |------|---------|
 | `GET /health` | DB ping + metric/definition notes |
-| `GET /compare-utilities` | Metric per utility |
-| `GET /compare-regions` | Metric per county or HFTD tier |
-| `GET /compare-periods` | Same scope, two date ranges + delta |
+| `GET /compare-utilities` | Metric per utility. `utilities` (comma-separated), `metric`, `start_date`, `end_date` required |
+| `GET /compare-regions` | Metric per county or HFTD tier. `region_type=county\|hftd`, `regions` (comma-separated), `metric`, `start_date`, `end_date` required |
+| `GET /compare-periods` | Same scope, two date ranges + delta. `scope_type=utility\|county\|hftd`, `scope`, `metric`, `period_a_start`, `period_a_end`, `period_b_start`, `period_b_end` required |
+
+All three also take `normalize` (default `none`) and `ignition_definition`.
 
 ### Metrics
 
@@ -27,12 +29,12 @@ Docs: http://127.0.0.1:8003/docs
 
 ### Normalization
 
-`normalize=none|per_circuit|per_km2` — response always labels which form was returned (`value`, `raw_value`, `denominator`). Unavailable denominators → `value: null` + `reason` (never a silent zero). The map UI must draw a **hatched placeholder** for those bars, not an empty axis plus a floating “no data” (see [`frontend/CANVAS.md`](../../frontend/CANVAS.md)).
+`normalize=none|per_circuit|per_km2`. The response always labels which form was returned (`value`, `raw_value`, `denominator`). Unavailable denominators → `value: null` + `reason` (never a silent zero). The canvas Comparison view must draw a **hatched placeholder** for those bars, not an empty axis plus a floating “no data” (see [`frontend/CANVAS.md`](../../frontend/CANVAS.md)).
 
 ### Definitions
 
 - **Ignitions:** `ignition_definition=attribute` (default for utilities) or `spatial` (`ST_Within`; default for HFTD).
 - **EPSS:** PG&E-only. Non-PGE → `null` + reason.
-- **CAL FIRE:** `Wildfire` / `Fire` only.
-- **County:** attribute on EPSS/CAL FIRE; CPUC ignitions use load-time Census PIP `county`. PSPS still has no county column → null + reason. County `per_km2` is not wired yet (`REASON_NO_COUNTY_AREA`) even though `wildfire.counties` now exists.
+- **CAL FIRE:** `Wildfire` / `Fire` only (untyped excluded).
+- **County:** attribute on EPSS/CAL FIRE; CPUC ignitions use load-time Census PIP `county`. PSPS still has no county column → null + reason. `per_circuit` returns null + `REASON_CIRCUITS_PGE` for a county, or for a utility with no circuits in the PG&E EPSS inventory. County `per_km2` is not wired yet (`REASON_NO_COUNTY_AREA`) even though `wildfire.counties` now exists.
 - **No CPZ** in this warehouse.

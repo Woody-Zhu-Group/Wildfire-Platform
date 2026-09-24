@@ -53,10 +53,14 @@ data/boundaries/*.shx
 data/boundaries/*.prj
 data/boundaries/*.cpg
 data/boundaries/*.xml
+data/boundaries/*.esri.json
 
 # Keep small reference grids (must stay tracked)
 !**/grid_cells.csv
 !**/circuit_midpoints.csv
+
+# Jev shadow logs (may contain user questions)
+services/agent/logs/
 
 # Editor / local tooling
 .idea/
@@ -66,3 +70,13 @@ data/boundaries/*.xml
 
 # Jev shadow logs written by the agent (keep the deploy clean-tree check honest)
 services/agent/logs/
+
+# Hillclimb hook files
+/.claude/settings.local.json
+/.claude/settings.local.json.malformed-*
+/.cursor/hooks.json
+/.cursor/hooks.json.malformed-*
+/.github/hooks/hooks.json
+/.github/hooks/hooks.json.malformed-*
+/.codex/hooks.json
+/.codex/hooks.json.malformed-*

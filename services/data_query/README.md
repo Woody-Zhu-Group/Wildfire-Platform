@@ -24,22 +24,22 @@ Connection settings come from repo-root `.env` via `shared/db.py` (default port 
 |------|--------|
 | `GET /health` | DB ping + table counts |
 | `GET /ignitions` | CPUC combined; `county=` is Census name from point-in-polygon |
-| `GET /us-ignitions` | FireCastRL CONUS all-cause sample (CA-heavy: ≈40% overall / ≈59% of 2024); year/date/bbox; **no state/utility** (400) |
-| `GET /epss/outages` | PGE-only; paginated |
-| `GET /psps/events` | Event polygons |
+| `GET /us-ignitions` | FireCastRL CONUS all-cause sample (CA-heavy: ≈40% overall / ≈59% of 2024); `year`, `start_date`, `end_date`, `bbox` only. `state=` returns 400 (no state polygons loaded); there is no `utility` or `county` parameter |
+| `GET /epss/outages` | PGE-only; paginated. Extra filters: `circuit_id`, `county`, `outage_type`, `cause` |
+| `GET /psps/events` | Event polygons; `utility`, `year`, date range |
 | `GET /psps/events/{event_name}/circuits` | `{event_name:path}` so names like `PGE PSPS Event 10/11/21` work; orphans return `geometry: null` |
-| `GET /calfire/incidents` | Default types `Wildfire`,`Fire` only; `incident_type=untyped\|all` |
-| `GET /circuits` / `GET /circuits/{id}` | |
-| `GET /hftd` | Tier filter optional |
-| `GET /iou-territories` | |
-| `GET /spatial/point` | IOU + HFTD + grid cell + county (Census TIGER PIP) |
-| `GET /spatial/summary` | Counts inside utility **or** HFTD polygon |
-| `GET /rank` | Single-dataset top-N (`group_by=county\|utility\|circuit`, `metric=count\|acres_burned`, default limit 10, cap 25). Ties at the cutoff are included. Not US-by-state or EPSS-by-utility. |
+| `GET /calfire/incidents` | Default types `Wildfire`,`Fire` only; `incident_type=untyped\|all` (or one exact type); `min_acres`, `county` |
+| `GET /circuits` / `GET /circuits/{id}` | List filters: `circuit_id`, `division`, `substation`. IDs are 9-digit TEXT (leading zeros kept) |
+| `GET /hftd` | Optional `tier=Tier 2\|Tier 3` |
+| `GET /iou-territories` | Optional `utility` |
+| `GET /spatial/point` | `lat`, `lon` (required). IOU + HFTD + grid cell + county (Census TIGER PIP) |
+| `GET /spatial/summary` | Counts inside utility **or** HFTD polygon. Exactly one of `utility` / `hftd_tier`; `start_date` and `end_date` required |
+| `GET /rank` | Single-dataset top-N (`dataset=cpuc_ignitions\|calfire_incidents\|epss_outages`, `group_by=county\|utility\|circuit`, `metric=count\|acres_burned`, default limit 10, cap 25). Allowed pairs: CPUC by county or utility (count), CAL FIRE by county (count or acres), EPSS by circuit (count). Ties at the cutoff are included. Not US-by-state or EPSS-by-utility (both 400). |
 | `GET /grouped-counts` | All-group counts (`dataset`, `group_by=cause\|utility\|county`). Missing labels are `Not recorded`. EPSS-by-utility returns `null` for SCE/SDG&E, not 0. |
-| `GET /summary` | Filtered row count plus dataset-specific metrics (events always; acres/customers/circuits/counties/utilities as listed in the workspace client). |
+| `GET /summary` | Filtered row count plus dataset-specific metrics (events always; acres/customers/circuits/counties/utilities per dataset, from `SUMMARY_METRIC_IDS` in `services/shared/dataset_registry.py`). |
 | `GET /regional-series` | EPSS-only division time series. `interval=daily\|weekly\|monthly\|quarterly`; every bucket in `[start_date, end_date]` is present, including zeros. |
 
-Common query params: `utility`, `year`, `start_date`, `end_date`, `bbox`, `format=json|geojson`, `geometry=true|false`, `limit`, `offset`.
+Common query params: `utility`, `year`, `start_date`, `end_date`, `bbox`, `format=json|geojson`, `geometry=true|false`, `limit` (default 100, max 1000), `offset`.
 
 Workspace aggregate routes accept `utility` and `county` where the dataset
 supports them. They return geometry-free JSON and have no pagination or top-N
@@ -68,8 +68,10 @@ As in the existing EPSS record API, a direct non-PG&E utility filter returns an
 empty aggregate population. The workspace rejects that unavailable combination
 before making a request, so it is not presented as an observed zero count.
 
-Deploy this service, expose these routes and verify production responses against
-the warehouse before setting the frontend's `VITE_DATA_QUERY_URL` and rebuilding.
+The workspace (`website/`) uses these routes only when `VITE_DATA_QUERY_URL` is
+set (`website/.env.production` and `.env.development` point at the deployed
+service; `.env.example` points at `http://127.0.0.1:8000`). Verify a new
+deployment's responses against the warehouse before pointing the variable at it.
 With that variable unset, the workspace retains its existing Visualization API
 record path and browser calculations. Configured aggregate-service failures stay
 visible without switching data sources. No schema changes, reloaders or model

@@ -1,0 +1,432 @@
+{
+  "cell": {
+    "model": "openai/gpt-6-luna",
+    "thinking": "off",
+    "mode": "constrained"
+  },
+  "cases": 14,
+  "model_tier_cases": 14,
+  "routing_accuracy_all": 0.5714285714285714,
+  "routing_accuracy_deterministic_tier": 1.0,
+  "routing_accuracy_model_tier": 0.5714285714285714,
+  "caveat_surfacing_rate": 0.18181818181818182,
+  "caveat_surfacing_rate_deterministic_tier": 1.0,
+  "caveat_surfacing_rate_model_tier": 0.18181818181818182,
+  "caveat_cases": 11,
+  "status_accuracy": 0.5714285714285714,
+  "view_accuracy": 1.0,
+  "refusal_clarification_accuracy": 1.0,
+  "schema_validity_first_pass": 0.42857142857142855,
+  "schema_validity_eventual": 0.42857142857142855,
+  "recovery_rate": 0.75,
+  "recovery_cases": 4,
+  "synthesis_attempts": 6,
+  "synthesis_fallback_count": 2,
+  "synthesis_fallback_rate": 0.3333333333333333,
+  "model_completed_count": 4,
+  "model_completed_rate": 0.6666666666666666,
+  "harness_rescued_count": 2,
+  "harness_rescued_rate": 0.3333333333333333,
+  "direct_answer_without_tool_attempts": 0,
+  "no_tool_response_attempts_before_evidence": 0,
+  "direct_answer_without_tool_rate_per_model_turn": 0.0,
+  "no_tool_response_rate_per_model_turn": 0.0,
+  "model_turns": 40,
+  "latency_ms": {
+    "request_p50": 3901.82,
+    "request_p95": 13388.45,
+    "model_call_p50": 1850.84,
+    "model_call_p95": 3738.65,
+    "warmup": 1104.62
+  },
+  "runtime_seconds": 88.48,
+  "runner_segment_runtime_seconds": 93.84,
+  "failed_cases": [
+    {
+      "id": "spatial_pge_ignitions_2024",
+      "score": {
+        "route_pass": true,
+        "routing_pass": true,
+        "expected_tools": [
+          "data_query_spatial"
+        ],
+        "actual_tools": [
+          "data_query_spatial"
+        ],
+        "all_primary_calls": [
+          "data_query_spatial",
+          "data_query_spatial"
+        ],
+        "caveat_pass": false,
+        "missing_caveats": [
+          "ignition_definition_pge"
+        ],
+        "status_pass": false,
+        "schema_first_pass": false,
+        "schema_eventual_pass": false,
+        "recovery_pass": true,
+        "resolved_year_pass": true,
+        "tool_year_pass": true,
+        "answer_text_pass": true,
+        "synthesis_pass": true,
+        "elapsed_pass": true,
+        "answer_origin_pass": true,
+        "expected_answer_origin": null,
+        "actual_answer_origin": "error",
+        "view_pass": true,
+        "expected_view_types": null,
+        "actual_view_types": [],
+        "actual_view_status": "none",
+        "direct_answer_without_tool_attempts": 0,
+        "no_tool_response_attempts_before_evidence": 0
+      },
+      "status": "error",
+      "answer": "I could not form a valid query for the available services. Try naming the dataset, an explicit year, and (when relevant) a utility or county. Cross-dataset ranking is not supported."
+    },
+    {
+      "id": "cpuc_vs_us",
+      "score": {
+        "route_pass": true,
+        "routing_pass": false,
+        "expected_tools": [
+          "data_query_records",
+          "data_query_records"
+        ],
+        "actual_tools": [
+          "data_query_records"
+        ],
+        "all_primary_calls": [
+          "data_query_records",
+          "data_query_records"
+        ],
+        "caveat_pass": false,
+        "missing_caveats": [
+          "us_ignitions_sample"
+        ],
+        "status_pass": false,
+        "schema_first_pass": false,
+        "schema_eventual_pass": false,
+        "recovery_pass": true,
+        "resolved_year_pass": true,
+        "tool_year_pass": true,
+        "answer_text_pass": true,
+        "synthesis_pass": true,
+        "elapsed_pass": true,
+        "answer_origin_pass": true,
+        "expected_answer_origin": null,
+        "actual_answer_origin": "error",
+        "view_pass": true,
+        "expected_view_types": null,
+        "actual_view_types": [],
+        "actual_view_status": "none",
+        "direct_answer_without_tool_attempts": 0,
+        "no_tool_response_attempts_before_evidence": 0
+      },
+      "status": "error",
+      "answer": "I could not form a valid query for the available services. Try naming the dataset, an explicit year, and (when relevant) a utility or county. Cross-dataset ranking is not supported."
+    },
+    {
+      "id": "count_plus_trend",
+      "score": {
+        "route_pass": true,
+        "routing_pass": false,
+        "expected_tools": [
+          "data_query_records",
+          "visualization_create"
+        ],
+        "actual_tools": [
+          "data_query_records",
+          "visualization_create",
+          "data_query_records"
+        ],
+        "all_primary_calls": [
+          "data_query_records",
+          "visualization_create",
+          "data_query_records"
+        ],
+        "caveat_pass": false,
+        "missing_caveats": [
+          "ignition_definition_pge"
+        ],
+        "status_pass": true,
+        "schema_first_pass": true,
+        "schema_eventual_pass": true,
+        "recovery_pass": true,
+        "resolved_year_pass": true,
+        "tool_year_pass": true,
+        "answer_text_pass": true,
+        "synthesis_pass": true,
+        "elapsed_pass": true,
+        "answer_origin_pass": true,
+        "expected_answer_origin": null,
+        "actual_answer_origin": "model",
+        "view_pass": true,
+        "expected_view_types": null,
+        "actual_view_types": [
+          "time_series"
+        ],
+        "actual_view_status": "applied",
+        "direct_answer_without_tool_attempts": 0,
+        "no_tool_response_attempts_before_evidence": 0
+      },
+      "status": "answer",
+      "answer": "The ignitions dataset records 532 PGE-attributed ignitions during 2024 under a utility-attribute filter, with no county restriction. The monthly counts shown rise from May (81) and June (82) to a July peak (99), then fall in August (72) and September (68); counts for the remaining months are not shown. These warehouse records cover utility-caused or utility-attributed ignitions, not all-cause wildfires, and are not comparable to CAL FIRE or US ignition counts."
+    },
+    {
+      "id": "recover_validation",
+      "score": {
+        "route_pass": true,
+        "routing_pass": true,
+        "expected_tools": [
+          "data_query_records"
+        ],
+        "actual_tools": [
+          "data_query_records"
+        ],
+        "all_primary_calls": [
+          "data_query_records",
+          "data_query_records"
+        ],
+        "caveat_pass": false,
+        "missing_caveats": [
+          "us_ignitions_sample"
+        ],
+        "status_pass": false,
+        "schema_first_pass": false,
+        "schema_eventual_pass": false,
+        "recovery_pass": false,
+        "resolved_year_pass": true,
+        "tool_year_pass": true,
+        "answer_text_pass": true,
+        "synthesis_pass": true,
+        "elapsed_pass": true,
+        "answer_origin_pass": true,
+        "expected_answer_origin": null,
+        "actual_answer_origin": "error",
+        "view_pass": true,
+        "expected_view_types": null,
+        "actual_view_types": [],
+        "actual_view_status": "none",
+        "direct_answer_without_tool_attempts": 0,
+        "no_tool_response_attempts_before_evidence": 0
+      },
+      "status": "error",
+      "answer": "I could not form a valid query for the available services. Try naming the dataset, an explicit year, and (when relevant) a utility or county. Cross-dataset ranking is not supported."
+    },
+    {
+      "id": "holdout_spatial_sce_2023",
+      "score": {
+        "route_pass": true,
+        "routing_pass": true,
+        "expected_tools": [
+          "data_query_spatial"
+        ],
+        "actual_tools": [
+          "data_query_spatial"
+        ],
+        "all_primary_calls": [
+          "data_query_spatial",
+          "data_query_spatial"
+        ],
+        "caveat_pass": false,
+        "missing_caveats": [
+          "ignition_definition_sce"
+        ],
+        "status_pass": false,
+        "schema_first_pass": false,
+        "schema_eventual_pass": false,
+        "recovery_pass": true,
+        "resolved_year_pass": true,
+        "tool_year_pass": true,
+        "answer_text_pass": true,
+        "synthesis_pass": true,
+        "elapsed_pass": true,
+        "answer_origin_pass": true,
+        "expected_answer_origin": null,
+        "actual_answer_origin": "error",
+        "view_pass": true,
+        "expected_view_types": null,
+        "actual_view_types": [],
+        "actual_view_status": "none",
+        "direct_answer_without_tool_attempts": 0,
+        "no_tool_response_attempts_before_evidence": 0
+      },
+      "status": "error",
+      "answer": "I could not form a valid query for the available services. Try naming the dataset, an explicit year, and (when relevant) a utility or county. Cross-dataset ranking is not supported."
+    },
+    {
+      "id": "holdout_count_trend_sce_2023",
+      "score": {
+        "route_pass": true,
+        "routing_pass": false,
+        "expected_tools": [
+          "data_query_records",
+          "visualization_create"
+        ],
+        "actual_tools": [
+          "data_query_records",
+          "visualization_create",
+          "data_query_records"
+        ],
+        "all_primary_calls": [
+          "data_query_records",
+          "visualization_create",
+          "data_query_records"
+        ],
+        "caveat_pass": false,
+        "missing_caveats": [
+          "ignition_definition_sce"
+        ],
+        "status_pass": true,
+        "schema_first_pass": true,
+        "schema_eventual_pass": true,
+        "recovery_pass": true,
+        "resolved_year_pass": true,
+        "tool_year_pass": true,
+        "answer_text_pass": true,
+        "synthesis_pass": true,
+        "elapsed_pass": true,
+        "answer_origin_pass": true,
+        "expected_answer_origin": null,
+        "actual_answer_origin": "synthesis_fallback",
+        "view_pass": true,
+        "expected_view_types": null,
+        "actual_view_types": [
+          "time_series"
+        ],
+        "actual_view_status": "applied",
+        "direct_answer_without_tool_attempts": 0,
+        "no_tool_response_attempts_before_evidence": 0
+      },
+      "status": "answer",
+      "answer": "Prepared weekly ignitions time series with 90 events."
+    },
+    {
+      "id": "model_synthesis_bounded",
+      "score": {
+        "route_pass": true,
+        "routing_pass": false,
+        "expected_tools": [
+          "data_query_records"
+        ],
+        "actual_tools": [
+          "data_query_records"
+        ],
+        "all_primary_calls": [
+          "data_query_records",
+          "data_query_records"
+        ],
+        "caveat_pass": false,
+        "missing_caveats": [
+          "calfire_missingness"
+        ],
+        "status_pass": true,
+        "schema_first_pass": false,
+        "schema_eventual_pass": false,
+        "recovery_pass": true,
+        "resolved_year_pass": true,
+        "tool_year_pass": true,
+        "answer_text_pass": true,
+        "synthesis_pass": false,
+        "elapsed_pass": true,
+        "answer_origin_pass": true,
+        "expected_answer_origin": null,
+        "actual_answer_origin": "error",
+        "view_pass": true,
+        "expected_view_types": null,
+        "actual_view_types": [],
+        "actual_view_status": "none",
+        "direct_answer_without_tool_attempts": 0,
+        "no_tool_response_attempts_before_evidence": 0
+      },
+      "status": "error",
+      "answer": "I could not form a valid query for the available services. Try naming the dataset, an explicit year, and (when relevant) a utility or county. Cross-dataset ranking is not supported."
+    },
+    {
+      "id": "model_cpuc_tell_me_about_2023",
+      "score": {
+        "route_pass": true,
+        "routing_pass": false,
+        "expected_tools": [
+          "data_query_records"
+        ],
+        "actual_tools": [
+          "data_query_records"
+        ],
+        "all_primary_calls": [
+          "data_query_records",
+          "data_query_records"
+        ],
+        "caveat_pass": false,
+        "missing_caveats": [
+          "cpuc_utility_caused"
+        ],
+        "status_pass": false,
+        "schema_first_pass": false,
+        "schema_eventual_pass": false,
+        "recovery_pass": true,
+        "resolved_year_pass": true,
+        "tool_year_pass": false,
+        "answer_text_pass": false,
+        "synthesis_pass": true,
+        "elapsed_pass": true,
+        "answer_origin_pass": false,
+        "expected_answer_origin": "model",
+        "actual_answer_origin": "error",
+        "view_pass": true,
+        "expected_view_types": null,
+        "actual_view_types": [],
+        "actual_view_status": "none",
+        "direct_answer_without_tool_attempts": 0,
+        "no_tool_response_attempts_before_evidence": 0
+      },
+      "status": "error",
+      "answer": "I could not form a valid query for the available services. Try naming the dataset, an explicit year, and (when relevant) a utility or county. Cross-dataset ranking is not supported."
+    },
+    {
+      "id": "model_sacramento_tell_me_about_2024",
+      "score": {
+        "route_pass": true,
+        "routing_pass": false,
+        "expected_tools": [
+          "data_query_records"
+        ],
+        "actual_tools": [
+          "data_query_records"
+        ],
+        "all_primary_calls": [
+          "data_query_records",
+          "data_query_records"
+        ],
+        "caveat_pass": false,
+        "missing_caveats": [
+          "calfire_missingness"
+        ],
+        "status_pass": false,
+        "schema_first_pass": false,
+        "schema_eventual_pass": false,
+        "recovery_pass": true,
+        "resolved_year_pass": true,
+        "tool_year_pass": false,
+        "answer_text_pass": false,
+        "synthesis_pass": true,
+        "elapsed_pass": true,
+        "answer_origin_pass": false,
+        "expected_answer_origin": "model",
+        "actual_answer_origin": "error",
+        "view_pass": true,
+        "expected_view_types": null,
+        "actual_view_types": [],
+        "actual_view_status": "none",
+        "direct_answer_without_tool_attempts": 0,
+        "no_tool_response_attempts_before_evidence": 0
+      },
+      "status": "error",
+      "answer": "I could not form a valid query for the available services. Try naming the dataset, an explicit year, and (when relevant) a utility or county. Cross-dataset ranking is not supported."
+    }
+  ],
+  "planned_cases": 14,
+  "planned_model_tier_cases": 14,
+  "stopped_within_cell": false,
+  "run_tag": "openrouter-luna"
+}

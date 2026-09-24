@@ -43,7 +43,11 @@ class EvalCell:
 
     @property
     def key(self) -> str:
-        return f"{self.model}__thinking-{self.thinking}__{self.mode}".replace(":", "-")
+        return (
+            f"{self.model}__thinking-{self.thinking}__{self.mode}"
+            .replace(":", "-")
+            .replace("/", "-")
+        )
 
 
 async def preflight(settings: AgentSettings) -> None:
@@ -417,8 +421,23 @@ def score_case(
 
     view_pass = _score_views(case, response)
 
+    # Executed filters must come from the question or router slots, and slot
+    # filters the question names must run. An invented filter fails the case
+    # even when tools and status match.
+    from services.agent.grounding import score_executed_filters
+    from services.agent.routing import route_question
+
+    slots = route_question(case["question"]).slots
+    filters = score_executed_filters(
+        case["question"],
+        primary_calls,
+        utilities=slots.get("utilities") or [],
+        county=slots.get("county"),
+    )
+
     routing_pass = (
         routing_pass
+        and filters["pass"]
         and resolved_year_pass
         and tool_year_pass
         and answer_text_pass
@@ -434,6 +453,9 @@ def score_case(
         "actual_tools": actual_tools,
         "all_primary_calls": [event.get("tool") for event in primary_calls],
         "caveat_pass": caveat_pass,
+        "filters_pass": filters["pass"],
+        "invented_filters": filters["invented"],
+        "missing_filters": filters["missing"],
         "missing_caveats": sorted(required_caveats - actual_caveats),
         "status_pass": status_pass,
         "schema_first_pass": schema_first,
