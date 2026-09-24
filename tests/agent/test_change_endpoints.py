@@ -293,10 +293,23 @@ def _primary_counts(response: dict) -> list[dict]:
     ]
 
 
-def test_the_production_question_keeps_both_yearly_calls_and_derives_the_percent_change():
+def test_the_production_question_with_jev_off_keeps_both_calls_and_declines_as_on_main():
+    # Both endpoint calls run unwidened and the change is derived, but with
+    # Jev off nothing says the range names only its endpoints, so the
+    # full-range coverage rule declines, as main did.
     assert route_question(QUESTION).path == "model"
     calls = [_count_call(1, utility="SCE", year=2020), _count_call(2, utility="SCE", year=2023)]
     response = _ask(ScriptedProvider([calls]), QUESTION)
+    assert response["status"] == "error"
+    counts = {e["arguments"]["year"]: e["summary"]["total"] for e in _primary_counts(response)}
+    assert counts == {2020: 75, 2023: 90}
+    assert not [e for e in response["trajectory"] if e.get("type") == "duplicate_tool_call_suppressed"]
+    assert not [e for e in response["trajectory"] if e.get("type") == "harness_time_correction"]
+
+
+def test_the_production_question_with_jev_compare_intent_derives_the_percent_change():
+    calls = [_count_call(1, utility="SCE", year=2020), _count_call(2, utility="SCE", year=2023)]
+    response = _ask_with_jev(QUESTION, calls, _jev_facts("compare", 0.95))
     assert response["status"] == "answer"
     counts = {e["arguments"]["year"]: e["summary"]["total"] for e in _primary_counts(response)}
     assert counts == {2020: 75, 2023: 90}
@@ -328,7 +341,9 @@ def test_butte_and_shasta_end_to_end_keeps_four_calls_and_derives_each_county_ch
         _count_call(3, county="Shasta", year=2019),
         _count_call(4, county="Shasta", year=2022),
     ]
-    response = _ask(ScriptedProvider([calls]), REVIEWER["user_case"])
+    # "Up or down from 2019 to 2022" is a comparison over a written range: Jev's
+    # compare intent lets the two endpoint years cover it.
+    response = _ask_with_jev(REVIEWER["user_case"], calls, _jev_facts("compare", 0.95))
     assert response["status"] == "answer"
     counts = {(e["arguments"]["county"], e["arguments"]["year"]): e["summary"]["total"] for e in _primary_counts(response)}
     assert counts == COUNTY_COUNTS
@@ -383,6 +398,70 @@ def test_two_model_calls_corrected_to_the_same_window_run_once_and_render_once()
     assert suppressed[0]["reason"] == "identical after harness correction"
     assert suppressed[0]["executed_arguments"]["end_date"] == "2023-12-31"
     assert response["answer_text"].count("cpuc_ignitions count:") == 1
+
+
+# --- coverage of a written range needs Jev's intent -------------------------
+
+
+def _ask_with_jev(question: str, calls: list[dict], jev_answers: dict | None) -> dict:
+    """Decide mode with a scripted Jev backend; None means Jev off."""
+    from dataclasses import replace
+
+    from tests.agent.test_jev_decide import FakeBackend
+
+    settings = AgentSettings(max_tool_steps=3)
+    if jev_answers is not None:
+        settings = replace(settings, jev_mode="decide", jev_backend="typesafe", jev_decide_min_confidence=0.8)
+    executor = ToolExecutor(settings, ArtifactStore(60), transport=httpx.MockTransport(_handler))
+    backend = FakeBackend(jev_answers) if jev_answers is not None else None
+
+    async def run():
+        try:
+            orchestrator = AgentOrchestrator(
+                settings, ScriptedProvider([calls]), executor, decide_backend=backend
+            )
+            return (await orchestrator.ask(question)).response
+        finally:
+            await executor.close()
+
+    return asyncio.run(run())
+
+
+def _jev_facts(intent: str, confidence: float) -> dict:
+    from tests.agent.test_jev_decide import _answer_facts, _choice
+
+    return _answer_facts(intent=_choice(intent, confidence))
+
+
+ENDPOINT_CALLS = [_count_call(1, utility="SCE", year=2020), _count_call(2, utility="SCE", year=2023)]
+TOTAL_QUESTION = "What happened with SCE CPUC ignitions between 2020 and 2023?"
+
+
+def test_a_total_over_a_range_with_endpoint_only_calls_declines():
+    for jev in (None, _jev_facts("count", 0.95)):
+        response = _ask_with_jev(TOTAL_QUESTION, ENDPOINT_CALLS, jev)
+        assert response["status"] == "error", jev
+        assert "2021" in response["answer_text"] and "2022" in response["answer_text"]
+        assert [e for e in response["trajectory"] if e.get("type") == "uncovered_entities_stop"]
+
+
+def test_a_change_question_with_jev_compare_intent_answers_with_both_years():
+    response = _ask_with_jev(QUESTION, ENDPOINT_CALLS, _jev_facts("compare", 0.95))
+    assert response["status"] == "answer"
+    assert response["route"]["rule"] == "open_ended"
+    counts = {e["arguments"]["year"]: e["summary"]["total"] for e in _primary_counts(response)}
+    assert counts == {2020: 75, 2023: 90}
+    assert not [e for e in response["trajectory"] if e.get("type", "").startswith("uncovered_entities")]
+    derived = [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
+    assert derived and derived[0]["summary"]["derivations"][0]["percent_change"] == 20
+    assert response["answer_text"].count("percent change +20%") == 1
+
+
+def test_the_same_change_question_with_jev_below_the_gate_declines():
+    for jev in (_jev_facts("compare", 0.6), _jev_facts("trend", 0.79), None):
+        response = _ask_with_jev(QUESTION, ENDPOINT_CALLS, jev)
+        assert response["status"] == "error", jev
+        assert "2021" in response["answer_text"] and "2022" in response["answer_text"]
 
 
 def test_identical_evidence_renders_one_fallback_line():

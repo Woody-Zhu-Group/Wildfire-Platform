@@ -130,9 +130,18 @@ of change words. A written range ("between 2020 and 2023") is always one span
 in the time resolution; years or months listed separately ("2020 vs 2023",
 "July 2024 and August 2024", `named_months`) are separate periods, and a count
 over listed months defers to the model rather than counting one month. Years
-the question never named are still rejected. For coverage, a written range
-names its endpoints, so a model that read the two endpoint years has covered
-it; a per-year breakdown names every year.
+the question never named are still rejected.
+
+Whether two endpoint reads cover a written range takes meaning: "how did X
+change from 2020 to 2023" wants the two endpoints, "how many from 2020 to
+2023" wants every year. That is Jev's existing intent fact, with no new
+wording and no payload change. In decide mode, when Jev's facts are present
+and Jev reads the intent as compare or trend at or above the decline gate
+(`AGENT_JEV_DECIDE_MIN_CONFIDENCE`), the range names its endpoints for the
+uncovered-entities check. Otherwise (count or records intent, below the gate,
+a Jev error, or Jev off) every year in the range must be covered, as on main,
+so a total answered from two endpoint reads still declines. The reading is
+recorded on the `jev_decide` slot as `jev_intent` and `jev_intent_confidence`.
 
 ## Derived arithmetic
 

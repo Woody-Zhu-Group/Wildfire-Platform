@@ -333,9 +333,31 @@ class AgentOrchestrator:
                 "jev_rule": result.jev_rule,
                 "jev_confidence": result.jev_confidence,
                 "wording": result.wording,
+                "jev_intent": result.extra.get("intent"),
+                "jev_intent_confidence": result.extra.get("intent_confidence"),
             },
         }
         return final
+
+    def _range_endpoints_cover(self, decision: RouteDecision) -> bool:
+        """Whether two endpoint reads cover a written range for this question.
+
+        Which years a written range names takes meaning: "how did X change
+        from 2020 to 2023" wants the two endpoints, "how many from 2020 to
+        2023" wants every year. That is Jev's existing intent fact. Only when
+        decide mode has Jev's facts and Jev reads compare or trend at or above
+        the decline gate do the endpoints satisfy coverage; a count or records
+        intent, a reading below the gate, a Jev error, or Jev off keep the
+        full-range rule, as on main.
+        """
+        jev = decision.slots.get("jev_decide") or {}
+        intent = jev.get("jev_intent")
+        confidence = jev.get("jev_intent_confidence")
+        return (
+            intent in {"compare", "trend"}
+            and isinstance(confidence, (int, float))
+            and float(confidence) >= self.settings.jev_decide_min_confidence
+        )
 
     async def _ask_routed(
         self,
@@ -553,6 +575,7 @@ class AgentOrchestrator:
                         time_resolution=decision.slots.get("time_resolution"),
                         on_event=on_event,
                         cancel_event=cancel_event,
+                        range_endpoints_cover=self._range_endpoints_cover(decision),
                     )
                 else:
                     (
@@ -1137,6 +1160,7 @@ class AgentOrchestrator:
         time_resolution: dict[str, Any] | None = None,
         on_event: ProgressCallback | None = None,
         cancel_event: asyncio.Event | None = None,
+        range_endpoints_cover: bool = False,
     ) -> tuple[
         str,
         str,
@@ -1190,11 +1214,16 @@ class AgentOrchestrator:
         # covered yet.
         entity_years = list(years or []) or ([year] if year else [])
         resolution = time_resolution or {}
-        if resolution.get("start_date") and not resolution.get("per_year"):
-            # A written range ("from 2020 to 2023") names its endpoints; the
-            # years between are not entities the question named, so a model
-            # that reads the two endpoints has covered it. A per-year
-            # breakdown names every year and keeps them all.
+        if (
+            range_endpoints_cover
+            and resolution.get("start_date")
+            and not resolution.get("per_year")
+        ):
+            # Jev read the question as a comparison or trend over a written
+            # range ("how did X change from 2020 to 2023"), so the range names
+            # its endpoints and two endpoint reads cover it. Without that
+            # reading (a total, Jev below the gate, a Jev error, or Jev off)
+            # every year in the range must be covered, as on main.
             written = {int(value) for value in re.findall(r"\b(20\d{2})\b", question)}
             entity_years = [item for item in entity_years if item in written] or entity_years
         entities = named_entities(
