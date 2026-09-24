@@ -8,6 +8,13 @@ from typing import Any
 import psycopg
 from psycopg.rows import dict_row
 
+from services.shared.calfire_county import (
+    MULTI_COUNTY_NOTE,
+    county_group_join_sql,
+    county_match_sql,
+    multi_county_count_sql,
+    multi_county_meta,
+)
 from services.shared.dataset_registry import (
     ALLOWED_RANK_PAIRS,
     GROUP_BY_FIELDS,
@@ -350,7 +357,7 @@ def query_calfire(
             params.append(utility)
 
     if county is not None:
-        where.append("lower(c.county) = lower(%s)")
+        where.append(county_match_sql("c.county"))
         params.append(county)
     if year is not None:
         where.append("EXTRACT(YEAR FROM c.date_only_created) = %s")
@@ -385,7 +392,23 @@ def query_calfire(
         "null_incident_type_count": null_incident_type_count(conn),
         "null_utility_records_in_table": null_utility_count(conn),
     }
+    if county is not None:
+        extra.update(_calfire_multi_county_meta(conn, where_sql, params))
     return rows, total, extra
+
+
+def _calfire_multi_county_meta(
+    conn: psycopg.Connection, where_sql: str, params: list[Any]
+) -> dict[str, Any]:
+    """Multi-county meta for a county-scoped CAL FIRE result (alias c)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT {multi_county_count_sql('c.county')} "
+            f"FROM wildfire.calfire_incidents c WHERE {where_sql}",
+            params,
+        )
+        count = int(cur.fetchone()[0] or 0)
+    return multi_county_meta(count)
 
 
 # ---- Circuits / HFTD / IOU ----
@@ -752,6 +775,7 @@ def query_rank(
         )
     elif dataset == "calfire_incidents":
         select_sql, count_sql, params, extra = _rank_calfire_sql(
+            conn,
             metric=metric,
             utility=utility,
             include_untagged=include_untagged,
@@ -904,6 +928,7 @@ def _rank_cpuc_sql(
 
 
 def _rank_calfire_sql(
+    conn: psycopg.Connection,
     *,
     metric: str,
     utility: str | None,
@@ -946,20 +971,25 @@ def _rank_calfire_sql(
         where.append("c.date_only_created <= %s")
         params.append(end_date)
     where_sql = " AND ".join(where)
-    group_expr = f"COALESCE(NULLIF(TRIM(c.county), ''), '{_UNKNOWN_GROUP}')"
     agg = (
         "COALESCE(SUM(c.acres_burned), 0)"
         if metric == "acres_burned"
         else "COUNT(*)::bigint"
     )
+    # CAL FIRE ranks only by county. An incident that lists several counties
+    # is counted, with its full acreage, in each one (see calfire_county).
     groups_sql = f"""
-        SELECT {group_expr} AS group_value, {agg} AS metric_value
+        SELECT cty.county AS group_value, {agg} AS metric_value
         FROM wildfire.calfire_incidents c
+        {county_group_join_sql("c.county", unknown=_UNKNOWN_GROUP)}
         WHERE {where_sql}
         GROUP BY 1
     """
+    extra = {
+        "incident_type_mode": type_mode,
+        **_calfire_multi_county_meta(conn, where_sql, params),
+    }
     select_sql, count_sql, params = _rank_wrap_sql(groups_sql, extra_cols=(), params=params)
-    extra = {"incident_type_mode": type_mode}
     return select_sql, count_sql, params, extra
 
 
@@ -1136,7 +1166,7 @@ def _calfire_aggregate_where(
         where.append("c.utility = %s")
         params.append(utility)
     if county is not None:
-        where.append("lower(c.county) = lower(%s)")
+        where.append(county_match_sql("c.county"))
         params.append(county)
     if start_date is not None:
         where.append("c.date_only_created >= %s")
@@ -1305,9 +1335,13 @@ def query_grouped_counts(
         end_date=end_date,
     )
 
+    extra: dict[str, Any] = {}
+    calfire_by_county = dataset == "calfire_incidents" and group_by == "county"
     if empty_epss:
         total = 0
         grouped: list[tuple[str, int]] = []
+    elif calfire_by_county:
+        grouped, total = _calfire_grouped_by_county(conn, where_sql, params, county=county)
     else:
         group_expr = _group_expr(dataset, group_by)
         with conn.cursor(row_factory=dict_row) as cur:
@@ -1344,7 +1378,46 @@ def query_grouped_counts(
             [{"key": key, "value": value} for key, value in grouped]
         )
 
-    return {"rows": rows, "total": total}
+    if dataset == "calfire_incidents" and (county is not None or calfire_by_county):
+        extra = _calfire_multi_county_meta(conn, where_sql, params)
+        if calfire_by_county:
+            extra["note"] = MULTI_COUNTY_NOTE
+    return {"rows": rows, "total": total, **extra}
+
+
+def _calfire_grouped_by_county(
+    conn: psycopg.Connection,
+    where_sql: str,
+    params: list[Any],
+    *,
+    county: str | None,
+) -> tuple[list[tuple[str, int]], int]:
+    """CAL FIRE counts per listed county; total is the incident count.
+
+    A multi-county incident adds one to each county it lists, so the rows can
+    sum to more than ``total``. With a county filter only that county's row is
+    kept, the same single row the other datasets return.
+    """
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            f"""
+            SELECT cty.county AS key, COUNT(*)::bigint AS value
+            FROM wildfire.calfire_incidents c
+            {county_group_join_sql("c.county", unknown=NOT_RECORDED)}
+            WHERE {where_sql}
+            GROUP BY 1
+            """,
+            params,
+        )
+        grouped = [(str(row["key"]), int(row["value"])) for row in cur.fetchall()]
+        cur.execute(
+            f"SELECT COUNT(*)::bigint AS total FROM wildfire.calfire_incidents c WHERE {where_sql}",
+            params,
+        )
+        total = int(cur.fetchone()["total"])
+    if county is not None:
+        grouped = [(key, value) for key, value in grouped if key.lower() == county.lower()]
+    return grouped, total
 
 
 def _distinct_split_count_sql(column: str) -> str:
@@ -1447,7 +1520,10 @@ def query_summary(
             # acres / customers: all-null → null (matches client-side reduce)
             value = _metric_number(raw_value)
         metrics.append({"id": metric_id, "value": value, "missing": missing})
-    return {"total": total, "metrics": metrics}
+    out: dict[str, Any] = {"total": total, "metrics": metrics}
+    if dataset == "calfire_incidents" and county is not None:
+        out.update(_calfire_multi_county_meta(conn, where_sql, params))
+    return out
 
 
 def query_regional_series(

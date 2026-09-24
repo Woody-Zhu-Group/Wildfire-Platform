@@ -19,6 +19,7 @@ from services.data_query.filters import (
     parse_utility,
     validate_date_range,
 )
+from services.shared.calfire_county import MULTI_COUNTY_NOTE, multi_county_meta
 from shared.db import connect, get_settings
 
 _db_ok: Optional[str] = None
@@ -140,6 +141,23 @@ def _metric_for_scope(
         denominator=denom,
         denom_reason=denom_reason,
     )
+
+
+CALFIRE_METRICS = frozenset({"calfire_incident_count", "acres_burned"})
+
+
+def _calfire_multi_county_meta(
+    conn: psycopg.Connection,
+    *,
+    metric: str,
+    counties: list[str],
+    ranges: list[tuple[date, date]],
+) -> dict[str, Any]:
+    """Multi-county meta for a county-scoped CAL FIRE compare, else empty."""
+    if metric not in CALFIRE_METRICS or not counties:
+        return {}
+    count = queries.calfire_multi_county_count(conn, counties=counties, ranges=ranges)
+    return multi_county_meta(count)
 
 
 def _base_meta(
@@ -288,6 +306,11 @@ def compare_regions(
                 )
 
     scope: queries.ScopeKind = "county" if rt == "county" else "hftd"
+    multi_meta = (
+        _calfire_multi_county_meta(conn, metric=m, counties=keys, ranges=[(start, end)])
+        if scope == "county"
+        else {}
+    )
     results = [
         _metric_for_scope(
             conn,
@@ -319,8 +342,10 @@ def compare_regions(
                 "County compares use attribute county on EPSS/CAL FIRE and "
                 "load-time Census PIP county on CPUC ignitions; PSPS has no "
                 "county column and returns null with reason."
-            ],
-        ),
+            ]
+            + ([MULTI_COUNTY_NOTE] if multi_meta else []),
+        )
+        | multi_meta,
     }
 
 
@@ -390,6 +415,13 @@ def compare_periods(
         normalize=norm,
         ignition_definition=ign_def,
     )
+    multi_meta = (
+        _calfire_multi_county_meta(
+            conn, metric=m, counties=[scope_id], ranges=[(a_start, a_end), (b_start, b_end)]
+        )
+        if qscope == "county"
+        else {}
+    )
     # Re-key for clarity
     period_a = {**period_a, "key": "period_a", "scope": scope_id}
     period_b = {**period_b, "key": "period_b", "scope": scope_id}
@@ -431,5 +463,7 @@ def compare_periods(
                 "period_a": [a_start.isoformat(), a_end.isoformat()],
                 "period_b": [b_start.isoformat(), b_end.isoformat()],
             },
-        ),
+            notes=[MULTI_COUNTY_NOTE] if multi_meta else None,
+        )
+        | multi_meta,
     }

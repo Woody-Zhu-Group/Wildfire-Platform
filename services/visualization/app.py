@@ -14,12 +14,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from services.data_query.filters import (
     parse_bbox,
+    parse_cause,
     parse_county,
     parse_date_param,
+    parse_incident_type,
+    parse_outage_type,
     parse_tier,
     parse_utility,
     validate_date_range,
 )
+from services.shared.calfire_county import multi_county_meta
 from services.shared.dataset_registry import (
     US_IGNITIONS_META_VISUALIZATION,
     parse_viz_dataset,
@@ -166,6 +170,11 @@ def map_layer(
     bb = parse_bbox(bbox)
     t = parse_tier(tier)
     county = parse_county(county)
+    if ds == "epss":
+        outage_type = parse_outage_type(conn, outage_type)
+        cause = parse_cause(conn, cause)
+    if ds == "calfire":
+        incident_type = parse_incident_type(conn, incident_type)
 
     if ds == "us_ignitions" and (utility or county):
         raise HTTPException(
@@ -249,6 +258,22 @@ def map_layer(
         style = style_for("calfire")
         fc = queries.rows_to_feature_collection(rows, id_field="incident_id")
         extra_meta["incident_type_default"] = "Wildfire,Fire"
+        if county is not None:
+            extra_meta.update(
+                multi_county_meta(
+                    queries.calfire_multi_county_count(
+                        conn,
+                        utility=util,
+                        county=county,
+                        year=year,
+                        start_date=start,
+                        end_date=end,
+                        min_acres=min_acres,
+                        incident_type=incident_type,
+                        bbox=bb,
+                    )
+                )
+            )
     elif ds == "hftd":
         rows = queries.map_hftd(conn, tier=t)
         total = len(rows)
@@ -328,6 +353,8 @@ def time_series(
     start = parse_date_param(start_date, "start_date")
     end = parse_date_param(end_date, "end_date")
     validate_date_range(start, end)
+    if ds == "calfire":
+        incident_type = parse_incident_type(conn, incident_type)
 
     if iv == "weekly" and year is None:
         raise HTTPException(
@@ -382,6 +409,20 @@ def time_series(
         meta.update(US_IGNITIONS_META)
     else:
         meta["utility_filter_definition"] = "attribute"
+    if ds == "calfire" and county is not None:
+        meta.update(
+            multi_county_meta(
+                queries.calfire_multi_county_count(
+                    conn,
+                    utility=util,
+                    county=county,
+                    year=year if iv == "weekly" else None,
+                    start_date=start,
+                    end_date=end,
+                    incident_type=incident_type,
+                )
+            )
+        )
     return {
         "dataset": ds,
         "interval": iv,

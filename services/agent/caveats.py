@@ -332,6 +332,10 @@ async def collect_qualifications(
                 "data_gap",
             )
 
+    multi_county = _calfire_multi_county_counts(working)
+    if multi_county:
+        add("calfire_multi_county", _multi_county_text(multi_county), "service_response.meta")
+
     if _needs_calfire_map_feed_caveat(working):
         cid = "calfire_map_feed_counts"
         if cid in DATASETS["calfire_incidents"].caveat_ids:
@@ -511,6 +515,39 @@ def _is_cpuc_ignitions(execution: ToolExecution) -> bool:
 def _is_us_ignitions(execution: ToolExecution) -> bool:
     """True for US sample reads, including qualification companions."""
     return execution.summary.get("dataset") == "us_ignitions"
+
+
+def _calfire_multi_county_counts(executions: list[ToolExecution]) -> list[int]:
+    """Non-zero multi-county counts from county-scoped CAL FIRE results."""
+    counts: list[int] = []
+    for item in executions:
+        if item.qualification_call or not _uses_calfire(item):
+            continue
+        value = (item.summary.get("metadata") or {}).get("multi_county_incidents")
+        if isinstance(value, int) and value > 0:
+            counts.append(value)
+    return counts
+
+
+def _multi_county_text(counts: list[int]) -> str:
+    if len(counts) == 1:
+        n = counts[0]
+        lead = (
+            f"{n:,} of the counted CAL FIRE incidents lists more than one county"
+            if n == 1
+            else f"{n:,} of the counted CAL FIRE incidents list more than one county"
+        )
+    else:
+        lead = (
+            "Counted CAL FIRE incidents that list more than one county: "
+            + ", ".join(f"{n:,}" for n in counts)
+            + " across these results"
+        )
+    return (
+        f"{lead} (for example \"Shasta, Tehama\"). Each is counted, with its full "
+        "acreage, in every county it lists, so county totals can add up to more "
+        "than the statewide total."
+    )
 
 
 def _uses_calfire(execution: ToolExecution) -> bool:

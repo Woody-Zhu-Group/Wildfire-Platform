@@ -8,6 +8,12 @@ from typing import Any, Literal
 import psycopg
 from psycopg.rows import dict_row
 
+from services.shared.calfire_county import (
+    county_match_sql,
+    county_overlap_sql,
+    multi_county_sql,
+)
+
 ScopeKind = Literal["utility", "county", "hftd"]
 
 
@@ -176,7 +182,7 @@ def calfire_incident_count(
             cur.execute(
                 f"""
                 SELECT count(*) FROM wildfire.calfire_incidents c
-                WHERE lower(c.county) = lower(%s)
+                WHERE {county_match_sql("c.county")}
                   AND c.date_only_created BETWEEN %s AND %s
                   AND {_calfire_type_sql()}
                 """,
@@ -211,6 +217,34 @@ def calfire_incident_count(
         return int(cur.fetchone()[0]), None
 
 
+def calfire_multi_county_count(
+    conn: psycopg.Connection,
+    *,
+    counties: list[str],
+    ranges: list[tuple[date, date]],
+) -> int:
+    """Distinct default-type CAL FIRE incidents that list several counties,
+    list at least one of ``counties``, and fall in any of ``ranges``."""
+    if not counties or not ranges:
+        return 0
+    date_sql = " OR ".join("c.date_only_created BETWEEN %s AND %s" for _ in ranges)
+    params: list[Any] = [[name.lower() for name in counties]]
+    for start, end in ranges:
+        params.extend([start, end])
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT count(*) FROM wildfire.calfire_incidents c
+            WHERE {multi_county_sql("c.county")}
+              AND {county_overlap_sql("c.county")}
+              AND ({date_sql})
+              AND {_calfire_type_sql()}
+            """,
+            params,
+        )
+        return int(cur.fetchone()[0])
+
+
 def acres_burned(
     conn: psycopg.Connection,
     *,
@@ -225,7 +259,7 @@ def acres_burned(
             cur.execute(
                 f"""
                 SELECT COALESCE(SUM(c.acres_burned), 0) FROM wildfire.calfire_incidents c
-                WHERE lower(c.county) = lower(%s)
+                WHERE {county_match_sql("c.county")}
                   AND c.date_only_created BETWEEN %s AND %s
                   AND {_calfire_type_sql()}
                 """,
