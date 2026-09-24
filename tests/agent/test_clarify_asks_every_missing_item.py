@@ -28,6 +28,7 @@ from services.shared.dataset_registry import (
     COMPARE_MEASURES,
     MEASURE_DATASETS,
     RANK_MEASURES,
+    SERIES_DATASETS,
 )
 from tests.agent.test_jev_decide import _answer_facts, _choice, _noul
 
@@ -56,6 +57,8 @@ QUESTIONS: dict[str, set[str]] = {
     "Which county had the most CPUC ignitions?": {"year"},
     "Which utility had the most dangerous fires?": {"year", "dataset"},
     "Show a seasonal chart": {"year", "dataset"},
+    "Show a year over year chart": {"year", "dataset"},
+    "Show a seasonal chart for 2023": {"dataset"},
     "Show recent fires near me.": {"year", "dataset"},
     "How risky was it?": {"place", "date"},
     "Compare Butte and Shasta counties.": {"year", "dataset"},
@@ -164,6 +167,30 @@ def test_stored_hv3_077_offers_only_the_datasets_a_county_ranking_reads():
         assert label in text, label
     for label in _labels(MEASURE_DATASETS.values()) - offered:
         assert label not in text, (label, text)
+
+
+@pytest.mark.parametrize("rule", sorted(RULE_ITEM))
+@pytest.mark.parametrize(
+    "question", ["Show a seasonal chart", "Show a year over year chart", "Show a seasonal chart for 2023"]
+)
+def test_a_chart_without_a_dataset_offers_the_series_datasets(question, rule):
+    decision = route_question(question)
+    shown = complete_clarification(rule, question, decision.slots, _REASON_TEXT.get(rule, _FALLBACK))
+    for text in (shown, decision.answer):
+        if "dataset (" not in text and "should I chart:" not in text:
+            continue  # this base text asks for the dataset in its own words
+        for label in _labels(SERIES_DATASETS):
+            assert label in text, (label, text)
+        for label in _labels(MEASURE_DATASETS.values()) - _labels(SERIES_DATASETS):
+            assert label not in text, (label, text)
+
+
+def test_the_series_question_lists_the_registry_datasets():
+    decision = route_question("Show a seasonal chart")
+    assert decision.rule == "series_mode_missing_dataset"
+    assert decision.answer.startswith(_REASON_TEXT["series_mode_missing_dataset"])
+    for label in _labels(SERIES_DATASETS):
+        assert label in decision.answer
 
 
 def test_a_county_comparison_offers_the_compare_measures_datasets():

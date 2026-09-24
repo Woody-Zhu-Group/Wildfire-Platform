@@ -52,7 +52,7 @@ dataset/metric, scope, and required time/location slots are explicit:
   The missing items come from the question and the router's slots, not the
   rule, so any rule's text (the router's or, in decide mode, Jev's) asks for
   all of them, with options from the registry (`RANK_MEASURES`,
-  `COMPARE_MEASURES`). The rule id does not change.
+  `COMPARE_MEASURES`, `SERIES_DATASETS`). The rule id does not change.
 
 Compositions, cross-dataset questions, and requests not matching those strict
 rules go to the model. Every response logs `path`, `rule`, and tool trajectory.

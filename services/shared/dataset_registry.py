@@ -551,6 +551,11 @@ COMPARE_MEASURES: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Datasets a yearly or seasonal chart (the router's series_mode yearly and
+# seasonal) can read when the question does not fix one. Cumulative acres,
+# customer events, and regional series fix their own dataset.
+SERIES_DATASETS: tuple[str, ...] = ("cpuc_ignitions", "calfire_incidents", "epss_outages")
+
 SUMMARY_METRIC_IDS = {
     key: entry.allowed_summary_metrics
     for key, entry in DATASETS.items()

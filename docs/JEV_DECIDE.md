@@ -62,8 +62,9 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
      the most ignitions?", the grouping is still asked. The options come from the registry
      for the task: a ranking lists the datasets `RANK_MEASURES` has for the grouping (a county
      ranking offers CPUC ignitions or CAL FIRE incidents, never PSPS) or the groupings it has
-     for the dataset, and a comparison of named places lists the datasets
-     `COMPARE_MEASURES` has for that scope. `tests/agent/test_clarify_asks_every_missing_item.py`
+     for the dataset, a comparison of named places lists the datasets
+     `COMPARE_MEASURES` has for that scope, and a yearly or seasonal chart lists
+     `SERIES_DATASETS` (also the `series_mode_missing_dataset` question itself). `tests/agent/test_clarify_asks_every_missing_item.py`
      asserts this for every clarification rule on questions missing different combinations
      of year, dataset, grouping, and place, and on the stored `ho_094` and `hv3_077` answers.
    - **A Jev decline never contradicts a slot the router resolved.** A Jev clarification

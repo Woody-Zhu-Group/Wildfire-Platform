@@ -44,7 +44,11 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.clarify_missing import complete_clarification, rank_slots_question
+from services.agent.clarify_missing import (
+    complete_clarification,
+    rank_slots_question,
+    series_dataset_question,
+)
 from services.agent.measure_clarify import measure_clarification, measure_group
 from services.agent.decisions.backend import Answer
 from services.agent.decisions.call_budget import DailyCallBudget
@@ -168,6 +172,8 @@ _REASON_TEXT: dict[str, str] = {
     "ranking_missing_year": "What year or date range should the ranking cover?",
     # The router's wording, with the registry's rankings.
     "ranking_missing_slots": rank_slots_question(),
+    # The router's wording, with the registry's chartable datasets.
+    "series_mode_missing_dataset": series_dataset_question(),
     "ranking_county_contradiction": "Should I rank all counties, or report the one county you named?",
     # Reuses routing.py wording for the same rules.
     "risk_future_date": f"{_RISK_COVERAGE_LIMIT}. Which past date should I score?",

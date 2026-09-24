@@ -303,7 +303,7 @@ Rule ids that live in tables outside `routing.py`:
 
 ### 4.2 Clarifications
 
-The text of every clarification is completed by `services/agent/clarify_missing.py` (`complete_clarification`, PR #51): when the slots show more than one thing missing, one message asks for all of them and ends with an example rephrasing built only from what the question named. The rule id never changes. Since PR #94 the missing items (year or date, dataset, ranking grouping, place) are read from the question and the router's slots only, never from the rule, so decide mode showing Jev's text instead of the router's cannot drop one; the options offered come from the registry (`RANK_MEASURES` for rankings, `COMPARE_MEASURES` for comparisons), and the `ranking_missing_slots` text is built from `RANK_MEASURES`.
+The text of every clarification is completed by `services/agent/clarify_missing.py` (`complete_clarification`, PR #51): when the slots show more than one thing missing, one message asks for all of them and ends with an example rephrasing built only from what the question named. The rule id never changes. Since PR #94 the missing items (year or date, dataset, ranking grouping, place) are read from the question and the router's slots only, never from the rule, so decide mode showing Jev's text instead of the router's cannot drop one; the options offered come from the registry (`RANK_MEASURES` for rankings, `COMPARE_MEASURES` for comparisons, `SERIES_DATASETS` for yearly and seasonal charts), and the `ranking_missing_slots` and `series_mode_missing_dataset` texts are built from them.
 
 | Rule id | Triggers | Example | What it asks |
 |---|---|---|---|
@@ -317,7 +317,7 @@ The text of every clarification is completed by `services/agent/clarify_missing.
 | `ranking_county_contradiction` | Rank counties while filtering to one named county | For Mendocino County in 2020, which counties had the most CPUC ignitions? | Rank counties statewide, or count the one county? |
 | `medical_exposure_missing_year` | Medical baseline wording with no time | show me medical baseline data | What year or date range should I use? |
 | `series_mode_missing_year` | A series panel phrase with no time | Show the cumulative acres chart | What year or date range should I use? |
-| `series_mode_missing_dataset` | Yearly or seasonal with no CPUC, EPSS, or CAL FIRE dataset | Show a seasonal chart for 2023 | Which dataset should I chart? |
+| `series_mode_missing_dataset` | Yearly or seasonal with no CPUC, EPSS, or CAL FIRE dataset | Show a seasonal chart for 2023 | Which dataset should I chart: CPUC ignitions, CAL FIRE incidents, or EPSS outages? (from `SERIES_DATASETS`) |
 | `ambiguous_relative_time` | recent, lately, currently, or a month range that crosses a year (`resolve_time` status `ambiguous`) | What were recent ignitions for SCE? | Which calendar year or exact date range should I use? |
 | `time_out_of_coverage` | A year outside 2014 to the current year, an apostrophe or bare 1900s year, or an HDW year outside 2020 to 2025 | How many PGE ignitions were there in '99? | That period is outside the warehouse |
 | `missing_location` | near me with no coordinates | Show recent fires near me. | What latitude/longitude or bounding box? |

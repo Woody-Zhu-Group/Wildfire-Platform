@@ -8,7 +8,8 @@ wording is the base. The rule contributes only the item its own text asks for.
 Items the base text does not already ask for are appended, then a concrete
 rephrasing. The options offered come from the registry for the task: ranking
 options from RANK_MEASURES for the grouping, comparison options from
-COMPARE_MEASURES. The rule id and path never change.
+COMPARE_MEASURES, yearly and seasonal chart options from SERIES_DATASETS. The
+rule id and path never change.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from services.shared.dataset_registry import (
     MEASURE_DATASETS,
     MEASURE_UTILITIES,
     RANK_MEASURES,
+    SERIES_DATASETS,
     UTILITY_CLARIFY_LABELS,
 )
 
@@ -140,6 +142,24 @@ def compare_datasets(group: str | None, utilities: list[str]) -> list[str]:
         if len(utilities) < 2 or set(utilities) & MEASURE_UTILITIES.get(item, set(utilities))
     ]
     return _ordered_datasets(MEASURE_DATASETS[item] for item in measures)
+
+
+def series_datasets() -> list[str]:
+    """Datasets a yearly or seasonal chart reads when the question fixes none."""
+    return _ordered_datasets(SERIES_DATASETS)
+
+
+def series_dataset_question() -> str:
+    """The series_mode_missing_dataset question, with the registry's chartable datasets."""
+    return f"Which dataset should I chart: {_join([_LABELS[key] for key in series_datasets()])}?"
+
+
+def _series_without_dataset(text: str) -> bool:
+    """A yearly or seasonal chart whose dataset the question must name."""
+    from services.agent.routing import _series_mode_request
+
+    request = _series_mode_request(text.lower())
+    return request is not None and request[1] is None
 
 
 def event_datasets() -> list[str]:
@@ -303,6 +323,8 @@ def ask_phrase(item: str, rule: str, text: str, slots: dict[str, Any]) -> str:
         options = rank_datasets(group)
     elif task == "compare":
         options = compare_datasets(group, list(slots.get("utilities") or []))
+    elif _series_without_dataset(text):
+        options = series_datasets()
     else:
         options = event_datasets()
     return f"a dataset ({_join([_LABELS[key] for key in options])})"

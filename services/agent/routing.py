@@ -7,7 +7,11 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.clarify_missing import complete_clarification, rank_slots_question
+from services.agent.clarify_missing import (
+    complete_clarification,
+    rank_slots_question,
+    series_dataset_question,
+)
 from services.agent.places import (
     GAZETTEER_VINTAGE,
     CityPoint,
@@ -16,6 +20,7 @@ from services.agent.places import (
 )
 from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
 from services.shared.dataset_registry import (
+    SERIES_DATASETS,
     ALL_CAUSES_AFTER_IGNITIONS_PATTERN,
     ALL_CAUSES_BEFORE_IGNITIONS_PATTERN,
     BARE_IGNITIONS_PATTERN,
@@ -3350,7 +3355,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         return _defer_collapsed(slots)
     if series_request is not None:
         series_mode, fixed_dataset = series_request
-        chartable = {"cpuc_ignitions", "epss_outages", "calfire_incidents"}
+        chartable = set(SERIES_DATASETS)
         warehouse_dataset = fixed_dataset or (
             dataset if dataset in chartable else None
         )
@@ -3364,10 +3369,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 "clarification",
                 "series_mode_missing_dataset",
                 "Yearly and seasonal charts need CPUC, EPSS, or CAL FIRE",
-                answer=(
-                    "Which dataset should I chart: CPUC ignitions, "
-                    "EPSS outages, or CAL FIRE incidents?"
-                ),
+                answer=series_dataset_question(),
                 slots=mode_slots,
             )
         time_args = _time_filter_args(time_resolution)
