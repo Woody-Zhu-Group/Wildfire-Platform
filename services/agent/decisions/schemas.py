@@ -150,6 +150,10 @@ CONTEXT_DEFERRED_RULES: dict[str, str] = {
         "An EPSS read for a utility other than PG&E is clarified by the router "
         "before Jev runs, since EPSS rows exist only for PG&E."
     ),
+    "us_sample_utility_filter": (
+        "A US-sample question restricted to a utility is clarified by the router "
+        "before Jev runs, since the sample has no utility column."
+    ),
     "unsupported_future_prediction": (
         "A forward modal, expectation, or forecast of events or counts is refused "
         "by the router before Jev runs."

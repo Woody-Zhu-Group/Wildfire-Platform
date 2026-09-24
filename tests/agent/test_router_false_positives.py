@@ -802,6 +802,57 @@ def test_review_82_the_epss_utility_rule_is_router_only():
     assert "epss_non_pge_utility" in CONTEXT_DEFERRED_RULES
 
 
+# ---------------------------------------------------------------------------
+# Label rule J (Michael, 2026-09-24): a US-sample question restricted to a
+# utility clarifies, since the sample has no utility column.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "question,name",
+    [
+        ("Map PG&E US sample ignitions in 2023", "PG&E"),
+        ("Map PG&E US sample ignitions in 2023 and how many were there", "PG&E"),
+        ("How many US sample ignitions did SCE have in 2022?", "SCE"),
+        ("Chart the monthly trend of US ignitions for SDG&E in 2021", "SDG&E"),
+        ("Rank counties by US sample ignitions for PG&E in 2020", "PG&E"),
+        ("Compare PG&E CPUC ignitions with the US sample in 2023", "PG&E"),
+    ],
+)
+def test_rule_j_a_us_sample_question_with_a_utility_clarifies(question, name):
+    decision = route_question(question)
+    assert decision.path == "clarification", (question, decision.rule)
+    assert decision.rule == "us_sample_utility_filter", (question, decision.rule)
+    assert decision.tool_calls == [], question
+    assert "no utility column" in decision.answer
+    assert "national sample" in decision.answer
+    assert f"{name}'s CPUC utility ignitions" in decision.answer
+
+
+@pytest.mark.parametrize(
+    "question,rule",
+    [
+        ("Map US ignitions in 2023 and how many were there", "multi_intent_count_and_map"),
+        ("How many US sample ignitions in 2022?", "filtered_records"),
+        ("Map PG&E ignitions in 2023", "map"),
+        ("How many sampled ignitions in California in 2022?", "unexpressable_county_filter"),
+    ],
+)
+def test_rule_j_leaves_the_sample_without_a_utility_and_cpuc_with_one_unchanged(question, rule):
+    decision = route_question(question)
+    assert decision.rule == rule, (question, decision.rule)
+
+
+def test_rule_j_the_us_sample_utility_rule_is_router_only():
+    from services.agent.decisions.jev_policy import REGEX_ONLY
+    from services.agent.decisions.mapping import RULE_TO_INTENT
+    from services.agent.decisions.schemas import CONTEXT_DEFERRED_RULES
+
+    assert "us_sample_utility_filter" in REGEX_ONLY
+    assert "us_sample_utility_filter" in RULE_TO_INTENT
+    assert "us_sample_utility_filter" in CONTEXT_DEFERRED_RULES
+
+
 @pytest.mark.parametrize(
     "question,label,group",
     [
