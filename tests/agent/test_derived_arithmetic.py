@@ -14,7 +14,7 @@ import httpx
 
 from services.agent.artifacts import ArtifactStore
 from services.agent.config import AgentSettings
-from services.agent.derived import DERIVED_TOOL, derive_arithmetic, requested_operations
+from services.agent.derived import DERIVED_TOOL, derive_arithmetic
 from services.agent.orchestrator import AgentOrchestrator
 from services.agent.provider import ModelReply
 from services.agent.tools import ToolExecution, ToolExecutor
@@ -127,16 +127,6 @@ def _ask(provider: ScriptedProvider) -> dict:
     return asyncio.run(run())
 
 
-def test_the_question_asks_for_a_difference():
-    assert requested_operations(QUESTION) == {"difference"}
-    assert requested_operations("What was the percent change in SCE ignitions?") == {
-        "difference",
-        "percent_change",
-    }
-    assert "ratio" in requested_operations("What is the ratio of PG&E to SCE ignitions in 2023?")
-    assert requested_operations("How many PG&E ignitions were there in 2023?") == set()
-
-
 def test_synthesis_states_the_harness_computed_changes_and_cites_them():
     provider = ScriptedProvider()
     response = _ask(provider)
@@ -238,16 +228,26 @@ def test_percent_change_is_rounded_and_signed():
     assert row["absolute_percent_change"] == 7
 
 
-def test_nothing_is_derived_from_companions_or_when_not_asked():
+def test_nothing_is_derived_from_companions():
     executions = [
         _count("evidence_a", "PGE", 2020, 402),
         _count("evidence_b", "PGE", 2023, 374, qualification=True),
     ]
     assert derive_arithmetic("By how much did PG&E ignitions change?", executions) is None
-    assert derive_arithmetic(
+
+
+def test_the_same_entity_in_two_periods_is_derived_whatever_the_question_says():
+    # No change word at all: the structure of the calls decides.
+    derived = derive_arithmetic(
         "How many PG&E ignitions in 2020 and 2023?",
         [_count("evidence_a", "PGE", 2020, 402), _count("evidence_b", "PGE", 2023, 374)],
-    ) is None
+    )
+    row = derived.summary["derivations"][0]
+    assert row["basis"] == "change_over_time"
+    assert row["difference"] == -28
+    assert row["percent_change"] == -7.0
+    assert row["ratio"] == 0.93
+    assert derived.arguments["operations"] == ["difference", "percent_change", "ratio"]
 
 
 def test_two_entities_in_one_shared_period_get_their_difference():

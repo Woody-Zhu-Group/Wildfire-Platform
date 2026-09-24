@@ -728,8 +728,8 @@
   "open_ended"
  ],
  "jev_holdout.json:ho_076": [
-  "deterministic",
-  "period_comparison"
+  "model",
+  "open_comparison"
  ],
  "jev_holdout.json:ho_077": [
   "model",
@@ -892,8 +892,8 @@
   "open_ended"
  ],
  "jev_holdout_v2.json:hv2_020": [
-  "deterministic",
-  "period_comparison"
+  "model",
+  "open_comparison"
  ],
  "jev_holdout_v2.json:hv2_021": [
   "model",

@@ -1188,11 +1188,20 @@ class AgentOrchestrator:
         # Hosted models often return one call per turn, so multi-part
         # questions are checked for named entities no successful call has
         # covered yet.
+        entity_years = list(years or []) or ([year] if year else [])
+        resolution = time_resolution or {}
+        if resolution.get("start_date") and not resolution.get("per_year"):
+            # A written range ("from 2020 to 2023") names its endpoints; the
+            # years between are not entities the question named, so a model
+            # that reads the two endpoints has covered it. A per-year
+            # breakdown names every year and keeps them all.
+            written = {int(value) for value in re.findall(r"\b(20\d{2})\b", question)}
+            entity_years = [item for item in entity_years if item in written] or entity_years
         entities = named_entities(
             question,
             utilities=utilities,
             county=county,
-            years=list(years or []) or ([year] if year else []),
+            years=entity_years,
         )
         check_coverage = any(len(values) > 1 for values in entities.values())
         trajectory.append(

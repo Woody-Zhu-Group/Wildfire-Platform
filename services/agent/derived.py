@@ -2,13 +2,12 @@
 
 Grounding only lets synthesis state numbers that appear in evidence, so a
 question that asks how much a count changed could never get its answer: the
-difference is not in any tool result, and the model must not compute it. When
-the question asks for a change, difference, percent change, or ratio, this
-module computes those values from the successful primary count results and
-returns them as one evidence item with its own id and the ids it came from.
-Synthesis cites that id like any other evidence.
+difference is not in any tool result, and the model must not compute it. This
+module computes the difference, percent change, and ratio from the successful
+primary count results and returns them as one evidence item with its own id
+and the ids it came from. Synthesis cites that id like any other evidence.
 
-Which pairs to form comes from the structure of the calls, not from the
+What to compute comes from the structure of the calls alone, never from the
 question's words. Within one measure (dataset, metric, definition):
 - an entity (same dataset, utility, county, tier, filters) that appears in two
   or more periods gets its change over time, earliest period first;
@@ -27,32 +26,8 @@ from datetime import date
 from typing import Any
 
 from services.agent.tools import ToolExecution
-from services.shared.dataset_registry import (
-    CHANGE_INTENT_PATTERN,
-    COMPARISON_WORDS_PATTERN,
-    PERCENT_ASK_PATTERN,
-    RATIO_ASK_PATTERN,
-)
 
 DERIVED_TOOL = "harness_arithmetic"
-
-def requested_operations(question: str) -> set[str]:
-    """Arithmetic the question asks for: difference, percent_change, ratio.
-
-    Change intent is the registry's one definition (CHANGE_INTENT_PATTERN),
-    shared with time resolution and routing; a compare word asks for the
-    difference too. Which pairs get these values is decided by call structure.
-    """
-    text = question or ""
-    ops: set[str] = set()
-    if PERCENT_ASK_PATTERN.search(text):
-        ops.update({"difference", "percent_change"})
-    if RATIO_ASK_PATTERN.search(text):
-        ops.update({"difference", "ratio"})
-    if CHANGE_INTENT_PATTERN.search(text) or COMPARISON_WORDS_PATTERN.search(text):
-        ops.add("difference")
-    return ops
-
 
 @dataclass(frozen=True)
 class _Cell:
@@ -159,8 +134,13 @@ def _round(value: float, places: int) -> int | float:
     return int(rounded) if float(rounded).is_integer() else rounded
 
 
-def _derive(base: _Cell, other: _Cell, ops: set[str], *, basis: str) -> dict[str, Any]:
+# Every value is computed for every pair; synthesis cites what the question asked.
+OPERATIONS = ("difference", "percent_change", "ratio")
+
+
+def _derive(base: _Cell, other: _Cell, *, basis: str) -> dict[str, Any]:
     """Arithmetic from base to other. For a change, base is the earlier period."""
+    ops = set(OPERATIONS)
     difference = other.value - base.value
     row: dict[str, Any] = {
         "basis": basis,
@@ -199,10 +179,12 @@ def _derive(base: _Cell, other: _Cell, ops: set[str], *, basis: str) -> dict[str
 
 
 def derive_arithmetic(question: str, executions: list[ToolExecution]) -> ToolExecution | None:
-    """One evidence item with every requested value, or None when nothing pairs."""
-    ops = requested_operations(question)
-    if not ops:
-        return None
+    """One evidence item with the values every pair supports, or None when nothing pairs.
+
+    ``question`` is accepted for the call sites' sake and not read: the pairs
+    come from the calls, and every pair gets every value.
+    """
+    del question
     cells: dict[tuple[str, str, str, str], _Cell] = {}
     for execution in executions:
         if not execution.ok or execution.qualification_call:
@@ -221,20 +203,20 @@ def derive_arithmetic(question: str, executions: list[ToolExecution]) -> ToolExe
     for series in by_entity.values():
         ordered = sorted(series, key=lambda item: (item.start, item.end))
         for earlier, later in zip(ordered, ordered[1:]):
-            rows.append(_derive(earlier, later, ops, basis="change_over_time"))
+            rows.append(_derive(earlier, later, basis="change_over_time"))
     # Two entities read in one shared period, and nothing else: their difference.
     for group in by_measure.values():
         periods = {(cell.start, cell.end) for cell in group}
         if len(periods) != 1 or len(group) != 2:
             continue
         first, second = sorted(group, key=lambda item: item.entity)
-        rows.append(_derive(first, second, ops, basis="difference_between_entities"))
+        rows.append(_derive(first, second, basis="difference_between_entities"))
     if not rows:
         return None
     sources = sorted({eid for row in rows for eid in row["source_evidence_ids"]})
     return ToolExecution(
         tool=DERIVED_TOOL,
-        arguments={"operations": sorted(ops), "source_evidence_ids": sources},
+        arguments={"operations": list(OPERATIONS), "source_evidence_ids": sources},
         ok=True,
         summary={
             "kind": "derived_arithmetic",

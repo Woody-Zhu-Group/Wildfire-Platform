@@ -8,12 +8,6 @@ from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Any
 
-from services.shared.dataset_registry import (
-    CHANGE_INTENT_PATTERN,
-    COMPARISON_WORDS_PATTERN,
-    TOTAL_ASK_PATTERN,
-)
-
 # Warehouse coverage used for out-of-range guards (inclusive).
 DATA_YEAR_MIN = 2014
 
@@ -78,10 +72,6 @@ class TimeResolution:
     # The question names separate years or asks for a per-year breakdown, so
     # one tool call per year is correct and must not be widened to the span.
     per_year: bool = False
-    # The question asks how something changed between two years ("between
-    # 2020 and 2023", "from 2020 to 2023", "2020 vs 2023"), so ``years`` holds
-    # the two endpoint periods and there is no span to count over.
-    endpoints: bool = False
 
     def as_slot(self) -> dict[str, Any]:
         return {
@@ -94,7 +84,6 @@ class TimeResolution:
             "phrase": self.phrase,
             "reason": self.reason,
             "per_year": self.per_year,
-            "endpoints": self.endpoints,
         }
 
 
@@ -244,59 +233,6 @@ def explicit_year_range(text: str) -> tuple[str, str, str] | None:
     if year_a > year_b:
         year_a, year_b = year_b, year_a
     return f"{year_a}-01-01", f"{year_b}-12-31", match.group(0)
-
-
-# Two years joined directly by a comparison word: "2020 vs 2023".
-_YEARS_JOINED_BY_VERSUS = re.compile(
-    r"\b20\d{2}\s+(?:vs\.?|versus|compared\s+(?:to|with|against)|against)\s+20\d{2}\b"
-)
-
-
-def asks_change_between_years(text: str, *, listed_years: bool = False) -> bool:
-    """True for a change, difference, percent change, ratio, or comparative question.
-
-    Change intent is the registry's one definition (CHANGE_INTENT_PATTERN).
-    A per-year breakdown keeps a range one span. For a written range, a total
-    over it ("how many in total from 2019 to 2022") keeps it one span too, and
-    compare words alone do not split it (they may compare two entities over
-    the span). With ``listed_years`` ("compare X in 2017 and 2022") there is
-    no span to total over, so compare and versus count and totals do not.
-    """
-    lower = " ".join(expand_apostrophe_year(text).lower().split())
-    if _PER_YEAR_WORDS.search(lower):
-        return False
-    if not listed_years and TOTAL_ASK_PATTERN.search(lower):
-        return False
-    if CHANGE_INTENT_PATTERN.search(lower):
-        return True
-    return bool(listed_years and COMPARISON_WORDS_PATTERN.search(lower))
-
-
-def _endpoint_resolution(
-    year_a: int, year_b: int, *, phrase: str, data_max: int
-) -> TimeResolution:
-    """Two endpoint periods for a change question; no span between them."""
-    years = (year_a, year_b) if year_a <= year_b else (year_b, year_a)
-    for year in years:
-        if year < DATA_YEAR_MIN or year > data_max:
-            return TimeResolution(
-                status="out_of_coverage",
-                years=years,
-                source="explicit",
-                phrase=phrase,
-                reason=(
-                    f"Year {year} is outside warehouse coverage "
-                    f"{DATA_YEAR_MIN}-{data_max}"
-                ),
-            )
-    return TimeResolution(
-        status="explicit",
-        years=years,
-        source="explicit",
-        phrase=phrase,
-        per_year=True,
-        endpoints=True,
-    )
 
 
 def _span_resolution(
@@ -568,12 +504,9 @@ def _resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     year_span = explicit_year_range(lower)
     if year_span is not None:
         start, end, phrase = year_span
-        if asks_change_between_years(lower):
-            # "By what percentage did X change between 2020 and 2023" asks
-            # about the two endpoint years, not the span between them.
-            return _endpoint_resolution(
-                int(start[:4]), int(end[:4]), phrase=phrase, data_max=data_max
-            )
+        # A written range is one span whatever the question asks about it.
+        # Which periods to count is the model's or the router's call; the
+        # harness never rewrites distinct windows a model turn chose.
         return _span_resolution(start, end, phrase=phrase, data_max=data_max)
 
     explicit = list(dict.fromkeys(int(v) for v in re.findall(r"\b(20\d{2})\b", text)))
@@ -640,15 +573,6 @@ def _resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
                     phrase=",".join(str(y) for y in years),
                     reason=f"Year {year} is outside warehouse coverage {DATA_YEAR_MIN}-{data_max}",
                 )
-        if len(years) == 2 and (
-            _YEARS_JOINED_BY_VERSUS.search(lower)
-            or asks_change_between_years(lower, listed_years=True)
-        ):
-            # "2020 vs 2023" or "how did X change in 2020 and 2023": the two
-            # listed years are the endpoints of a comparison.
-            return _endpoint_resolution(
-                years[0], years[1], phrase=",".join(str(y) for y in years), data_max=data_max
-            )
         return TimeResolution(
             status="explicit",
             years=years,

@@ -3076,15 +3076,8 @@ def _route_question(
             slots=timeline_slots,
         )
 
-    # Explicit comparisons, and change questions between two endpoint years
-    # ("by what percentage did X change between 2020 and 2023"), which the
-    # time resolver marks as endpoints rather than one span. A change question
-    # that also asks for a chart or map stays with the later rules, since a
-    # period comparison alone would drop the drawing.
-    if re.search(r"\bcompare|versus|\bvs\.?\b", lower) or (
-        time_resolution.endpoints
-        and not re.search(r"\b(?:chart|plot|graph|map|visuali[sz]e)\b", lower)
-    ):
+    # Explicit comparisons.
+    if re.search(r"\bcompare|versus|\bvs\.?\b", lower):
         metric: str | None = None
         if "epss-to-ignition" in lower or "epss to ignition" in lower:
             metric = "epss_to_ignition_ratio"
@@ -3115,41 +3108,6 @@ def _route_question(
                             "kind": "periods",
                             "scope_type": "utility",
                             "scope": utilities[0],
-                            "metric": metric,
-                            "period_a_start": a_start,
-                            "period_a_end": a_end,
-                            "period_b_start": b_start,
-                            "period_b_end": b_end,
-                            "ignition_definition": _ignition_definition(lower),
-                        },
-                    )
-                ],
-                slots=slots,
-            )
-
-        # Two calendar years + one county and no utility → periods for that
-        # county, so the derived evidence supplies the change and percentage.
-        if (
-            metric
-            and len(years) == 2
-            and not utilities
-            and county is not None
-            and len(counties) == 1
-            and "us ignition" not in lower
-        ):
-            a_start, a_end = _range_for_year(years[0])
-            b_start, b_end = _range_for_year(years[1])
-            return RouteDecision(
-                "deterministic",
-                "period_comparison",
-                "Metric, county scope, and both periods are explicit",
-                tool_calls=[
-                    (
-                        "comparison_run",
-                        {
-                            "kind": "periods",
-                            "scope_type": "county",
-                            "scope": county,
                             "metric": metric,
                             "period_a_start": a_start,
                             "period_a_end": a_end,

@@ -31,14 +31,7 @@ dataset/metric, scope, and required time/location slots are explicit:
   sample or that utility's CPUC ignitions instead of passing or dropping it
 - coordinate context → `data_query_spatial`
 - map/time series/detail → a visualization tool
-- fully specified utility/region/period comparison → `comparison_run`. A change
-  question between two years ("by what percentage did SCE's ignitions change
-  between 2020 and 2023", "from 2020 to 2023", "2020 vs 2023") with one
-  utility or one county and a known dataset is a period comparison too
-  (`period_comparison`, scope utility or county); the harness arithmetic
-  evidence then supplies the difference and percent change. A change question
-  that also asks for a chart or map, or names two utilities or counties, goes
-  to the later rules instead
+- fully specified utility/region/period comparison → `comparison_run`
 - explicit cell/date, coordinate/date, county/date, or utility/date risk → `risk_forecast` chain
 - a risk map or surface question with a date and no place → `risk_surface`
   (statewide hindcast; a router-only tool, not in the model's tool list)
@@ -132,29 +125,23 @@ holds calls for distinct periods (a 2019 count and a 2022 count for "from
 2019 to 2022", or a July count and an August count for "July 2024 and August
 2024"), the model is splitting the question into periods on purpose and every
 call is kept as written (`_hold_resolved_window` with the turn's
-`call_window`s). This does not depend on how the question is worded. Years the
-question never named are still rejected.
-
-Change intent has one definition, `CHANGE_INTENT_PATTERN` in
-`services/shared/naming.py` (change verbs, up or down, percent change, a ratio
-between periods, comparatives such as "more ... than"). It is read by the time
-resolver (a change between two years is the two endpoint years, `endpoints`,
-not one span; a total asked over the range stays a span), by the derived
-arithmetic (which values to compute), and by routing (a single-utility or
-single-county change question is a `period_comparison`). Compare words alone
-split two listed years but not a written range, since "compare Liberty and
-Bear Valley from 2019 through 2023" compares two entities over one span. Two
-named months ("July 2024 and August 2024") resolve to the window from the
-first month to the last with `per_year`, and a count over them defers to the
-model rather than counting one month.
+`call_window`s). Nothing here reads the question's wording: there is no list
+of change words. A written range ("between 2020 and 2023") is always one span
+in the time resolution; years or months listed separately ("2020 vs 2023",
+"July 2024 and August 2024", `named_months`) are separate periods, and a count
+over listed months defers to the model rather than counting one month. Years
+the question never named are still rejected. For coverage, a written range
+names its endpoints, so a model that read the two endpoint years has covered
+it; a per-year breakdown names every year.
 
 ## Derived arithmetic
 
 Synthesis may state only numbers found in evidence or caveats, and the model
-never does arithmetic. When a question asks for a change, difference,
-increase, decrease, percent change, or ratio, `derived.py` computes those
+never does arithmetic. `derived.py` computes the difference, percent change,
+and ratio
 values from the successful primary counts before synthesis (and on the
-deterministic path before the answer is rendered) and adds them as
+deterministic path before the answer is rendered), whatever the question's
+wording, and adds them as
 one `harness_arithmetic` evidence item (`evidence_derived_...`). Each
 derivation carries its `source_evidence_ids`. Which pairs to form comes from
 the structure of the calls, not from the question's words: an entity read in

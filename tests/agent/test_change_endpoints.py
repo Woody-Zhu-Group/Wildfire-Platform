@@ -1,14 +1,19 @@
-"""A change between two years is two endpoint periods, and the harness never
-rewrites distinct periods the model chose.
+"""The harness never rewrites distinct periods the model chose, and change
+arithmetic comes from call structure, never from the question's words.
 
 Production answered "By what percentage did SCE's CPUC ignitions change
-between 2020 and 2023?" with the same 2020-2023 count twice: the question
-resolved to one span, the hold-window rule widened the model's per-year calls
-to that span, and the fallback printed the same line twice. A second report
-asked for July 2024 and August 2024 as two calls and got the August count
-twice. The reviewer's twenty questions (tests/agent/fixtures/
-pr95_change_questions.json) were written without looking at the fix. Counts
-here are fixture values, not warehouse figures.
+between 2020 and 2023?" with the same 2020-2023 count twice: the hold-window
+rule widened the model's per-year calls to the span, and the fallback printed
+the same line twice. A second report asked for July 2024 and August 2024 as
+two calls and got the August count twice. Earlier versions of this fix read
+change intent from a word list; it missed "by how much" and "gap" and misfired
+on "bigger than 2000 acres" and "circuits went down". There is no such list
+now: a written range is one span, listed years or months are separate
+periods, and whatever windows the model chooses in one turn are kept.
+
+The reviewer's questions (tests/agent/fixtures/pr95_change_questions.json)
+were written without looking at the fix. Counts here are fixture values, not
+warehouse figures.
 """
 
 from __future__ import annotations
@@ -23,117 +28,66 @@ import pytest
 
 from services.agent.artifacts import ArtifactStore
 from services.agent.config import AgentSettings
-from services.agent.derived import DERIVED_TOOL, requested_operations
+from services.agent.derived import DERIVED_TOOL
 from services.agent.orchestrator import AgentOrchestrator, _render_deterministic
 from services.agent.provider import ModelReply
 from services.agent.routing import route_question
-from services.agent.time_resolve import (
-    apply_harness_years,
-    asks_change_between_years,
-    call_window,
-    resolve_time,
-)
+from services.agent.time_resolve import apply_harness_years, call_window, resolve_time
 from services.agent.tools import ToolExecution, ToolExecutor
 
 TODAY = date(2026, 9, 24)
 QUESTION = "By what percentage did SCE's CPUC ignitions change between 2020 and 2023?"
-COUNTY_QUESTION = "How did CPUC ignitions in Sonoma County change from 2020 to 2023?"
 COUNT_CONTROL = "How many CPUC ignitions did SCE have between 2020 and 2023?"
 MONTHS_QUESTION = "How many CPUC ignitions did PG&E have in July 2024 and August 2024?"
 REVIEWER = json.loads(
     (Path(__file__).parent / "fixtures" / "pr95_change_questions.json").read_text(encoding="utf-8")
 )
+# Questions where a change word list misfired (a size, an outage verb) or
+# missed (gap, by how much, better or worse). None may resolve to only two
+# endpoint years: a written range stays the whole span.
+WRITTEN_RANGES = [
+    "How many CAL FIRE incidents bigger than 2000 acres from 2018 to 2022?",
+    "How many EPSS circuits went down between 2022 and 2024?",
+    "What was the gap in SCE ignitions between 2019 and 2022?",
+    "By how much did SCE ignitions change between 2019 and 2022?",
+    "Was PG&E better or worse than SCE for ignitions from 2019 to 2022?",
+    QUESTION,
+    REVIEWER["user_case"],
+]
 SCE = {"2020": 75, "2023": 90}
 COUNTY_COUNTS = {("Butte", 2019): 40, ("Butte", 2022): 30, ("Shasta", 2019): 12, ("Shasta", 2022): 18}
 MONTH_COUNTS = {"07": 61, "08": 98}
 
 
+def _years_in(question: str) -> list[int]:
+    return sorted({int(item) for item in __import__("re").findall(r"\b20\d{2}\b", question) if int(item) >= 2014})
+
+
 # --- time resolution -------------------------------------------------------
 
 
-def test_the_production_question_resolves_to_two_endpoint_years():
-    resolved = resolve_time(QUESTION, today=TODAY)
-    assert resolved.status == "explicit"
-    assert resolved.years == (2020, 2023)
-    assert resolved.start_date is None and resolved.end_date is None
-    assert resolved.per_year is True
-    assert resolved.endpoints is True
-    assert resolved.as_slot()["endpoints"] is True
-
-
-@pytest.mark.parametrize("question", REVIEWER["change"] + [REVIEWER["user_case"]])
-def test_every_reviewer_change_question_is_two_endpoint_years(question):
+@pytest.mark.parametrize("question", WRITTEN_RANGES + REVIEWER["total_span"])
+def test_a_written_range_is_the_whole_span_whatever_the_wording(question):
     resolved = resolve_time(question, today=TODAY)
-    assert resolved.endpoints is True
-    assert len(resolved.years) == 2
-    assert resolved.start_date is None and resolved.end_date is None
-    assert resolved.per_year is True
-    assert asks_change_between_years(question, listed_years=True)
-    # The same registry pattern tells the derived arithmetic to compute a difference.
-    assert "difference" in requested_operations(question)
+    first, last = _years_in(question)[0], _years_in(question)[-1]
+    assert resolved.years == tuple(range(first, last + 1))
+    assert resolved.start_date == f"{first}-01-01"
+    assert resolved.end_date == f"{last}-12-31"
+    assert "endpoints" not in resolved.as_slot()
 
 
-@pytest.mark.parametrize("question", REVIEWER["total_span"])
-def test_every_reviewer_total_question_stays_one_span(question):
+@pytest.mark.parametrize("question", REVIEWER["change"])
+def test_reviewer_change_questions_resolve_by_form_not_by_wording(question):
     resolved = resolve_time(question, today=TODAY)
-    assert resolved.endpoints is False
-    assert resolved.per_year is False
-    assert resolved.years == tuple(range(resolved.years[0], resolved.years[-1] + 1))
-    assert resolved.start_date == f"{resolved.years[0]}-01-01"
-    assert resolved.end_date == f"{resolved.years[-1]}-12-31"
-    assert not asks_change_between_years(question)
-    assert requested_operations(question) == set()
-
-
-def test_other_change_forms_are_endpoints_too():
-    for question in (
-        "Did PG&E EPSS outages increase between 2021 and 2023?",
-        "Percent change in SCE ignitions 2020-2023?",
-        "What is the ratio of SCE ignitions between 2020 and 2023?",
-        "SCE ignitions in 2020 versus 2023",
-        "Compare SCE ignitions in 2020 and 2023",
-        "compare calfire wildfire totals in Ventura County for 2017 and 2022",
-        # A named period is still a change question unless it asks for a total.
-        "How did ignitions change over the period 2019 to 2022?",
-        "What was the total change in SCE ignitions from 2019 to 2022?",
-    ):
-        resolved = resolve_time(question, today=TODAY)
-        assert resolved.endpoints is True, question
-        assert len(resolved.years) == 2 and resolved.start_date is None, question
-
-
-def test_spans_that_are_not_change_questions_stay_spans():
-    for question in (
-        "SCE ignitions 2020-2023",
-        "List SCE ignitions between 2020 and 2023",
-        # A share, not a change.
-        "What percent of SCE ignitions between 2020 and 2023 were in HFTD?",
-        # A named metric ratio over the range, not a ratio between two years.
-        "What is PG&E's EPSS to ignition ratio between 2021 and 2023?",
-        # A size threshold, not a comparative between years.
-        "How many CAL FIRE fires larger than 100 acres between 2019 and 2022?",
-        # Two entities compared over one span: compare words alone do not split a range.
-        "Compare Liberty and Bear Valley utility-caused ignition totals from 2019 through 2023.",
-        "Take the 2019-2022 period and compare SDGE's ignition totals with SCE's.",
-    ):
-        resolved = resolve_time(question, today=TODAY)
-        assert resolved.endpoints is False, question
-        assert resolved.start_date == f"{resolved.years[0]}-01-01", question
-
-
-def test_a_per_year_change_question_keeps_the_span_with_per_year_calls():
-    question = "Between 2017 and 2023, how did SDGE's annual utility-caused ignition count change?"
-    resolved = resolve_time(question, today=TODAY)
-    assert resolved.endpoints is False
-    assert resolved.per_year is True
-    assert resolved.years == tuple(range(2017, 2024))
-    assert resolved.start_date == "2017-01-01" and resolved.end_date == "2023-12-31"
-
-
-def test_an_endpoint_outside_coverage_still_clarifies():
-    resolved = resolve_time("How did SCE ignitions change between 2010 and 2023?", today=TODAY)
-    assert resolved.status == "out_of_coverage"
-    assert "2010" in (resolved.reason or "")
+    years = _years_in(question)
+    if resolved.start_date is None:
+        # Years listed separately ("2019 versus 2023", "in 2021 than in 2020")
+        # are separate periods, exactly as on main.
+        assert sorted(resolved.years) == years
+        assert resolved.per_year is True
+    else:
+        assert resolved.years == tuple(range(years[0], years[-1] + 1))
+        assert resolved.end_date == f"{years[-1]}-12-31"
 
 
 def test_two_named_months_keep_both_months():
@@ -142,7 +96,6 @@ def test_two_named_months_keep_both_months():
     assert (resolved.start_date, resolved.end_date) == ("2024-07-01", "2024-08-31")
     assert resolved.per_year is True
     assert resolved.phrase == "july, august 2024"
-    # One month, or a month range, is unchanged.
     single = resolve_time("How many PG&E ignitions in August 2024?", today=TODAY)
     assert (single.start_date, single.end_date) == ("2024-08-01", "2024-08-31")
     assert single.per_year is False
@@ -171,13 +124,11 @@ def _count_args(**args) -> dict:
     return {"dataset": "cpuc_ignitions", "result_mode": "count", "utility": "SCE", **args}
 
 
-def test_distinct_periods_in_one_turn_are_never_widened_whatever_the_wording():
-    # No change word at all: the model still chose 2019 and 2022 on purpose.
-    question = "Show SCE ignitions from 2019 to 2022"
-    assert resolve_time(question, today=TODAY).endpoints is False
-    windows = [call_window(_count_args(year=2019)), call_window(_count_args(year=2022))]
-    assert windows == [("2019-01-01", "2019-12-31"), ("2022-01-01", "2022-12-31")]
-    for year in (2019, 2022):
+@pytest.mark.parametrize("question", WRITTEN_RANGES[:5] + ["Show SCE ignitions from 2019 to 2022"])
+def test_distinct_periods_in_one_turn_are_never_widened_whatever_the_wording(question):
+    first, last = _years_in(question)[0], _years_in(question)[-1]
+    windows = [call_window(_count_args(year=first)), call_window(_count_args(year=last))]
+    for year in (first, last):
         filled, error, corrections = _hold(_count_args(year=year), question, windows)
         assert error is None
         assert filled["year"] == year and "start_date" not in filled
@@ -216,17 +167,6 @@ def test_distinct_months_in_one_turn_are_never_rewritten():
     assert (filled["start_date"], filled["end_date"]) == ("2024-08-01", "2024-08-31")
 
 
-def test_the_harness_does_not_widen_endpoint_calls():
-    for year in (2020, 2023):
-        filled, error, corrections = _hold(_count_args(year=year), QUESTION)
-        assert error is None
-        assert filled["year"] == year and "start_date" not in filled
-        assert corrections == []
-    # A year that is neither endpoint is rejected as unlisted.
-    _filled, error, _ = _hold(_count_args(year=2021), QUESTION)
-    assert error is not None and "2021" in error
-
-
 def test_the_span_control_is_still_held_to_the_whole_range():
     filled, error, corrections = _hold(_count_args(year=2020), COUNT_CONTROL)
     assert error is None
@@ -237,59 +177,24 @@ def test_the_span_control_is_still_held_to_the_whole_range():
 # --- routing ---------------------------------------------------------------
 
 
-def test_the_production_question_routes_to_a_utility_period_comparison():
-    decision = route_question(QUESTION)
-    assert decision.path == "deterministic"
-    assert decision.rule == "period_comparison"
-    tool, args = decision.tool_calls[0]
-    assert tool == "comparison_run"
-    assert args["kind"] == "periods"
-    assert args["scope_type"] == "utility" and args["scope"] == "SCE"
-    assert args["metric"] == "ignition_count"
-    assert (args["period_a_start"], args["period_a_end"]) == ("2020-01-01", "2020-12-31")
-    assert (args["period_b_start"], args["period_b_end"]) == ("2023-01-01", "2023-12-31")
-    assert decision.slots["time_resolution"]["endpoints"] is True
-
-
-def test_a_single_county_change_question_routes_to_a_county_period_comparison():
-    decision = route_question(COUNTY_QUESTION)
-    assert decision.rule == "period_comparison"
-    tool, args = decision.tool_calls[0]
-    assert tool == "comparison_run"
-    assert args["scope_type"] == "county" and args["scope"] == "Sonoma"
-    assert (args["period_a_start"], args["period_b_start"]) == ("2020-01-01", "2023-01-01")
-
-
-def test_reviewer_single_scope_change_questions_route_to_period_comparison():
-    single_scope = [
-        q
-        for q in REVIEWER["change"]
-        if not any(word in q.lower() for word in ("psps", "tier", "epss outages drop"))
-    ]
-    assert len(single_scope) == 12
-    for question in single_scope:
-        decision = route_question(question)
-        assert decision.rule == "period_comparison", question
-        args = decision.tool_calls[0][1]
-        years = sorted(resolve_time(question, today=TODAY).years)
-        assert args["period_a_start"] == f"{years[0]}-01-01", question
-        assert args["period_b_start"] == f"{years[1]}-01-01", question
-
-
-def test_reviewer_total_questions_never_route_to_a_period_comparison():
-    for question in REVIEWER["total_span"]:
-        decision = route_question(question)
-        assert decision.rule != "period_comparison", question
-        for _tool, args in decision.tool_calls:
-            assert args.get("kind") != "periods", question
-
-
-def test_a_two_county_change_question_is_endpoints_but_not_one_period_comparison():
-    decision = route_question(REVIEWER["user_case"])
+@pytest.mark.parametrize("question", WRITTEN_RANGES + REVIEWER["total_span"])
+def test_no_written_range_answers_with_only_two_endpoint_years(question):
+    decision = route_question(question)
     assert decision.rule != "period_comparison"
-    assert decision.path == "model"
-    slot = decision.slots["time_resolution"]
-    assert slot["endpoints"] is True and slot["years"] == [2019, 2022]
+    for _tool, args in decision.tool_calls:
+        assert args.get("kind") != "periods"
+        window = call_window(args)
+        if window is not None:
+            first, last = _years_in(question)[0], _years_in(question)[-1]
+            assert window == (f"{first}-01-01", f"{last}-12-31")
+
+
+def test_mains_compare_and_versus_routing_is_unchanged():
+    decision = route_question("Compare SCE ignitions in 2023 versus 2024")
+    assert decision.rule == "period_comparison"
+    assert decision.tool_calls[0][1]["scope_type"] == "utility"
+    county = route_question("Compare Butte County ignitions in 2019 with 2022.")
+    assert county.path == "model" and county.rule == "open_comparison"
 
 
 def test_the_count_control_still_counts_the_whole_span():
@@ -306,35 +211,11 @@ def test_two_named_months_are_not_counted_as_one_month():
     assert decision.rule == "multi_entity_deferred"
 
 
-def test_a_change_question_that_also_asks_for_a_chart_is_not_a_bare_period_comparison():
-    decision = route_question(
-        "How many utility-caused ignitions occurred in Sonoma County in 2018 and 2021, "
-        "and can you chart the comparison?"
-    )
-    assert decision.rule != "period_comparison"
-
-
 # --- the answer ------------------------------------------------------------
 
 
 def _handler(request: httpx.Request) -> httpx.Response:
     params = request.url.params
-    if request.url.path.endswith("/compare-periods"):
-        assert params.get("scope_type") == "utility" and params.get("scope") == "SCE"
-        a = SCE[str(params.get("period_a_start"))[:4]]
-        b = SCE[str(params.get("period_b_start"))[:4]]
-        return httpx.Response(
-            200,
-            json={
-                "metric": params.get("metric"),
-                "scope_type": "utility",
-                "scope": "SCE",
-                "period_a": {"start": params.get("period_a_start"), "end": params.get("period_a_end"), "value": a},
-                "period_b": {"start": params.get("period_b_start"), "end": params.get("period_b_end"), "value": b},
-                "delta": {"value": b - a},
-                "meta": {},
-            },
-        )
     start = str(params.get("start_date") or "")
     year = int(str(params.get("year") or start or "0")[:4] or 0)
     county = params.get("county")
@@ -379,14 +260,14 @@ class ScriptedProvider:
         )
 
 
-def _ask(provider: ScriptedProvider, question: str, *, force_model: bool = False) -> dict:
+def _ask(provider: ScriptedProvider, question: str) -> dict:
     settings = AgentSettings(max_tool_steps=3)
     executor = ToolExecutor(settings, ArtifactStore(60), transport=httpx.MockTransport(_handler))
 
     async def run():
         try:
             orchestrator = AgentOrchestrator(settings, provider, executor)
-            return (await orchestrator.ask(question, force_model=force_model)).response
+            return (await orchestrator.ask(question)).response
         finally:
             await executor.close()
 
@@ -412,22 +293,14 @@ def _primary_counts(response: dict) -> list[dict]:
     ]
 
 
-def test_the_production_question_gets_both_yearly_counts_and_the_percent_change():
-    response = _ask(ScriptedProvider(), QUESTION)
+def test_the_production_question_keeps_both_yearly_calls_and_derives_the_percent_change():
+    assert route_question(QUESTION).path == "model"
+    calls = [_count_call(1, utility="SCE", year=2020), _count_call(2, utility="SCE", year=2023)]
+    response = _ask(ScriptedProvider([calls]), QUESTION)
     assert response["status"] == "answer"
-    assert response["route"]["rule"] == "period_comparison"
-    assert response["route"]["answer_origin"] == "deterministic"
-    assert not [e for e in response["trajectory"] if e.get("type") == "grounding_error"]
-
-    # One primary comparison; the spatial companion is a qualification call.
-    comparisons = [
-        e
-        for e in response["evidence"]
-        if e["tool"] == "comparison_run" and e["arguments"].get("ignition_definition") == "attribute"
-    ]
-    assert len(comparisons) == 1
-    summary = comparisons[0]["summary"]
-    assert summary["period_a"]["value"] == 75 and summary["period_b"]["value"] == 90
+    counts = {e["arguments"]["year"]: e["summary"]["total"] for e in _primary_counts(response)}
+    assert counts == {2020: 75, 2023: 90}
+    assert not [e for e in response["trajectory"] if e.get("type") == "duplicate_tool_call_suppressed"]
 
     derived = [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
     assert len(derived) == 1
@@ -440,13 +313,12 @@ def test_the_production_question_gets_both_yearly_counts_and_the_percent_change(
     assert row["difference"] == 15
     assert row["percent_change"] == 20
     assert row["direction"] == "increase"
-    assert row["source_evidence_ids"] == [comparisons[0]["id"]]
 
-    # The rendered answer carries both yearly counts and the percentage, once each.
+    # The fallback answer carries both yearly counts and the percentage, once each.
     text = response["answer_text"]
-    assert text.count("period A=75, period B=90") == 1
+    assert text.count("count: 75 ") == 1
+    assert text.count("count: 90 ") == 1
     assert text.count("percent change +20%") == 1
-    assert text.count("difference +15") == 1
 
 
 def test_butte_and_shasta_end_to_end_keeps_four_calls_and_derives_each_county_change():
@@ -491,9 +363,8 @@ def test_july_and_august_end_to_end_return_two_different_counts():
 
 
 def test_two_model_calls_corrected_to_the_same_window_run_once_and_render_once():
-    # A span question on the model path: both calls narrow to 2020 in
-    # different spellings, both are held to the 2020-2023 span, and the second
-    # is suppressed before it runs.
+    # Both calls narrow to 2020 in different spellings, both are held to the
+    # 2020-2023 span, and the second is suppressed before it runs.
     question = "What happened with SCE CPUC ignitions between 2020 and 2023?"
     assert route_question(question).path == "model"
     calls = [
@@ -512,16 +383,6 @@ def test_two_model_calls_corrected_to_the_same_window_run_once_and_render_once()
     assert suppressed[0]["reason"] == "identical after harness correction"
     assert suppressed[0]["executed_arguments"]["end_date"] == "2023-12-31"
     assert response["answer_text"].count("cpuc_ignitions count:") == 1
-
-
-def test_the_production_question_on_the_model_path_keeps_one_call_per_endpoint_year():
-    calls = [_count_call(1, utility="SCE", year=2020), _count_call(2, utility="SCE", year=2023)]
-    response = _ask(ScriptedProvider([calls]), QUESTION, force_model=True)
-    counts = {e["arguments"]["year"]: e["summary"]["total"] for e in _primary_counts(response)}
-    assert counts == {2020: 75, 2023: 90}
-    assert not [e for e in response["trajectory"] if e.get("type") == "duplicate_tool_call_suppressed"]
-    derived = [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
-    assert derived and derived[0]["summary"]["derivations"][0]["percent_change"] == 20
 
 
 def test_identical_evidence_renders_one_fallback_line():
