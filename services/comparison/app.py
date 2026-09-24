@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from services.comparison import metrics, queries
 from services.data_query.filters import (
     HFTD_TIERS,
+    parse_county,
     parse_date_param,
     parse_tier,
     parse_utility,
@@ -275,7 +276,7 @@ def compare_regions(
         if rt == "hftd":
             keys.append(parse_tier(part) or part)
         else:
-            keys.append(part)
+            keys.append(parse_county(part) or part)
     if not keys:
         raise HTTPException(status_code=400, detail="regions must list at least one region")
     if rt == "hftd":
@@ -364,7 +365,9 @@ def compare_periods(
         assert scope_id is not None
         qscope = "hftd"
     else:
-        scope_id = scope.strip()
+        scope_id = parse_county(scope)
+        if scope_id is None:
+            raise HTTPException(status_code=400, detail="scope must name a county")
         qscope = "county"
 
     period_a = _metric_for_scope(

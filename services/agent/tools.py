@@ -28,6 +28,7 @@ from services.agent.schemas import (
     VisualizationInspectArgs,
 )
 from services.agent.time_resolve import apply_harness_years
+from services.shared.counties import UnknownCountyError, normalize_county
 from services.shared.dataset_registry import data_query_path
 
 
@@ -186,6 +187,21 @@ class ToolExecutor:
         )
         stripped_utilities: list[str] = []
         time_corrections: list[dict[str, Any]] = []
+        normalized_arguments, county_corrections = _normalize_county_arguments(
+            normalized_arguments
+        )
+        for correction in county_corrections:
+            print(
+                json.dumps(
+                    {
+                        "event": "harness_county_correction",
+                        "request_id": request_id,
+                        "attempt": attempt,
+                        "tool": tool,
+                        **correction,
+                    }
+                )
+            )
         if not qualification_call:
             normalized_arguments, stripped_utilities = _strip_ungrounded_utilities(
                 normalized_arguments, utilities=utilities
@@ -334,10 +350,18 @@ class ToolExecutor:
             status = exc.response.status_code
             recoverable = status in {400, 408, 409, 422, 429, 500, 502, 503, 504}
             detail = _response_detail(exc.response)
+            # A place or utility the backend does not know is a question for
+            # the user, not something to guess. The code lets the harness show
+            # the backend's suggestions instead of a generic failure.
+            code = f"http_{status}"
+            if status == 400 and detail.lower().startswith("unknown county"):
+                code = "unknown_county"
+            elif status == 400 and detail.lower().startswith("unknown utility"):
+                code = "unknown_utility"
             result = self._error(
                 tool,
                 parsed.model_dump(mode="json", exclude_none=True),
-                f"http_{status}",
+                code,
                 detail or f"Backend returned HTTP {status}",
                 recoverable,
                 (
@@ -821,6 +845,38 @@ def _ungrounded_utility_error(
         f"Utility {stripped[0]!r} was not named in the question; "
         "do not invent an IOU from a place or county name"
     )
+
+
+def _normalize_county_arguments(
+    arguments: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Resolve county arguments to the canonical warehouse name before the call.
+
+    "Butte County" from a model becomes "Butte". A value that resolves to no
+    county is left as written so the backend rejects it with suggestions;
+    the harness never guesses.
+    """
+    corrections: list[dict[str, Any]] = []
+    filled = dict(arguments)
+
+    def fix(field: str, value: Any) -> Any:
+        if not isinstance(value, str) or not value.strip():
+            return value
+        try:
+            canonical = normalize_county(value)
+        except UnknownCountyError:
+            return value
+        if canonical != value:
+            corrections.append({"field": field, "from": value, "to": canonical})
+        return canonical
+
+    if "county" in filled:
+        filled["county"] = fix("county", filled["county"])
+    if filled.get("region_type") == "county" and isinstance(filled.get("regions"), list):
+        filled["regions"] = [fix("regions", item) for item in filled["regions"]]
+    if filled.get("scope_type") == "county" and "scope" in filled:
+        filled["scope"] = fix("scope", filled["scope"])
+    return filled, corrections
 
 
 def _response_detail(response: httpx.Response) -> str:

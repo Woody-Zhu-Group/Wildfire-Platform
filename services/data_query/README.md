@@ -23,7 +23,7 @@ Connection settings come from repo-root `.env` via `shared/db.py` (default port 
 | Path | Notes |
 |------|--------|
 | `GET /health` | DB ping + table counts |
-| `GET /ignitions` | CPUC combined; `county=` is Census name from point-in-polygon |
+| `GET /ignitions` | CPUC combined; `county=` is Census name from point-in-polygon. Every `county` filter is normalized ("Butte County", "butte", "LA" resolve); an unknown county is a 400 with close matches, not 0 rows |
 | `GET /us-ignitions` | FireCastRL CONUS all-cause sample (CA-heavy: ≈40% overall / ≈59% of 2024); `year`, `start_date`, `end_date`, `bbox` only. `state=` returns 400 (no state polygons loaded); there is no `utility` or `county` parameter |
 | `GET /epss/outages` | PGE-only; paginated. Extra filters: `circuit_id`, `county`, `outage_type`, `cause` |
 | `GET /psps/events` | Event polygons; `utility`, `year`, date range |
