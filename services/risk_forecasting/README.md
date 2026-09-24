@@ -85,6 +85,8 @@ Parameter: `date`. Same response shape as `/observed`, but each warehouse CPUC p
 
 ### `GET /metrics`
 
+Read by the website's Risk model performance card and by the agent's router-only `risk_metrics` tool; neither recomputes anything.
+
 Returns the `cNHPP` row of `outputs/metrics_table.csv`: `model`, `log_likelihood`, `top5_precision`, `top1_precision`, `lift_top5`, `auc`, `not_applicable_reason`, and where it came from: `xi`, `train_years`, `eval_year`, `eval_start`, `eval_end`, and `params_sha256`. `baselines` lists the HPP and NHPP rows in the same shape, scored on the same year and training years. Nothing is recomputed.
 
 It returns 503, naming the problem and the command to fix it, unless the table was scored from the committed `artifacts/cnhpp_params.npz`: the row's `params_sha256` must equal that file's sha256, its log-likelihood must equal the file's `val_log_likelihood`, and its metrics must differ from the NHPP row while `xi` is not 0. A missing file or row is also a 503.

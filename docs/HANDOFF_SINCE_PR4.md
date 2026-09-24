@@ -909,7 +909,7 @@ Closed since #30: #30, #31, #32, #42, #47 (PR #58); #33, #40 (PR #48); #52, #53,
 5. **EPSS cause `EF`**: the one 2021 row coded `EF` is left alone because it could be "Equipment" (2022 wording) or "Equipment Failure/Involved" (2023 on); those two words are also separate causes. Deciding whether they are one cause needs a written rule from Michael ([`docs/DATA_CHANGE_CALFIRE_COUNTIES.md`](DATA_CHANGE_CALFIRE_COUNTIES.md)).
 6. **Issue #44**: extend the deterministic count-plus-series pair to series-plus-total wording. Router work with a route report; the eval rows are named in the issue.
 7. **Issue #67**: the tier ranking with a bare "ignitions" dataset. A one-function router fix with tests in `test_router_false_positives.py`.
-8. **Website follow-ups you know best**: the non-ranking comparison and spatial-context views are still "not supported here yet" in `answerPanels.ts`; county and utility are not on the year bar; a model performance card for `GET /metrics` is not a workspace view. Remember the build rule: rebuild `docs/` in the same PR.
+8. **Website follow-ups you know best**: the non-ranking comparison and spatial-context views are still "not supported here yet" in `answerPanels.ts`; county and utility are not on the year bar. A model performance card for `GET /metrics` is in the open `metrics-card` PR (a 19th view, reachable from chat through the router-only `risk_metrics` tool); it is not on main until that merges. Remember the build rule: rebuild `docs/` in the same PR.
 
 ---
 
