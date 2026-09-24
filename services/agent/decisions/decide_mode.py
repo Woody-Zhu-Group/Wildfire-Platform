@@ -9,12 +9,13 @@ Order for one question:
    a backstop (issue #97). Jev's off_topic fact decides it:
    - an off-topic option at or above the decline gate refuses, through the
      same policy as any other Jev refusal (step 3);
-   - on_topic at or above the decline gate sets the keyword aside: the question
+   - on_topic at or above the answer gate (the same gate as any Jev answer over
+     a router decline) sets the keyword aside: the question
      is routed again with routing.route_question(skip_topic_judgments=True), and
      that route goes through this same order (live or future wording still hits
      its backstop). Recorded as why "on_topic" when Jev's reading is what
      changed the outcome;
-   - below the gate, on an error, or with decide off, the keyword refusal stands.
+   - below its gate, on an error, or with decide off, the keyword refusal stands.
    The advice rule (routing._asks_for_advice, also unsupported_optimization) is
    decided by the router (why regex_only): off_topic has no advice option, so
    Jev reads "which utility should the CPUC penalize" as on_topic.
@@ -635,16 +636,18 @@ def _topic_judgment(
 ) -> DecideResult | None:
     """Jev's off_topic on a router topic keyword refusal.
 
-    None when Jev reads an off-topic option at or above the gate: the usual
-    decline policy refuses. Otherwise a result: the keyword refusal when Jev is
-    below the gate, or the question routed again without topic keywords when
-    Jev reads on_topic at or above the gate.
+    None when Jev reads an off-topic option at or above the decline gate: the
+    usual decline policy refuses. Otherwise a result: the keyword refusal when
+    Jev is below its gate, or the question routed again without topic keywords
+    when Jev reads on_topic at or above the answer gate. Lifting a refusal is an
+    answer over a router decline, so it needs the higher gate.
     """
     base = {"router_path": decision.path, "router_rule": decision.rule}
     confidence = _answer_confidence(answers.get("off_topic"))
-    if confidence is None or confidence < gate:
+    on_topic = facts.off_topic == "on_topic"
+    needed = answer_gate if on_topic else gate
+    if confidence is None or confidence < needed:
         # Below the gate: the keyword rule stands.
-        on_topic = facts.off_topic == "on_topic"
         return DecideResult(
             "router",
             "below_gate",

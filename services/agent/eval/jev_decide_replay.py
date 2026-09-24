@@ -16,9 +16,12 @@ reported as not stored and are captured on the next capture run. The offline dec
 checks on these questions (tests/agent/test_jev_decide_scope.py) also run them against
 adverse synthetic Jev answers, so decide-mode regressions on them are caught without
 any Jev call.
+probes97: the 18 issue #97 review probes (issue97_probes.json). They have no gold labels, so
+the replay reports their decisions and never scores them.
 
     python -m services.agent.eval.jev_decide_replay capture --cap-usd 0.3
     python -m services.agent.eval.jev_decide_replay capture --sets smoke --cap-usd 0.05
+    python -m services.agent.eval.jev_decide_replay capture --sets probes97 --cap-usd 0.05
     python -m services.agent.eval.jev_decide_replay replay
     python -m services.agent.eval.jev_decide_replay sweep-gate
     python -m services.agent.eval.jev_decide_replay live --cap-usd 0.1
@@ -58,7 +61,9 @@ TUNED = {
     "v2": "seen, now development data",
     "v3": "tuned (router fixes written from its disagreements)",
     "smoke": "production smoke test questions (scripts/smoke_test.sh)",
+    "probes97": "issue #97 review probes, unlabeled, clean (not tuned on); reported, not scored",
 }
+PROBES_97 = HERE / "issue97_probes.json"
 
 # Mirrors the six /ask checks in scripts/smoke_test.sh: the question, the route the
 # smoke test expects (path None where the smoke test accepts more than one route),
@@ -140,7 +145,7 @@ def _disposition_labels(expected: dict[str, Any]) -> list[str]:
 
 
 def load_sets() -> dict[str, list[dict[str, Any]]]:
-    sets: dict[str, list[dict[str, Any]]] = {"dev": [], "v1": [], "v2": [], "v3": [], "smoke": []}
+    sets: dict[str, list[dict[str, Any]]] = {"dev": [], "v1": [], "v2": [], "v3": [], "smoke": [], "probes97": []}
     for name, source in (("cases.json", "cases"), ("jev_paraphrases.json", "paraphrases")):
         for case in json.loads((HERE / name).read_text(encoding="utf-8")):
             expected = expected_for(case, source)
@@ -165,6 +170,9 @@ def load_sets() -> dict[str, list[dict[str, Any]]]:
         sets["v3"].append({"id": row["id"], "question": row["question"], "labels": [label["disposition"]]})
     for check in SMOKE_CHECKS:
         sets["smoke"].append({"id": check["id"], "question": check["question"], "labels": list(check["labels"])})
+    # No gold labels exist for the probes; they are reported, never scored.
+    for probe in json.loads(PROBES_97.read_text(encoding="utf-8")):
+        sets["probes97"].append({"id": probe["id"], "question": probe["question"], "labels": None})
     return sets
 
 
@@ -236,8 +244,8 @@ def capture(args: argparse.Namespace) -> int:
     return 0
 
 
-def _score(labels: list[str], disposition: str | None) -> bool:
-    return disposition in labels
+def _score(labels: list[str] | None, disposition: str | None) -> bool:
+    return labels is not None and disposition in labels
 
 
 def replay(args: argparse.Namespace) -> int:
@@ -284,11 +292,25 @@ def replay(args: argparse.Namespace) -> int:
                 "jev": [jev_disp, result.jev_rule, result.jev_confidence],
                 "decide": [result.decision.path, result.decision.rule, result.winner, result.why],
             }
+            if answers and "off_topic" in answers:
+                report["rows"][key]["off_topic"] = [answers["off_topic"].value, answers["off_topic"].confidence]
             if item["id"] in checks:
                 ok = smoke_route_matches(checks[item["id"]], result.decision)
                 report["rows"][key]["smoke_route_ok"] = ok
                 if not ok:
                     print(f"SMOKE ROUTE CHANGED {item['id']}: decide gave {result.decision.path}/{result.decision.rule}")
+        if items and items[0]["labels"] is None:
+            # Unlabeled set: dispositions only, no accuracy.
+            dispositions: dict[str, int] = {}
+            for row_key, row in report["rows"].items():
+                if row_key.startswith(f"{set_name}|") and "decide" in row:
+                    name = ROUTER_DISPOSITION[row["decide"][0]]
+                    dispositions[name] = dispositions.get(name, 0) + 1
+            report["sets"][set_name] = {
+                "n": tally["n"], "jev_won": tally["jev_won"], "jev_errors": tally["jev_errors"],
+                "decide_dispositions": dispositions, "status": TUNED[set_name], "scored": False,
+            }
+            continue
         n = tally["n"] or 1
         report["sets"][set_name] = {
             **tally,
@@ -299,6 +321,9 @@ def replay(args: argparse.Namespace) -> int:
         }
     REPORT.write_text(json.dumps(report, indent=1), encoding="utf-8")
     for name, body in report["sets"].items():
+        if body.get("scored") is False:
+            print(f"{name} n={body['n']:3} decide {body['decide_dispositions']}  jev_won {body['jev_won']}  errors {body['jev_errors']}  [{body['status']}]")
+            continue
         print(f"{name:3} n={body['n']:3} router {body['router_acc']:.3f}  jev {body['jev_acc']:.3f}  decide {body['decide_acc']:.3f}  "
               f"jev_won {body['jev_won']} (right {body['overrides_right']}, wrong {body['overrides_wrong']})  "
               f"exempt {body['exempt']} errors {body['jev_errors']}  [{body['status']}]")

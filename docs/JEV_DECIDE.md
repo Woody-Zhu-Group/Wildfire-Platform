@@ -38,14 +38,17 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
    - An off-topic option at or above the decline gate (0.8) refuses, through the usual
      decline policy in step 3: the router's refusal text stands, and Jev's option goes to
      the log when it names a different topic.
-   - `on_topic` at or above the decline gate sets the keyword aside. The question is routed
+   - `on_topic` at or above the answer gate (0.9, `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE`) sets
+     the keyword aside. Lifting a refusal is a Jev answer over a router decline, so it needs
+     the same higher gate as every other one. The question is routed
      again with `route_question(question, skip_topic_judgments=True)`, and that route goes
      through this same order: live or future wording behind the keyword still hits its
      backstop, the advice rule still refuses, and Jev's other facts can still clarify.
      When the new route stands because of Jev's reading, the winner is `jev` with why
      `on_topic`, and the log carries `topic_keyword_rule`.
-   - Below the gate (Jev's `off_topic` confidence, either reading), on a timeout or error,
-     past the daily cap, or with decide off, the keyword refusal stands, as on main.
+   - Below its gate (an off-topic reading under 0.8, an `on_topic` reading under 0.9), on a
+     timeout or error, past the daily cap, or with decide off, the keyword refusal stands, as
+     on main.
 
    Why each rule is where it is:
    - Live or real-time data stays a backstop: an answer from the warehouse to a live
@@ -342,9 +345,12 @@ between 0.60 and 0.80, judged by hand) is the evidence that could justify moving
 
 ## Topic judgments replay (issue #97, 2026-09-24)
 
-Stored calls only, no new Jev calls, `platform/main` (`da3103a`) against this branch on all
-313 replayed rows (dev 137, v1 63, v2 42, v3 65, smoke 6). The store already held a call for
-every topic-keyword row, because exempt rows are captured too.
+Stored calls, `platform/main` (`da3103a`) against this branch on all 313 labeled replayed
+rows (dev 137, v1 63, v2 42, v3 65, smoke 6), at the default gates (off-topic refusal 0.8,
+on-topic lift 0.9). The store already held a call for every topic-keyword row, because
+exempt rows are captured too. No labeled row has a topic refusal with `on_topic` between 0.8
+and 0.9, so moving the on-topic lift from the decline gate to the answer gate changes no
+labeled row.
 
 - **Final decisions: 0 of 313 change** (path and rule), so every accuracy number in the
   table below is unchanged.
@@ -372,14 +378,42 @@ every topic-keyword row, because exempt rows are captured too.
   `cases.json`, `jev_paraphrases.json`, and holdouts v1, v2, and v3 (rows marked
   `needs_human_review` included), and on the 18 issue #97 probes.
 
-The issue #97 probes (the 8 passing mentions refused on main, the 5 PR #94 plural probes,
-and 5 written for this change) have no stored Jev call, and none was made, so they are not
-replayed. Off mode refuses 13 of the 18, as on main. `tests/agent/test_topic_refusals.py`
-checks the route each takes when Jev reads `on_topic` at or above the gate (synthetic
-answers), and the fallbacks. Their live `off_topic` readings are open: the issue's question
-whether "how many ignitions ... for a cost memo" splits between `cost_or_budget` and
-`on_topic` below the gate is answered only by a capture, which falls back to the keyword
-refusal if it does.
+**Issue #97 probes** (`services/agent/eval/issue97_probes.json`, replay set `probes97`): the
+8 passing mentions refused on main (`p97_01` to `p97_08`), the 5 PR #94 plural probes
+(`p97_09` to `p97_13`), and 5 questions using the phrases named in the issue (`p97_14` to
+`p97_18`). They have no gold labels, so the replay reports their decisions and does not score
+them; they are clean (nothing was tuned on them). Captured 2026-09-24 with
+`capture --sets probes97 --cap-usd 0.05` through the OpenRouter backend
+(`typesafe/jev-1.13-20260917`, cross-backend: the store's first pass is TypeSafe
+`jev-latest`), 110,778 input tokens, $0.0047 at the TypeSafe rate, 0 errors.
+
+| Probe | Router (off mode) | `off_topic` | Decide |
+|---|---|---|---|
+| `p97_01` ignitions 2022, "cost memo" | `unsupported_cost` | on_topic 0.83 | refused (below the 0.9 lift gate) |
+| `p97_02` county ranking, "budget allocation planning" | `unsupported_cost` | on_topic 0.74 | refused (below gate) |
+| `p97_03` compare utilities, "cost-allocation meeting" | `unsupported_cost` | cost_or_budget 0.43 | refused (below gate) |
+| `p97_04` "Our CEO wants" Sonoma count | `unsupported_leadership` | on_topic 1.00 | `filtered_records` (jev, on_topic) |
+| `p97_05` "The CEO of our utility asked" SCE Tier 3 | `unsupported_leadership` | on_topic 0.99 | `filtered_records` (jev, on_topic) |
+| `p97_06` "What schedule of PSPS events happened in 2019?" | `unsupported_optimization` | on_topic 0.97 | model path `open_ended` (jev, on_topic) |
+| `p97_07` LA County incidents, "repair schedule" | `unsupported_optimization` | on_topic 0.94 | `filtered_records` (jev, on_topic) |
+| `p97_08` "Without doing a web search" | `unsupported_live_web` (web wording) | on_topic 1.00 | model path `open_ended` (jev, on_topic) |
+| `p97_09` "Before we look at prices", map | `map` | on_topic 1.00 | `map` (agree) |
+| `p97_10` "I'll handle costs separately" | `open_ended` | on_topic 0.96 | model path (agree) |
+| `p97_11` "not prices", map | `map` | on_topic 1.00 | `map` (agree) |
+| `p97_12` "across all utility schedules" | `filtered_records` | on_topic 1.00 | `filtered_records` (agree) |
+| `p97_13` "It feeds our budgets" | `ranked_records` | on_topic 0.74 | `ranked_records` (agree) |
+| `p97_14` "After the budget meeting" | `unsupported_cost` | on_topic 0.97 | `filtered_records` (jev, on_topic) |
+| `p97_15` "The CEO testified last week" | `unsupported_leadership` | on_topic 0.98 | `filtered_records` (jev, on_topic) |
+| `p97_16` "Our schedule is tight" | `unsupported_optimization` | on_topic 1.00 | `filtered_records` (jev, on_topic) |
+| `p97_17` "For a cost report", map | `unsupported_cost` | on_topic 0.60 | refused (below gate) |
+| `p97_18` "price cap hearing" | `unsupported_cost` | on_topic 0.97 | `filtered_records` (jev, on_topic) |
+
+Of the 13 probes the router refuses, decide answers 9 and keeps 4 refusals, all
+cost-keyword questions where Jev's `on_topic` reading is weak (0.43 to 0.83). This answers
+the issue's open question: a cost word next to a data request does pull `off_topic` down,
+and the keyword refusal stands then. Only `p97_01` (0.83) differs between an on-topic lift at
+the decline gate and at the answer gate. The 5 probes the router already answers stay
+answered.
 
 ## Replay and live check (2026-09-23, replay refreshed 2026-09-24)
 

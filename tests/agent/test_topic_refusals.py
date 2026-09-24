@@ -2,7 +2,9 @@
 
 Live or real-time data and future prediction stay router backstops. Every other
 unsupported-topic keyword (routing.TOPIC_JUDGMENT_RULES, plus web-search wording)
-is decided by Jev's off_topic fact at or above the decline gate. The advice rule
+is decided by Jev's off_topic fact: an off-topic option refuses at or above the
+decline gate (0.8), and on_topic lifts the keyword refusal only at or above the
+answer gate (0.9), like any Jev answer over a router decline. The advice rule
 stays with the router: off_topic has no advice option. Below the gate,
 on an error, or with decide off, the keyword rule stands. No Jev calls: every
 answer here is synthetic.
@@ -131,9 +133,38 @@ def test_passing_mention_is_answered_when_jev_reads_on_topic(question, keyword_r
     assert source["source"] == "jev"
 
 
-def test_on_topic_at_exactly_the_gate_decides():
+def test_on_topic_at_exactly_the_answer_gate_decides():
     question, _rule, answer_rule = PASSING_MENTIONS[0]
-    result = decide_from_answers(question, route_question(question), _facts("on_topic", 0.8), gate=0.8, today=TODAY)
+    result = decide_from_answers(
+        question, route_question(question), _facts("on_topic", 0.9), gate=0.8, answer_gate=0.9, today=TODAY
+    )
+    assert result.decision.rule == answer_rule
+
+
+@pytest.mark.parametrize("confidence", [0.8, 0.85, 0.89])
+def test_on_topic_between_the_gates_keeps_the_keyword_refusal(confidence):
+    """At the decline gate but below the answer gate, on_topic does not lift a refusal."""
+    question, keyword_rule, _ = PASSING_MENTIONS[0]
+    decision = route_question(question)
+    result = decide_from_answers(
+        question, decision, _facts("on_topic", confidence), gate=0.8, answer_gate=0.9, today=TODAY
+    )
+    assert result.decision is decision and (result.winner, result.why) == ("router", "below_gate")
+    assert result.jev_disposition == "answer" and result.jev_confidence == pytest.approx(confidence)
+
+
+def test_off_topic_refuses_at_the_decline_gate_not_the_answer_gate():
+    question, option, keyword_rule = GENUINE_TOPICS[1]
+    decision = route_question(question)
+    result = decide_from_answers(question, decision, _facts(option, 0.8), gate=0.8, answer_gate=0.9, today=TODAY)
+    assert result.decision.path == "unsupported" and result.why in {"agree", "gate"}
+
+
+def test_a_lower_answer_gate_setting_is_honored():
+    question, _rule, answer_rule = PASSING_MENTIONS[0]
+    result = decide_from_answers(
+        question, route_question(question), _facts("on_topic", 0.85), gate=0.8, answer_gate=0.8, today=TODAY
+    )
     assert result.decision.rule == answer_rule
 
 

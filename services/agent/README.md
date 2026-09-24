@@ -151,8 +151,9 @@ card per count rather than a utility-by-year comparison.
   `tool_pick_template` are described in [`docs/JEV_SHADOW.md`](../../docs/JEV_SHADOW.md).
   `AGENT_JEV_BACKEND` is `typesafe` or `openrouter`. `decide` (off by default)
   runs the Jev-first decider right after `route_question`: backstops (live, future,
-  city, HFTD constraint) first, topic keyword refusals decided by Jev's `off_topic` with
-  the keyword rule as fallback (issue #97), then
+  city, HFTD constraint) first, topic keyword refusals decided by Jev's `off_topic` (refused at
+  the decline gate, lifted only at the answer gate) with the keyword rule as fallback
+  (issue #97), then
   Jev's disposition behind a 0.8 decline gate and a 0.9 answer gate
   ([`docs/JEV_DECIDE.md`](../../docs/JEV_DECIDE.md), `decisions/decide_mode.py`).
   Jev owns the disposition and the router owns the clarification or refusal wording,

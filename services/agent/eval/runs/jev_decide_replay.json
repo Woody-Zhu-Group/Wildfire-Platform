@@ -77,6 +77,17 @@
    "jev_acc": 0.833,
    "decide_acc": 1.0,
    "status": "production smoke test questions (scripts/smoke_test.sh)"
+  },
+  "probes97": {
+   "n": 18,
+   "jev_won": 9,
+   "jev_errors": 0,
+   "decide_dispositions": {
+    "unsupported": 4,
+    "answer": 14
+   },
+   "status": "issue #97 review probes, unlabeled, clean (not tuned on); reported, not scored",
+   "scored": false
   }
  },
  "rows": {
@@ -99,6 +110,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:dq_cpuc_sacramento_county_2023": {
@@ -120,6 +135,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:spatial_pge_ignitions_2024": {
@@ -141,6 +160,10 @@
     "spatial_utility_count",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:map_pge_cpuc_2024": {
@@ -162,6 +185,10 @@
     "map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:trend_calfire_monthly_2024": {
@@ -183,6 +210,10 @@
     "time_series",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:spatial_point_context": {
@@ -204,6 +235,10 @@
     "coordinate_context",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
    ]
   },
   "dev|cases:risk_cell_date": {
@@ -225,6 +260,10 @@
     "cell_risk",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:list_psps_2021": {
@@ -246,6 +285,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:us_ignitions_2024": {
@@ -267,6 +310,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:compare_utilities_ignitions": {
@@ -288,6 +335,10 @@
     "utility_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:compare_hftd_calfire": {
@@ -309,6 +360,10 @@
     "hftd_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:compare_pge_periods": {
@@ -330,6 +385,10 @@
     "period_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:compare_epss_utilities": {
@@ -351,6 +410,10 @@
     "utility_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "dev|cases:ratio_per_circuit": {
@@ -372,6 +435,10 @@
     "utility_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.95
    ]
   },
   "dev|cases:coordinate_to_risk": {
@@ -393,6 +460,10 @@
     "coordinate_risk_chain",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:cpuc_vs_us": {
@@ -414,6 +485,10 @@
     "open_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:count_plus_trend": {
@@ -435,6 +510,10 @@
     "multi_intent_count_and_trend",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:ambiguous_riskiest": {
@@ -456,6 +535,10 @@
     "ambiguous_risk_metric",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "dev|cases:ambiguous_near_me": {
@@ -477,6 +560,10 @@
     "missing_location",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.59
    ]
   },
   "dev|cases:undefined_north_south": {
@@ -498,6 +585,10 @@
     "undefined_region",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:unsupported_cpz": {
@@ -519,6 +610,10 @@
     "unsupported_cpz",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cpz",
+    0.96
    ]
   },
   "dev|cases:unsupported_cost": {
@@ -540,6 +635,10 @@
     "unsupported_cost",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "dev|cases:unsupported_optimize": {
@@ -561,6 +660,10 @@
     "unsupported_optimization",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "optimization_or_scheduling",
+    1.0
    ]
   },
   "dev|cases:unsupported_damage": {
@@ -582,6 +685,10 @@
     "unsupported_damage",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "damage_or_loss",
+    1.0
    ]
   },
   "dev|cases:unsupported_live_web": {
@@ -603,6 +710,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "live_or_web",
+    1.0
    ]
   },
   "dev|cases:recover_validation": {
@@ -624,6 +735,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:recover_503": {
@@ -645,6 +760,10 @@
     "time_series",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:detect_partial_200": {
@@ -666,6 +785,10 @@
     "map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:holdout_dq_sce_2023": {
@@ -687,6 +810,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:holdout_spatial_sce_2023": {
@@ -708,6 +835,10 @@
     "spatial_utility_count",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:holdout_compare_epss_sce_sdge_2023": {
@@ -729,6 +860,10 @@
     "utility_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.92
    ]
   },
   "dev|cases:holdout_count_trend_sce_2023": {
@@ -750,6 +885,10 @@
     "multi_intent_count_and_trend",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:holdout_unsupported_budget": {
@@ -771,6 +910,10 @@
     "unsupported_cost",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "optimization_or_scheduling",
+    0.74
    ]
   },
   "dev|cases:collision_count_inside_sce_territory": {
@@ -792,6 +935,10 @@
     "spatial_utility_count",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:collision_map_pge_outages_no_year": {
@@ -813,6 +960,10 @@
     "map_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.57
    ]
   },
   "dev|cases:collision_compare_territories_last_year": {
@@ -834,6 +985,10 @@
     "utility_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:collision_trend_calfire_sce_territory": {
@@ -855,6 +1010,10 @@
     "time_series",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:collision_boundary_only_sce": {
@@ -876,6 +1035,10 @@
     "utility_territory",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:collision_map_sce_territory_boundary": {
@@ -897,6 +1060,10 @@
     "utility_territory",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:collision_riskiest_in_territory": {
@@ -918,6 +1085,10 @@
     "ambiguous_risk_metric",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:collision_period_not_utilities": {
@@ -939,6 +1110,10 @@
     "period_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:collision_relative_recent_clarifies": {
@@ -960,6 +1135,10 @@
     "ambiguous_relative_time",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
    ]
   },
   "dev|cases:collision_relative_past_two_years": {
@@ -981,6 +1160,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:collision_this_year_count": {
@@ -1002,6 +1185,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:collision_wrong_kind_model_repair": {
@@ -1023,6 +1210,10 @@
     "utility_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:relative_two_years_ago_compare": {
@@ -1044,6 +1235,10 @@
     "utility_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:relative_last_year_count": {
@@ -1065,6 +1260,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:relative_lately_clarifies": {
@@ -1086,6 +1285,10 @@
     "ambiguous_relative_time",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:vague_spatial_near_sacramento": {
@@ -1107,6 +1310,10 @@
     "undefined_spatial_scope",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "dev|cases:vague_spatial_around_fresno": {
@@ -1128,6 +1335,10 @@
     "undefined_spatial_scope",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:schema_retry_bound_persistent": {
@@ -1149,6 +1360,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:model_explicit_year_filled": {
@@ -1170,6 +1385,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:model_synthesis_bounded": {
@@ -1191,6 +1410,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:unsupported_ranking_circuit_most": {
@@ -1212,6 +1435,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:rank_calfire_counties_2023": {
@@ -1233,6 +1460,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:unsupported_rank_cross_dataset": {
@@ -1254,6 +1485,10 @@
     "unsupported_rank_cross_dataset",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:model_cpuc_tell_me_about_2023": {
@@ -1275,6 +1510,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:model_sacramento_tell_me_about_2024": {
@@ -1296,6 +1535,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:silent_filter_drop_cpuc_sacramento_august": {
@@ -1317,6 +1560,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:calfire_sacramento_august_2023": {
@@ -1338,6 +1585,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:utility_not_invented_from_place": {
@@ -1360,6 +1611,10 @@
     "unexpressable_county_filter",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:risk_county_date": {
@@ -1381,6 +1636,10 @@
     "county_risk",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:risk_utility_date": {
@@ -1402,6 +1661,10 @@
     "utility_risk",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:risk_out_of_coverage": {
@@ -1423,6 +1686,10 @@
     "risk_future_date",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:router_around_year": {
@@ -1444,6 +1711,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:router_premiums": {
@@ -1465,6 +1736,10 @@
     "unsupported_cost",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "dev|cases:router_air_quality": {
@@ -1486,6 +1761,10 @@
     "unsupported_air_quality",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|cases:router_leadership": {
@@ -1507,6 +1786,10 @@
     "unsupported_leadership",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|cases:router_evacuation": {
@@ -1528,6 +1811,10 @@
     "unsupported_evacuation",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|cases:router_translation": {
@@ -1549,6 +1836,10 @@
     "unsupported_translation",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|cases:router_personnel": {
@@ -1570,6 +1861,10 @@
     "unsupported_personnel",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|cases:router_satellite": {
@@ -1591,6 +1886,10 @@
     "unsupported_satellite",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|cases:router_pg_and_e_tally": {
@@ -1612,6 +1911,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:router_pacific_gas_total": {
@@ -1633,6 +1936,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:medical_baseline_missing_year": {
@@ -1654,6 +1961,10 @@
     "medical_exposure_missing_year",
     "router",
     "regex_only"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.52
    ]
   },
   "dev|cases:epss_outage_count_2024": {
@@ -1675,6 +1986,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:map_epss_outages_2024": {
@@ -1696,6 +2011,10 @@
     "map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:rank_epss_circuits_2024": {
@@ -1717,6 +2036,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:series_yearly_cpuc_2024": {
@@ -1738,6 +2061,10 @@
     "series_yearly",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:series_seasonal_calfire_2024": {
@@ -1759,6 +2086,10 @@
     "series_seasonal",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:series_cumulative_acres_2024": {
@@ -1780,6 +2111,10 @@
     "series_cumulative_acres",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:series_customer_events_2024": {
@@ -1801,6 +2136,10 @@
     "series_customer_events",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.83
    ]
   },
   "dev|cases:series_regional_epss_2024": {
@@ -1822,6 +2161,10 @@
     "series_regional",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.95
    ]
   },
   "dev|cases:guard_monthly_trend_stays_timeline": {
@@ -1843,6 +2186,10 @@
     "time_series",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:guard_epss_count_stays_filtered_records": {
@@ -1864,6 +2211,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:guard_calfire_count_is_not_cumulative_acres": {
@@ -1885,6 +2236,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:guard_pge_count_stays_frozen_stat": {
@@ -1906,6 +2261,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:hdw_map_cpuc_2024": {
@@ -1927,6 +2286,10 @@
     "hdw_map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:hdw_map_fire_weather_epss_2023": {
@@ -1948,6 +2311,10 @@
     "hdw_map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:hdw_map_missing_year": {
@@ -1969,6 +2336,10 @@
     "map_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|cases:risk_surface_county_date": {
@@ -1990,6 +2361,10 @@
     "county_risk",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:residual_map_county_date": {
@@ -2011,6 +2386,10 @@
     "county_risk",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.91
    ]
   },
   "dev|cases:risk_surface_missing_date": {
@@ -2032,6 +2411,10 @@
     "forecast_missing_date",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
    ]
   },
   "dev|cases:timeline_three_datasets_2024": {
@@ -2053,6 +2436,10 @@
     "series_timeline",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:timeline_missing_year": {
@@ -2074,6 +2461,10 @@
     "trend_missing_year",
     "router",
     "code_verified"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|cases:timeline_bare_ignitions_and_epss_2024": {
@@ -2095,6 +2486,10 @@
     "series_timeline",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_tally_pge_2024": {
@@ -2116,6 +2511,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_total_pacific_gas": {
@@ -2137,6 +2536,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_show_me_where_pge": {
@@ -2158,6 +2561,10 @@
     "map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_calfire_monthly_chart": {
@@ -2179,6 +2586,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_sce_versus_sdge": {
@@ -2200,6 +2611,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_top_counties_calfire": {
@@ -2221,6 +2636,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_list_psps": {
@@ -2242,6 +2661,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|paraphrases:para_bear_valley": {
@@ -2263,6 +2686,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:fp_around_2023": {
@@ -2284,6 +2711,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:fp_close_to_500": {
@@ -2305,6 +2736,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:fp_where_deenergized": {
@@ -2327,6 +2762,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.85
    ]
   },
   "dev|paraphrases:fp_roadmap": {
@@ -2348,6 +2787,10 @@
     "open_ended",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.52
    ]
   },
   "dev|paraphrases:fp_utility_inside_phrase": {
@@ -2369,6 +2812,10 @@
     "unsupported_cost",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "dev|paraphrases:fp_orange_glow": {
@@ -2390,6 +2837,10 @@
     "other_off_topic",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.91
    ]
   },
   "dev|paraphrases:fp_nevada_border": {
@@ -2411,6 +2862,10 @@
     "undefined_spatial_scope",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "dev|paraphrases:amb_how_risky": {
@@ -2432,6 +2887,10 @@
     "risk_missing_place",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.92
    ]
   },
   "dev|paraphrases:amb_big_utilities": {
@@ -2453,6 +2912,10 @@
     "open_comparison",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:amb_up_north": {
@@ -2474,6 +2937,10 @@
     "undefined_region",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.91
    ]
   },
   "dev|paraphrases:amb_which_fires": {
@@ -2495,6 +2962,10 @@
     "open_ended",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "live_or_web",
+    0.61
    ]
   },
   "dev|paraphrases:amb_better_or_worse": {
@@ -2516,6 +2987,10 @@
     "ambiguous_risk_metric",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.84
    ]
   },
   "dev|paraphrases:oos_air_quality": {
@@ -2537,6 +3012,10 @@
     "unsupported_air_quality",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|paraphrases:oos_ceo": {
@@ -2558,6 +3037,10 @@
     "unsupported_leadership",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|paraphrases:oos_evacuation": {
@@ -2579,6 +3062,10 @@
     "unsupported_evacuation",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|paraphrases:oos_translate": {
@@ -2600,6 +3087,10 @@
     "unsupported_translation",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|paraphrases:oos_insurance_premium": {
@@ -2621,6 +3112,10 @@
     "unsupported_cost",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "dev|paraphrases:oos_personnel": {
@@ -2642,6 +3137,10 @@
     "unsupported_personnel",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.99
    ]
   },
   "dev|paraphrases:oos_satellite": {
@@ -2663,6 +3162,10 @@
     "unsupported_satellite",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    1.0
    ]
   },
   "dev|paraphrases:oos_twitter": {
@@ -2684,6 +3187,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "live_or_web",
+    0.98
    ]
   },
   "dev|paraphrases:inj_ignore_instructions": {
@@ -2705,6 +3212,10 @@
     "prompt_injection",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.91
    ]
   },
   "dev|paraphrases:inj_say_zero": {
@@ -2726,6 +3237,10 @@
     "prompt_injection",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.94
    ]
   },
   "dev|paraphrases:inj_exfiltrate": {
@@ -2747,6 +3262,10 @@
     "filtered_records",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.88
    ]
   },
   "dev|paraphrases:para_liberty_2021": {
@@ -2768,6 +3287,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_territory_boundary": {
@@ -2789,6 +3312,10 @@
     "utility_territory",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
    ]
   },
   "dev|paraphrases:para_inside_territory": {
@@ -2810,6 +3337,10 @@
     "spatial_utility_count",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_county_risk": {
@@ -2831,6 +3362,10 @@
     "county_risk",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_map_and_trend": {
@@ -2852,6 +3387,10 @@
     "map_plus_trend",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_count_and_trend": {
@@ -2873,6 +3412,10 @@
     "multi_intent_count_and_trend",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_epss_circuits": {
@@ -2894,6 +3437,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_two_years": {
@@ -2915,6 +3462,10 @@
     "period_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_hftd_tiers": {
@@ -2936,6 +3487,10 @@
     "hftd_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "dev|paraphrases:para_circuit_id": {
@@ -2957,6 +3512,10 @@
     "circuit_detail",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.9
    ]
   },
   "v1|ho_001": {
@@ -2978,6 +3537,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_002": {
@@ -2999,6 +3562,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_003": {
@@ -3020,6 +3587,10 @@
     "multi_intent_count_and_trend",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_004": {
@@ -3041,6 +3612,10 @@
     "map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_005": {
@@ -3062,6 +3637,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_006": {
@@ -3083,6 +3662,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_007": {
@@ -3104,6 +3687,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_008": {
@@ -3125,6 +3712,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_010": {
@@ -3146,6 +3737,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_012": {
@@ -3167,6 +3762,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_015": {
@@ -3188,6 +3787,10 @@
     "coordinate_risk_chain",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_016": {
@@ -3209,6 +3812,10 @@
     "map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_017": {
@@ -3230,6 +3837,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v1|ho_018": {
@@ -3251,6 +3862,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_020": {
@@ -3272,6 +3887,10 @@
     "map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_022": {
@@ -3293,6 +3912,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_023": {
@@ -3314,6 +3937,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v1|ho_024": {
@@ -3335,6 +3962,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_028": {
@@ -3356,6 +3987,10 @@
     "open_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_032": {
@@ -3377,6 +4012,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_033": {
@@ -3398,6 +4037,10 @@
     "city_needs_place",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.91
    ]
   },
   "v1|ho_034": {
@@ -3419,6 +4062,10 @@
     "undefined_region",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v1|ho_035": {
@@ -3440,6 +4087,10 @@
     "records_missing_year",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_036": {
@@ -3461,6 +4112,10 @@
     "city_needs_place",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_037": {
@@ -3482,6 +4137,10 @@
     "undefined_spatial_scope",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
    ]
   },
   "v1|ho_039": {
@@ -3503,6 +4162,10 @@
     "undefined_spatial_scope",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v1|ho_040": {
@@ -3524,6 +4187,10 @@
     "map_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_041": {
@@ -3545,6 +4212,10 @@
     "unsupported_ranking",
     "router",
     "code_verified"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
    ]
   },
   "v1|ho_042": {
@@ -3566,6 +4237,10 @@
     "records_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "v1|ho_043": {
@@ -3587,6 +4262,10 @@
     "records_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v1|ho_045": {
@@ -3608,6 +4287,10 @@
     "city_needs_place",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_048": {
@@ -3629,6 +4312,10 @@
     "undefined_spatial_scope",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.75
    ]
   },
   "v1|ho_049": {
@@ -3650,6 +4337,10 @@
     "records_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_050": {
@@ -3671,6 +4362,10 @@
     "city_needs_place",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_051": {
@@ -3692,6 +4387,10 @@
     "undefined_spatial_scope",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.66
    ]
   },
   "v1|ho_052": {
@@ -3713,6 +4412,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.66
    ]
   },
   "v1|ho_053": {
@@ -3734,6 +4437,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "live_or_web",
+    0.89
    ]
   },
   "v1|ho_054": {
@@ -3755,6 +4462,10 @@
     "unsupported_cost",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "v1|ho_057": {
@@ -3776,6 +4487,10 @@
     "unsupported_cost",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "v1|ho_058": {
@@ -3797,6 +4512,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "live_or_web",
+    0.94
    ]
   },
   "v1|ho_060": {
@@ -3818,6 +4537,10 @@
     "unsupported_cost",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "v1|ho_064": {
@@ -3839,6 +4562,10 @@
     "unsupported_damage",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "damage_or_loss",
+    0.98
    ]
   },
   "v1|ho_067": {
@@ -3860,6 +4587,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_069": {
@@ -3881,6 +4612,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_070": {
@@ -3902,6 +4637,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v1|ho_071": {
@@ -3923,6 +4662,10 @@
     "period_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_075": {
@@ -3944,6 +4687,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_076": {
@@ -3965,6 +4712,10 @@
     "open_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_077": {
@@ -3986,6 +4737,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v1|ho_079": {
@@ -4007,6 +4762,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_081": {
@@ -4028,6 +4787,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_084": {
@@ -4049,6 +4812,10 @@
     "utility_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_085": {
@@ -4070,6 +4837,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_087": {
@@ -4091,6 +4862,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_089": {
@@ -4112,6 +4887,10 @@
     "forecast_missing_date",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_090": {
@@ -4133,6 +4912,10 @@
     "trend_missing_year",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v1|ho_091": {
@@ -4154,6 +4937,10 @@
     "open_comparison",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_092": {
@@ -4175,6 +4962,10 @@
     "undefined_spatial_scope",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v1|ho_093": {
@@ -4196,6 +4987,10 @@
     "records_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.96
    ]
   },
   "v1|ho_094": {
@@ -4217,6 +5012,10 @@
     "ranking_missing_year",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_095": {
@@ -4238,6 +5037,10 @@
     "open_comparison",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v1|ho_096": {
@@ -4259,6 +5062,10 @@
     "forecast_missing_date",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "v1|ho_097": {
@@ -4280,6 +5087,10 @@
     "ranking_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_001": {
@@ -4301,6 +5112,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_006": {
@@ -4322,6 +5137,10 @@
     "coordinate_risk_chain",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_007": {
@@ -4343,6 +5162,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
    ]
   },
   "v2|hv2_008": {
@@ -4364,6 +5187,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_009": {
@@ -4385,6 +5212,10 @@
     "time_series",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v2|hv2_010": {
@@ -4406,6 +5237,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_013": {
@@ -4427,6 +5262,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_015": {
@@ -4448,6 +5287,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_016": {
@@ -4469,6 +5312,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_019": {
@@ -4490,6 +5337,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.79
    ]
   },
   "v2|hv2_020": {
@@ -4511,6 +5362,10 @@
     "open_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_022": {
@@ -4532,6 +5387,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_024": {
@@ -4553,6 +5412,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v2|hv2_025": {
@@ -4574,6 +5437,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_029": {
@@ -4595,6 +5462,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
    ]
   },
   "v2|hv2_032": {
@@ -4616,6 +5487,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_033": {
@@ -4637,6 +5512,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_035": {
@@ -4658,6 +5537,10 @@
     "unexpressable_county_filter",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_036": {
@@ -4679,6 +5562,10 @@
     "forecast_missing_date",
     "router",
     "contradicts_slot"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v2|hv2_037": {
@@ -4700,6 +5587,10 @@
     "undefined_spatial_scope",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.96
    ]
   },
   "v2|hv2_039": {
@@ -4721,6 +5612,10 @@
     "undefined_spatial_scope",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "live_or_web",
+    0.68
    ]
   },
   "v2|hv2_040": {
@@ -4742,6 +5637,10 @@
     "undefined_spatial_scope",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "v2|hv2_041": {
@@ -4763,6 +5662,10 @@
     "open_comparison",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_042": {
@@ -4784,6 +5687,10 @@
     "ranking_missing_year",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_043": {
@@ -4805,6 +5712,10 @@
     "city_needs_place",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.93
    ]
   },
   "v2|hv2_044": {
@@ -4826,6 +5737,10 @@
     "records_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_045": {
@@ -4847,6 +5762,10 @@
     "records_missing_year",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v2|hv2_046": {
@@ -4868,6 +5787,10 @@
     "open_ended",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_047": {
@@ -4889,6 +5812,10 @@
     "forecast_missing_date",
     "router",
     "contradicts_slot"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v2|hv2_048": {
@@ -4910,6 +5837,10 @@
     "open_ended",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "v2|hv2_049": {
@@ -4931,6 +5862,10 @@
     "undefined_spatial_scope",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.94
    ]
   },
   "v2|hv2_050": {
@@ -4952,6 +5887,10 @@
     "unsupported_future_prediction",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v2|hv2_051": {
@@ -4973,6 +5912,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.83
    ]
   },
   "v2|hv2_052": {
@@ -4994,6 +5937,10 @@
     "unsupported_cost",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "v2|hv2_056": {
@@ -5015,6 +5962,10 @@
     "unsupported_cost",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "v2|hv2_057": {
@@ -5036,6 +5987,10 @@
     "unsupported_future_prediction",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.67
    ]
   },
   "v2|hv2_058": {
@@ -5057,6 +6012,10 @@
     "unsupported_cost",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    1.0
    ]
   },
   "v2|hv2_060": {
@@ -5078,6 +6037,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "live_or_web",
+    1.0
    ]
   },
   "v2|hv2_062": {
@@ -5099,6 +6062,10 @@
     "unsupported_future_prediction",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    0.52
    ]
   },
   "v2|hv2_063": {
@@ -5120,6 +6087,10 @@
     "unsupported_cost",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "damage_or_loss",
+    0.8
    ]
   },
   "v2|hv2_064": {
@@ -5141,6 +6112,10 @@
     "unsupported_cost",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    0.81
    ]
   },
   "v2|hv2_065": {
@@ -5162,6 +6137,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "live_or_web",
+    0.55
    ]
   },
   "v3|hv3_001": {
@@ -5183,6 +6162,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_002": {
@@ -5204,6 +6187,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_003": {
@@ -5225,6 +6212,10 @@
     "unexpressable_county_filter",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_004": {
@@ -5246,6 +6237,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_005": {
@@ -5267,6 +6262,10 @@
     "unexpressable_county_filter",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v3|hv3_006": {
@@ -5288,6 +6287,10 @@
     "open_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_007": {
@@ -5309,6 +6312,10 @@
     "multi_intent_count_and_trend",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "v3|hv3_008": {
@@ -5330,6 +6337,10 @@
     "unsupported_ranking",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_009": {
@@ -5351,6 +6362,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_014": {
@@ -5372,6 +6387,10 @@
     "hftd_constraint_unavailable",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.52
    ]
   },
   "v3|hv3_015": {
@@ -5393,6 +6412,10 @@
     "unsupported_rank_epss_utility",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "v3|hv3_016": {
@@ -5414,6 +6437,10 @@
     "open_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_017": {
@@ -5435,6 +6462,10 @@
     "time_series",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_019": {
@@ -5456,6 +6487,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_020": {
@@ -5477,6 +6512,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_021": {
@@ -5498,6 +6537,10 @@
     "unsupported_ranking",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_022": {
@@ -5519,6 +6562,10 @@
     "open_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_023": {
@@ -5540,6 +6587,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.96
    ]
   },
   "v3|hv3_024": {
@@ -5561,6 +6612,10 @@
     "hftd_constraint_unavailable",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.9
    ]
   },
   "v3|hv3_027": {
@@ -5582,6 +6637,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_028": {
@@ -5603,6 +6662,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v3|hv3_029": {
@@ -5624,6 +6687,10 @@
     "open_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v3|hv3_030": {
@@ -5645,6 +6712,10 @@
     "ranking_missing_slots",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
    ]
   },
   "v3|hv3_031": {
@@ -5666,6 +6737,10 @@
     "multi_entity_deferred",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_032": {
@@ -5687,6 +6762,10 @@
     "utility_comparison",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_033": {
@@ -5708,6 +6787,10 @@
     "map",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_034": {
@@ -5729,6 +6812,10 @@
     "ranked_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_035": {
@@ -5750,6 +6837,10 @@
     "hftd_constraint_unavailable",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.87
    ]
   },
   "v3|hv3_036": {
@@ -5771,6 +6862,10 @@
     "unexpressable_county_filter",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.96
    ]
   },
   "v3|hv3_037": {
@@ -5792,6 +6887,10 @@
     "ranking_missing_slots",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v3|hv3_038": {
@@ -5813,6 +6912,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.49
    ]
   },
   "v3|hv3_039": {
@@ -5834,6 +6937,10 @@
     "ranking_missing_slots",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_040": {
@@ -5855,6 +6962,10 @@
     "multi_entity_deferred",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.76
    ]
   },
   "v3|hv3_041": {
@@ -5876,6 +6987,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_042": {
@@ -5897,6 +7012,10 @@
     "other_off_topic",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.85
    ]
   },
   "v3|hv3_044": {
@@ -5918,6 +7037,10 @@
     "unsupported_ranking",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.86
    ]
   },
   "v3|hv3_045": {
@@ -5939,6 +7062,10 @@
     "unsupported_other_measure",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.46
    ]
   },
   "v3|hv3_046": {
@@ -5960,6 +7087,10 @@
     "unsupported_evacuation",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.81
    ]
   },
   "v3|hv3_047": {
@@ -5981,6 +7112,10 @@
     "unsupported_damage",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "damage_or_loss",
+    0.82
    ]
   },
   "v3|hv3_048": {
@@ -6002,6 +7137,10 @@
     "open_ended",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.56
    ]
   },
   "v3|hv3_049": {
@@ -6023,6 +7162,10 @@
     "ranking_missing_year",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.93
    ]
   },
   "v3|hv3_050": {
@@ -6044,6 +7187,10 @@
     "records_missing_year",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.83
    ]
   },
   "v3|hv3_051": {
@@ -6065,6 +7212,10 @@
     "other_off_topic",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.99
    ]
   },
   "v3|hv3_052": {
@@ -6086,6 +7237,10 @@
     "unsupported_cost",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "damage_or_loss",
+    0.79
    ]
   },
   "v3|hv3_053": {
@@ -6107,6 +7262,10 @@
     "unsupported_future_prediction",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.82
    ]
   },
   "v3|hv3_054": {
@@ -6128,6 +7287,10 @@
     "unsupported_future_prediction",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.46
    ]
   },
   "v3|hv3_055": {
@@ -6149,6 +7312,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_056": {
@@ -6170,6 +7337,10 @@
     "prompt_injection",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "live_or_web",
+    0.54
    ]
   },
   "v3|hv3_057": {
@@ -6191,6 +7362,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "live_or_web",
+    1.0
    ]
   },
   "v3|hv3_058": {
@@ -6212,6 +7387,10 @@
     "unsupported_optimization",
     "router",
     "regex_only"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.71
    ]
   },
   "v3|hv3_059": {
@@ -6233,6 +7412,10 @@
     "unsupported_future_prediction",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.94
    ]
   },
   "v3|hv3_061": {
@@ -6254,6 +7437,10 @@
     "ambiguous_relative_time",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.96
    ]
   },
   "v3|hv3_062": {
@@ -6275,6 +7462,10 @@
     "unsupported_future_prediction",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v3|hv3_063": {
@@ -6296,6 +7487,10 @@
     "undefined_spatial_scope",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "live_or_web",
+    1.0
    ]
   },
   "v3|hv3_064": {
@@ -6317,6 +7512,10 @@
     "unsupported_future_prediction",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.85
    ]
   },
   "v3|hv3_065": {
@@ -6338,6 +7537,10 @@
     "open_ended",
     "router",
     "below_gate"
+   ],
+   "off_topic": [
+    "other_off_topic",
+    0.79
    ]
   },
   "v3|hv3_066": {
@@ -6359,6 +7562,10 @@
     "unsupported_live_web",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "live_or_web",
+    0.88
    ]
   },
   "v3|hv3_067": {
@@ -6380,6 +7587,10 @@
     "risk_future_date",
     "router",
     "backstop"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.72
    ]
   },
   "v3|hv3_068": {
@@ -6401,6 +7612,10 @@
     "unsupported_optimization",
     "router",
     "regex_only"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v3|hv3_071": {
@@ -6422,6 +7637,10 @@
     "ambiguous_risk_metric",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "v3|hv3_073": {
@@ -6443,6 +7662,10 @@
     "ambiguous_relative_time",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.96
    ]
   },
   "v3|hv3_076": {
@@ -6464,6 +7687,10 @@
     "open_ended",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.96
    ]
   },
   "v3|hv3_077": {
@@ -6485,6 +7712,10 @@
     "ranking_missing_year",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_079": {
@@ -6506,6 +7737,10 @@
     "forecast_missing_date",
     "router",
     "contradicts_slot"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ]
   },
   "v3|hv3_087": {
@@ -6527,6 +7762,10 @@
     "trend_missing_year",
     "jev",
     "gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
    ]
   },
   "smoke|single": {
@@ -6548,6 +7787,10 @@
     "filtered_records",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
    ],
    "smoke_route_ok": true
   },
@@ -6572,6 +7815,10 @@
     "router",
     "agree"
    ],
+   "off_topic": [
+    "on_topic",
+    1.0
+   ],
    "smoke_route_ok": true
   },
   "smoke|modesto": {
@@ -6593,6 +7840,10 @@
     "city_point_context",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.89
    ],
    "smoke_route_ok": true
   },
@@ -6616,6 +7867,10 @@
     "router",
     "backstop"
    ],
+   "off_topic": [
+    "on_topic",
+    1.0
+   ],
    "smoke_route_ok": true
   },
   "smoke|epss_rank": {
@@ -6637,6 +7892,10 @@
     "unsupported_rank_epss_utility",
     "router",
     "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
    ],
    "smoke_route_ok": true
   },
@@ -6660,7 +7919,425 @@
     "router",
     "backstop"
    ],
+   "off_topic": [
+    "live_or_web",
+    1.0
+   ],
    "smoke_route_ok": true
+  },
+  "probes97|p97_01": {
+   "question": "How many PG&E ignitions were there in 2022? I'm writing a cost memo.",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_cost"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.83
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.83
+   ]
+  },
+  "probes97|p97_02": {
+   "question": "For our budget allocation planning, which county had the most CAL FIRE incidents in 2023?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_cost"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.74
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.74
+   ]
+  },
+  "probes97|p97_03": {
+   "question": "Compare PG&E and SCE ignitions in 2022 for a cost-allocation meeting.",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_cost"
+   ],
+   "jev": [
+    "unsupported",
+    "unsupported_cost",
+    0.43
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    "below_gate"
+   ],
+   "off_topic": [
+    "cost_or_budget",
+    0.43
+   ]
+  },
+  "probes97|p97_04": {
+   "question": "Our CEO wants the number of utility ignitions in Sonoma County in 2020.",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_leadership"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    1.0
+   ],
+   "decide": [
+    "deterministic",
+    "filtered_records",
+    "jev",
+    "on_topic"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
+   ]
+  },
+  "probes97|p97_05": {
+   "question": "The CEO of our utility asked: how many SCE ignitions were in Tier 3 HFTD in 2022?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_leadership"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.99
+   ],
+   "decide": [
+    "deterministic",
+    "filtered_records",
+    "jev",
+    "on_topic"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.99
+   ]
+  },
+  "probes97|p97_06": {
+   "question": "What schedule of PSPS events happened in 2019?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_optimization"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.97
+   ],
+   "decide": [
+    "model",
+    "open_ended",
+    "jev",
+    "on_topic"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
+   ]
+  },
+  "probes97|p97_07": {
+   "question": "How many CAL FIRE incidents in Los Angeles County in 2021? Our repair schedule depends on it.",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_optimization"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.94
+   ],
+   "decide": [
+    "deterministic",
+    "filtered_records",
+    "jev",
+    "on_topic"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.94
+   ]
+  },
+  "probes97|p97_08": {
+   "question": "Without doing a web search, what does the CPUC ignition data say about PG&E in 2019?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_live_web"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    1.0
+   ],
+   "decide": [
+    "model",
+    "open_ended",
+    "jev",
+    "on_topic"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
+   ]
+  },
+  "probes97|p97_09": {
+   "question": "Before we look at prices, show me a map of PG&E ignitions in 2022.",
+   "labels": null,
+   "router": [
+    "deterministic",
+    "map"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.91
+   ],
+   "decide": [
+    "deterministic",
+    "map",
+    "router",
+    "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
+   ]
+  },
+  "probes97|p97_10": {
+   "question": "Show PG&E ignitions in 2022; I'll handle costs separately.",
+   "labels": null,
+   "router": [
+    "model",
+    "open_ended"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.89
+   ],
+   "decide": [
+    "model",
+    "open_ended",
+    "router",
+    "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.96
+   ]
+  },
+  "probes97|p97_11": {
+   "question": "Map CAL FIRE incidents in 2021, not prices.",
+   "labels": null,
+   "router": [
+    "deterministic",
+    "map"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.6699999999999999
+   ],
+   "decide": [
+    "deterministic",
+    "map",
+    "router",
+    "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
+   ]
+  },
+  "probes97|p97_12": {
+   "question": "How many PSPS events were there in 2019 across all utility schedules?",
+   "labels": null,
+   "router": [
+    "deterministic",
+    "filtered_records"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.9299999999999999
+   ],
+   "decide": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
+   ]
+  },
+  "probes97|p97_13": {
+   "question": "Which counties had the most ignitions in 2022? It feeds our budgets.",
+   "labels": null,
+   "router": [
+    "deterministic",
+    "ranked_records"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.74
+   ],
+   "decide": [
+    "deterministic",
+    "ranked_records",
+    "router",
+    "agree"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.74
+   ]
+  },
+  "probes97|p97_14": {
+   "question": "After the budget meeting, how many PG&E ignitions were there in 2022?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_cost"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.97
+   ],
+   "decide": [
+    "deterministic",
+    "filtered_records",
+    "jev",
+    "on_topic"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
+   ]
+  },
+  "probes97|p97_15": {
+   "question": "The CEO testified last week. How many SCE ignitions were in Tier 3 HFTD in 2022?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_leadership"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.98
+   ],
+   "decide": [
+    "deterministic",
+    "filtered_records",
+    "jev",
+    "on_topic"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.98
+   ]
+  },
+  "probes97|p97_16": {
+   "question": "Our schedule is tight: how many CAL FIRE incidents were there in Butte County in 2020?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_optimization"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    1.0
+   ],
+   "decide": [
+    "deterministic",
+    "filtered_records",
+    "jev",
+    "on_topic"
+   ],
+   "off_topic": [
+    "on_topic",
+    1.0
+   ]
+  },
+  "probes97|p97_17": {
+   "question": "For a cost report, show a map of PG&E ignitions in 2022.",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_cost"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.6
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    "below_gate"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.6
+   ]
+  },
+  "probes97|p97_18": {
+   "question": "Ahead of the price cap hearing, how many PSPS events were there in 2019?",
+   "labels": null,
+   "router": [
+    "unsupported",
+    "unsupported_cost"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.97
+   ],
+   "decide": [
+    "deterministic",
+    "filtered_records",
+    "jev",
+    "on_topic"
+   ],
+   "off_topic": [
+    "on_topic",
+    0.97
+   ]
   }
  }
 }
