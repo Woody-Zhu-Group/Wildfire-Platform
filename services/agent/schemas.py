@@ -309,10 +309,15 @@ class RiskSurfaceArgs(StrictModel):
     date: date
 
 
+class RiskMetricsArgs(StrictModel):
+    """Persisted HPP, NHPP, and cNHPP evaluation metrics (GET /metrics). No arguments."""
+
+
 # Tools only the router calls. They are never offered to the model or to Jev,
 # so the model tool list and the Jev payloads do not change.
 HARNESS_TOOL_MODELS: dict[str, type[StrictModel]] = {
     "risk_surface": RiskSurfaceArgs,
+    "risk_metrics": RiskMetricsArgs,
 }
 EXECUTABLE_TOOL_MODELS: dict[str, type[StrictModel]] = {
     **TOOL_MODELS,
@@ -638,8 +643,8 @@ class AgentAnswer(StrictModel):
 
 # Workspace panel identity for a grounded stat card. The UI applies stat_mode
 # instead of rendering the card as a frozen cited number.
-MedicalStatMode = Literal["medical_exposure", "summary"]
-MedicalViewId = Literal["medical-exposure", "summary-stats"]
+MedicalStatMode = Literal["medical_exposure", "summary", "model_metrics"]
+MedicalViewId = Literal["medical-exposure", "summary-stats", "model-metrics"]
 SeriesMode = Literal[
     "yearly",
     "seasonal",

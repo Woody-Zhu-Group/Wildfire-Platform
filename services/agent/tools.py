@@ -23,6 +23,7 @@ from services.agent.schemas import (
     EXECUTABLE_TOOL_MODELS,
     RiskForecastArgs,
     strip_harness_only_arguments,
+    RiskMetricsArgs,
     RiskSurfaceArgs,
     VisualizationCreateArgs,
     VisualizationInspectArgs,
@@ -452,6 +453,8 @@ class ToolExecutor:
             return self._map_risk(parsed)
         if tool == "risk_surface":
             return self._map_risk_surface(parsed)
+        if tool == "risk_metrics":
+            return self.settings.risk_url + "/metrics", {}
         if tool == "comparison_run":
             return self._map_comparison(parsed)
         raise ValueError(f"Unsupported tool {tool}")
@@ -694,6 +697,8 @@ class ToolExecutor:
             }
         if tool == "risk_surface":
             return _summarize_risk_surface(args, raw)
+        if tool == "risk_metrics":
+            return _summarize_risk_metrics(raw)
         if tool == "risk_forecast":
             for key in ("date", "risk", "xi", "lookback_days"):
                 if key not in raw:
@@ -965,6 +970,92 @@ def _human_record(row: Any) -> Any:
 
 
 _SURFACE_CELL_COUNT = 824
+_METRIC_MODELS = ("HPP", "NHPP", "cNHPP")
+_RANKING_METRICS = ("top5_precision", "top1_precision", "lift_top5")
+_METRIC_LABELS = {
+    "log_likelihood": "log-likelihood",
+    "auc": "AUC",
+    "top5_precision": "top 5% precision",
+    "top1_precision": "top 1% precision",
+    "lift_top5": "top 5% lift",
+}
+
+
+def _metric_number(row: dict[str, Any], key: str, *, nullable: bool = False) -> float | None:
+    value = row.get(key)
+    if value is None and nullable:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value != value:
+        raise ValueError(f"metrics {row.get('model')} {key} is not a finite number")
+    return float(value)
+
+
+def _summarize_risk_metrics(raw: dict[str, Any]) -> dict[str, Any]:
+    """Check /metrics has all three models on one window, then keep every shown value.
+
+    HPP has no ranking, so its top-k precision and lift must be null with a
+    reason; a ranking model (NHPP, cNHPP) must have all three. The display
+    strings are the rounded forms the answer prints, so every rendered number
+    is in the evidence.
+    """
+    rows = [raw, *(raw.get("baselines") or [])]
+    by_model: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("model") in by_model:
+            raise ValueError("metrics rows are missing or repeated")
+        by_model[str(row.get("model"))] = row
+    if raw.get("model") != "cNHPP" or set(by_model) != set(_METRIC_MODELS):
+        raise ValueError("metrics must hold cNHPP with HPP and NHPP baselines")
+    models: list[dict[str, Any]] = []
+    for name in _METRIC_MODELS:
+        row = by_model[name]
+        entry: dict[str, Any] = {
+            "model": name,
+            "log_likelihood": _metric_number(row, "log_likelihood"),
+            "auc": _metric_number(row, "auc"),
+        }
+        reason = row.get("not_applicable_reason")
+        for key in _RANKING_METRICS:
+            entry[key] = _metric_number(row, key, nullable=True)
+        missing = [key for key in _RANKING_METRICS if entry[key] is None]
+        if missing and (len(missing) != len(_RANKING_METRICS) or not reason):
+            raise ValueError(f"metrics {name} ranking values are partly missing or lack a reason")
+        if name != "HPP" and missing:
+            raise ValueError(f"metrics {name} must have ranking values")
+        entry["not_applicable_reason"] = reason if missing else None
+        entry["display"] = {
+            "log_likelihood": f"{entry['log_likelihood']:.1f}",
+            "auc": f"{entry['auc']:.3f}",
+            **{
+                key: None if entry[key] is None else (
+                    f"{entry[key]:.2f}" if key == "lift_top5" else f"{entry[key] * 100:.2f}%"
+                )
+                for key in _RANKING_METRICS
+            },
+        }
+        models.append(entry)
+    train_years = raw.get("train_years")
+    if not isinstance(train_years, list) or not train_years or not all(isinstance(y, int) for y in train_years):
+        raise ValueError("metrics train_years must be a list of years")
+    eval_year = raw.get("eval_year")
+    sha = raw.get("params_sha256")
+    if not isinstance(eval_year, int) or not isinstance(sha, str) or len(sha) != 64:
+        raise ValueError("metrics eval_year or params_sha256 is missing")
+    nhpp, cnhpp = by_model["NHPP"], by_model["cNHPP"]
+    return {
+        "kind": "model_metrics",
+        "models": models,
+        "xi": _metric_number(raw, "xi"),
+        "train_years": list(train_years),
+        "eval_year": eval_year,
+        "eval_start": raw.get("eval_start"),
+        "eval_end": raw.get("eval_end"),
+        "params_sha256": sha,
+        "cnhpp_minus_nhpp_log_likelihood": (
+            f"{float(cnhpp['log_likelihood']) - float(nhpp['log_likelihood']):.1f}"
+        ),
+        "labels": dict(_METRIC_LABELS),
+    }
 
 
 def _summarize_risk_surface(args: RiskSurfaceArgs, raw: dict[str, Any]) -> dict[str, Any]:

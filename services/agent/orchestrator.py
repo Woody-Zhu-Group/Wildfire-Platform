@@ -441,6 +441,8 @@ class AgentOrchestrator:
                         )
                         if detail:
                             answer = f"{answer} {detail}"
+                        if execution.tool == "risk_metrics":
+                            answer = _risk_metrics_failure(execution.error or {})
                         response = self._response(
                             request_id=request_id,
                             decision=decision,
@@ -2763,6 +2765,62 @@ def _render_surface_answer(summary: dict[str, Any]) -> str:
     )
 
 
+def _risk_metrics_failure(error: dict[str, Any]) -> str:
+    """Why the model performance card has no numbers: 503 means the stored
+    evaluation does not match the committed fit, so none are shown."""
+    detail = str(error.get("message") or "").strip() or "none given"
+    if str(error.get("code")) == "http_503":
+        return (
+            "The risk model's performance metrics are unavailable: the risk "
+            "service refused to serve them because the stored evaluation could "
+            f"not be verified against the committed model fit. Service detail: {detail}"
+        )
+    return (
+        "The risk model's performance metrics could not be read from the risk "
+        f"service, so I cannot report them. Detail: {detail}"
+    )
+
+
+def _render_model_metrics_answer(summary: dict[str, Any]) -> str:
+    """HPP, NHPP, and cNHPP on the persisted evaluation; every number is a display string."""
+    models = {row["model"]: row for row in summary.get("models") or []}
+    labels = summary.get("labels") or {}
+    years = summary.get("train_years") or []
+    order = ("cNHPP", "NHPP", "HPP")
+
+    def line(key: str, names: tuple[str, ...]) -> str:
+        values = ", ".join(f"{name} {models[name]['display'][key]}" for name in names)
+        return f"{labels.get(key, key)} {values}"
+
+    ranked = tuple(name for name in order if models[name]["display"]["top5_precision"] is not None)
+    unranked = [name for name in order if name not in ranked]
+    parts = [
+        f"Risk model performance on the {summary.get('eval_year')} held-out year "
+        f"(trained on {years[0]} to {years[-1]}, statewide, cNHPP xi {summary.get('xi'):g}): "
+        + "; ".join(
+            [
+                line("log_likelihood", order) + " (higher is better)",
+                line("auc", order),
+                line("top5_precision", ranked),
+                line("top1_precision", ranked),
+                line("lift_top5", ranked),
+            ]
+        )
+        + "."
+    ]
+    for name in unranked:
+        reason = models[name].get("not_applicable_reason")
+        parts.append(
+            f"{name} has no top-k precision or lift (not applicable: {reason})."
+        )
+    parts.append(
+        f"The cNHPP and NHPP log-likelihoods differ by "
+        f"{summary.get('cnhpp_minus_nhpp_log_likelihood')}, which is inside the "
+        "bootstrap noise, so treat the two as a statistical tie."
+    )
+    return " ".join(parts)
+
+
 def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> str:
     empty = summary.get("empty_reason")
     if empty:
@@ -2968,6 +3026,8 @@ def _render_deterministic(
             parts.append(_render_risk_answer(summary))
         elif item.tool == "risk_surface":
             parts.append(_render_surface_answer(summary))
+        elif item.tool == "risk_metrics":
+            parts.append(_render_model_metrics_answer(summary))
         elif item.tool == "data_query_rank":
             parts.append(_render_rank_answer(item.arguments or {}, summary))
         elif item.tool == "comparison_run":

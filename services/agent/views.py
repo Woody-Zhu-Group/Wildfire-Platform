@@ -190,7 +190,7 @@ class RecordTableViewParams(StrictModel):
 
 
 class StatCardViewParams(StrictModel):
-    kind: Literal["count", "risk", "spatial_metric"]
+    kind: Literal["count", "risk", "spatial_metric", "model_metrics"]
     value: float
     label: str
     scope: str
@@ -204,6 +204,20 @@ class StatCardViewParams(StrictModel):
     end_date: str | None = None
     utility: str | None = None
     county: str | None = None
+    # model_metrics only: the evaluation the card must show.
+    eval_year: int | None = Field(None, ge=1900, le=2100)
+    params_sha256: str | None = None
+
+    @model_validator(mode="after")
+    def validate_model_metrics(self) -> "StatCardViewParams":
+        metrics = self.kind == "model_metrics"
+        if metrics != (self.stat_mode == "model_metrics"):
+            raise ValueError("kind model_metrics pairs with stat_mode model_metrics")
+        if metrics and (self.eval_year is None or not self.params_sha256):
+            raise ValueError("model_metrics needs eval_year and params_sha256")
+        if not metrics and (self.eval_year is not None or self.params_sha256):
+            raise ValueError("eval_year and params_sha256 are for model_metrics only")
+        return self
 
 
 class SpatialContextViewParams(StrictModel):
@@ -357,6 +371,37 @@ def _summary_stat_views(primary: list[ToolExecution]) -> list[ComponentSpec]:
     return []
 
 
+def _model_metrics_views(primary: list[ToolExecution]) -> list[ComponentSpec]:
+    """The model performance card, grounded on the cited GET /metrics read."""
+    for item in primary:
+        summary = item.summary or {}
+        if item.tool != "risk_metrics" or summary.get("kind") != "model_metrics":
+            continue
+        cnhpp = next(row for row in summary["models"] if row["model"] == "cNHPP")
+        params = StatCardViewParams(
+            kind="model_metrics",
+            value=float(cnhpp["auc"]),
+            label="cNHPP AUC",
+            scope="Statewide, 824 grid cells",
+            period=f"Evaluated on {summary['eval_year']}",
+            source_dataset="cnhpp",
+            unit=None,
+            stat_mode="model_metrics",
+            view_id="model-metrics",
+            eval_year=summary["eval_year"],
+            params_sha256=summary["params_sha256"],
+        )
+        return [
+            ComponentSpec(
+                type="stat_card",
+                params=params.model_dump(mode="json"),
+                evidence_ids=[item.evidence_id],
+                artifact_refs=[],
+            )
+        ]
+    return []
+
+
 def _timeline_views(
     primary: list[ToolExecution], requested: list[str]
 ) -> list[ComponentSpec]:
@@ -462,6 +507,20 @@ def plan_views(
                 )
             grounded = ground_views(views, executions)
         except (GroundingError, ValidationError, KeyError, TypeError, ValueError):
+            return PlannedViews(
+                views=[], view_status="planner_fallback", view_scope=scope
+            )
+        return PlannedViews(views=grounded, view_status="applied", view_scope=scope)
+
+    if slots.get("stat_mode") == "model_metrics":
+        try:
+            views = _model_metrics_views(primary)
+            if not views:
+                return PlannedViews(
+                    views=[], view_status="planner_fallback", view_scope=scope
+                )
+            grounded = ground_views(views, executions)
+        except (GroundingError, ValidationError, KeyError, TypeError, ValueError, StopIteration):
             return PlannedViews(
                 views=[], view_status="planner_fallback", view_scope=scope
             )
@@ -719,6 +778,17 @@ def _ground_stat(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
         expected = summary.get("risk")
         if not _numbers_equal(value, expected):
             raise GroundingError(f"stat_card risk {value} != evidence {expected}")
+        return
+    if kind == "model_metrics":
+        if item.tool != "risk_metrics" or summary.get("kind") != "model_metrics":
+            raise GroundingError("model_metrics card must cite a risk_metrics read")
+        cnhpp = [row for row in summary.get("models") or [] if row.get("model") == "cNHPP"]
+        if len(cnhpp) != 1 or not _numbers_equal(value, cnhpp[0].get("auc")):
+            raise GroundingError(f"model_metrics value {value} != cited cNHPP AUC")
+        if params.get("eval_year") != summary.get("eval_year"):
+            raise GroundingError("model_metrics eval_year differs from the cited evaluation")
+        if params.get("params_sha256") != summary.get("params_sha256"):
+            raise GroundingError("model_metrics params_sha256 differs from the cited evaluation")
         return
     if kind == "spatial_metric":
         counts = summary.get("counts") or {}
