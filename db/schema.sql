@@ -219,13 +219,23 @@ CREATE TABLE IF NOT EXISTS wildfire.hftd_tiers (
   geom          geometry(MultiPolygon, 4326) NOT NULL
 );
 
+-- Rebuilt geometry audit columns (added after first release; idempotent).
+ALTER TABLE wildfire.hftd_tiers ADD COLUMN IF NOT EXISTS geom_source geometry(MultiPolygon, 4326);
+ALTER TABLE wildfire.hftd_tiers ADD COLUMN IF NOT EXISTS publisher_area_m2 DOUBLE PRECISION;
+ALTER TABLE wildfire.hftd_tiers ADD COLUMN IF NOT EXISTS source_url TEXT;
+ALTER TABLE wildfire.hftd_tiers ADD COLUMN IF NOT EXISTS source_edited_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS hftd_tiers_geom_gix ON wildfire.hftd_tiers USING GIST (geom);
 
 COMMENT ON TABLE wildfire.hftd_tiers IS
-  'CPUC High Fire Threat District Tier 2 / Tier 3 polygons from hftd.geojson. '
-  'KNOWN GAP: no CPZ (Circuit Protection Zone) data exists in dataset_demo. '
-  'shape_area / shape_length are source measure attributes (likely projected units), '
-  'not CRS84 square-degrees — do not treat as EPSG:4326 areas.';
+  'CPUC High Fire Threat District Tier 2 / Tier 3 polygons, rebuilt from the CPUC '
+  'FeatureServer Esri JSON with rings by orientation (holes kept). The loader refuses '
+  'a geometry that is invalid or whose EPSG:3310 area is more than 0.1% from '
+  'publisher_area_m2. geom_source is the old simplified dataset_demo hftd.geojson '
+  'geometry, kept for audit only (invalid; do not query it; NULL where dataset_demo '
+  'was absent at load, as on EC2). '
+  'KNOWN GAP: no CPZ (Circuit Protection Zone) data. '
+  'shape_area / shape_length are the publisher attributes in EPSG:3310 units.';
 
 -- ---------------------------------------------------------------------------
 -- iou_territories
@@ -236,10 +246,20 @@ CREATE TABLE IF NOT EXISTS wildfire.iou_territories (
   geom         geometry(MultiPolygon, 4326) NOT NULL
 );
 
+-- Rebuilt geometry audit columns (added after first release; idempotent).
+ALTER TABLE wildfire.iou_territories ADD COLUMN IF NOT EXISTS geom_source geometry(MultiPolygon, 4326);
+ALTER TABLE wildfire.iou_territories ADD COLUMN IF NOT EXISTS publisher_area_m2 DOUBLE PRECISION;
+ALTER TABLE wildfire.iou_territories ADD COLUMN IF NOT EXISTS source_url TEXT;
+ALTER TABLE wildfire.iou_territories ADD COLUMN IF NOT EXISTS source_edited_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS iou_territories_geom_gix ON wildfire.iou_territories USING GIST (geom);
 
 COMMENT ON TABLE wildfire.iou_territories IS
-  'IOU service territory polygons (iou_territories.geojson) for utility filters and point-in-polygon tagging.';
+  'CPUC IOU_Service_Territories (IOU_Service_Territory_20240812), rebuilt from Esri JSON '
+  'with rings by orientation, so municipal-utility holes stay holes. Same 0.1% area gate '
+  'as hftd_tiers. geom_source is the old simplified dataset_demo geometry (audit only; NULL where '
+  'dataset_demo was absent at load).';
+
 
 -- ---------------------------------------------------------------------------
 -- counties (Census TIGER / cartographic boundary; CA only for now)

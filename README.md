@@ -192,7 +192,7 @@ docker compose up -d
 python -m db.loaders
 ```
 
-Source GeoJSON/CSV is read from the sibling `dataset_demo/assets/data` repo (read-only), or `DATASET_DEMO_DATA_DIR`. Large source files are not included in a fresh clone. Loaders truncate and repopulate their target tables, so verify the configured database before rerunning them. The local warehouse also needs the national source/extract if loading `us_ignitions`; see the database guide for its path and extraction command.
+Source GeoJSON/CSV is read from the sibling `dataset_demo/assets/data` repo (read-only), or `DATASET_DEMO_DATA_DIR`. HFTD tier and IOU territory polygons instead come from the CPUC FeatureServers, cached as Esri JSON in `data/boundaries/` and loaded together behind a validity and area gate (see [`db/README.md`](db/README.md) and [`docs/DATA_CHANGE_HFTD_IOU.md`](docs/DATA_CHANGE_HFTD_IOU.md)). Large source files are not included in a fresh clone. Loaders truncate and repopulate their target tables, so verify the configured database before rerunning them. The local warehouse also needs the national source/extract if loading `us_ignitions`; see the database guide for its path and extraction command.
 
 ### Data query API
 
@@ -415,7 +415,7 @@ Historical dates only for years with local covariate files. No live HRRR ingesti
 | [`docs/CANVAS.md`](docs/CANVAS.md), [`docs/CANVAS_PANEL_PROPOSAL.md`](docs/CANVAS_PANEL_PROPOSAL.md) | Canvas and panel layout reference and proposal |
 | [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | Verification notes |
 | [`docs/dataset-comparison-cpuc-calfire-us.md`](docs/dataset-comparison-cpuc-calfire-us.md) | How CPUC, CAL FIRE, and US ignitions differ |
-| [`db/README.md`](db/README.md) | Warehouse schema and loaders |
+| [`db/README.md`](db/README.md), [`docs/DATA_CHANGE_HFTD_IOU.md`](docs/DATA_CHANGE_HFTD_IOU.md) | Warehouse schema and loaders; the HFTD and IOU polygon rebuild from CPUC sources |
 | [`services/data_query/README.md`](services/data_query/README.md), [`services/visualization/README.md`](services/visualization/README.md), [`services/comparison/README.md`](services/comparison/README.md) | Service APIs |
 | [`services/agent/README.md`](services/agent/README.md), [`services/agent/SECURITY.md`](services/agent/SECURITY.md) | Agent routing, tools, qualifications, and threat boundary |
 | [`services/agent/eval/HARNESS_GUARDS.md`](services/agent/eval/HARNESS_GUARDS.md), [`services/agent/eval/ROUTING_EXPERIMENT.md`](services/agent/eval/ROUTING_EXPERIMENT.md) | Harness guards and the routing experiment |

@@ -61,13 +61,13 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Branches and merge order
 
-Merged into main: `router-paraphrase-fixes` (#22), `openai-provider` (#25), `panel-summary-stats` (#26), `jev-shadow` (#43), `time-resolve-fixes` (#48), `model-date-range` (#50), `clarify-all-missing` (#51).
+Merged into main: `router-paraphrase-fixes` (#22), `openai-provider` (#25), `panel-summary-stats` (#26), `jev-shadow` (#43), `hftd-geometry-rebuild` (#45), `time-resolve-fixes` (#48), `model-date-range` (#50), `clarify-all-missing` (#51), `readme-refresh` (#57), `gitignore-hook-files` (#59).
 
 Open:
 - `jev-multi-tool` (PR #46): plan mode, the slot planner, holdouts v2 and v3 with their raw files, and `docs/JEV_MULTI_TOOL.md`. Keep it separate from other Jev work; its `routing.py` changes need their own route report.
 - `jev-decider` (PR #49): `AGENT_JEV_MODE=decide`. When the README refresh (#57) merges, update the README decide-mode line in this PR.
-- `hftd-geometry-rebuild` (PR #45), then `geocode-cities` (PR #28), which rebases onto main after #45.
-- `ops-shadow-tooling` (PR #24), `risk-health-check` (PR #27), `research-psps-reports` (PR #29), `readme-refresh` (PR #57), `router-followups` (PR #58).
+- `geocode-cities` (PR #28): rebase onto main now that #45 has merged.
+- `ops-shadow-tooling` (PR #24), `risk-health-check` (PR #27), `research-psps-reports` (PR #29), `router-followups` (PR #58).
 
 After each merge, rebase the next branch onto `platform/main`, rerun `pytest tests/agent`, and report route changes across all eval sets.
 
