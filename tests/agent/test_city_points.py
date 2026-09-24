@@ -550,13 +550,53 @@ def test_no_iou_is_said_in_a_sentence_not_iou_none():
     text = response["answer_text"]
     assert "No investor-owned utility (IOU) territory contains the center point of Anaheim." in text
     assert "IOU=None" not in text
-    assert "Anaheim's city center is in Orange County, outside the High Fire Threat District, in risk grid cell 582." in text
+    assert "Anaheim's city center is in Orange County, outside High Fire Threat District Tiers 2 and 3, in risk grid cell 582." in text
     chico, _ = _run_with_point("Which utility territory contains Chico?", _POINT_SUMMARY)
     assert (
         "Chico's city center is in Pacific Gas & Electric's service territory, in Butte County, "
-        "outside the High Fire Threat District, in risk grid cell 212."
+        "outside High Fire Threat District Tiers 2 and 3, in risk grid cell 212."
     ) in chico["answer_text"]
     assert "IOU=" not in chico["answer_text"] and "Point context" not in chico["answer_text"]
+
+
+@pytest.mark.parametrize(
+    "city,summary,expected",
+    [
+        (
+            # Ojai's Census center point: SCE, Tier 3, Ventura, grid cell 463 (warehouse, 2026-09-24).
+            "Ojai",
+            {
+                "iou": {"utility": "SCE", "utility_name": "Southern California Edison Company"},
+                "hftd_tier": "Tier 3",
+                "county": "Ventura",
+                "grid_cell": {"cell_id": 463},
+            },
+            "Ojai's city center is in Southern California Edison's service territory, in Ventura County, "
+            "in High Fire Threat District Tier 3, in risk grid cell 463.",
+        ),
+        (
+            # Placerville's Census center point: PG&E, Tier 2, El Dorado, grid cell 271 (warehouse, 2026-09-24).
+            "Placerville",
+            {
+                "iou": {"utility": "PGE", "utility_name": "Pacific Gas & Electric Company"},
+                "hftd_tier": "Tier 2",
+                "county": "El Dorado",
+                "grid_cell": {"cell_id": 271},
+            },
+            "Placerville's city center is in Pacific Gas & Electric's service territory, in El Dorado County, "
+            "in High Fire Threat District Tier 2, in risk grid cell 271.",
+        ),
+    ],
+)
+def test_a_tier_city_uses_the_stored_tier_value_once(city, summary, expected):
+    """The warehouse stores "Tier 2" or "Tier 3"; the sentence must not say "Tier Tier 3"."""
+    point = dict(_POINT_SUMMARY, **summary)
+    response, _ = _run_with_point(f"Which utility territory contains {city}?", point)
+    assert response["status"] == "answer"
+    text = response["answer_text"]
+    assert expected in text
+    assert "Tier Tier" not in text
+    assert "outside" not in text
 
 
 def test_shasta_lake_is_the_city_not_shasta_county():

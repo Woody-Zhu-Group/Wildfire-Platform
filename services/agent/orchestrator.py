@@ -2830,8 +2830,8 @@ def _point_context_sentence(
     """Plain sentences for a point read: territory, county, HFTD tier, grid cell.
 
     Example: "Modesto's city center is in Pacific Gas & Electric's service
-    territory, in Stanislaus County, outside the High Fire Threat District, in
-    risk grid cell 238."
+    territory, in Stanislaus County, outside High Fire Threat District Tiers 2
+    and 3, in risk grid cell 238."
     """
     iou = summary.get("iou") or {}
     grid = summary.get("grid_cell") or {}
@@ -2852,11 +2852,14 @@ def _point_context_sentence(
     county = summary.get("county")
     if county:
         clauses.append(f"in {county} County")
+    # The stored value is already "Tier 2" or "Tier 3"; only those tiers are
+    # loaded, so a point in neither is outside Tiers 2 and 3, not outside the
+    # whole district.
     tier = summary.get("hftd_tier")
     if tier is None:
-        clauses.append("outside the High Fire Threat District")
+        clauses.append("outside High Fire Threat District Tiers 2 and 3")
     else:
-        clauses.append(f"in High Fire Threat District Tier {tier}")
+        clauses.append(f"in High Fire Threat District {tier}")
     cell_id = grid.get("cell_id")
     if cell_id is None:
         clauses.append("outside the risk model grid")

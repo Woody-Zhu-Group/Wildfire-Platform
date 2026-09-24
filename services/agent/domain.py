@@ -1,8 +1,9 @@
 """Static domain reference for the model's system prefix.
 
 Byte-stable by construction: no dates, counts, or per-request values are
-interpolated, so the prefix stays cacheable. Capped at 300 tokens; see
-services/agent/eval/diagnostic_matrix.py for the measurement that enforces it.
+interpolated, so the prefix stays cacheable. Keep it under about 300 tokens
+(the measurement script that enforced this was removed with the local model
+path; the cap is a prompt-size budget, not a provider limit).
 
 Worked examples deliberately use utilities and years that appear in no
 evaluation case, so the document teaches the decision pattern without
