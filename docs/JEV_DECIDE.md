@@ -31,8 +31,9 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
      `unsupported_damage`
 2. **Routes Jev cannot express are decided by the router.** Jev is not called. A route is
    exempt when its rule is in `jev_policy.REGEX_ONLY`, or when its deterministic call uses a
-   tool outside Jev's tool vocabulary (`schemas.TOOL_MODELS`); today that is `risk_surface`,
-   so Jev never asks for a place on a statewide surface question.
+   tool outside Jev's tool vocabulary (`schemas.TOOL_MODELS`); today those are `risk_surface`,
+   so Jev never asks for a place on a statewide surface question, and `risk_metrics`, the
+   model performance read.
 3. **Otherwise Jev's derived disposition decides.** The three v3_hybrid disposition calls
    (facts, topic, places; the same payloads the offline hybrid sends, no tool_pick call) go
    through `jev_policy.derive_outcome`, including the measure gate.

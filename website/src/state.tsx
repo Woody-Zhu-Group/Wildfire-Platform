@@ -11,7 +11,9 @@ export interface PanelSettings {
   mapView?: 'range' | 'daily';
   playbackDate?: string;
   riskDate?: string;
-  statMode?: 'summary' | 'medical_exposure';
+  statMode?: 'summary' | 'medical_exposure' | 'model_metrics';
+  /** The evaluation a chat answer cited when it opened the model metrics card. */
+  metricsCitation?: { evalYear: number; paramsSha256: string };
   weatherYear?: number; weatherDate?: string;
   seriesMode?: 'timeline' | 'yearly' | 'regional' | 'seasonal' | 'cumulative_acres' | 'customer_events'; comparisonYears?: number[]; seasonYears?: number[];
   answerStat?: { value: number; label: string; scope: string; period: string; unit: string; sourceDataset?: string };

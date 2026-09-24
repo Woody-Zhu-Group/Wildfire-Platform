@@ -4,6 +4,7 @@ import { readSummary, type SummaryResponse } from './stats.ts';
 import type { RegionSeries } from './temporal.ts';
 import { validateObservedTraining, type ObservedTraining } from './residual.ts';
 import { validateRiskSurface, type RiskSurface } from './riskSurface.ts';
+import { MetricsUnavailableError, validateModelMetrics, type ModelMetrics } from './modelMetrics.ts';
 export type { AgentAnswer, AgentStreamEvent } from './agentContracts.ts';
 
 export const VISUALIZATION_URL = (import.meta.env?.VITE_VISUALIZATION_URL || 'https://d3t70p3if3twy3.cloudfront.net/api/visualization').replace(/\/+$/, '');
@@ -114,6 +115,17 @@ export async function getRiskSurface(date: string): Promise<RiskSurface> {
     await getJSON<unknown>(`${RISK_URL}/surface?date=${encodeURIComponent(date)}`, 60_000),
     date,
   );
+}
+// Not cached through getJSON: a 503 carries the risk service's reason, which the card shows.
+export async function getModelMetrics(): Promise<ModelMetrics> {
+  const response = await fetch(`${RISK_URL}/metrics`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(25_000) });
+  if (response.status === 503) {
+    let detail = '';
+    try { const body = await response.json() as {detail?: unknown}; detail = typeof body?.detail === 'string' ? body.detail : ''; } catch { /* no JSON body */ }
+    throw new MetricsUnavailableError(detail || 'the risk service did not give a reason.');
+  }
+  if (!response.ok) throw new Error(`Risk service returned HTTP ${response.status}. Please retry.`);
+  return validateModelMetrics(await response.json());
 }
 export async function getObservedTraining(date: string): Promise<ObservedTraining> {
   return validateObservedTraining(

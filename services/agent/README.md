@@ -17,6 +17,13 @@ dataset/metric, scope, and required time/location slots are explicit:
 - explicit cell/date, coordinate/date, county/date, or utility/date risk → `risk_forecast` chain
 - a risk map or surface question with a date and no place → `risk_surface`
   (statewide hindcast; a router-only tool, not in the model's tool list)
+- a question about the risk model's accuracy or performance with no place,
+  cell, tier, or time → `risk_metrics` (router-only, `GET /metrics`; rule
+  `risk_model_metrics`), which opens the Risk model performance card and
+  carries the cNHPP caveats; a 503 is reported with the service's reason
+  ("How well does the model predict fires?" counts: a predict word alone is
+  not a future request, but a forward phrase, will, or a later year still
+  refuses or clarifies as before)
 - known unavailable domains (CPZ, cost, air quality, evacuation, translation,
   personnel, satellite imagery, leadership, optimization, damage, live web,
   future predictions) → refusal

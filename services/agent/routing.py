@@ -2290,6 +2290,59 @@ def route_question(question: str, *, force_model: bool = False) -> RouteDecision
     return decision
 
 
+# Risk model performance: a question about how well the fitted risk model
+# scores, answered from the persisted HPP, NHPP, and cNHPP evaluation. The
+# evaluation is statewide on one held-out year, so the route fires only when
+# the question names no place, cell, tier, or time (see _route_question);
+# otherwise it falls through as before rather than dropping the constraint.
+_MODEL_NAMES = re.compile(r"\b(c?nhpp|hpp)\b")
+_RISK_MODEL_SUBJECT = re.compile(
+    r"\b(?:c?nhpp|hpp"
+    r"|(?:(?:fire|wildfire|ignition)\s+)?risk\s+model"
+    r"|ignition\s+model|fitted\s+model|hindcast\s+model|point[- ]process\s+model"
+    r"|(?:risk\s+)?forecast(?:ing)?\s+model)s?\b"
+)
+_MODEL_PERFORMANCE = re.compile(
+    r"\b(?:accura\w*|perform\w*|metrics?|evaluat\w*|auc|roc"
+    r"|log[- ]?likelihood|precision|lift|validat\w*|skill|goodness\s+of\s+fit"
+    r"|how\s+(?:good|well|reliable|trustworthy)|reliab\w*)\b"
+)
+_MODEL_PERFORMANCE_BLOCKERS = re.compile(r"\b(?:cells?|grid|tiers?|hftd|circuits?|territor\w*)\b")
+
+
+# "the model predict", "the model's predictions": a bare "model" is the risk
+# model only beside a predict word (elsewhere it can mean the chat model).
+_PREDICT_WORD = re.compile(r"\bpredict(?:ed|ions?|ing|s)?\b")
+_BARE_MODEL = re.compile(r"\b(?:the|this|your)\s+model(?:'s|s)?\b")
+
+
+def _asks_model_performance(lower: str) -> bool:
+    if _MODEL_PERFORMANCE_BLOCKERS.search(lower):
+        return False
+    if len(set(_MODEL_NAMES.findall(lower))) >= 2:
+        return True
+    if not _MODEL_PERFORMANCE.search(lower):
+        return False
+    if _RISK_MODEL_SUBJECT.search(lower):
+        return True
+    return bool(_PREDICT_WORD.search(lower) and _BARE_MODEL.search(lower))
+
+
+def _predict_word_is_model_skill(text: str, lower: str) -> bool:
+    """True when the only forward token is a predict word in a question about
+    how well the model predicts: no forward phrase, will, forecast, or year
+    after coverage. Such a question is about skill, not a future prediction.
+    """
+    if any(int(year) > date.today().year for year in re.findall(r"\b(20\d{2})\b", text)):
+        return False
+    tokens = [match.group(0) for match in _FUTURE_DATE.finditer(lower)]
+    return (
+        bool(tokens)
+        and all(_PREDICT_WORD.fullmatch(token) for token in tokens)
+        and _asks_model_performance(lower)
+    )
+
+
 def _route_question(question: str, *, force_model: bool = False) -> RouteDecision:
     text = " ".join(question.strip().split())
     lower = text.lower()
@@ -2346,6 +2399,8 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             ),
         )
     future_phrase = _future_refusal_phrase(text, lower)
+    if future_phrase and _predict_word_is_model_skill(text, lower):
+        future_phrase = None
     if future_phrase and _RISK_OBJECT.search(lower):
         return RouteDecision(
             "clarification",
@@ -2396,6 +2451,23 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         slots["city_point"] = _city_point_slot(city_plan.point)
         # A county name inside the city name (West Sacramento) is not a county.
         slots["county"] = None
+    if (
+        not force_model
+        and city_plan is None
+        and _asks_model_performance(lower)
+        and not utilities
+        and not counties
+        and not coords
+        and time_resolution.status == "none"
+        and dataset in (None, "cpuc_ignitions")
+    ):
+        return RouteDecision(
+            "deterministic",
+            "risk_model_metrics",
+            "Risk model performance is the persisted statewide evaluation (GET /metrics)",
+            tool_calls=[("risk_metrics", {})],
+            slots={**slots, "stat_mode": "model_metrics"},
+        )
     if re.search(r"\bnear me\b", lower) and _coords(text) is None:
         return RouteDecision(
             "clarification",

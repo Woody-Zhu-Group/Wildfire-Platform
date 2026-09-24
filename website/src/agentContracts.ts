@@ -50,20 +50,22 @@ export interface RecordTableViewParams extends ScopedParams {
   row_limit?: number;
 }
 export interface StatCardViewParams extends Record<string, unknown> {
-  kind: 'count' | 'risk' | 'spatial_metric';
+  kind: 'count' | 'risk' | 'spatial_metric' | 'model_metrics';
   value: number;
   label: string;
   scope: string;
   period: string;
   source_dataset: string;
   unit?: 'events' | 'risk' | 'percentile' | null;
-  stat_mode?: 'medical_exposure' | 'summary' | null;
-  view_id?: 'medical-exposure' | 'summary-stats' | null;
+  stat_mode?: 'medical_exposure' | 'summary' | 'model_metrics' | null;
+  view_id?: 'medical-exposure' | 'summary-stats' | 'model-metrics' | null;
   year?: number | null;
   start_date?: string | null;
   end_date?: string | null;
   utility?: string | null;
   county?: string | null;
+  eval_year?: number | null;
+  params_sha256?: string | null;
 }
 export interface SpatialContextViewParams extends Record<string, unknown> {
   lat: number;

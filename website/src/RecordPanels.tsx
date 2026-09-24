@@ -8,6 +8,7 @@ import { useRemote } from './useRemote';
 import { useRowCapacity } from './useRowCapacity';
 import { ExportActions } from './ExportActions';
 import { medicalExposureMetrics } from './exposure.ts';
+import { ModelMetricsCard } from './ModelMetricsCard';
 
 export function RecordTable() {
   const { settings, update, expanded } = usePanel(); const { dataset, filters } = settings;
@@ -40,6 +41,7 @@ export function RecordTable() {
 export function StatCard() {
   const { settings, update } = usePanel(); const { dataset, filters, answerStat } = settings;
   if (settings.statMode === 'medical_exposure') return <MedicalExposureCard />;
+  if (settings.statMode === 'model_metrics') return <ModelMetricsCard />;
   const validation = filterError(filters) || unavailableReason(dataset, filters);
   const remote = useRemote(validation || answerStat ? null : JSON.stringify(['summary', dataset, filters]), () => getSummary(dataset, filters));
   const metrics = remote.data ?? [];
