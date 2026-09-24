@@ -43,7 +43,8 @@ arguments (`caveats.py`):
   portion"), or somewhere inside it (an address, a residence, downtown, the
   north side).
 - Who supplies power ("which utility serves Redding"). See the finding below.
-- Two cities, a city plus a county, or a city plus explicit coordinates.
+- Two cities, or a city plus a county. With explicit coordinates, the
+  coordinates are the place and the city name is only a label.
 - Names that are not in the 458-name municipality list (for example CDPs).
 - Common-word city names (Industry, Commerce, Weed, Needles, Paradise,
   Coronado) still need a place cue such as "the city of Weed" or
@@ -52,26 +53,57 @@ arguments (`caveats.py`):
   name (West Sacramento, South San Francisco, Mount Shasta) is not taken as
   that county.
 
-## Findings from the local warehouse (2026-09-23)
+## Shoreline points
 
-Point reads at a few city internal points:
+Some Census city centers sit just off a mapped coastline. For example,
+Albany's is 3.5 m outside PG&E's polygon on the Bay shore. City routes
+therefore call `/spatial/point` with `snap_shoreline=true`. That flag is
+hidden from the model's tool schema and is off for explicit coordinates.
 
-- The IOU polygons cover municipal-utility cities: Redding, Roseville,
-  Palo Alto, Lodi, Healdsburg, Ukiah, and Lompoc return PGE, and Anaheim
-  and Colton return SCE. Burbank, Pasadena, and Glendale return no IOU.
-  So "which utility serves X" is not answered from this layer.
-- Paradise's internal point is outside Tier 3 by about 67 m and returns no
-  tier, although the area around it is Tier 3. This is the clearest case for
-  the boundary work below.
-- Coronado's internal point (32.6567, -117.1564, in San Diego Bay) returns
-  no county and no grid cell. When a city center point has no county or no
-  grid cell, the orchestrator stops after the point read and asks for
-  coordinates on land, a county, or a utility territory. It never calls
-  risk with no cell and never reports an empty county. Explicit coordinates
-  keep their existing path.
-- Both `wildfire.hftd_tiers` rows fail `ST_IsValid`. Point containment gave
-  the same Paradise answer after `ST_MakeValid`, but polygon overlays need
-  valid geometry.
+With the flag on, a point that no polygon contains is snapped to the one
+nearby polygon, under these limits:
+
+| Layer | Limit | Why |
+|---|---|---|
+| IOU territory | 50 m | Every shoreline miss among the 483 city points is at most 41.8 m: Albany 3.5, South San Francisco 8.6, Avalon 31.2, Morro Bay 41.8. The nearest city truly outside every IOU is Los Angeles at 265.8 m (LADWP), then Vernon at 572.1 m. So 50 m covers the shoreline cases with a 5x margin below the first real gap. |
+| County | 150 m | The county layer is Census 1:500k cartographic boundaries, generalized at the coast. Its shoreline misses reach 142 m (Coronado; also Santa Monica 75, Avalon 107, Monterey 30, Manhattan Beach 8, South San Francisco 7). |
+| HFTD tier | never | A tier edge is a regulatory boundary, not a coastline. Paradise's center is 47.6 m outside Tier 3 and must stay "no tier". |
+| Grid cell | never | A missing cell means the fitted model has no cell there. The nearest cell is 2.6 km from Santa Monica, 6.6 km from Manhattan Beach, 1.6 km from Los Angeles, and 0.6 km from Coronado. |
+
+Guards, so a point is never put in a territory it is clearly outside of:
+- **Never from a hole.** A point inside an IOU's outer boundary but in one
+  of its holes is never snapped. That covers municipal utilities inside
+  SCE, such as Anaheim, Colton, Azusa, Riverside and Banning, however close
+  the hole's edge is.
+- **Exactly one candidate.** A snap needs exactly one polygon of that layer
+  within the limit. A point in water between two territories or counties is
+  left alone.
+- **Disclosed.** The response metadata records each snap and its distance,
+  and the answer carries a `city_shoreline_snap` caveat that names it.
+
+A missing grid cell only blocks an answer that needs one: a risk question,
+or a question about the grid cell. Santa Monica, Manhattan Beach, Los
+Angeles, and Coronado are outside the fitted grid, so their territory and tier questions
+are answered and their risk questions ask for a point inside coverage.
+
+## Findings from the local warehouse (after PR #45, 2026-09-23)
+
+Point reads at city centers on the rebuilt HFTD and IOU geometry:
+
+- The IOU polygons still cover some municipal-utility cities. Redding,
+  Roseville, Palo Alto, Lodi, Healdsburg, Ukiah, and Lompoc return PGE, so
+  "which utility serves X" is still not answered from this layer. Anaheim,
+  Colton, Azusa, Riverside, and Banning are now correctly outside SCE (they
+  are holes), and Burbank, Pasadena, Glendale, Los Angeles, and Vernon are
+  outside every IOU.
+- 30 city answers changed with PR #45. `docs/DATA_CHANGE_HFTD_IOU.md` lists
+  them, and `tests/test_city_point_answers.py` pins the new values.
+- Paradise's center is still outside Tier 3, now by 47.6 m. The town is a
+  hole in Tier 3. This remains the clearest case for the boundary work
+  below.
+- Coronado's center (32.6567, -117.1564, in San Diego Bay) now snaps to San
+  Diego County (142 m) but has no grid cell. Its territory and tier are
+  answered, and a risk question clarifies.
 
 ## Not built: "is part of Chico in Tier 3"
 
