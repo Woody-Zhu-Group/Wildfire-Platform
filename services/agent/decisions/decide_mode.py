@@ -7,10 +7,14 @@ Order for one question:
    including the measure gate, that the offline combined decider scored).
    - Jev clarify or refuse at or above the decline gate (default 0.8) returns
      that decision and reason.
+   - A Jev clarification about an item the router already resolved (the time,
+     or the place: county, utility, or coordinates) is ignored.
    - Jev answer where the router declined wins only at or above the separate,
      higher answer gate (default 0.9) on the facts behind the router's rule, since
      a wrong answer is worse than a clarifying question. The question then takes
      the model path, since a declined route has no deterministic call.
+   - A Jev answer never overrides a decline the router's resolver proved in code:
+     a missing or ambiguous time, or a missing place.
    - Below the gate, on a timeout, or on any Jev error, the router stands.
 4. When the final disposition is answer, the question proceeds as today: the
    router's deterministic call if it has one, otherwise the model path.
@@ -22,6 +26,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import hashlib
+import threading
 import logging
 import time
 from dataclasses import dataclass, field
@@ -36,7 +41,12 @@ from services.agent.decisions.jev_policy import (
     derive_outcome,
     facts_from_answers,
 )
-from services.agent.routing import UNSUPPORTED, UNSUPPORTED_ANSWERS, RouteDecision
+from services.agent.routing import (
+    _RISK_COVERAGE_LIMIT,
+    UNSUPPORTED,
+    UNSUPPORTED_ANSWERS,
+    RouteDecision,
+)
 from services.agent.schemas import TOOL_MODELS
 
 logger = logging.getLogger("services.agent.decisions")
@@ -137,10 +147,69 @@ _REASON_TEXT: dict[str, str] = {
     "ranking_missing_year": "What year or date range should the ranking cover?",
     "ranking_missing_slots": "Which dataset and which grouping (county, utility, or circuit) should I rank?",
     "ranking_county_contradiction": "Should I rank all counties, or report the one county you named?",
+    # Reuses routing.py wording for the same rules.
+    "risk_future_date": f"{_RISK_COVERAGE_LIMIT}. Which past date should I score?",
+    "unexpressable_county_filter": (
+        "County filtering needs a dataset that stores county. "
+        "Ask for a CAL FIRE county incident count, a CPUC county ignition "
+        "count, or drop the county constraint. I will not answer with a "
+        "broader statewide count that ignores county."
+    ),
 }
 _GENERIC_UNSUPPORTED = (
     "This system cannot answer that question with its available read-only wildfire services."
 )
+# The router has no prompt-injection rule; its generic unsupported answer is reused.
+_REASON_TEXT["prompt_injection"] = _GENERIC_UNSUPPORTED
+
+# Which item each Jev clarification asks for. A clarification about an item the
+# router already resolved is ignored, and a router decline for an item its own
+# resolver proved missing cannot be answered over.
+_TIME_RULES = frozenset(
+    {
+        "records_missing_year",
+        "map_missing_year",
+        "trend_missing_year",
+        "spatial_missing_year",
+        "map_plus_trend_missing_year",
+        "ranking_missing_year",
+        "ambiguous_relative_time",
+        "forecast_missing_date",
+    }
+)
+_PLACE_RULES = frozenset({"missing_location", "risk_missing_place"})
+_KNOWN_TIME = {"explicit", "relative_year", "relative_range"}
+
+
+def _time_status(slots: dict[str, Any]) -> str | None:
+    return (slots.get("time_resolution") or {}).get("status")
+
+
+def router_resolved(item: str, slots: dict[str, Any]) -> bool:
+    """True when the router's own resolver filled this item for the question."""
+    if item == "time":
+        return _time_status(slots) in _KNOWN_TIME
+    if item == "place":
+        return bool(slots.get("county") or slots.get("counties") or slots.get("utilities") or slots.get("coords"))
+    return False
+
+
+def _item_for(rule: str | None) -> str | None:
+    if rule in _TIME_RULES:
+        return "time"
+    if rule in _PLACE_RULES:
+        return "place"
+    return None
+
+
+def code_verified_missing(decision: RouteDecision) -> bool:
+    """A router decline whose missing time or place the resolver proved in code."""
+    item = _item_for(decision.rule)
+    if item == "time":
+        return _time_status(decision.slots) in {None, "none", "ambiguous"}
+    if item == "place":
+        return not router_resolved("place", decision.slots)
+    return decision.rule == "time_out_of_coverage"
 
 
 @dataclass
@@ -234,7 +303,7 @@ def _decline_decision(rule: str, disposition: str, slots: dict[str, Any]) -> Rou
         rule,
         f"Jev decide: {rule}",
         slots=slots,
-        answer=UNSUPPORTED_ANSWERS.get(key, _GENERIC_UNSUPPORTED),
+        answer=_REASON_TEXT.get(rule) or UNSUPPORTED_ANSWERS.get(key, _GENERIC_UNSUPPORTED),
     )
 
 
@@ -278,6 +347,10 @@ def decide_from_answers(
         info["jev_confidence"] = confidence
         if router_disposition == jev_disposition and decision.rule == jev_rule:
             return DecideResult("router", "agree", decision, **info, **base)
+        item = _item_for(jev_rule)
+        if jev_disposition == "clarify" and item and router_resolved(item, decision.slots):
+            # Jev asks for something the router already resolved from the question.
+            return DecideResult("router", "contradicts_slot", decision, **info, **base)
         if confidence is not None and confidence >= gate:
             return DecideResult(
                 "jev", "gate", _decline_decision(jev_rule, jev_disposition, decision.slots), **info, **base
@@ -287,9 +360,12 @@ def decide_from_answers(
     # Jev says answer.
     if router_disposition == "answer":
         return DecideResult("router", "agree", decision, **info, **base)
-    # The router declined. Jev must be sure the facts behind that rule do not hold.
+    # The router declined. A missing time or place its resolver proved in code stands.
     confidence = rule_confidence(decision.rule, answers)
     info["jev_confidence"] = confidence
+    if code_verified_missing(decision):
+        return DecideResult("router", "code_verified", decision, **info, **base)
+    # Otherwise Jev must be sure the facts behind that rule do not hold.
     if confidence is not None and confidence >= answer_gate:
         answered = RouteDecision(
             "model",
@@ -308,8 +384,36 @@ def jev_calls(question: str, today: str) -> list[dict[str, Any]]:
     return calls_for_config(question, today, None, "v3_hybrid")
 
 
-def ask_jev(backend: Any, question: str, today: str) -> tuple[dict[str, Answer], str | None, int]:
-    """Run the three calls in parallel. Any failed call is an error for the whole question."""
+# One bounded pool for every decide request. A call that outlives its timeout
+# keeps a worker until the backend's own timeout ends it, but the pool never
+# grows past MAX_WORKERS, so timed-out requests cannot pile up threads.
+MAX_WORKERS = 8
+_EXECUTOR_LOCK = threading.Lock()
+_EXECUTOR: concurrent.futures.ThreadPoolExecutor | None = None
+
+
+def shared_executor() -> concurrent.futures.ThreadPoolExecutor:
+    global _EXECUTOR
+    with _EXECUTOR_LOCK:
+        if _EXECUTOR is None:
+            _EXECUTOR = concurrent.futures.ThreadPoolExecutor(
+                max_workers=MAX_WORKERS, thread_name_prefix="jev-decide"
+            )
+        return _EXECUTOR
+
+
+def ask_jev(
+    backend: Any,
+    question: str,
+    today: str,
+    *,
+    timeout: float | None = None,
+) -> tuple[dict[str, Answer], str | None, int]:
+    """Run the three calls on the shared pool. Any failed call is an error for the question.
+
+    With a timeout, the question gives up after that many seconds; calls that have
+    not started are cancelled, and the answer is a timeout error.
+    """
     from services.agent.decisions.integrity import question_hash
 
     calls = jev_calls(question, today)
@@ -318,8 +422,14 @@ def ask_jev(backend: Any, question: str, today: str) -> tuple[dict[str, Answer],
     def one(call: dict[str, Any]):
         return backend.evaluate(call["state"], call["questions"], request_id=call["name"], question_hash=digest)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(calls)) as pool:
-        results = list(pool.map(one, calls))
+    pool = shared_executor()
+    futures = [pool.submit(one, call) for call in calls]
+    done, pending = concurrent.futures.wait(futures, timeout=timeout)
+    if pending:
+        for future in pending:
+            future.cancel()
+        return {}, f"timeout after {timeout}s", 0
+    results = [future.result() for future in futures]
     answers: dict[str, Answer] = {}
     tokens = 0
     for call, result in zip(calls, results):
@@ -340,6 +450,7 @@ def decide_live(
     gate: float,
     answer_gate: float = 0.9,
     today: date | None = None,
+    timeout: float | None = None,
 ) -> DecideResult:
     """Runtime decide: skip Jev for exempt routes, otherwise ask it and apply the policy."""
     if exemption(decision):
@@ -347,12 +458,14 @@ def decide_live(
     day = today or date.today()
     started = time.perf_counter()
     try:
-        answers, error, tokens = ask_jev(backend, question, day.isoformat())
+        answers, error, tokens = ask_jev(backend, question, day.isoformat(), timeout=timeout)
     except Exception as exc:  # noqa: BLE001
         answers, error, tokens = {}, f"{type(exc).__name__}: {exc}", 0
     result = decide_from_answers(
         question, decision, answers, gate=gate, answer_gate=answer_gate, error=error, today=day
     )
+    if error and error.startswith("timeout"):
+        result.why = "timeout"
     result.latency_ms = (time.perf_counter() - started) * 1000
     result.input_tokens = tokens
     return result

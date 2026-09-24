@@ -302,3 +302,74 @@ def test_decide_mode_uses_the_configured_answer_gate(monkeypatch):
         monkeypatch.setattr(orchestrator, "_ask_routed", routed)
         asyncio.run(orchestrator.ask(question))
         assert seen["decision"].rule == expected
+
+
+def test_reason_texts_reuse_router_wording():
+    from services.agent.decisions.decide_mode import _GENERIC_UNSUPPORTED, _REASON_TEXT
+    from services.agent.routing import _RISK_COVERAGE_LIMIT
+
+    assert _REASON_TEXT["risk_future_date"].startswith(_RISK_COVERAGE_LIMIT)
+    assert _REASON_TEXT["risk_future_date"].endswith("Which past date should I score?")
+    county = route_question("How many wildfires were there in Sonoma County in 2024?")
+    if county.rule == "unexpressable_county_filter":
+        assert _REASON_TEXT["unexpressable_county_filter"] == county.answer
+    assert _REASON_TEXT["unexpressable_county_filter"].startswith("County filtering needs a dataset that stores county.")
+    assert _REASON_TEXT["prompt_injection"] == _GENERIC_UNSUPPORTED
+    # A Jev refusal for prompt injection uses that text, not an unknown-topic fallback.
+    decision = route_question(COUNT_Q)
+    result = decide_from_answers(COUNT_Q, decision, _answer_facts(prompt_injection=_noul(0.97)), gate=0.8)
+    assert result.decision.path == "unsupported" and result.decision.answer == _GENERIC_UNSUPPORTED
+
+
+def test_jev_clarification_about_a_resolved_place_is_ignored():
+    decision = route_question(COUNT_Q)
+    assert decision.slots.get("utilities") == ["PGE"]
+    # Jev reads "near me" style facts at 0.95, but the router resolved PG&E as the place.
+    near = _answer_facts(vague_proximity=_noul(0.95), names_specific_place=_noul(0.05))
+    result = decide_from_answers(COUNT_Q, decision, near, gate=0.8)
+    assert result.jev_rule == "missing_location"
+    assert result.winner == "router" and result.why == "contradicts_slot" and result.decision is decision
+
+
+def test_resolved_items_map_to_the_rules_that_ask_for_them():
+    from services.agent.decisions.decide_mode import _item_for, router_resolved
+
+    assert _item_for("records_missing_year") == "time" and _item_for("ambiguous_relative_time") == "time"
+    assert _item_for("risk_missing_place") == "place" and _item_for("missing_location") == "place"
+    assert _item_for("ranking_missing_slots") is None
+    assert router_resolved("time", route_question(COUNT_Q).slots)
+    assert not router_resolved("time", route_question("How many PG&E ignitions were there?").slots)
+
+
+def test_jev_answer_cannot_override_a_code_verified_missing_year():
+    question = "How many PG&E ignitions were there?"
+    decision = route_question(question)
+    assert decision.rule == "records_missing_year"
+    # has_time_scope 0.99 makes Jev answer with 0.99 confidence, far past the 0.9 answer gate.
+    sure = _answer_facts(has_time_scope=_noul(0.99), intent=_choice("count", 0.99))
+    result = decide_from_answers(question, decision, sure, gate=0.8, answer_gate=0.9)
+    assert result.jev_disposition == "answer"
+    assert result.winner == "router" and result.why == "code_verified" and result.decision is decision
+
+
+def test_timed_out_jev_calls_do_not_leak_threads():
+    import threading
+    import time as _time
+
+    from services.agent.decisions import decide_mode
+
+    class Stuck(FakeBackend):
+        def evaluate(self, *args, **kwargs):
+            _time.sleep(0.6)
+            return super().evaluate(*args, **kwargs)
+
+    backend = Stuck(_answer_facts())
+    decision = route_question(COUNT_Q)
+    started = _time.perf_counter()
+    for _ in range(12):
+        result = decide_live(COUNT_Q, decision, backend=backend, gate=0.8, timeout=0.05)
+        assert result.winner == "router" and result.why == "timeout" and result.decision is decision
+    # Twelve questions of three calls each would need 36 threads without a shared pool.
+    assert _time.perf_counter() - started < 3.0
+    workers = [t for t in threading.enumerate() if t.name.startswith("jev-decide")]
+    assert len(workers) <= decide_mode.MAX_WORKERS

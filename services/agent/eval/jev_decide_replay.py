@@ -205,6 +205,54 @@ def replay(args: argparse.Namespace) -> int:
     return 0
 
 
+SWEEP_SETS = ("dev", "v1")
+SWEEP_ANSWER_GATES = (0.8, 0.85, 0.9, 0.95, 1.01)
+
+
+def sweep(args: argparse.Namespace) -> int:
+    """Choose the answer gate from dev and v1 only. v3 is frozen and never read here."""
+    store = json.loads(STORE.read_text(encoding="utf-8"))
+    today = date.fromisoformat(store["today"])
+    sets = load_sets()
+    rows = []
+    for answer_gate in SWEEP_ANSWER_GATES:
+        row: dict[str, Any] = {"answer_gate": answer_gate}
+        for set_name in SWEEP_SETS:
+            n = hits = fixed = broken = answer_overrides = 0
+            for item in sets[set_name]:
+                stored = store["rows"].get(f"{set_name}|{item['id']}")
+                if stored is None:
+                    continue
+                decision = route_question(item["question"])
+                answers = _answers(stored["answers"]) if stored.get("answers") else None
+                result = decide_from_answers(
+                    item["question"], decision, answers, gate=args.gate, answer_gate=answer_gate,
+                    error=stored.get("error"), today=today,
+                )
+                router_ok = _score(item["labels"], ROUTER_DISPOSITION[decision.path])
+                decide_ok = _score(item["labels"], ROUTER_DISPOSITION[result.decision.path])
+                n += 1
+                hits += decide_ok
+                if result.winner == "jev":
+                    fixed += decide_ok and not router_ok
+                    broken += router_ok and not decide_ok
+                    answer_overrides += result.decision.rule == "jev_decide_answer"
+            row[set_name] = {"n": n, "acc": round(hits / (n or 1), 3), "fixed": fixed, "broken": broken, "answer_overrides": answer_overrides}
+        rows.append(row)
+        print(
+            f"answer_gate {answer_gate:4}: "
+            + "  ".join(
+                f"{name} acc {row[name]['acc']:.3f} fixed {row[name]['fixed']} broken {row[name]['broken']} answer-overrides {row[name]['answer_overrides']}"
+                for name in SWEEP_SETS
+            )
+        )
+    (HERE / "runs" / "jev_decide_answer_gate_sweep.json").write_text(
+        json.dumps({"gate": args.gate, "sets": SWEEP_SETS, "v3_used": False, "rows": rows}, indent=1),
+        encoding="utf-8",
+    )
+    return 0
+
+
 def live(args: argparse.Namespace) -> int:
     """Dev only: run the runtime path and compare with the replay of the store."""
     store = json.loads(STORE.read_text(encoding="utf-8"))
@@ -264,7 +312,7 @@ def live(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("capture", "replay", "live"))
+    parser.add_argument("command", choices=("capture", "replay", "sweep", "live"))
     parser.add_argument("--cap-usd", type=float, default=0.3)
     parser.add_argument("--gate", type=float, default=0.8)
     parser.add_argument("--answer-gate", type=float, default=0.9)
@@ -272,7 +320,7 @@ def main() -> int:
     from dotenv import load_dotenv
 
     load_dotenv(REPO_ROOT / ".env")
-    return {"capture": capture, "replay": replay, "live": live}[args.command](args)
+    return {"capture": capture, "replay": replay, "sweep": sweep, "live": live}[args.command](args)
 
 
 if __name__ == "__main__":

@@ -249,6 +249,8 @@ class AgentOrchestrator:
                         backend=backend,
                         gate=gate,
                         answer_gate=answer_gate,
+                        # ask_jev gives up here and returns; the pool stays bounded.
+                        timeout=self.settings.jev_timeout_seconds,
                     ),
                     timeout=self.settings.jev_timeout_seconds + 1.0,
                 )
