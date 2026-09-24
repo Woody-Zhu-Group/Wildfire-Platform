@@ -179,18 +179,28 @@
     "id": "hv2_011",
     "question": "Take 2021 and 2022 separately: how many sampled wildfire ignitions of all causes occurred in California in each year?",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "count",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
     "expected_dataset": "us_ignitions",
-    "expected_tool_pick": "data_query_records",
+    "expected_tool_pick": null,
     "expected_clarify_reason": null,
-    "expected_unsupported_topic": null,
-    "gold_plan": [
-      "data_query_records",
-      "data_query_records"
-    ],
-    "needs_human_review": true,
-    "label_rationale": "Two years of the national set. A California filter may not exist."
+    "expected_unsupported_topic": "unexpressable_county_filter",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Two years of the national set. A California filter may not exist.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "count",
+      "expected_tool_pick": "data_query_records",
+      "expected_unsupported_topic": null,
+      "gold_plan": [
+        "data_query_records",
+        "data_query_records"
+      ],
+      "needs_human_review": true
+    },
+    "rule": "H",
+    "rule_text": "Rule H, written by Michael on 2026-09-23: a US-sample (us_ignitions) question restricted to a state is unsupported / unexpressable_county_filter, consistent with rule F and with ho_078. The national sample has no state or county filter, so a California-only count cannot be expressed. needs_human_review cleared on the rows rule H decided."
   },
   {
     "id": "hv2_012",

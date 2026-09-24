@@ -56,6 +56,23 @@ _SERIES_ASK = re.compile(
     r"\bchart\b|\bgraph\b|\bplot\b",
     re.I,
 )
+# Wording that names the US ignitions sample, whatever dataset the router chose.
+_US_SAMPLE = re.compile(
+    r"\bsampled?\b|\ball[\s-]+causes?\b|\ball-cause\b|\bnational\b|\bus\s+ignitions?\b|"
+    r"\bu\.s\.\s+ignitions?\b|\bfirecast",
+    re.I,
+)
+_US_STATE = re.compile(
+    r"\b(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|"
+    r"delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|"
+    r"kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|"
+    r"mississippi|missouri|montana|nebraska|nevada|new\s+hampshire|new\s+jersey|"
+    r"new\s+mexico|new\s+york|north\s+carolina|north\s+dakota|ohio|oklahoma|"
+    r"oregon|pennsylvania|rhode\s+island|south\s+carolina|south\s+dakota|"
+    r"tennessee|texas|utah|vermont|virginia|washington|west\s+virginia|"
+    r"wisconsin|wyoming)\b",
+    re.I,
+)
 _OTHER_METRIC = re.compile(
     r"\bacres?\b|\bacreage\b|\bcustomers?\b|\brate\b|\bratio\b|"
     r"\bper\s+(?:circuit|customer|mile|km|kilometer|square)\b|"
@@ -173,6 +190,12 @@ def _unrepresented(
         return "by-county wording"
     if _OTHER_METRIC.search(lower):
         return "a measure other than a count"
+    us_sample_wording = bool(_US_SAMPLE.search(lower))
+    if us_sample_wording and dataset != "us_ignitions":
+        return "dataset (US-sample wording resolved to another dataset)"
+    if (dataset == "us_ignitions" or us_sample_wording) and _US_STATE.search(lower):
+        # Label rule H: the US sample has no state filter the calls can carry.
+        return "a state (the US sample cannot filter by state)"
 
     # Each utility and each county: every call carries one, and each is covered.
     for key, slot_key in (("utility", "utilities"), ("county", "counties")):

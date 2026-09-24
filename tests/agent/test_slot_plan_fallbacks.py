@@ -206,3 +206,25 @@ def test_a_measure_a_count_cannot_carry_falls_back():
     question = "Give me the number of structures destroyed by PG&E-related ignitions in 2020 by county."
     assert fallback_reason(question) == "a measure other than a count"
     assert slot_tool_calls(question) is None
+
+
+def test_a_us_sample_question_restricted_to_a_state_falls_back():
+    # Label rule H (holdout v2 hv2_011): the US sample has no state filter.
+    state = "How many US ignition sample events were there in California in 2021 and 2022?"
+    assert route_question(state).slots["dataset"] == "us_ignitions"
+    assert fallback_reason(state) == "a state (the US sample cannot filter by state)"
+    national = "Take 2021 and 2022 separately: how many US ignition sample events were there?"
+    assert [a["year"] for _, a in slot_tool_calls(national)] == [2021, 2022]
+
+
+def test_hv2_011_falls_back_even_though_the_router_picks_cpuc():
+    # The router resolves 'sampled ignitions of all causes' to cpuc_ignitions, so
+    # the planner treats US-sample wording as a dataset the calls must read.
+    question = (
+        "Take 2021 and 2022 separately: how many sampled wildfire ignitions of all "
+        "causes occurred in California in each year?"
+    )
+    assert route_question(question).slots["dataset"] == "cpuc_ignitions"
+    assert fallback_reason(question) == "dataset (US-sample wording resolved to another dataset)"
+    decision, planned = _slot_calls(question)
+    assert planned.rule != "slot_plan"

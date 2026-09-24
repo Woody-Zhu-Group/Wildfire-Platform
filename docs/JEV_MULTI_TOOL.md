@@ -23,6 +23,7 @@ A candidate plan stands only if every slot and constraint the router resolved is
 - date window: every call's window equals the resolved window, or, for separately named years, the calls cover exactly those years with full-year windows. A month named in the question must fall inside the window, a month window across several years falls back, and a part of a year the router does not resolve (a quarter, a half, a season) falls back
 - output form: map or where wording needs a map call, list or records wording needs record calls, series wording (monthly, trend, chart) needs a series call and a series needs that wording, and a by-county ask needs the rank
 - measure: acres, customers, or a rate cannot be carried by a count, so they fall back
+- US sample: US-sample wording (sampled, all causes, national) must resolve to `us_ignitions`; the router sometimes resolves it to `cpuc_ignitions`, and then the plan falls back. The US sample has no state filter, so a US-sample question restricted to a state (California) also falls back (label rule H)
 
 `fallback_reason(question)` returns the first check a plan would fail. `tests/agent/test_slot_plan_fallbacks.py` holds the reviewer questions, the earlier fallback cases, and probes for each check; `tests/agent/test_slot_plan.py` covers the plans that stand.
 
