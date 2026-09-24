@@ -8,7 +8,9 @@ Order for one question:
    - Jev clarify or refuse at or above the decline gate (default 0.8) returns
      that disposition. Jev owns the disposition; the router owns the wording.
      When the router also declined the same way (both clarify, or both refuse),
-     the router's text, rule, and reason stand and Jev's rule goes to the log only.
+     the router's text, rule, and reason stand and Jev's rule goes to the log only,
+     unless the router's rule is a generic one (GENERIC_ROUTER_RULES): then Jev's
+     more specific clarification is shown, composed with the router's slots.
      When Jev changes the disposition, its clarification goes through the same
      clarify-all-missing composition as the router's, using the router's slots.
    - A Jev clarification about an item the router already resolved (the time,
@@ -43,12 +45,15 @@ from datetime import date
 from typing import Any
 
 from services.agent.clarify_missing import complete_clarification
+from services.agent.measure_clarify import measure_clarification
 from services.agent.decisions.backend import Answer
 from services.agent.decisions.call_budget import DailyCallBudget
 from services.agent.decisions.jev_policy import (
     OFF_TOPIC_RULES,
     REGEX_ONLY,
+    MEASURE_CLARIFY_INTENTS,
     DerivedOutcome,
+    JevFacts,
     derive_outcome,
     facts_from_answers,
 )
@@ -92,6 +97,11 @@ def exemption(decision: RouteDecision) -> str | None:
         return "router_only_tool"
     return None
 
+
+# Router clarifications that say only that something is missing, without naming
+# what is wrong with the question. When Jev also clarifies, with a different and
+# more specific reason, Jev's reason is shown instead of the router's.
+GENERIC_ROUTER_RULES: frozenset[str] = frozenset({"ranking_missing_slots"})
 
 ROUTER_DISPOSITION = {
     "deterministic": "answer",
@@ -385,11 +395,31 @@ def answer_confidence(answers: dict[str, Any]) -> float | None:
     return min(values) if values else None
 
 
+def _decline_text(rule: str, slots: dict[str, Any], question: str, facts: JevFacts | None) -> str:
+    """Jev's clarification text before clarify-all-missing composition."""
+    if (
+        rule == "ambiguous_risk_metric"
+        and facts is not None
+        and facts.intent in MEASURE_CLARIFY_INTENTS
+        and facts.measure == "other_measure"
+    ):
+        # A ranking or comparison by no measure in the data: list the registry's
+        # measures for the grouping, keeping the router's grouping and period.
+        return measure_clarification(
+            facts.intent, slots, text=question, rank_dimension=facts.rank_dimension
+        )
+    return _REASON_TEXT.get(rule, "Could you clarify the question?")
+
+
 def _decline_decision(
-    rule: str, disposition: str, slots: dict[str, Any], question: str = ""
+    rule: str,
+    disposition: str,
+    slots: dict[str, Any],
+    question: str = "",
+    facts: JevFacts | None = None,
 ) -> RouteDecision:
     if disposition == "clarify":
-        text = _REASON_TEXT.get(rule, "Could you clarify the question?")
+        text = _decline_text(rule, slots, question, facts)
         # Same composition the router applies: ask for every missing item, with an
         # example, from the router's slots.
         return RouteDecision(
@@ -431,7 +461,8 @@ def decide_from_answers(
     if error or not answers:
         return DecideResult("router", "error", decision, error=error or "no answers", **base)
 
-    outcome = derive_outcome(facts_from_answers(answers), question=question, today=today)
+    facts = facts_from_answers(answers)
+    outcome = derive_outcome(facts, question=question, today=today)
     jev_disposition = outcome.disposition
     jev_rule = _jev_rule(outcome)
     router_disposition = ROUTER_DISPOSITION.get(decision.path, "answer")
@@ -458,10 +489,14 @@ def decide_from_answers(
             # for example a year on a point-context or territory lookup.
             return DecideResult("router", "slot_unused", decision, **info, **base)
         if confidence is not None and confidence >= gate:
-            if router_disposition == jev_disposition:
+            if router_disposition == jev_disposition and not (
+                jev_disposition == "clarify" and decision.rule in GENERIC_ROUTER_RULES
+            ):
                 # Both declined the same way: the router's wording stands.
                 return DecideResult("jev", "gate", decision, wording="router", **info, **base)
-            declined = _decline_decision(jev_rule, jev_disposition, decision.slots, question)
+            # Jev changed the disposition, or both clarify and the router's rule
+            # is generic: Jev's reason, composed with the router's slots.
+            declined = _decline_decision(jev_rule, jev_disposition, decision.slots, question, facts)
             return DecideResult("jev", "gate", declined, wording="jev", **info, **base)
         return DecideResult("router", "below_gate", decision, **info, **base)
 

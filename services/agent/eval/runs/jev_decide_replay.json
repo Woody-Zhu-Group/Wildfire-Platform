@@ -6,7 +6,7 @@
   "dev": {
    "n": 137,
    "router": 128,
-   "jev": 133,
+   "jev": 134,
    "decide": 133,
    "jev_errors": 0,
    "exempt": 24,
@@ -14,14 +14,14 @@
    "overrides_right": 5,
    "overrides_wrong": 0,
    "router_acc": 0.934,
-   "jev_acc": 0.971,
+   "jev_acc": 0.978,
    "decide_acc": 0.971,
    "status": "used for tuning"
   },
   "v1": {
    "n": 63,
    "router": 57,
-   "jev": 59,
+   "jev": 60,
    "decide": 60,
    "jev_errors": 0,
    "exempt": 10,
@@ -29,7 +29,7 @@
    "overrides_right": 3,
    "overrides_wrong": 0,
    "router_acc": 0.905,
-   "jev_acc": 0.937,
+   "jev_acc": 0.952,
    "decide_acc": 0.952,
    "status": "seen, now development data"
   },
@@ -51,16 +51,16 @@
   "v3": {
    "n": 65,
    "router": 47,
-   "jev": 48,
-   "decide": 52,
+   "jev": 46,
+   "decide": 53,
    "jev_errors": 0,
    "exempt": 15,
-   "jev_won": 8,
-   "overrides_right": 5,
+   "jev_won": 9,
+   "overrides_right": 6,
    "overrides_wrong": 0,
    "router_acc": 0.723,
-   "jev_acc": 0.738,
-   "decide_acc": 0.8,
+   "jev_acc": 0.708,
+   "decide_acc": 0.815,
    "status": "tuned (router fixes written from its disagreements)"
   },
   "smoke": {
@@ -2444,8 +2444,8 @@
     "open_comparison"
    ],
    "jev": [
-    "unsupported",
-    "unsupported_other_measure",
+    "clarify",
+    "ambiguous_risk_metric",
     0.71
    ],
    "decide": [
@@ -3536,8 +3536,8 @@
     "unsupported_ranking"
    ],
    "jev": [
-    "unsupported",
-    "unsupported_other_measure",
+    "clarify",
+    "ambiguous_risk_metric",
     0.3
    ],
    "decide": [
@@ -4214,7 +4214,7 @@
    ],
    "decide": [
     "clarification",
-    "ranking_missing_slots",
+    "ranking_missing_year",
     "jev",
     "gate"
    ]
@@ -5741,7 +5741,7 @@
     "hftd_constraint_unavailable"
    ],
    "jev": [
-    "unsupported",
+    "clarify",
     null,
     null
    ],
@@ -5783,8 +5783,8 @@
     "ranking_missing_slots"
    ],
    "jev": [
-    "unsupported",
-    "unsupported_other_measure",
+    "clarify",
+    "ambiguous_risk_metric",
     0.48
    ],
    "decide": [
@@ -5822,7 +5822,7 @@
    ],
    "router": [
     "clarification",
-    "ambiguous_risk_metric"
+    "ranking_missing_slots"
    ],
    "jev": [
     "clarify",
@@ -5831,9 +5831,9 @@
    ],
    "decide": [
     "clarification",
-    "ambiguous_risk_metric",
+    "ranking_missing_slots",
     "router",
-    "agree"
+    "below_gate"
    ]
   },
   "v3|hv3_040": {
@@ -5905,8 +5905,8 @@
     "unsupported"
    ],
    "router": [
-    "clarification",
-    "ambiguous_risk_metric"
+    "unsupported",
+    "unsupported_ranking"
    ],
    "jev": [
     "unsupported",
@@ -5914,10 +5914,10 @@
     0.63
    ],
    "decide": [
-    "clarification",
-    "ambiguous_risk_metric",
+    "unsupported",
+    "unsupported_ranking",
     "router",
-    "below_gate"
+    "agree"
    ]
   },
   "v3|hv3_045": {
@@ -6014,8 +6014,8 @@
     "ranking_missing_year"
    ],
    "jev": [
-    "unsupported",
-    "unsupported_other_measure",
+    "clarify",
+    "ambiguous_risk_metric",
     0.67
    ],
    "decide": [
@@ -6203,7 +6203,7 @@
     "unsupported_optimization"
    ],
    "jev": [
-    "unsupported",
+    "clarify",
     null,
     null
    ],
@@ -6409,8 +6409,8 @@
     "clarify"
    ],
    "router": [
-    "clarification",
-    "ambiguous_risk_metric"
+    "model",
+    "open_ended"
    ],
    "jev": [
     "clarify",
@@ -6420,8 +6420,8 @@
    "decide": [
     "clarification",
     "ambiguous_risk_metric",
-    "router",
-    "agree"
+    "jev",
+    "gate"
    ]
   },
   "v3|hv3_073": {
@@ -6482,7 +6482,7 @@
    ],
    "decide": [
     "clarification",
-    "ranking_missing_slots",
+    "ranking_missing_year",
     "jev",
     "gate"
    ]

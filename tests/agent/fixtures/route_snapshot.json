@@ -672,8 +672,8 @@
   "risk_future_date"
  ],
  "jev_holdout.json:ho_062": [
-  "clarification",
-  "ambiguous_risk_metric"
+  "model",
+  "open_ended"
  ],
  "jev_holdout.json:ho_063": [
   "clarification",
@@ -1048,8 +1048,8 @@
   "unsupported_cost"
  ],
  "jev_holdout_v2.json:hv2_059": [
-  "clarification",
-  "ambiguous_risk_metric"
+  "model",
+  "open_ended"
  ],
  "jev_holdout_v2.json:hv2_060": [
   "unsupported",
@@ -1229,7 +1229,7 @@
  ],
  "jev_holdout_v3_questions.json:hv3_039": [
   "clarification",
-  "ambiguous_risk_metric"
+  "ranking_missing_slots"
  ],
  "jev_holdout_v3_questions.json:hv3_040": [
   "model",
@@ -1244,12 +1244,12 @@
   "open_ended"
  ],
  "jev_holdout_v3_questions.json:hv3_043": [
-  "clarification",
-  "ambiguous_risk_metric"
+  "model",
+  "open_comparison"
  ],
  "jev_holdout_v3_questions.json:hv3_044": [
-  "clarification",
-  "ambiguous_risk_metric"
+  "unsupported",
+  "unsupported_ranking"
  ],
  "jev_holdout_v3_questions.json:hv3_045": [
   "model",
@@ -1356,8 +1356,8 @@
   "undefined_spatial_scope"
  ],
  "jev_holdout_v3_questions.json:hv3_071": [
-  "clarification",
-  "ambiguous_risk_metric"
+  "model",
+  "open_ended"
  ],
  "jev_holdout_v3_questions.json:hv3_072": [
   "unsupported",

@@ -25,7 +25,7 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 
 ## Architecture (target design: Jev first)
 
-On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is `AGENT_JEV_MODE=decide` (off by default, `docs/JEV_DECIDE.md`); Jev owns the disposition and the router owns the wording; the slot planner is `AGENT_SLOT_PLAN` (off by default, `docs/JEV_MULTI_TOOL.md`). With both on, decide runs first and the slot planner acts only on questions decide leaves as answer.
+On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is `AGENT_JEV_MODE=decide` (off by default, `docs/JEV_DECIDE.md`); Jev owns the disposition and the router owns the wording, except that the generic `ranking_missing_slots` question yields to Jev's more specific clarification; the slot planner is `AGENT_SLOT_PLAN` (off by default, `docs/JEV_MULTI_TOOL.md`). With both on, decide runs first and the slot planner acts only on questions decide leaves as answer.
 
 1. Router hard backstops fire first (`services/agent/routing.py`): live and current, future dates, city_needs_place, hftd_constraint_unavailable, explicit unsupported topics.
 2. Jev decides answer, clarify, or refuse (`services/agent/decisions/`, policy in `jev_policy.py`, schema in `v3.py`).

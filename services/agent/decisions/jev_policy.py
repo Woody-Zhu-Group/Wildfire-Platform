@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 import re
 
-from services.agent.routing import _coords, _rank_metric, _unresolved_measure, _wants_risk
+from services.agent.routing import _coords, _rank_metric, _wants_risk
 from services.agent.time_resolve import resolve_time
 
 # The router writes this pattern inside _wants_risk. Compile that source
@@ -108,6 +108,10 @@ OFF_TOPIC_RULES = {
 # Intents where an other_measure answer means the warehouse cannot return
 # what was asked. Map, territory_boundary, and spatial_context are never gated.
 MEASURE_GATED_INTENTS = frozenset({"count", "rank", "compare", "trend", "records_list"})
+# Intents that order or set side by side by a measure. Their tools offer a
+# fixed set of measures per grouping (RANK_MEASURES, COMPARE_MEASURES), so an
+# other_measure answer asks which of those to use instead of refusing.
+MEASURE_CLARIFY_INTENTS = frozenset({"rank", "compare"})
 
 # Intents whose tools take a time window, so a missing year clarifies. The
 # missing-year gates apply to these and to nothing else: point context,
@@ -293,10 +297,16 @@ def derive_outcome(
     if facts.measure == "other_measure" and (facts.intent or "") in MEASURE_GATED_INTENTS:
         # A map, a territory boundary, or spatial context names no warehouse
         # measure, so other_measure never declines those intents.
-        # Wording that resolves to no registry measure (most dangerous, safest,
-        # worse) asks which measure, the same check and rule the router uses.
-        lower = (question or "").lower()
-        if _RISKIEST_METRIC.search(lower) or _unresolved_measure(lower, rank=True, compare=True):
+        # A ranking or comparison asks which of the registry's measures to use:
+        # whether its wording names one is Jev's judgment, not a word list.
+        if facts.intent in MEASURE_CLARIFY_INTENTS:
+            trace.append("measure_is_judgment")
+            return hit("ambiguous_risk_metric")
+        if re.search(
+            r"\b(?:worst|most dangerous|safest|riskiest|most risky|highest risk)\b",
+            question or "",
+            re.I,
+        ):
             trace.append("measure_is_judgment")
             return hit("ambiguous_risk_metric")
         trace.append("unsupported_other_measure")

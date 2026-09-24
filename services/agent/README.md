@@ -149,7 +149,8 @@ card per count rather than a utility-by-year comparison.
   runs the Jev-first decider right after `route_question`: backstops first, then
   Jev's disposition behind a 0.8 decline gate and a 0.9 answer gate
   ([`docs/JEV_DECIDE.md`](../../docs/JEV_DECIDE.md), `decisions/decide_mode.py`).
-  Jev owns the disposition and the router owns the clarification or refusal wording.
+  Jev owns the disposition and the router owns the clarification or refusal wording,
+  except that the generic `ranking_missing_slots` question yields to Jev's more specific one.
 - `AGENT_SLOT_PLAN` (off by default) plans a deferred multi-entity question as
   several deterministic calls from router slots
   ([`docs/JEV_MULTI_TOOL.md`](../../docs/JEV_MULTI_TOOL.md)). With decide on,
