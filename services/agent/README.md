@@ -46,10 +46,14 @@ dataset/metric, scope, and required time/location slots are explicit:
   personnel, satellite imagery, leadership, optimization, damage, live web,
   future predictions) → refusal
 - missing risk metric, location, region definition, or time → clarification.
-  When a question is missing more than one item (year, place, dataset), one
-  clarification asks for all of them and ends with an example rephrasing built
-  from what the question already named (`clarify_missing.py`). The rule id does
-  not change.
+  When a question is missing more than one item (year, place, dataset, ranking
+  grouping), one clarification asks for all of them and ends with an example
+  rephrasing built from what the question already named (`clarify_missing.py`).
+  The missing items come from what the question reads and the router's slots,
+  not the rule (a place is computed only for risk questions; for counts, maps,
+  and charts only the router's place rules ask for one), so any rule's text (the router's or, in decide mode, Jev's) asks for
+  all of them, with options from the registry (`RANK_MEASURES`,
+  `COMPARE_MEASURES`, `SERIES_DATASETS`). The rule id does not change.
 
 Compositions, cross-dataset questions, and requests not matching those strict
 rules go to the model. Every response logs `path`, `rule`, and tool trajectory.
@@ -149,7 +153,8 @@ card per count rather than a utility-by-year comparison.
   runs the Jev-first decider right after `route_question`: backstops first, then
   Jev's disposition behind a 0.8 decline gate and a 0.9 answer gate
   ([`docs/JEV_DECIDE.md`](../../docs/JEV_DECIDE.md), `decisions/decide_mode.py`).
-  Jev owns the disposition and the router owns the clarification or refusal wording.
+  Jev owns the disposition and the router owns the clarification or refusal wording,
+  except that the generic `ranking_missing_slots` question yields to Jev's more specific one.
 - `AGENT_SLOT_PLAN` (off by default) plans a deferred multi-entity question as
   several deterministic calls from router slots
   ([`docs/JEV_MULTI_TOOL.md`](../../docs/JEV_MULTI_TOOL.md)). With decide on,

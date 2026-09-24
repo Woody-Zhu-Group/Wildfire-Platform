@@ -2183,7 +2183,7 @@ def _harness_slot_hint(
         if county:
             hint += (
                 f"County filter {county!r} is valid for calfire_incidents, "
-                "cpuc_ignitions, epss_outages, or psps_events — never us_ignitions.\n"
+                "cpuc_ignitions, epss_outages, or psps_events, never us_ignitions.\n"
             )
         return hint
     hint = (
@@ -2194,7 +2194,7 @@ def _harness_slot_hint(
     if county:
         hint += (
             f"County filter {county!r} is valid for calfire_incidents, "
-            "cpuc_ignitions, epss_outages, or psps_events — never us_ignitions.\n"
+            "cpuc_ignitions, epss_outages, or psps_events, never us_ignitions.\n"
         )
     return hint
 
@@ -2253,7 +2253,7 @@ def _user_facing_tool_failure(
             return (
                 "I could not complete that request with the available query tools. "
                 "I can rank counties or utilities in CPUC ignitions, counties in "
-                "CAL FIRE incidents, or circuits in EPSS outages — one dataset "
+                "CAL FIRE incidents, or circuits in EPSS outages, one dataset "
                 "and an explicit year. Cross-dataset ranking, EPSS-by-utility, "
                 "and US-by-state are not available."
             )

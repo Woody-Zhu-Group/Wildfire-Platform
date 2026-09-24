@@ -47,6 +47,39 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
      the same clarify-all-missing composition with the router's slots, so every
      clarification the user sees asks for everything missing, with an example
      (`wording: "jev"`).
+   - **A generic router clarification yields to Jev's specific one** (PR #94). When both
+     clarify, for different reasons, and the router's rule is in
+     `decide_mode.GENERIC_ROUTER_RULES` (today only `ranking_missing_slots`, which says only
+     that a dataset or grouping is missing), Jev's rule and text are shown instead,
+     composed with the router's slots through `complete_clarification` (`wording: "jev"`).
+     Every other both-clarify case keeps the router's wording as above.
+   - **Every shown clarification asks for every missing item, whichever rule's text is the
+     base.** `complete_clarification` reads the missing items from what the question reads
+     (its dataset and intent) and the router's slots only (`clarify_missing.missing_items`):
+     a year or date and a dataset for event data, a grouping for a ranking, and a place and
+     a calendar day for a risk question. A place is not computed for counts, maps, lists,
+     or charts; it is asked only when the rule's own text asks for it (the router's place
+     backstops). The number of places named never makes a task: a territory or HFTD lookup
+     naming several cities (`hv3_013`) reads no event data and is never asked for a year.
+     The rule contributes only the item its own text asks for, and whether a text already
+     asks for an item is read from its words. So when Jev's
+     `ranking_missing_year` replaces the router's `ranking_missing_slots` on "Which one had
+     the most ignitions?", the grouping is still asked. The options come from the registry
+     for the task: a ranking lists the datasets `RANK_MEASURES` has for the grouping (a county
+     ranking offers CPUC ignitions or CAL FIRE incidents, never PSPS) or the groupings it has
+     for the dataset, a comparison of named places lists the datasets
+     `COMPARE_MEASURES` has for that scope, and a yearly or seasonal chart lists
+     `SERIES_DATASETS` (also the `series_mode_missing_dataset` question itself). `tests/agent/test_clarify_asks_every_missing_item.py`
+     asserts this for every clarification rule on questions missing different combinations
+     of year, dataset, grouping, and place, and on the stored `ho_094` and `hv3_077` answers.
+   - **A registry-grounded ranking refusal is a verified fact** (PR #94). When the router
+     refuses a ranking because the question names two datasets, or its one dataset and its
+     grouping are not a pair in `RANK_MEASURES` (CAL FIRE acres by utility, EPSS by
+     utility, any dataset by state), a Jev clarification or answer cannot replace it
+     (`decide_mode.registry_verified_refusal`, `why: "code_verified"`, like
+     `code_verified_missing`). A ranking refused on a pair the registry has (a change over
+     time) is not covered. In the replay this changes only `ho_041`'s reason from
+     `below_gate` to `code_verified`; the decision was already the router's refusal.
    - **A Jev decline never contradicts a slot the router resolved.** A Jev clarification
      about the time (`*_missing_year`, `ambiguous_relative_time`, `forecast_missing_date`)
      is ignored when the router resolved the time, and one about the place
@@ -310,17 +343,18 @@ were made.
 Disposition accuracy with the default gates, decline 0.8 and answer 0.9, replayed from the
 store with no new Jev calls, router as of main after PR #90 (`runs/jev_decide_replay.json`,
 regenerated 2026-09-24; the v2 and v3 router numbers rose with the router fixes merged since
-the first replay, and no Jev or decide entry changed):
+the first replay, and no Jev or decide entry changed; updated for the PR #94 measure and
+generic-wording rules below):
 
 | Set | n | Status | Router alone | Jev alone | Decide | Jev won (fixed / broke) |
 |---|---|---|---|---|---|---|
-| dev | 137 | used for tuning | 0.934 | 0.964 | 0.964 | 7 (4 / 0) |
-| v1 | 63 | seen, now development data | 0.905 | 0.937 | 0.952 | 7 (3 / 0) |
+| dev | 137 | used for tuning | 0.934 | 0.978 | 0.971 | 7 (5 / 0) |
+| v1 | 63 | seen, now development data | 0.905 | 0.952 | 0.952 | 7 (3 / 0) |
 | v2 | 42 | seen, now development data | 0.881 | 0.857 | 0.929 | 3 (2 / 0) |
-| v3 | 65 | **tuned**, reported only, not used for any choice | 0.723 | 0.723 | 0.800 | 9 (5 / 0) |
+| v3 | 65 | **tuned**, reported only, not used for any choice | 0.723 | 0.708 | 0.815 | 9 (6 / 0) |
 | smoke | 6 | production smoke test questions (five captured 2026-09-24 through OpenRouter, cross-backend) | 1.000 | 0.833 | 1.000 | 0 |
 
-Across all four sets Jev's wins fix 14 decisions and break 0. The slot and code-verified
+Across all four sets Jev's wins fix 16 decisions and break 0. The slot and code-verified
 rules changed the recorded reason on four rows and no final decision:
 `timeline_missing_year` (router `trend_missing_year`, Jev answered at 0.47, now
 `code_verified`), and `hv3_079`, `hv2_036`, and `hv2_047` (router `forecast_missing_date`
@@ -328,6 +362,50 @@ after PR #28 geocoded the city; Jev asked for a place the router resolved, now
 `contradicts_slot`).
 
 None of these sets is clean; production shadow logs are the next clean test.
+
+**Unresolved measures (PR #94).** Production answered "Which utility had the most dangerous
+fires in 2023?" with the generic `ranking_missing_slots` question. Whether a phrase names a real
+measure is a semantic judgment, so it is Jev's, not a router word list: the router routes these
+questions exactly as on main. Two general rules:
+
+1. In `jev_policy.derive_outcome`, a `rank` or `compare` intent (`MEASURE_CLARIFY_INTENTS`)
+   whose measure Jev reads as `other_measure` gives `ambiguous_risk_metric`, whatever the
+   wording. Its text (`services/agent/measure_clarify.py`) keeps the grouping and period from
+   the router's slots (two named utilities or counties, else Jev's `rank_dimension`, else the
+   router's reading), lists the registry's measures for that grouping (`RANK_MEASURES` from
+   `ALLOWED_RANK_PAIRS`, `COMPARE_MEASURES` from the comparison queries, `MEASURE_LABELS`;
+   EPSS only when PG&E is one of the named utilities), and says damage, fatalities, and
+   destroyed structures are not in the data. Count, trend, and records_list keep main's rule:
+   the riskiest-style phrases clarify, any other `other_measure` is refused. The Jev payload is
+   unchanged (`tests/agent/test_jev_payload_pins.py` passes).
+2. In `decide_mode`, a generic router clarification yields to Jev's specific one (above).
+
+The confidence of the measure clarification is the lower of Jev's `intent` and `measure`
+confidences, and it wins only at the 0.8 decline gate. Replay against main's code on the same
+store (no Jev call made; stored answers and confidences unchanged), every changed decision:
+
+- `amb_better_or_worse` (dev, "Was 2024 better or worse?"): Jev's refusal at 0.96 had won; now
+  Jev's measure clarification wins at 0.96, matching the label `clarify`.
+- `hv3_071` (v3, "Which is worse for fires, SCE or PacifiCorp?"): Jev's refusal at 0.83 had won;
+  now the measure clarification wins, matching the label `ambiguous_risk_metric`. It offers the
+  five utility measures without EPSS and asks for a period.
+- `ho_094` (v1, "what counties had the most utility-caused ignitions?") and `hv3_077` (v3,
+  "Rank the counties by wildfire incidents."): the router's `ranking_missing_slots` text is
+  replaced by Jev's `ranking_missing_year` (both at the gate). These are the two rows PR #72
+  moved the other way. `hv3_077` also asks for a dataset, from the router's slots, offering
+  only CPUC ignitions or CAL FIRE incidents (the datasets `RANK_MEASURES` ranks counties by);
+  `ho_094` asks only for the year, since its dataset and grouping are resolved. Disposition
+  unchanged.
+
+Jev alone (not decisions) moved on seven more rows, all below the gate or on exempt routes:
+`amb_big_utilities`, `ho_041`, `hv3_035`, and `hv3_071` toward their `clarify` labels, and
+`hv3_037`, `hv3_049` (rates per county or per line mile), and `hv3_058` (a recommendation)
+away from their `unsupported` labels. That is the cost of rule 1: a ranking or comparison by a
+measure outside the data asks which measure instead of refusing, when Jev is confident.
+`hv3_039` ("Which utility had the most dangerous fires last year?", the only stored call for the
+production wording; none exists for "in 2023") does not change: Jev reads `other_measure` at
+only 0.60, below the gate, so the router's `ranking_missing_slots` stands, as on main.
+None of these sets is clean; v3 is tuned and `hv3_071` is a backlog row.
 
 Where Jev wins:
 - Fixed: prompt injection and off-topic questions the router sent to the model path
@@ -339,9 +417,10 @@ Where Jev wins:
   other missing item) became Jev's `missing_location` (asks only for coordinates). In
   production this showed as "Show PSPS events around Santa Rosa" getting "What
   latitude/longitude or bounding box should I use?" instead of the router's question plus
-  the missing year. Now the router's wording stands on all 9 (7 `undefined_spatial_scope`,
+  the missing year. The router's wording then stood on all 9 (7 `undefined_spatial_scope`,
   2 `ranking_missing_slots`); the disposition and winner are unchanged, and Jev's rule is
-  in the log.
+  in the log. Since PR #94 the two `ranking_missing_slots` rows show Jev's
+  `ranking_missing_year` text, because that router rule is generic.
 
 Replay of the wording change (stored calls, no new Jev calls, main's `decide_mode.py`
 against this one on all 307 stored rows): 307 of 307 dispositions and winners are the

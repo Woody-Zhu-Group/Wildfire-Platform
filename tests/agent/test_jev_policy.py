@@ -300,13 +300,35 @@ def test_other_measure_never_declines_map_or_spatial_intents():
 
 
 def test_other_measure_declines_only_gated_intents():
-    for intent in ("count", "rank", "compare", "trend", "records_list"):
+    for intent in ("count", "trend", "records_list"):
         outcome = derive_outcome(
             JevFacts(measure="other_measure", intent=intent, has_time_scope=0.9),
             question="What was the average response time for PG&E in 2020?",
         )
         assert outcome.disposition == "unsupported", intent
         assert outcome.unsupported_topic == "unsupported_other_measure", intent
+
+
+def test_other_measure_on_a_ranking_or_comparison_asks_which_measure():
+    # A ranking or comparison orders by one of the registry's measures, so an
+    # other_measure answer asks which one, whatever the wording; no word list.
+    from services.agent.decisions.jev_policy import MEASURE_CLARIFY_INTENTS
+
+    assert MEASURE_CLARIFY_INTENTS == {"rank", "compare"}
+    for question in (
+        "Which utility had the most dangerous fires in 2023?",
+        "Which utility had the highest tally of ignitions in 2023?",
+        "What was the average response time for PG&E in 2020?",
+        "Which utility had the highest ignition rate per customer in 2022?",
+    ):
+        for intent in MEASURE_CLARIFY_INTENTS:
+            outcome = derive_outcome(
+                JevFacts(measure="other_measure", intent=intent, has_time_scope=0.9),
+                question=question,
+            )
+            assert outcome.disposition == "clarify", (question, intent)
+            assert outcome.clarify_reason == "ambiguous_risk_metric", (question, intent)
+            assert "measure_is_judgment" in outcome.trace
 
 
 def test_rank_triples_match_routing_source():

@@ -89,7 +89,7 @@ def _us_ignitions_meta(*, notes: str) -> dict[str, Any]:
 US_IGNITIONS_NOTES_DATA_QUERY = (
     "All-cause IRWIN-derived ignitions from FireCastRL Kaggle dataset. "
     "Classification sample (event windows), not a complete census. "
-    "Not utility-attributed — do not compare counts to California CPUC ignitions. "
+    "Not utility-attributed; do not compare counts to California CPUC ignitions. "
     "Geographically skewed: California ≈40% overall / ≈59% of 2024 "
     "(Census region West ≈73% / ≈78%)."
 )
@@ -500,6 +500,61 @@ ALLOWED_RANK_PAIRS = frozenset(
     for entry in DATASETS.values()
     for group_by, metric in entry.rank_pairs
 )
+
+# Measures a ranking or comparison can order by, keyed by comparison metric
+# name (services/comparison/metrics.py METRICS); labels are MEASURE_LABELS.
+# The dataset each measure reads.
+MEASURE_DATASETS: dict[str, str] = {
+    "ignition_count": "cpuc_ignitions",
+    "calfire_incident_count": "calfire_incidents",
+    "acres_burned": "calfire_incidents",
+    "psps_event_count": "psps_events",
+    "customers_deenergized": "psps_events",
+    "epss_outage_count": "epss_outages",
+    "epss_to_ignition_ratio": "epss_outages",
+}
+# Measures that exist for some utilities only (EPSS is PG&E only).
+MEASURE_UTILITIES: dict[str, frozenset[str]] = {
+    "epss_outage_count": frozenset({"PGE"}),
+    "epss_to_ignition_ratio": frozenset({"PGE"}),
+}
+# A data_query_rank (dataset, metric) pair as its measure.
+_RANK_PAIR_MEASURES = {
+    ("cpuc_ignitions", "count"): "ignition_count",
+    ("calfire_incidents", "count"): "calfire_incident_count",
+    ("calfire_incidents", "acres_burned"): "acres_burned",
+    ("epss_outages", "count"): "epss_outage_count",
+}
+# data_query_rank: the measures each grouping can be ranked by.
+RANK_MEASURES: dict[str, tuple[str, ...]] = {}
+for _dataset, _group_by, _metric in sorted(ALLOWED_RANK_PAIRS):
+    RANK_MEASURES.setdefault(_group_by, ())
+    RANK_MEASURES[_group_by] += (_RANK_PAIR_MEASURES[(_dataset, _metric)],)
+for _group_by, _measures in RANK_MEASURES.items():
+    RANK_MEASURES[_group_by] = tuple(sorted(_measures, key=list(MEASURE_DATASETS).index))
+# comparison_run: the measures each scope returns a value for
+# (services/comparison/queries.py). EPSS is PG&E only; PSPS has no county.
+COMPARE_MEASURES: dict[str, tuple[str, ...]] = {
+    "utility": (
+        "ignition_count",
+        "calfire_incident_count",
+        "acres_burned",
+        "psps_event_count",
+        "customers_deenergized",
+        "epss_outage_count",
+    ),
+    "county": (
+        "ignition_count",
+        "calfire_incident_count",
+        "acres_burned",
+        "epss_outage_count",
+    ),
+}
+
+# Datasets a yearly or seasonal chart (the router's series_mode yearly and
+# seasonal) can read when the question does not fix one. Cumulative acres,
+# customer events, and regional series fix their own dataset.
+SERIES_DATASETS: tuple[str, ...] = ("cpuc_ignitions", "calfire_incidents", "epss_outages")
 
 SUMMARY_METRIC_IDS = {
     key: entry.allowed_summary_metrics

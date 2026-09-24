@@ -23,7 +23,8 @@ imports `typesafe_sdk`, and the default `off` mode never imports it.
 (same request body sent to OpenRouter).
 - `decide`: router backstops first, then Jev's derived disposition behind a decline
   gate and a higher answer gate. Jev owns the disposition and the router owns the
-  wording: when both decline the same way the router's text stands, and a Jev
+  wording: when both decline the same way the router's text stands (except the generic
+  `ranking_missing_slots`, which yields to Jev's more specific clarification), and a Jev
   clarification that changes the disposition goes through clarify-all-missing; see [`docs/JEV_DECIDE.md`](../../../docs/JEV_DECIDE.md)
   and `decide_mode.py`. Jev's plan mode was archived on the `jev-plan-archive` branch and is not accepted; the deterministic slot planner (`AGENT_SLOT_PLAN`, `services/agent/eval/slot_plan.py`) runs after decide when both are on.
 

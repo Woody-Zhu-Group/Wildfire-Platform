@@ -7,7 +7,11 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.clarify_missing import complete_clarification
+from services.agent.clarify_missing import (
+    complete_clarification,
+    rank_slots_question,
+    series_dataset_question,
+)
 from services.agent.places import (
     GAZETTEER_VINTAGE,
     CityPoint,
@@ -16,6 +20,7 @@ from services.agent.places import (
 )
 from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
 from services.shared.dataset_registry import (
+    SERIES_DATASETS,
     ALL_CAUSES_AFTER_IGNITIONS_PATTERN,
     ALL_CAUSES_BEFORE_IGNITIONS_PATTERN,
     BARE_IGNITIONS_PATTERN,
@@ -732,7 +737,7 @@ _TIME_SERIES_VIZ = frozenset(
 )
 
 UNSUPPORTED = {
-    "cpz": r"\b(?:cpz|circuit protection zone)\b",
+    "cpz": r"\b(?:cpzs?|circuit protection zones?)\b",
     "cost": r"\b(?:cost|price|budget|dollars?|economic|premiums?)\b",
     "air_quality": r"\bair quality\b",
     "evacuation": r"\bevacuat",
@@ -751,12 +756,14 @@ UNSUPPORTED = {
         r"dispatched|on scene)\b|\bpersonnel\b|\bhuman resources\b"
     ),
     "satellite": (
-        r"\bsatellite\s+(?:\w+\s+)?(?:image|imagery|infrared|photos?|pictures?|"
-        r"view|data|feed|detections?)\b|\b(?:infrared|thermal)\s+satellite\b"
+        r"\bsatellite\s+(?:\w+\s+)?(?:images?|imagery|infrared|photos?|pictures?|"
+        r"views?|data|feeds?|detections?)\b|\b(?:infrared|thermal)\s+satellite\b"
     ),
     "leadership": r"\b(?:ceo|chief executive)\b",
     "optimization": r"\b(?:optimi[sz]e|optimal|schedule|allocate)\b",
-    "damage": r"\b(?:property damage|expected loss|insured loss|fatalit)\b",
+    "damage": (
+        r"\b(?:property damages?|expected loss(?:es)?|insured loss(?:es)?|fatalit(?:y|ies))\b"
+    ),
     "live_web": (
         r"\b(?:current active fires?|active fires?.*right now|live fires?|"
         r"web search|according to the web|today'?s fires?)\b"
@@ -836,7 +843,7 @@ UNSUPPORTED_ANSWERS = {
     "ranking": (
         "Ranking is not supported for that grouping. I can rank counties or "
         "utilities in CPUC ignitions, counties in CAL FIRE incidents, or "
-        "circuits in EPSS outages — one dataset at a time. I cannot rank "
+        "circuits in EPSS outages, one dataset at a time. I cannot rank "
         "across datasets, rank EPSS by utility, or rank US ignitions by state."
     ),
 }
@@ -2085,11 +2092,7 @@ def _route_ranking(
             "clarification",
             "ranking_missing_slots",
             "Ranking needs one dataset and one grouping dimension",
-            answer=(
-                "Which dataset and grouping should I rank? I can rank counties "
-                "or utilities in CPUC ignitions, counties in CAL FIRE incidents, "
-                "or circuits in EPSS outages, for one year or date range."
-            ),
+            answer=rank_slots_question(),
             slots=slots,
         )
 
@@ -2405,7 +2408,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             "Risk could mean fitted cell intensity, ignition count, incidents, or outages",
             slots=slots,
             answer=(
-                "Which risk measure and time period should I use—for example "
+                "Which risk measure and time period should I use, for example "
                 "ignition count, CAL FIRE incidents, EPSS outages, or fitted cell risk?"
             ),
         )
@@ -3352,7 +3355,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         return _defer_collapsed(slots)
     if series_request is not None:
         series_mode, fixed_dataset = series_request
-        chartable = {"cpuc_ignitions", "epss_outages", "calfire_incidents"}
+        chartable = set(SERIES_DATASETS)
         warehouse_dataset = fixed_dataset or (
             dataset if dataset in chartable else None
         )
@@ -3366,10 +3369,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 "clarification",
                 "series_mode_missing_dataset",
                 "Yearly and seasonal charts need CPUC, EPSS, or CAL FIRE",
-                answer=(
-                    "Which dataset should I chart: CPUC ignitions, "
-                    "EPSS outages, or CAL FIRE incidents?"
-                ),
+                answer=series_dataset_question(),
                 slots=mode_slots,
             )
         time_args = _time_filter_args(time_resolution)

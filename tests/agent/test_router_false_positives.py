@@ -865,3 +865,23 @@ def test_review_82_the_tier_clarification_names_the_resolved_dataset(question, l
     decision = route_question(question)
     assert decision.rule == "hftd_constraint_unavailable"
     assert decision.answer.startswith(f"I can rank {label} by {group} statewide"), decision.answer
+
+
+def test_the_registry_measures_match_the_tools():
+    from typing import get_args
+
+    from services.agent.schemas import Metric
+    from services.comparison.metrics import METRICS
+    from services.shared.dataset_registry import (
+        ALLOWED_RANK_PAIRS,
+        COMPARE_MEASURES,
+        MEASURE_DATASETS,
+        MEASURE_LABELS,
+        RANK_MEASURES,
+    )
+
+    assert set(MEASURE_LABELS) == set(MEASURE_DATASETS) == set(METRICS) == set(get_args(Metric))
+    for measures in COMPARE_MEASURES.values():
+        assert set(measures) <= set(METRICS)
+    assert {group for _dataset, group, _metric in ALLOWED_RANK_PAIRS} == set(RANK_MEASURES)
+    assert sum(len(measures) for measures in RANK_MEASURES.values()) == len(ALLOWED_RANK_PAIRS)

@@ -384,6 +384,25 @@ IGNITION_QUALIFIER_PATTERN = re.compile(
     re.I,
 )
 
+# ---------------------------------------------------------------------------
+# Measures: what a ranking or comparison can order by
+# ---------------------------------------------------------------------------
+# Which measures each grouping supports is on the dataset registry
+# (RANK_MEASURES, COMPARE_MEASURES); the names and words for them are here.
+
+# One label per measure, keyed by the comparison metric name.
+MEASURE_LABELS: dict[str, str] = {
+    "ignition_count": "CPUC ignition counts",
+    "calfire_incident_count": "CAL FIRE incident counts",
+    "acres_burned": "CAL FIRE acres burned",
+    "psps_event_count": "PSPS event counts",
+    "customers_deenergized": "customers de-energized in PSPS events",
+    "epss_outage_count": "EPSS outage counts (PG&E only)",
+    "epss_to_ignition_ratio": "EPSS outages per CPUC ignition (PG&E only)",
+}
+# Measures people ask for that no dataset stores, in clarification wording.
+MEASURES_NOT_IN_DATA: tuple[str, ...] = ("damage", "fatalities", "destroyed structures")
+
 
 __all__ = sorted(
     name

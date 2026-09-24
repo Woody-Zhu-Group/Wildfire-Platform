@@ -8,7 +8,9 @@ Order for one question:
    - Jev clarify or refuse at or above the decline gate (default 0.8) returns
      that disposition. Jev owns the disposition; the router owns the wording.
      When the router also declined the same way (both clarify, or both refuse),
-     the router's text, rule, and reason stand and Jev's rule goes to the log only.
+     the router's text, rule, and reason stand and Jev's rule goes to the log only,
+     unless the router's rule is a generic one (GENERIC_ROUTER_RULES): then Jev's
+     more specific clarification is shown, composed with the router's slots.
      When Jev changes the disposition, its clarification goes through the same
      clarify-all-missing composition as the router's, using the router's slots.
    - A Jev clarification about an item the router already resolved (the time,
@@ -42,13 +44,20 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.clarify_missing import complete_clarification
+from services.agent.clarify_missing import (
+    complete_clarification,
+    rank_slots_question,
+    series_dataset_question,
+)
+from services.agent.measure_clarify import measure_clarification, measure_group
 from services.agent.decisions.backend import Answer
 from services.agent.decisions.call_budget import DailyCallBudget
 from services.agent.decisions.jev_policy import (
     OFF_TOPIC_RULES,
     REGEX_ONLY,
+    MEASURE_CLARIFY_INTENTS,
     DerivedOutcome,
+    JevFacts,
     derive_outcome,
     facts_from_answers,
 )
@@ -59,6 +68,7 @@ from services.agent.routing import (
     RouteDecision,
 )
 from services.agent.schemas import TOOL_MODELS
+from services.shared.dataset_registry import MEASURE_DATASETS, RANK_MEASURES
 
 logger = logging.getLogger("services.agent.decisions")
 
@@ -92,6 +102,11 @@ def exemption(decision: RouteDecision) -> str | None:
         return "router_only_tool"
     return None
 
+
+# Router clarifications that say only that something is missing, without naming
+# what is wrong with the question. When Jev also clarifies, with a different and
+# more specific reason, Jev's reason is shown instead of the router's.
+GENERIC_ROUTER_RULES: frozenset[str] = frozenset({"ranking_missing_slots"})
 
 ROUTER_DISPOSITION = {
     "deterministic": "answer",
@@ -156,7 +171,10 @@ _REASON_TEXT: dict[str, str] = {
     "spatial_missing_year": "What year or date range should I use?",
     "records_missing_year": "What year or date range should I use?",
     "ranking_missing_year": "What year or date range should the ranking cover?",
-    "ranking_missing_slots": "Which dataset and which grouping (county, utility, or circuit) should I rank?",
+    # The router's wording, with the registry's rankings.
+    "ranking_missing_slots": rank_slots_question(),
+    # The router's wording, with the registry's chartable datasets.
+    "series_mode_missing_dataset": series_dataset_question(),
     "ranking_county_contradiction": "Should I rank all counties, or report the one county you named?",
     # Reuses routing.py wording for the same rules.
     "risk_future_date": f"{_RISK_COVERAGE_LIMIT}. Which past date should I score?",
@@ -282,6 +300,33 @@ def code_verified_missing(decision: RouteDecision) -> bool:
     return decision.rule == "time_out_of_coverage"
 
 
+def registry_verified_refusal(decision: RouteDecision, question: str) -> bool:
+    """A router ranking refusal the registry proves: no ranking the tools run fits.
+
+    The question names two or more datasets, or its one dataset and its grouping
+    are not a pair in RANK_MEASURES (for example CAL FIRE acres by utility,
+    EPSS by utility, or any dataset by state). Like a missing time or place the
+    resolver proved in code, this is a verified fact, so a Jev clarification or
+    answer cannot replace it. A ranking refused for another reason (a change
+    over time) on a pair the registry has is not covered.
+    """
+    if decision.path != "unsupported" or not decision.rule.startswith("unsupported_rank"):
+        return False
+    from services.agent.clarify_missing import task_datasets
+    from services.agent.routing import _rank_dimension
+
+    datasets = task_datasets(question, "rank")
+    if len(datasets) >= 2:
+        return True
+    dataset = datasets[0] if datasets else decision.slots.get("dataset")
+    group = _rank_dimension(question.lower())
+    if dataset is None or group is None:
+        return False
+    return group not in RANK_MEASURES or all(
+        MEASURE_DATASETS[measure] != dataset for measure in RANK_MEASURES[group]
+    )
+
+
 @dataclass
 class DecideResult:
     winner: str  # "router" or "jev"
@@ -385,19 +430,50 @@ def answer_confidence(answers: dict[str, Any]) -> float | None:
     return min(values) if values else None
 
 
+def _decline_text(rule: str, slots: dict[str, Any], question: str, facts: JevFacts | None) -> str:
+    """Jev's clarification text before clarify-all-missing composition."""
+    if (
+        rule == "ambiguous_risk_metric"
+        and facts is not None
+        and facts.intent in MEASURE_CLARIFY_INTENTS
+        and facts.measure == "other_measure"
+    ):
+        # A ranking or comparison by no measure in the data: list the registry's
+        # measures for the grouping, keeping the router's grouping and period.
+        return measure_clarification(
+            facts.intent, slots, text=question, rank_dimension=facts.rank_dimension
+        )
+    return _REASON_TEXT.get(rule, "Could you clarify the question?")
+
+
 def _decline_decision(
-    rule: str, disposition: str, slots: dict[str, Any], question: str = ""
+    rule: str,
+    disposition: str,
+    slots: dict[str, Any],
+    question: str = "",
+    facts: JevFacts | None = None,
 ) -> RouteDecision:
     if disposition == "clarify":
-        text = _REASON_TEXT.get(rule, "Could you clarify the question?")
+        text = _decline_text(rule, slots, question, facts)
         # Same composition the router applies: ask for every missing item, with an
-        # example, from the router's slots.
+        # example, from the router's slots. The measure text states the grouping it
+        # lists measures for, so that grouping is not asked again.
+        compose_slots = slots
+        if (
+            rule == "ambiguous_risk_metric"
+            and facts is not None
+            and facts.intent in MEASURE_CLARIFY_INTENTS
+            and facts.measure == "other_measure"
+        ):
+            group = measure_group(slots, facts.rank_dimension, question)
+            if group:
+                compose_slots = {**slots, "rank_group": group}
         return RouteDecision(
             "clarification",
             rule,
             f"Jev decide: {rule}",
             slots=slots,
-            answer=complete_clarification(rule, " ".join(question.strip().split()), slots, text),
+            answer=complete_clarification(rule, " ".join(question.strip().split()), compose_slots, text),
         )
     key = rule.removeprefix("unsupported_")
     return RouteDecision(
@@ -431,7 +507,8 @@ def decide_from_answers(
     if error or not answers:
         return DecideResult("router", "error", decision, error=error or "no answers", **base)
 
-    outcome = derive_outcome(facts_from_answers(answers), question=question, today=today)
+    facts = facts_from_answers(answers)
+    outcome = derive_outcome(facts, question=question, today=today)
     jev_disposition = outcome.disposition
     jev_rule = _jev_rule(outcome)
     router_disposition = ROUTER_DISPOSITION.get(decision.path, "answer")
@@ -447,6 +524,9 @@ def decide_from_answers(
         if confidence is None and jev_rule not in _RULE_FACTS and "measure_is_judgment" not in outcome.trace:
             confidence = 1.0
         info["jev_confidence"] = confidence
+        if jev_disposition == "clarify" and registry_verified_refusal(decision, question):
+            # The registry proves no ranking fits; a clarification cannot replace that.
+            return DecideResult("router", "code_verified", decision, **info, **base)
         if router_disposition == jev_disposition and decision.rule == jev_rule:
             return DecideResult("router", "agree", decision, **info, **base)
         item = _item_for(jev_rule)
@@ -458,10 +538,14 @@ def decide_from_answers(
             # for example a year on a point-context or territory lookup.
             return DecideResult("router", "slot_unused", decision, **info, **base)
         if confidence is not None and confidence >= gate:
-            if router_disposition == jev_disposition:
+            if router_disposition == jev_disposition and not (
+                jev_disposition == "clarify" and decision.rule in GENERIC_ROUTER_RULES
+            ):
                 # Both declined the same way: the router's wording stands.
                 return DecideResult("jev", "gate", decision, wording="router", **info, **base)
-            declined = _decline_decision(jev_rule, jev_disposition, decision.slots, question)
+            # Jev changed the disposition, or both clarify and the router's rule
+            # is generic: Jev's reason, composed with the router's slots.
+            declined = _decline_decision(jev_rule, jev_disposition, decision.slots, question, facts)
             return DecideResult("jev", "gate", declined, wording="jev", **info, **base)
         return DecideResult("router", "below_gate", decision, **info, **base)
 
@@ -472,7 +556,7 @@ def decide_from_answers(
     # The router declined. A missing time or place its resolver proved in code stands.
     confidence = rule_confidence(decision.rule, answers)
     info["jev_confidence"] = confidence
-    if code_verified_missing(decision):
+    if code_verified_missing(decision) or registry_verified_refusal(decision, question):
         return DecideResult("router", "code_verified", decision, **info, **base)
     # Otherwise Jev must be sure the facts behind that rule do not hold.
     if confidence is not None and confidence >= answer_gate:
