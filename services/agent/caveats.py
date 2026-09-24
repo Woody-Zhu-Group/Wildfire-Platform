@@ -6,6 +6,7 @@ import re
 from datetime import date
 from typing import Any
 
+from services.agent.derived import period_label
 from services.agent.places import (
     IOU_TERRITORY_NOT_PROVIDER,
     CityPoint,
@@ -81,6 +82,25 @@ async def collect_qualifications(
             return
         seen.add(identifier)
         qualifications.append({"id": identifier, "text": text, "source": source})
+
+    # One ignition-definition caveat per utility label, listing every period
+    # whose companion ran. Keying on the label alone used to keep only the
+    # first period and silently drop the rest.
+    definition_rows: dict[str, list[tuple[str, Any, Any]]] = {}
+
+    def add_definition(
+        identifier: str, label: str, utility: str, period: str, attribute_value: Any, spatial_value: Any
+    ) -> None:
+        rows = definition_rows.setdefault(identifier, [])
+        if any(row[0] == period for row in rows):
+            return
+        rows.append((period, attribute_value, spatial_value))
+        text = _definition_text(label, utility, rows)
+        for item in qualifications:
+            if item["id"] == identifier:
+                item["text"] = text
+                return
+        add(identifier, text, "companion_service_call")
 
     working = [item for item in executions if item.ok]
     cross, attempt, cross_error = await _ensure_cpuc_us_companions(
@@ -207,16 +227,15 @@ async def collect_qualifications(
                         companion,
                         "Attribute/spatial ignition values were incomplete.",
                     )
+                period = _args_period(companion_args[1])
                 for label, utility, attribute_value, spatial_value in pairs:
-                    add(
+                    add_definition(
                         f"ignition_definition_{label.lower().replace(' ', '_')}",
-                        (
-                            f"{label} utility-attributed CPUC ignitions: "
-                            f"{attribute_value:,}. Ignitions spatially contained in the "
-                            f"{utility} territory for the same period: {spatial_value:,}. "
-                            "These are different definitions, not interchangeable counts."
-                        ),
-                        "companion_service_call",
+                        label,
+                        utility,
+                        period,
+                        attribute_value,
+                        spatial_value,
                     )
 
         # Spatial comparison_run is the inverse: primary is spatial, companion is
@@ -254,16 +273,15 @@ async def collect_qualifications(
                         companion,
                         "Attribute/spatial ignition values were incomplete.",
                     )
+                period = _args_period(execution.arguments)
                 for label, utility, attribute_value, spatial_value in pairs:
-                    add(
+                    add_definition(
                         f"ignition_definition_{label.lower().replace(' ', '_')}",
-                        (
-                            f"{label} utility-attributed CPUC ignitions: "
-                            f"{attribute_value:,}. Ignitions spatially contained in the "
-                            f"{utility} territory for the same period: {spatial_value:,}. "
-                            "These are different definitions, not interchangeable counts."
-                        ),
-                        "companion_service_call",
+                        label,
+                        utility,
+                        period,
+                        attribute_value,
+                        spatial_value,
                     )
 
         # A primary spatial utility summary is equally ambiguous; fetch the
@@ -303,15 +321,13 @@ async def collect_qualifications(
                     "Attribute/spatial ignition values were incomplete.",
                 )
             label, util, attribute_value, spatial_value = pairs[0]
-            add(
+            add_definition(
                 f"ignition_definition_{label.lower()}",
-                (
-                    f"{label} utility-attributed CPUC ignitions: "
-                    f"{attribute_value:,}. Ignitions spatially contained in the "
-                    f"{util} territory for the same period: {spatial_value:,}. "
-                    "These are different definitions, not interchangeable counts."
-                ),
-                "companion_service_call",
+                label,
+                util,
+                period_label(start, end),
+                attribute_value,
+                spatial_value,
             )
 
     if _needs_cnhpp_risk_caveats(working):
@@ -759,6 +775,35 @@ def _attribute_companion_args(
     args = dict(execution.arguments)
     args["ignition_definition"] = "attribute"
     return "comparison_run", args
+
+
+def _args_period(args: dict[str, Any]) -> str:
+    year = args.get("year")
+    if isinstance(year, int):
+        return str(year)
+    start, end = args.get("start_date"), args.get("end_date")
+    return period_label(str(start) if start else None, str(end) if end else None)
+
+
+def _definition_text(label: str, utility: str, rows: list[tuple[str, Any, Any]]) -> str:
+    """One period keeps the original wording; several list each period's pair."""
+    if len(rows) == 1:
+        _period, attribute_value, spatial_value = rows[0]
+        return (
+            f"{label} utility-attributed CPUC ignitions: "
+            f"{attribute_value:,}. Ignitions spatially contained in the "
+            f"{utility} territory for the same period: {spatial_value:,}. "
+            "These are different definitions, not interchangeable counts."
+        )
+    ordered = sorted(rows, key=lambda row: row[0])
+    attributed = ", ".join(f"{value:,} in {period}" for period, value, _ in ordered)
+    spatial = ", ".join(f"{value:,} in {period}" for period, _, value in ordered)
+    return (
+        f"{label} utility-attributed CPUC ignitions: {attributed}. "
+        f"Ignitions spatially contained in the {utility} territory for the same "
+        f"periods: {spatial}. "
+        "These are different definitions, not interchangeable counts."
+    )
 
 
 def _definition_pairs(

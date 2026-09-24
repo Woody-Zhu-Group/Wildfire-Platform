@@ -29,7 +29,7 @@ On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls
 2. Jev decides answer, clarify, or refuse (`services/agent/decisions/`, policy in `jev_policy.py`, schema in `v3.py`).
 3. Router regex extracts slots (years, utilities, counties, dataset, dates).
 4. Tools run: the router's deterministic call when it has one; otherwise Jev tool pick, template answers, or the slot planner for multi-part questions.
-5. Caveats attach per tool (`caveats.py`). Every rendered number must trace to tool evidence (`evidence_ids`).
+5. Caveats attach per tool (`caveats.py`). Every rendered number must trace to tool evidence (`evidence_ids`). Changes, differences, percent changes, and ratios come from harness-derived evidence (`derived.py`), never from model arithmetic.
 
 Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answers with probabilities. Lessons that hold:
 - Ask Jev small, unambiguous facts with mutually exclusive options; let code apply policy. Overlapping yes/no facts land in the 0.2 to 0.8 band.
@@ -50,7 +50,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Key paths
 
-- Agent: `services/agent/` (routing.py, orchestrator.py, views.py, caveats.py, schemas.py)
+- Agent: `services/agent/` (routing.py, orchestrator.py, views.py, caveats.py, derived.py, schemas.py)
 - Jev: `services/agent/decisions/`
 - Evals: `services/agent/eval/` (cases.json, jev_paraphrases.json, jev_holdout.json, jev_holdout_v2.json, jev_holdout_v3_questions.json, jev_holdout_v3_labels_chatgpt.json, runs/).
 - Docs: `docs/JEV_SHADOW.md`, `docs/JEV_DECIDE.md`, `docs/JEV_MULTI_TOOL.md`, `docs/JEV_DETERMINISM.md`, `docs/JEV_BACKLOG.md`, `docs/OPENROUTER.md`. The root README has a documentation index.
