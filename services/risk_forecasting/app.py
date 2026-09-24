@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import csv
 from contextlib import asynccontextmanager
 from datetime import date
-from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Query
@@ -14,6 +12,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from services.risk_forecasting.config import DATA_DIR, lookback_days_from_env
+from services.risk_forecasting.evaluate_metrics import (
+    MetricsMismatch,
+    load_verified_cnhpp_row,
+)
 from services.risk_forecasting.observed import (
     observed_surface,
     observed_training_surface,
@@ -144,6 +146,14 @@ class MetricsResponse(BaseModel):
         ...,
         description="Secondary ranking diagnostic; not a headline Poisson count metric",
     )
+    xi: float
+    train_years: list[int]
+    eval_year: int
+    eval_start: date
+    eval_end: date
+    params_sha256: str = Field(
+        ..., description="sha256 of artifacts/cnhpp_params.npz the row was scored from"
+    )
 
 
 class HealthResponse(BaseModel):
@@ -192,20 +202,15 @@ def health():
 
 @app.get("/metrics", response_model=MetricsResponse)
 def metrics() -> MetricsResponse:
-    """Return the persisted cNHPP evaluation row; no model recomputation."""
-    metrics_path = Path(__file__).resolve().parent / "outputs" / "metrics_table.csv"
+    """Return the persisted cNHPP evaluation row; no model recomputation.
+
+    Refuses (503) a table that was not scored from the committed
+    artifacts/cnhpp_params.npz, rather than serving stale numbers.
+    """
     try:
-        with metrics_path.open(newline="", encoding="utf-8") as handle:
-            row = next(
-                item
-                for item in csv.DictReader(handle)
-                if item["model"].strip().lower() == "cnhpp"
-            )
-    except (FileNotFoundError, StopIteration, KeyError) as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"cNHPP metrics are unavailable in {metrics_path}",
-        ) from exc
+        row = load_verified_cnhpp_row()
+    except MetricsMismatch as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return MetricsResponse(
         model=row["model"],
@@ -214,6 +219,12 @@ def metrics() -> MetricsResponse:
         top1_precision=float(row["top1%_precision"]),
         lift_top5=float(row["lift_top5%"]),
         auc=float(row["AUC"]),
+        xi=float(row["xi"]),
+        train_years=[int(year) for year in row["train_years"].split(";")],
+        eval_year=int(row["eval_year"]),
+        eval_start=date.fromisoformat(row["eval_start"]),
+        eval_end=date.fromisoformat(row["eval_end"]),
+        params_sha256=row["params_sha256"],
     )
 
 

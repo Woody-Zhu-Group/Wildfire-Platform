@@ -32,7 +32,6 @@ backend: [`docs/OPENROUTER.md`](../../../docs/OPENROUTER.md). Deferred work:
 |---|---|
 | `backend.py` | `QuestionSpec`, `Answer`, `DecisionResult`, and the `DecisionBackend` protocol. No SDK types. |
 | `typesafe_backend.py` | `TypeSafeBackend` and `OpenRouterJevBackend`; `make_backend()` picks one from `AGENT_JEV_BACKEND`. Imports `typesafe_sdk` only inside a call, disables SDK retries, and redacts keys from errors. |
-| `null_backend.py` | `NullBackend`, a backend that never calls a model. Not wired into any runtime path. |
 | `schemas.py` | Schema v2 question catalog, `POLICY_SENTENCES`, `DOMAIN_CONTEXT`, and `CONTEXT_DEFERRED_RULES` (router rules not yet described to Jev). |
 | `v3.py` | Schema v3: small per-topic calls, the glossaries, `calls_for_config()` for the `AGENT_JEV_ABLATION` layouts, and `tool_pick_call()` used by the tool_pick modes. |
 | `jev_policy.py` | `derive_outcome()`: turns Jev's atomic facts into a routing outcome. `REGEX_ONLY` lists rules that stay in the router. |

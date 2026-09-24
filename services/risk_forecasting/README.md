@@ -85,9 +85,19 @@ Parameter: `date`. Same response shape as `/observed`, but each warehouse CPUC p
 
 ### `GET /metrics`
 
-Returns the `cNHPP` row of `outputs/metrics_table.csv`: `model`, `log_likelihood`, `top5_precision`, `top1_precision`, `lift_top5`, `auc`. Nothing is recomputed. Returns 503 if the file or row is missing.
+Returns the `cNHPP` row of `outputs/metrics_table.csv`: `model`, `log_likelihood`, `top5_precision`, `top1_precision`, `lift_top5`, `auc`, and where it came from: `xi`, `train_years`, `eval_year`, `eval_start`, `eval_end`, and `params_sha256`. Nothing is recomputed.
 
-That CSV is a persisted evaluation output from an earlier run. Its `cNHPP` row is identical to its `NHPP` row, and its log-likelihood (-4390.0) does not match the validation log-likelihood stored in the committed `cnhpp_params.npz` (-4873.6). Treat it as a record of that run, not as metrics for the current parameters.
+It returns 503, naming the problem and the command to fix it, unless the table was scored from the committed `artifacts/cnhpp_params.npz`: the row's `params_sha256` must equal that file's sha256, its log-likelihood must equal the file's `val_log_likelihood`, and its metrics must differ from the NHPP row while `xi` is not 0. A missing file or row is also a 503.
+
+The committed table scores HPP, NHPP, and cNHPP on 2024 (366 days, 741 events), each trained on 2020 to 2023; cNHPP uses the committed `xi = 0.2` and `beta`:
+
+| Model | Log-likelihood | Top 5% precision | Top 1% precision | AUC | Lift, top 5% |
+|---|---|---|---|---|---|
+| HPP | -5204.19 | 0.00019 | 0.0 | 0.500 | 0.08 |
+| NHPP | -4877.62 | 0.00534 | 0.00299 | 0.759 | 2.18 |
+| cNHPP | -4873.63 | 0.00486 | 0.00349 | 0.760 | 1.98 |
+
+HPP's precision and lift come from ties: every cell has the same intensity, so its "top" cells are an arbitrary slice. The cNHPP and NHPP log-likelihoods differ by about 4 on 2024, inside the day-bootstrap noise in `outputs/model_comparison.csv`; treat them as a tie (see the caveats below). The table that was here before issue #60 came from the last run of an earlier session, before the restructure (see `DATA_STATUS.md`), whose parameters were not kept. Its cNHPP and NHPP rows were identical (log-likelihood -4390.0, AUC 0.7718), which is what cNHPP gives at xi = 0.0, where it reduces exactly to NHPP, so that run's xi search chose 0.0. It did not describe the committed fit.
 
 ## Coverage
 
@@ -102,11 +112,11 @@ That CSV is a persisted evaluation output from an earlier run. Its `cNHPP` row i
 | `artifacts/cnhpp_params.npz` | yes | API startup (required) |
 | `data/grid_cells.csv` | yes (824 cells) | API startup, adjacency, fit, loaders |
 | `data/circuit_midpoints.csv` | yes | `legacy/` circuit-level code only |
-| `data/grid_W.pkl` | no (`*.pkl`) | API startup (required), `compare_models` |
+| `data/grid_W.pkl` | no (`*.pkl`) | API startup (required), `compare_models`, `evaluate_metrics` |
 | `data/grid_weather_YYYY.csv` | no | `/predict`, `/surface`, fit, compare, audit |
 | `data/daily_gridded_CA_YYYY.nc` | no (`*.nc`) | `/predict`, `/surface`, fit, compare, audit |
-| `data/events_YYYY.csv` | no | fit and compare only |
-| `outputs/metrics_table.csv` | yes | `/metrics` |
+| `data/events_YYYY.csv` | no | fit, compare, and `evaluate_metrics` only |
+| `outputs/metrics_table.csv` | yes | `/metrics`; written by `evaluate_metrics` |
 | `outputs/model_comparison.csv` | yes | written by `compare_models` |
 | `outputs/covariate_audit.json` | yes | written by `audit_covariates` |
 | `outputs/monthly_performance.csv` | yes | not read by the service |
@@ -151,9 +161,10 @@ The fit loads years directly with `grid_data_prep.load_weather_for_year` and `lo
 ## Other scripts
 
 - `python -m services.risk_forecasting.compare_models [--holdouts 2022,2023,2024] [--n-boot 5000]`: for each holdout year, fits HPP, NHPP and cNHPP on the other years of 2020 to 2024 (cNHPP `xi` chosen by training log-likelihood), scores the holdout, and runs a day-blocked bootstrap of the cNHPP minus NHPP log-likelihood gap. Needs an existing `grid_W.pkl`. Writes `outputs/model_comparison.csv`.
+- `python -m services.risk_forecasting.evaluate_metrics`: rewrites `outputs/metrics_table.csv` from the committed `cnhpp_params.npz`. It rebuilds the validation year and the training years with the fit's loaders, scores cNHPP with the committed `xi`, `beta`, and standardization, and refuses to write unless that log-likelihood reproduces the file's `val_log_likelihood`. HPP and NHPP are fit on the same training years; precision, AUC, and lift come from `analysis.all_metrics`. Rerun it after every refit, or `/metrics` returns 503. Needs the same data files as the fit and an existing `grid_W.pkl`.
 - `python -m services.risk_forecasting.audit_covariates`: summary statistics and corruption checks on 2020 to 2023 raw covariates. Writes `services/risk_forecasting/outputs/covariate_audit.json` relative to the working directory, so run it from the repo root.
 - `prep_hrrr_grid.py`: standalone extractor from pre-extracted `California_HRRR_daily*.csv` files to `grid_weather_YYYY.csv` (`date, cell_id, lat, lon, TMP, SPFH, wind_speed`). It rejects any day whose median TMP is outside 200 to 330 K. Example: `python services/risk_forecasting/prep_hrrr_grid.py --grid services/risk_forecasting/data/grid_cells.csv --hrrr "California_HRRR_daily*.csv" --year 2024 --out grid_weather_2024.csv`. The API does not use it.
-- `analysis.py` and `legacy/` (`data_prep.py`, `main.py`, `prep_hrrr.py`) are the earlier circuit-level pipeline, kept for reference only. They are not imported by the service, and `analysis.py` needs `matplotlib` and `scikit-learn`, which are not in `requirements.txt`.
+- `analysis.py` and `legacy/` (`data_prep.py`, `main.py`, `prep_hrrr.py`) are the earlier circuit-level pipeline, kept for reference only. The service does not import them, except that `evaluate_metrics` uses `analysis.py`'s metric functions (`all_metrics`, `topk_precision`, `daily_auc`), which need only `requirements.txt`. Its plots need `matplotlib` (and `geopandas` for the spatial map): `pip install -r requirements-analysis.txt`. AUC is computed in numpy with average ranks for ties, the value `sklearn.metrics.roc_auc_score` gives, so scikit-learn is not needed.
 
 ## Scientific caveats
 

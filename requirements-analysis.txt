@@ -1,0 +1,5 @@
+# Optional: plotting in services/risk_forecasting/analysis.py (plot_* functions) and legacy/.
+# The services and tests need only requirements.txt.
+-r requirements.txt
+matplotlib>=3.7
+geopandas>=0.14

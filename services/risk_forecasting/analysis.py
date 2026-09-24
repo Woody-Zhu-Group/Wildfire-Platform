@@ -15,8 +15,21 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 from scipy.spatial import cKDTree
-import matplotlib.pyplot as plt
-from sklearn.metrics import roc_auc_score
+from scipy.stats import rankdata
+
+# Plotting is optional: matplotlib is imported only by the plot_* functions
+# and is listed in requirements-analysis.txt, not requirements.txt.
+
+
+def _pyplot():
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:  # pragma: no cover - depends on the environment
+        raise ImportError(
+            "analysis.py plots need matplotlib: "
+            "pip install -r requirements-analysis.txt"
+        ) from exc
+    return plt
 
 
 # ─────────────────────────────────────────────
@@ -126,6 +139,21 @@ def topk_precision(E: np.ndarray, log_lambda: np.ndarray, k_frac: float = 0.05) 
     return hits / total_top if total_top else 0.0
 
 
+def binary_auc(y: np.ndarray, score: np.ndarray) -> float:
+    """ROC AUC for a binary outcome, with tied scores counted as one half.
+
+    The Mann-Whitney form on average ranks, which is what
+    sklearn.metrics.roc_auc_score returns for binary labels.
+    """
+    y = np.asarray(y).astype(bool)
+    n_pos = int(y.sum())
+    n_neg = int(y.size - n_pos)
+    if n_pos == 0 or n_neg == 0:
+        return float("nan")
+    ranks = rankdata(np.asarray(score, dtype=np.float64))
+    return float((ranks[y].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg))
+
+
 def daily_auc(E: np.ndarray, log_lambda: np.ndarray) -> float:
     """
     Pooled AUC: treat every circuit-day as a binary outcome (fire / no fire)
@@ -133,9 +161,7 @@ def daily_auc(E: np.ndarray, log_lambda: np.ndarray) -> float:
     """
     y = (E.T.ravel() > 0).astype(int)       # (T*N,)
     s = log_lambda.T.ravel()
-    if y.sum() == 0 or y.sum() == len(y):
-        return float("nan")
-    return roc_auc_score(y, s)
+    return binary_auc(y, s)
 
 
 def all_metrics(E, hpp, nhpp, cnhpp) -> pd.DataFrame:
@@ -187,6 +213,7 @@ def monthly_performance(E, log_lambda, date_range) -> pd.DataFrame:
 
 
 def plot_monthly(df_monthly, save_path=None):
+    plt = _pyplot()
     fig, ax1 = plt.subplots(figsize=(10, 4))
     ax2 = ax1.twinx()
     x = range(len(df_monthly))
@@ -211,6 +238,7 @@ def plot_monthly(df_monthly, save_path=None):
 # ─────────────────────────────────────────────
 
 def plot_calibration(E, log_lambda, n_bins=10, save_path=None):
+    plt = _pyplot()
     """
     Bin circuit-days by predicted intensity, compare mean predicted rate
     to observed fire rate in each bin. Well-calibrated → diagonal.
@@ -256,6 +284,8 @@ def plot_spatial_risk(
     Overlay actual fire locations if events_df provided.
     """
     import geopandas as gpd
+
+    plt = _pyplot()
 
     print("[MAP] Building spatial risk map ...")
     gdf = gpd.read_file(shp_path).to_crs("EPSG:4326")
