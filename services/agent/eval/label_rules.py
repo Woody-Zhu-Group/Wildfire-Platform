@@ -6,6 +6,7 @@ import re
 from collections import Counter
 
 from services.agent.time_resolve import resolve_time
+from services.shared.dataset_registry import EVENT_DATASET_WORDS
 
 _TIME_REASONS = {
     "records_missing_year",
@@ -95,7 +96,7 @@ def fragment_without_verb(question: str) -> bool:
         return False
     return bool(
         re.search(
-            r"\b(?:cal\s*fire|calfire|cpuc|epss|psps|ignitions?|incidents?|outages?)\b",
+            rf"\b(?:{EVENT_DATASET_WORDS}|calfire|cpuc|ignitions?|incidents?|outages?)\b",
             lower,
         )
     )

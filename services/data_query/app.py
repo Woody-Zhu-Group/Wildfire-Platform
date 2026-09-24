@@ -28,7 +28,10 @@ from services.data_query.filters import (
 )
 from services.data_query.filters import parse_bbox as parse_bbox_filter
 from services.data_query.geo import respond
-from services.shared.dataset_registry import US_IGNITIONS_META_DATA_QUERY
+from services.shared.dataset_registry import (
+    CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
+    US_IGNITIONS_META_DATA_QUERY,
+)
 from shared.db import connect, get_settings
 
 _db_ok: Optional[str] = None
@@ -195,7 +198,7 @@ def rank(
             "incident_type": (
                 incident_type
                 if incident_type is not None
-                else ("Wildfire,Fire" if dataset_key == "calfire_incidents" else None)
+                else (CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM if dataset_key == "calfire_incidents" else None)
             ),
         },
         fmt="json",
@@ -635,7 +638,7 @@ def calfire_incidents(
             "start_date": start,
             "end_date": end,
             "min_acres": min_acres,
-            "incident_type": incident_type or "Wildfire,Fire",
+            "incident_type": incident_type or CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
         },
         fmt=fmt,
         include_geometry=geometry,

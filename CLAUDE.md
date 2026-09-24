@@ -52,6 +52,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 - Agent: `services/agent/` (routing.py, orchestrator.py, views.py, caveats.py, derived.py, schemas.py)
 - Jev: `services/agent/decisions/`
+- Naming conventions (utilities, counties, tiers, causes, incident types, question wording): `services/shared/naming.py`, re-exported by `services/shared/dataset_registry.py`. Import from the registry; `tests/test_naming_single_source.py` fails on a copied list. See `services/shared/README.md`.
 - Evals: `services/agent/eval/` (cases.json, jev_paraphrases.json, jev_holdout.json, jev_holdout_v2.json, jev_holdout_v3_questions.json, jev_holdout_v3_labels_chatgpt.json, runs/).
 - Docs: `docs/JEV_SHADOW.md`, `docs/JEV_DECIDE.md`, `docs/JEV_MULTI_TOOL.md`, `docs/JEV_DETERMINISM.md`, `docs/JEV_BACKLOG.md`, `docs/OPENROUTER.md`. The root README has a documentation index.
 - Website: `website/src/` (panelViews.ts, answerPanels.ts, agentContracts.ts, state.tsx)

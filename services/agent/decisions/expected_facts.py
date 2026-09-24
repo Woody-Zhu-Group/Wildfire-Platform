@@ -5,8 +5,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from services.agent.routing import UTILITY_PATTERNS, _CA_COUNTIES
 from services.agent.time_resolve import resolve_time
+from services.shared.dataset_registry import (
+    CALIFORNIA_COUNTIES,
+    EXPECTED_FACT_DATASET_PATTERNS,
+    UTILITY_PATTERNS,
+)
 
 _VAGUE_TIME = re.compile(r"\b(?:recent(?:ly)?|lately|currently|right now)\b", re.I)
 _RELATIVE_YEAR = re.compile(
@@ -24,14 +28,8 @@ _INJECTION = re.compile(
     r"\b(?:ignore (?:previous |all )?instructions|system prompt|api keys?)\b",
     re.I,
 )
-_DATASET_CUES = (
-    ("cpuc_ignitions", re.compile(r"\b(?:cpuc|utility-caused ignitions?)\b", re.I)),
-    ("calfire_incidents", re.compile(r"\b(?:cal\s*fire|calfire)\b", re.I)),
-    ("epss_outages", re.compile(r"\bepss\b", re.I)),
-    ("psps_events", re.compile(r"\bpsps\b", re.I)),
-    ("us_ignitions", re.compile(r"\bus ignitions?\b", re.I)),
-    ("circuits", re.compile(r"\bcircuits?\b", re.I)),
-    ("hftd", re.compile(r"\bhftd\b", re.I)),
+_DATASET_CUES = tuple(
+    (name, re.compile(pattern, re.I)) for name, pattern in EXPECTED_FACT_DATASET_PATTERNS
 )
 
 
@@ -55,7 +53,7 @@ def expected_facts(question: str) -> dict[str, dict[str, Any]]:
         resolved.year is not None and resolved.year > 2025 and "risk" in lower
     )
     utility = any(re.search(pattern, text, re.I) for pattern in UTILITY_PATTERNS.values())
-    county = any(re.search(rf"\b{re.escape(name)}\b", text, re.I) for name in _CA_COUNTIES)
+    county = any(re.search(rf"\b{re.escape(name)}\b", text, re.I) for name in CALIFORNIA_COUNTIES)
     place = utility or county or bool(
         re.search(r"\b(?:grid cell|circuit\s+\d|[-+]?\d{1,3}\.\d+)\b", lower)
     )

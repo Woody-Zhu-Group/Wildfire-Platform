@@ -25,6 +25,7 @@ from services.data_query.filters import (
 )
 from services.shared.calfire_county import multi_county_meta
 from services.shared.dataset_registry import (
+    CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
     US_IGNITIONS_META_VISUALIZATION,
     parse_viz_dataset,
 )
@@ -257,7 +258,7 @@ def map_layer(
         )
         style = style_for("calfire")
         fc = queries.rows_to_feature_collection(rows, id_field="incident_id")
-        extra_meta["incident_type_default"] = "Wildfire,Fire"
+        extra_meta["incident_type_default"] = CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM
         if county is not None:
             extra_meta.update(
                 multi_county_meta(
@@ -399,7 +400,7 @@ def time_series(
             "end_date": end.isoformat() if end else None,
             "county": county,
             "incident_type": incident_type or (
-                "Wildfire,Fire" if ds == "calfire" else None
+                CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM if ds == "calfire" else None
             ),
         },
         "binning": "website_calendar_weeks" if iv == "weekly" else iv,

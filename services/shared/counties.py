@@ -1,4 +1,4 @@
-"""Canonical California county names and the one place they are normalized.
+"""California county normalization: the one place a county value is resolved.
 
 The warehouse stores county names as the Census TIGER names in
 ``wildfire.counties`` ("Butte", "Los Angeles", "San Luis Obispo"). Every
@@ -12,42 +12,15 @@ from __future__ import annotations
 import difflib
 import re
 
-CALIFORNIA_COUNTIES: tuple[str, ...] = (
-    "Alameda", "Alpine", "Amador", "Butte", "Calaveras", "Colusa", "Contra Costa",
-    "Del Norte", "El Dorado", "Fresno", "Glenn", "Humboldt", "Imperial", "Inyo",
-    "Kern", "Kings", "Lake", "Lassen", "Los Angeles", "Madera", "Marin", "Mariposa",
-    "Mendocino", "Merced", "Modoc", "Mono", "Monterey", "Napa", "Nevada", "Orange",
-    "Placer", "Plumas", "Riverside", "Sacramento", "San Benito", "San Bernardino",
-    "San Diego", "San Francisco", "San Joaquin", "San Luis Obispo", "San Mateo",
-    "Santa Barbara", "Santa Clara", "Santa Cruz", "Shasta", "Sierra", "Siskiyou",
-    "Solano", "Sonoma", "Stanislaus", "Sutter", "Tehama", "Trinity", "Tulare",
-    "Tuolumne", "Ventura", "Yolo", "Yuba",
+from services.shared.dataset_registry import (
+    CALIFORNIA_COUNTIES,
+    COUNTY_ALIASES,
+    COUNTY_SUFFIX_PATTERN,
 )
 
-# Known short forms and spellings, keyed by their normalized form (lowercase,
-# punctuation removed, single spaces, no trailing "county"). Only
-# abbreviations that mean one county belong here: "SB" could be Santa
-# Barbara, San Bernardino, or San Benito, so it is rejected with all three.
-COUNTY_ALIASES: dict[str, str] = {
-    "la": "Los Angeles",
-    "l a": "Los Angeles",
-    "los angeles co": "Los Angeles",
-    "sf": "San Francisco",
-    "san fran": "San Francisco",
-    "slo": "San Luis Obispo",
-    "san bernadino": "San Bernardino",
-    "san berdoo": "San Bernardino",
-    "eldorado": "El Dorado",
-    "contracosta": "Contra Costa",
-    "delnorte": "Del Norte",
-    "sanjoaquin": "San Joaquin",
-    "santa clara co": "Santa Clara",
-    "st clara": "Santa Clara",
-    "st cruz": "Santa Cruz",
-    "st barbara": "Santa Barbara",
-}
-
-_SUFFIX = re.compile(r"\s+(?:county|co\.?|cnty)$", re.I)
+# The county list, the aliases, and the "County" suffix rule are naming
+# conventions defined in services.shared.naming (exported by the registry).
+_SUFFIX = COUNTY_SUFFIX_PATTERN
 _PUNCT = re.compile(r"[^a-z0-9 ]+")
 
 

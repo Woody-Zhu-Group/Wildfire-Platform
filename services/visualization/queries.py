@@ -10,6 +10,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from services.shared.calfire_county import county_match_sql, multi_county_count_sql
+from services.shared.dataset_registry import calfire_default_type_sql
 from services.shared.epss_causes import cause_display_sql, cause_filter_sql, cause_variants
 from services.visualization.styles import acres_radius_hint
 
@@ -377,7 +378,7 @@ def _calfire_where(
     where = ["TRUE"]
     params: list[Any] = []
     if incident_type is None or incident_type.strip() == "":
-        where.append("c.incident_type IN ('Wildfire', 'Fire')")
+        where.append(calfire_default_type_sql("c.incident_type"))
     elif incident_type.strip().lower() == "all":
         pass
     elif incident_type.strip().lower() == "untyped":

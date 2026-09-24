@@ -13,12 +13,13 @@ from services.shared.calfire_county import (
     county_overlap_sql,
     multi_county_sql,
 )
+from services.shared.dataset_registry import calfire_default_type_sql
 
 ScopeKind = Literal["utility", "county", "hftd"]
 
 
 def _calfire_type_sql(alias: str = "c") -> str:
-    return f"{alias}.incident_type IN ('Wildfire', 'Fire')"
+    return calfire_default_type_sql(f"{alias}.incident_type")
 
 
 def territory_km2(conn: psycopg.Connection, utility: str) -> float | None:

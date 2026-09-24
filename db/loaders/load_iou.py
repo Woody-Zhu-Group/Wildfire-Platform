@@ -26,19 +26,13 @@ from db.loaders.arcgis_polygons import (
     load_source,
 )
 from db.loaders.config import Settings
+from services.shared.dataset_registry import IOU_PUBLISHER_UTILITY_CODES
 
 TABLE = "iou_territories"
 KEY_COLUMN = "utility"
 
 # Publisher UtilityID to the warehouse utility code the services use.
-UTILITY_CODES = {
-    "PG&E": "PGE",
-    "SCE": "SCE",
-    "PacifiCorp": "PACIFICORP",
-    "SDG&E": "SDGE",
-    "LU": "Liberty",
-    "BVES": "BVES",
-}
+UTILITY_CODES = IOU_PUBLISHER_UTILITY_CODES
 if set(UTILITY_CODES) != IOU_LAYER.expected_keys:
     raise RuntimeError("UTILITY_CODES and IOU_LAYER.expected_keys disagree")
 
