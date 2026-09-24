@@ -2,7 +2,7 @@
 
 A wildfire research platform combining an interactive analysis website, a PostGIS event warehouse, modular FastAPI services, and a historical **cNHPP** (convolutional non-homogeneous Poisson process) ignition-risk model. The website supports recorded fire and outage exploration, weather playback, modeled risk and residual maps, regional and seasonal analysis, and result exports.
 
-The current website offers **18 analysis views in five panel categories**, and the Ask panel can open all 18 from a chat answer. Opening the website does not fit a model or require a local database.
+The current website offers **19 analysis views in five panel categories**, and the Ask panel can open all 19 from a chat answer. Opening the website does not fit a model or require a local database.
 
 ## Architecture
 
@@ -176,34 +176,41 @@ flowchart LR
     end
     GridCsv --> Loaders
 
-    subgraph Reg["Registries: services/shared/"]
-        DSReg["dataset_registry.py"]
-        Names["Naming: counties.py,<br>stored_values.py, epss_causes.py,<br>calfire_county.py"]
+    subgraph Reg["Registry: services/shared/"]
+        Naming["naming.py<br>every naming convention:<br>utilities, counties, tiers,<br>EPSS causes, CAL FIRE types"]
+        DSReg["dataset_registry.py<br>datasets; re-exports naming"]
+        Naming --> DSReg
     end
+    Guard["test_naming_single_source.py<br>fails on any other copy"]
+    Guard -->|"scans services,<br>loaders, scripts, website"| Reg
     Gaz["Census places gazetteer<br>data/places/"]
 
     Gen["generate_frontend_registry.py"]
-    Web["shared/datasets.json,<br>dataset_caveats.json<br>imported by the website"]
+    Web["shared/naming.json,<br>datasets.json, dataset_caveats.json<br>imported by the website"]
 
     subgraph Svc["Services"]
         APIs["Data Query, Visualization,<br>Comparison"]
         RiskSvc["Historical Risk API<br>/predict, /surface, /metrics"]
-        AgentN["Agent: router and harness"]
+    end
+
+    subgraph AgentG["Agent"]
+        RouterN["Router"]
+        Harness["Harness<br>tools, grounding, schemas,<br>views, caveats"]
     end
 
     WH --> APIs
     WH --> RiskSvc
     RiskFiles -->|"/metrics checks<br>the params hash"| RiskSvc
     DSReg --> APIs
-    DSReg -->|"router: HDW years;<br>harness: tools, schemas,<br>views, caveats"| AgentN
+    DSReg --> RiskSvc
+    DSReg --> RouterN
+    DSReg --> Harness
+    DSReg --> Loaders
     DSReg --> Gen --> Web
-    Names --> APIs
-    Names -->|"county names"| RiskSvc
-    Names -->|"harness: county names"| AgentN
-    Gaz -->|"places.py: city<br>center points"| AgentN
+    Gaz -->|"places.py: city<br>center points"| RouterN
 ```
 
-`db/loaders/load_all.py` loads every table; the boundary pair comes from `load_boundaries.py` behind the gate and keeps its old rows if the gate fails (`python -m db.loaders.rebuild_boundaries` reloads only that pair). CPUC ignitions get their `county` at load by point-in-polygon against `wildfire.counties`. `dataset_registry.py` feeds the three query services and the agent (`caveats.py`, `schemas.py`, `views.py`, `tools.py`, `eval/slot_plan.py`; the router imports only `HDW_YEARS` and keeps its own county list), and the generator writes the two JSON catalogs the website imports (`website/src/data.ts`, `website/src/caveats.ts`). `counties.py` resolves county names for `services/data_query/filters.py` (used by Data Query, Visualization and Comparison), `services/risk_forecasting/place.py` and the agent's tool layer; `stored_values.py` resolves EPSS and CAL FIRE filter values against the warehouse. `GET /metrics` returns 503 unless the stored table matches the committed parameters.
+`db/loaders/load_all.py` loads every table; the boundary pair comes from `load_boundaries.py` behind the gate and keeps its old rows if the gate fails (`python -m db.loaders.rebuild_boundaries` reloads only that pair). CPUC ignitions get their `county` at load by point-in-polygon against `wildfire.counties`. Every naming convention (utility codes and spellings, the 58 county names and aliases, HFTD tier names, EPSS cause codes, the CAL FIRE default incident types, and the question patterns built from them) is defined once in `services/shared/naming.py`. `dataset_registry.py` defines the datasets and re-exports every name in `naming.py`, and callers import from the registry: the three query services (through `services/data_query/filters.py` and their own queries), the risk service (`place.py`), the router (`routing.py`), the harness (`grounding.py`, `tools.py`, `argument_normalize.py`, `schemas.py`, `views.py`, `caveats.py`, `clarify_missing.py`, the Jev modules), and the loaders (`util.py`, `arcgis_polygons.py`, `load_iou.py`, `load_epss.py`). `counties.py`, `epss_causes.py` and `calfire_county.py` apply those names rather than defining their own. `scripts/generate_frontend_registry.py` writes `shared/naming.json`, `shared/datasets.json` and `shared/dataset_caveats.json`, which the website imports (`website/src/data.ts`, `website/src/caveats.ts`); `tests/test_frontend_registry_generated.py` fails when they are stale. `tests/test_naming_single_source.py` fails if any other module, loader, script, or website source file defines its own list of those names (`services/shared/README.md` has the full scope). `GET /metrics` returns 503 unless the stored table matches the committed parameters.
 
 The default website connects to the deployed APIs configured in [`website/src/api.ts`](website/src/api.ts). Local services are useful for backend development but are not prerequisites for previewing the built website.
 

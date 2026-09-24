@@ -2,7 +2,7 @@
 
 `docs/index.html` and `docs/assets/workspace/` are the built website, generated
 from [`website/`](../website/README.md). The interface is a conversation area
-and 18 analysis views in five panel categories, using real remote records.
+and 19 analysis views in five panel categories, using real remote records.
 
 Start with the [root README](../README.md) for architecture, usage and local
 backend setup. This directory contains the static publication output; edit
