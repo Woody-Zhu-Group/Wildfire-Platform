@@ -43,6 +43,7 @@ from services.agent.schemas import (
     openai_tools,
 )
 from services.agent.streaming import ProgressCallback
+from services.agent.time_resolve import CallWindows, call_window, named_month_periods
 from services.agent.tools import ToolExecution, ToolExecutor
 from services.agent.views import dump_planned, empty_views_payload, plan_views
 from services.shared.dataset_registry import EVENT_DATASET_WORDS, UTILITY_POSSESSIVE_NAMES
@@ -332,9 +333,36 @@ class AgentOrchestrator:
                 "jev_rule": result.jev_rule,
                 "jev_confidence": result.jev_confidence,
                 "wording": result.wording,
+                "jev_intent": result.extra.get("intent"),
+                "jev_intent_confidence": result.extra.get("intent_confidence"),
             },
         }
         return final
+
+    def _jev_reads_change(self, decision: RouteDecision) -> bool:
+        """Whether Jev reads the question as a comparison or trend, at the gate.
+
+        Two policies turn on what a question asks for, and that takes meaning,
+        so both read Jev's existing intent fact and no wording:
+        - Coverage of a written range: "how did X change from 2020 to 2023"
+          wants the two endpoints, "how many from 2020 to 2023" wants every
+          year.
+        - Derived change figures: a difference, percent change, or ratio
+          belongs in the answer only when the question asks how things
+          changed or compare; "list PG&E ignitions in 2019 and in 2023" has
+          two periods but asks for neither.
+        Only when decide mode has Jev's facts and Jev reads compare or trend
+        at or above the decline gate is this true; a count or records intent,
+        a reading below the gate, a Jev error, or Jev off make it false.
+        """
+        jev = decision.slots.get("jev_decide") or {}
+        intent = jev.get("jev_intent")
+        confidence = jev.get("jev_intent_confidence")
+        return (
+            intent in {"compare", "trend"}
+            and isinstance(confidence, (int, float))
+            and float(confidence) >= self.settings.jev_decide_min_confidence
+        )
 
     async def _ask_routed(
         self,
@@ -493,6 +521,9 @@ class AgentOrchestrator:
                             response=response, raw_log=raw_log
                         )
                 city = decision.slots.get("city_point") or {}
+                # Counts over two periods get the harness-derived change
+                # figures only when Jev reads the question as a change.
+                self._attach_derived(question, decision, executions, trajectory)
                 answer = _render_deterministic(
                     executions,
                     place_label=(
@@ -549,6 +580,7 @@ class AgentOrchestrator:
                         time_resolution=decision.slots.get("time_resolution"),
                         on_event=on_event,
                         cancel_event=cancel_event,
+                        range_endpoints_cover=self._jev_reads_change(decision),
                     )
                 else:
                     (
@@ -681,19 +713,7 @@ class AgentOrchestrator:
             elif need_synthesis:
                 # Changes, differences, percents, and ratios come from the
                 # harness, never from the model; synthesis cites this evidence.
-                derived = derive_arithmetic(question, executions)
-                if derived is not None:
-                    executions.append(derived)
-                    trajectory.append(
-                        {
-                            "type": "derived_evidence",
-                            "tool": derived.tool,
-                            "evidence_id": derived.evidence_id,
-                            "source_evidence_ids": derived.arguments["source_evidence_ids"],
-                            "operations": derived.arguments["operations"],
-                            "derivation_count": len(derived.summary["derivations"]),
-                        }
-                    )
+                self._attach_derived(question, decision, executions, trajectory)
                 await self._emit(
                     on_event,
                     "synthesizing",
@@ -816,6 +836,89 @@ class AgentOrchestrator:
             return fallback
         return primary
 
+    def _attach_derived(
+        self,
+        question: str,
+        decision: RouteDecision,
+        executions: list[ToolExecution],
+        trajectory: list[dict[str, Any]],
+    ) -> None:
+        """Append the harness arithmetic evidence once, when Jev reads a change.
+
+        ``derive_arithmetic`` pairs counts by call structure alone, so any two
+        periods of one measure pair up, including a listing of two years that
+        asked for no change. Whether the question wants a difference, percent
+        change, or ratio is meaning, so the figures are attached only when
+        Jev's intent fact is compare or trend at or above the decline gate
+        (``_jev_reads_change``). Otherwise they stay out of the evidence, so
+        neither synthesis nor the deterministic fallback text can show them,
+        and the trajectory records that they were withheld.
+        """
+        if any(item.tool == DERIVED_TOOL for item in executions):
+            return
+        derived = derive_arithmetic(question, executions)
+        if derived is None:
+            return
+        if not self._jev_reads_change(decision):
+            jev = decision.slots.get("jev_decide") or {}
+            trajectory.append(
+                {
+                    "type": "derived_evidence_withheld",
+                    "reason": "jev intent is not compare or trend at the decline gate",
+                    "jev_intent": jev.get("jev_intent"),
+                    "jev_intent_confidence": jev.get("jev_intent_confidence"),
+                    "derivation_count": len(derived.summary["derivations"]),
+                }
+            )
+            return
+        executions.append(derived)
+        trajectory.append(
+            {
+                "type": "derived_evidence",
+                "tool": derived.tool,
+                "evidence_id": derived.evidence_id,
+                "source_evidence_ids": derived.arguments["source_evidence_ids"],
+                "operations": derived.arguments["operations"],
+                "derivation_count": len(derived.summary["derivations"]),
+            }
+        )
+
+    def _executed_arguments(
+        self,
+        tool: str,
+        args: dict[str, Any],
+        *,
+        year: int | None,
+        years: list[int] | None,
+        utilities: list[str] | None,
+        allow_untagged: bool,
+        time_resolution: dict[str, Any] | None,
+        call_windows: CallWindows | None = None,
+    ) -> dict[str, Any]:
+        """The arguments a model call will run with after harness correction.
+
+        Slot fill, utility stripping, and the year and window guards can turn
+        two different model calls into the same backend call. Duplicate
+        suppression keys on this, so the answer never runs one call twice.
+        """
+        preview = getattr(self.executor, "preview_arguments", None)
+        if not callable(preview):
+            return args
+        try:
+            return preview(
+                tool,
+                args,
+                year=year,
+                years=years,
+                utilities=utilities,
+                allow_untagged=allow_untagged,
+                time_resolution=time_resolution,
+                harness_call=False,
+                call_windows=call_windows,
+            )
+        except Exception:  # noqa: BLE001
+            return args
+
     async def _execute_with_repair(
         self,
         tool: str,
@@ -833,6 +936,7 @@ class AgentOrchestrator:
         qualification_call: bool = False,
         harness_call: bool = False,
         allow_untagged: bool = False,
+        call_windows: CallWindows | None = None,
     ) -> ToolExecution:
         self._raise_if_cancelled(cancel_event)
         if tool in HARNESS_TOOL_MODELS and not harness_call:
@@ -867,6 +971,7 @@ class AgentOrchestrator:
                 allow_untagged=allow_untagged,
                 time_resolution=time_resolution,
                 harness_call=harness_call,
+                call_windows=call_windows,
             )
             if callable(preview)
             else args
@@ -893,6 +998,7 @@ class AgentOrchestrator:
             time_resolution=time_resolution,
             qualification_call=qualification_call,
             harness_call=harness_call,
+            call_windows=call_windows,
         )
         if not result.ok and _should_harness_retry(result):
             # Keep the failed attempt visible for recovery scoring, then retry
@@ -957,6 +1063,7 @@ class AgentOrchestrator:
                 time_resolution=time_resolution,
                 qualification_call=qualification_call,
                 harness_call=harness_call,
+                call_windows=call_windows,
             )
         await self._emit(
             on_event,
@@ -1081,6 +1188,7 @@ class AgentOrchestrator:
         time_resolution: dict[str, Any] | None = None,
         on_event: ProgressCallback | None = None,
         cancel_event: asyncio.Event | None = None,
+        range_endpoints_cover: bool = False,
     ) -> tuple[
         str,
         str,
@@ -1132,11 +1240,39 @@ class AgentOrchestrator:
         # Hosted models often return one call per turn, so multi-part
         # questions are checked for named entities no successful call has
         # covered yet.
+        entity_years = list(years or []) or ([year] if year else [])
+        resolution = time_resolution or {}
+        # The window of every successful model call for this question, across
+        # all model turns, so the hold rule never judges a call by its turn.
+        call_windows = CallWindows()
+        if (
+            range_endpoints_cover
+            and resolution.get("start_date")
+            and not resolution.get("per_year")
+        ):
+            # Jev read the question as a comparison or trend over a written
+            # range ("how did X change from 2020 to 2023"), so the range names
+            # its endpoints and two endpoint reads cover it. Without that
+            # reading (a total, Jev below the gate, a Jev error, or Jev off)
+            # every year in the range must be covered, as on main.
+            written = {int(value) for value in re.findall(r"\b(20\d{2})\b", question)}
+            endpoint_years = [item for item in entity_years if item in written]
+            if len(endpoint_years) > 1:
+                entity_years = endpoint_years
+                # Coverage asks for each endpoint on its own, so a lone call
+                # on one of them is a planned read the hold rule keeps, even
+                # when the model sends one call per turn.
+                call_windows = CallWindows(
+                    endpoints=frozenset(
+                        (f"{item}-01-01", f"{item}-12-31") for item in endpoint_years
+                    )
+                )
         entities = named_entities(
             question,
             utilities=utilities,
             county=county,
-            years=list(years or []) or ([year] if year else []),
+            years=entity_years,
+            months=named_month_periods(question),
         )
         check_coverage = any(len(values) > 1 for values in entities.values())
         trajectory.append(
@@ -1279,6 +1415,10 @@ class AgentOrchestrator:
             turn_results: dict[tuple[str, str], ToolExecution] = {}
             turn_had_success = False
             turn_had_failure = False
+            # The hold rule sees this turn's calls beside every earlier
+            # successful call for the question: a model that sends one period
+            # per turn splits the range as surely as one that sends both at once.
+            turn_windows = call_windows.with_calls(_turn_windows(reply.tool_calls))
             for call in reply.tool_calls:
                 function = call.get("function") or {}
                 tool = str(function.get("name") or "")
@@ -1329,7 +1469,23 @@ class AgentOrchestrator:
                     turn_had_failure = True
                     continue
 
-                cache_key = (tool, canonical_args)
+                # Two calls the harness corrects to the same window (a 2020
+                # count and a 2023 count both held to one span) are one call.
+                # The key is what will run, not what the model wrote.
+                executed_args = self._executed_arguments(
+                    tool,
+                    args,
+                    year=year,
+                    years=years,
+                    utilities=utilities,
+                    allow_untagged=allow_untagged,
+                    time_resolution=time_resolution,
+                    call_windows=turn_windows,
+                )
+                cache_key = (
+                    tool,
+                    json.dumps(executed_args, sort_keys=True, default=str),
+                )
                 execution = turn_results.get(cache_key) or successful_cache.get(
                     cache_key
                 )
@@ -1372,6 +1528,12 @@ class AgentOrchestrator:
                             "type": "duplicate_tool_call_suppressed",
                             "tool": tool,
                             "arguments": args,
+                            "executed_arguments": executed_args,
+                            "reason": (
+                                "identical arguments"
+                                if executed_args == args
+                                else "identical after harness correction"
+                            ),
                             "phase": "routing",
                             "step": step,
                         }
@@ -1390,12 +1552,14 @@ class AgentOrchestrator:
                         trajectory=trajectory,
                         on_event=on_event,
                         cancel_event=cancel_event,
+                        call_windows=turn_windows,
                     )
                     turn_results[cache_key] = execution
                     executions.append(execution)
                     trajectory.append(_execution_event(execution))
                     if execution.ok:
                         successful_cache[cache_key] = execution
+                        call_windows = call_windows.with_calls([call_window(args)])
                     else:
                         fingerprint = _failure_fingerprint(execution)
                         if fingerprint is not None:
@@ -2990,7 +3154,7 @@ def _render_deterministic(
     place_label: str | None = None,
     city_name: str | None = None,
 ) -> str:
-    parts = []
+    parts: list[str] = []
     for item in [execution for execution in executions if execution.ok and not execution.qualification_call]:
         summary = item.summary
         if item.tool == "data_query_records":
@@ -3070,7 +3234,23 @@ def _render_deterministic(
                     f"period B={summary.get('period_b', {}).get('value')}, "
                     f"delta={summary.get('delta', {}).get('value')}."
                 )
-    return " ".join(parts) or "The service returned no usable evidence."
+    # The same evidence rendered twice reads as two findings. One line each.
+    unique = list(dict.fromkeys(part for part in parts if part))
+    return " ".join(unique) or "The service returned no usable evidence."
+
+
+def _turn_windows(tool_calls: list[dict[str, Any]]) -> list[tuple[str, str] | None]:
+    """The date window each call in a model turn filters on, as the model wrote it."""
+    windows: list[tuple[str, str] | None] = []
+    for call in tool_calls:
+        function = call.get("function") or {}
+        try:
+            args = json.loads(function.get("arguments") or "{}")
+        except (json.JSONDecodeError, TypeError):
+            windows.append(None)
+            continue
+        windows.append(call_window(args) if isinstance(args, dict) else None)
+    return windows
 
 
 def _execution_event(execution: ToolExecution) -> dict[str, Any]:

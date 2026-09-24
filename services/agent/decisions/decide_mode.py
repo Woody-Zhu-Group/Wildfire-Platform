@@ -547,7 +547,35 @@ def decide_from_answers(
 
     gate: a Jev clarify or refuse needs this confidence to win.
     answer_gate: a Jev answer over a router decline needs this (higher) confidence.
+
+    The result also carries Jev's intent fact and its confidence in ``extra``
+    (``intent``, ``intent_confidence``) whenever Jev answered, so the harness
+    can apply policy that turns on what the question asks for (a comparison
+    or trend over a written range reads its endpoints; a total covers it all)
+    without a second call or any new wording.
     """
+    result = _decide_from_answers(
+        question, decision, answers, gate=gate, answer_gate=answer_gate, error=error, today=today
+    )
+    if answers and not error:
+        intent = answers.get("intent")
+        value = getattr(intent, "value", None) if not isinstance(intent, dict) else intent.get("value")
+        if value is not None:
+            result.extra["intent"] = str(value)
+            result.extra["intent_confidence"] = _answer_confidence(intent)
+    return result
+
+
+def _decide_from_answers(
+    question: str,
+    decision: RouteDecision,
+    answers: dict[str, Any] | None,
+    *,
+    gate: float = 0.8,
+    answer_gate: float = 0.9,
+    error: str | None = None,
+    today: date | None = None,
+) -> DecideResult:
     base = {"router_path": decision.path, "router_rule": decision.rule}
     exempt = exemption(decision, question)
     if exempt:

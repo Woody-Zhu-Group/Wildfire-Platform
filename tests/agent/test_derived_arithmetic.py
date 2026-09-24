@@ -14,7 +14,7 @@ import httpx
 
 from services.agent.artifacts import ArtifactStore
 from services.agent.config import AgentSettings
-from services.agent.derived import DERIVED_TOOL, derive_arithmetic, requested_operations
+from services.agent.derived import DERIVED_TOOL, derive_arithmetic
 from services.agent.orchestrator import AgentOrchestrator
 from services.agent.provider import ModelReply
 from services.agent.tools import ToolExecution, ToolExecutor
@@ -114,27 +114,30 @@ class ScriptedProvider:
         )
 
 
-def _ask(provider: ScriptedProvider) -> dict:
+def _ask(provider: ScriptedProvider, *, jev_intent: tuple[str, float] | None = ("compare", 0.95)) -> dict:
+    """Decide mode with Jev's intent fact; ``jev_intent=None`` runs with Jev off.
+
+    Change figures attach only when Jev reads compare or trend at the gate.
+    """
+    from dataclasses import replace
+
+    from tests.agent.test_jev_decide import FakeBackend, _answer_facts, _choice
+
     settings = AgentSettings(max_tool_steps=3)
+    backend = None
+    if jev_intent is not None:
+        settings = replace(settings, jev_mode="decide", jev_backend="typesafe", jev_decide_min_confidence=0.8)
+        backend = FakeBackend(_answer_facts(intent=_choice(*jev_intent)))
     executor = ToolExecutor(settings, ArtifactStore(60), transport=httpx.MockTransport(_handler))
 
     async def run():
         try:
-            return (await AgentOrchestrator(settings, provider, executor).ask(QUESTION)).response
+            orchestrator = AgentOrchestrator(settings, provider, executor, decide_backend=backend)
+            return (await orchestrator.ask(QUESTION)).response
         finally:
             await executor.close()
 
     return asyncio.run(run())
-
-
-def test_the_question_asks_for_a_difference():
-    assert requested_operations(QUESTION) == {"difference"}
-    assert requested_operations("What was the percent change in SCE ignitions?") == {
-        "difference",
-        "percent_change",
-    }
-    assert "ratio" in requested_operations("What is the ratio of PG&E to SCE ignitions in 2023?")
-    assert requested_operations("How many PG&E ignitions were there in 2023?") == set()
 
 
 def test_synthesis_states_the_harness_computed_changes_and_cites_them():
@@ -162,16 +165,26 @@ def test_synthesis_states_the_harness_computed_changes_and_cites_them():
         [counts[("PGE", 2020)], counts[("PGE", 2023)]]
     )
     assert changes["utility=SCE"]["difference"] == 15
-    between = {row["from"]["period"]: row for row in rows if row["basis"] == "difference_between_entities"}
-    assert between["2020"]["difference"] == 75 - 402
-    assert between["2023"]["difference"] == 90 - 374
-    assert between["2023"]["larger"] == "utility=PGE"
-    assert "direction" not in between["2023"]
+    # Four calls over two periods: each utility's change, and no cross-entity
+    # rows the question did not ask for. The structure of the calls decides.
+    assert [row["basis"] for row in rows] == ["change_over_time", "change_over_time"]
     assert set(derived[0]["arguments"]["source_evidence_ids"]) == set(counts.values())
 
     # The model saw the derived evidence in its synthesis payload.
     kinds = [item["summary"].get("kind") for item in provider.synthesis_payloads[0]["evidence"]]
     assert "derived_arithmetic" in kinds
+
+
+def test_without_jev_s_change_reading_no_change_is_derived_or_shown():
+    # Jev off, a count reading, or compare below the gate: the four counts are
+    # answered, and the harness withholds the difference and percent change.
+    for intent in (None, ("count", 0.95), ("compare", 0.6)):
+        provider = ScriptedProvider()
+        response = _ask(provider, jev_intent=intent)
+        assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL], intent
+        assert [e for e in response["trajectory"] if e.get("type") == "derived_evidence_withheld"], intent
+        kinds = [item["summary"].get("kind") for item in provider.synthesis_payloads[0]["evidence"]]
+        assert "derived_arithmetic" not in kinds, intent
 
 
 def test_a_change_the_harness_did_not_compute_is_rejected():
@@ -240,16 +253,56 @@ def test_percent_change_is_rounded_and_signed():
     assert row["absolute_percent_change"] == 7
 
 
-def test_nothing_is_derived_from_companions_or_when_not_asked():
+def test_nothing_is_derived_from_companions():
     executions = [
         _count("evidence_a", "PGE", 2020, 402),
         _count("evidence_b", "PGE", 2023, 374, qualification=True),
     ]
     assert derive_arithmetic("By how much did PG&E ignitions change?", executions) is None
-    assert derive_arithmetic(
+
+
+def test_the_same_entity_in_two_periods_is_derived_whatever_the_question_says():
+    # No change word at all: the structure of the calls decides.
+    derived = derive_arithmetic(
         "How many PG&E ignitions in 2020 and 2023?",
         [_count("evidence_a", "PGE", 2020, 402), _count("evidence_b", "PGE", 2023, 374)],
-    ) is None
+    )
+    row = derived.summary["derivations"][0]
+    assert row["basis"] == "change_over_time"
+    assert row["difference"] == -28
+    assert row["percent_change"] == -7.0
+    assert row["ratio"] == 0.93
+    assert derived.arguments["operations"] == ["difference", "percent_change", "ratio"]
+
+
+def test_two_entities_in_one_shared_period_get_their_difference():
+    derived = derive_arithmetic(
+        "How many more ignitions did PG&E have than SCE in 2023?",
+        [_count("evidence_a", "PGE", 2023, 374), _count("evidence_b", "SCE", 2023, 90)],
+    )
+    rows = derived.summary["derivations"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["basis"] == "difference_between_entities"
+    assert row["from"]["entity"] == "utility=PGE" and row["to"]["entity"] == "utility=SCE"
+    assert row["difference"] == 90 - 374
+    assert row["larger"] == "utility=PGE"
+    assert "direction" not in row
+
+
+def test_cross_entity_rows_need_every_call_in_one_period():
+    # One utility read twice and another once: the change over time only.
+    derived = derive_arithmetic(
+        "Did PG&E ignitions fall more than SCE's between 2020 and 2023?",
+        [
+            _count("evidence_a", "PGE", 2020, 402),
+            _count("evidence_b", "PGE", 2023, 374),
+            _count("evidence_c", "SCE", 2023, 90),
+        ],
+    )
+    rows = derived.summary["derivations"]
+    assert [row["basis"] for row in rows] == ["change_over_time"]
+    assert rows[0]["to"]["entity"] == "utility=PGE"
 
 
 def test_count_cards_are_not_capped_but_other_stats_are():

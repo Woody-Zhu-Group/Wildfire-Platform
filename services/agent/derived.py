@@ -2,16 +2,18 @@
 
 Grounding only lets synthesis state numbers that appear in evidence, so a
 question that asks how much a count changed could never get its answer: the
-difference is not in any tool result, and the model must not compute it. When
-the question asks for a change, difference, percent change, or ratio, this
-module computes those values from the successful primary count results and
-returns them as one evidence item with its own id and the ids it came from.
-Synthesis cites that id like any other evidence.
+difference is not in any tool result, and the model must not compute it. This
+module computes the difference, percent change, and ratio from the successful
+primary count results and returns them as one evidence item with its own id
+and the ids it came from. Synthesis cites that id like any other evidence.
 
-Pairs are formed only between counts of the same measure:
-- the same entity (same dataset, utility, county, tier, filters) across two
-  periods, earliest period first;
-- two entities in the same period, when the period has exactly two.
+What to compute comes from the structure of the calls alone, never from the
+question's words. Within one measure (dataset, metric, definition):
+- an entity (same dataset, utility, county, tier, filters) that appears in two
+  or more periods gets its change over time, earliest period first;
+- a difference between two entities is computed only when every call of that
+  measure shares one period and there are exactly two entities. Calls over
+  several periods never produce cross-entity rows the question did not ask for.
 Nothing is derived from qualification companions.
 """
 
@@ -26,34 +28,6 @@ from typing import Any
 from services.agent.tools import ToolExecution
 
 DERIVED_TOOL = "harness_arithmetic"
-
-_CHANGE_RE = re.compile(
-    r"\b(?:chang(?:e|ed|es|ing)|differen(?:ce|ces|t)|differ(?:ed|s)?|"
-    r"increas(?:e|ed|es|ing)|decreas(?:e|ed|es|ing)|ris(?:e|en|ing)|rose|"
-    r"f[ae]ll|falling|drop(?:ped|s)?|gr[eo]w(?:n|th)?|declin(?:e|ed|es|ing)|"
-    r"up or down|how much (?:more|less|fewer|higher|lower)|"
-    r"how many (?:more|fewer)|by how much|gap)\b",
-    re.IGNORECASE,
-)
-_PERCENT_RE = re.compile(r"\bpercent(?:age)?\b|%", re.IGNORECASE)
-_RATIO_RE = re.compile(
-    r"\bratio\b|\btimes (?:as (?:many|much|high)|more|higher)\b|\b(?:double|triple)d?\b|\bfold\b",
-    re.IGNORECASE,
-)
-
-
-def requested_operations(question: str) -> set[str]:
-    """Arithmetic the question asks for: difference, percent_change, ratio."""
-    text = question or ""
-    ops: set[str] = set()
-    if _PERCENT_RE.search(text):
-        ops.update({"difference", "percent_change"})
-    if _RATIO_RE.search(text):
-        ops.add("ratio")
-    if _CHANGE_RE.search(text):
-        ops.add("difference")
-    return ops
-
 
 @dataclass(frozen=True)
 class _Cell:
@@ -160,8 +134,13 @@ def _round(value: float, places: int) -> int | float:
     return int(rounded) if float(rounded).is_integer() else rounded
 
 
-def _derive(base: _Cell, other: _Cell, ops: set[str], *, basis: str) -> dict[str, Any]:
+# Every value is computed for every pair; synthesis cites what the question asked.
+OPERATIONS = ("difference", "percent_change", "ratio")
+
+
+def _derive(base: _Cell, other: _Cell, *, basis: str) -> dict[str, Any]:
     """Arithmetic from base to other. For a change, base is the earlier period."""
+    ops = set(OPERATIONS)
     difference = other.value - base.value
     row: dict[str, Any] = {
         "basis": basis,
@@ -200,10 +179,12 @@ def _derive(base: _Cell, other: _Cell, ops: set[str], *, basis: str) -> dict[str
 
 
 def derive_arithmetic(question: str, executions: list[ToolExecution]) -> ToolExecution | None:
-    """One evidence item with every requested value, or None when nothing pairs."""
-    ops = requested_operations(question)
-    if not ops:
-        return None
+    """One evidence item with the values every pair supports, or None when nothing pairs.
+
+    ``question`` is accepted for the call sites' sake and not read: the pairs
+    come from the calls, and every pair gets every value.
+    """
+    del question
     cells: dict[tuple[str, str, str, str], _Cell] = {}
     for execution in executions:
         if not execution.ok or execution.qualification_call:
@@ -213,26 +194,29 @@ def derive_arithmetic(question: str, executions: list[ToolExecution]) -> ToolExe
 
     rows: list[dict[str, Any]] = []
     by_entity: dict[tuple[str, str], list[_Cell]] = {}
-    by_period: dict[tuple[str, str, str], list[_Cell]] = {}
+    by_measure: dict[str, list[_Cell]] = {}
     for cell in cells.values():
         by_entity.setdefault((cell.measure, cell.entity), []).append(cell)
-        by_period.setdefault((cell.measure, cell.start, cell.end), []).append(cell)
+        by_measure.setdefault(cell.measure, []).append(cell)
 
+    # An entity read in two or more periods: its change over time.
     for series in by_entity.values():
         ordered = sorted(series, key=lambda item: (item.start, item.end))
         for earlier, later in zip(ordered, ordered[1:]):
-            rows.append(_derive(earlier, later, ops, basis="change_over_time"))
-    for group in by_period.values():
-        if len(group) != 2:
+            rows.append(_derive(earlier, later, basis="change_over_time"))
+    # Two entities read in one shared period, and nothing else: their difference.
+    for group in by_measure.values():
+        periods = {(cell.start, cell.end) for cell in group}
+        if len(periods) != 1 or len(group) != 2:
             continue
         first, second = sorted(group, key=lambda item: item.entity)
-        rows.append(_derive(first, second, ops, basis="difference_between_entities"))
+        rows.append(_derive(first, second, basis="difference_between_entities"))
     if not rows:
         return None
     sources = sorted({eid for row in rows for eid in row["source_evidence_ids"]})
     return ToolExecution(
         tool=DERIVED_TOOL,
-        arguments={"operations": sorted(ops), "source_evidence_ids": sources},
+        arguments={"operations": list(OPERATIONS), "source_evidence_ids": sources},
         ok=True,
         summary={
             "kind": "derived_arithmetic",

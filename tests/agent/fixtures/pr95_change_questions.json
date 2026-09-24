@@ -1,0 +1,27 @@
+{
+  "change": [
+    "Did PG&E ignitions go up or down between 2019 and 2023?",
+    "How much did SCE's ignition count grow from 2018 to 2022?",
+    "Did EPSS outages drop from 2022 to 2024?",
+    "How many more ignitions did PG&E have in 2021 than in 2020?",
+    "Compare Butte County ignitions in 2019 with 2022.",
+    "SDG&E ignitions 2019 versus 2023, what's the difference?",
+    "What was the percentage change in CAL FIRE wildfires in Los Angeles County from 2018 to 2021?",
+    "Were PSPS events up in 2020 compared with 2019?",
+    "By how much did utility-caused ignitions in Shasta County fall from 2018 to 2022?",
+    "Did PG&E EPSS outages increase or decrease between 2023 and 2024?",
+    "What's the percent change in SCE ignitions 2020 to 2022?",
+    "How did Sonoma County ignitions change from 2017 to 2021?",
+    "Were there fewer CAL FIRE fires in Riverside County in 2022 than 2020?",
+    "PG&E ignitions: 2019 vs 2024, up or down and by how much?",
+    "Did Tier 3 HFTD ignitions grow between 2018 and 2023?"
+  ],
+  "total_span": [
+    "How many PG&E ignitions were there from 2019 to 2022?",
+    "Total SCE ignitions between 2018 and 2021?",
+    "How many EPSS outages did PG&E have from 2022 through 2024?",
+    "Count Butte County ignitions between 2019 and 2023.",
+    "How many CAL FIRE wildfires in Shasta County from 2018 to 2022 in total?"
+  ],
+  "user_case": "Were utility-caused ignitions in Butte and Shasta counties up or down from 2019 to 2022, and by how much?"
+}
