@@ -17,17 +17,10 @@ from datetime import date
 from typing import Any
 
 from services.agent.routing import RouteDecision, route_question
-from services.shared.dataset_registry import DATASETS
+from services.shared.dataset_registry import DATASETS, LAYER_VIZ_KEYS
 
 MAX_ENTITY_CALLS = 10
-_VIZ = {
-    "cpuc_ignitions": "ignitions",
-    "epss_outages": "epss",
-    "psps_events": "psps",
-    "calfire_incidents": "calfire",
-    "us_ignitions": "us_ignitions",
-    "hftd": "hftd",
-}
+_VIZ = LAYER_VIZ_KEYS
 _RANK_DATASETS = {"cpuc_ignitions", "calfire_incidents"}
 
 # Wording that picks which calls to build.

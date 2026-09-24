@@ -6,11 +6,14 @@ from services.agent.decisions.backend import QuestionSpec
 from services.agent.decisions.schemas import (
     COMPARISON_KINDS,
     INTENTS,
-    UTILITY_NAMES,
     county_option_id,
 )
-from services.agent.routing import UTILITY_PATTERNS, _CA_COUNTIES
 from services.agent.schemas import TOOL_DESCRIPTIONS
+from services.shared.dataset_registry import (
+    CALIFORNIA_COUNTIES,
+    UTILITY_FULL_NAMES,
+    UTILITY_PATTERNS,
+)
 
 SCHEMA_VERSION = "v3"
 
@@ -140,7 +143,7 @@ def topic_questions() -> dict[str, QuestionSpec]:
 def place_questions() -> dict[str, QuestionSpec]:
     questions = {
         f"utility_{utility_id}": _noul(
-            f"The question refers to {UTILITY_NAMES[utility_id]} ({utility_id})."
+            f"The question refers to {UTILITY_FULL_NAMES[utility_id]} ({utility_id})."
         )
         for utility_id in UTILITY_PATTERNS
     }
@@ -149,7 +152,7 @@ def place_questions() -> dict[str, QuestionSpec]:
         {
             **{
                 county_option_id(name): f"The question names {name} County."
-                for name in _CA_COUNTIES
+                for name in CALIFORNIA_COUNTIES
             },
             "none": "The question does not name a California county.",
         },

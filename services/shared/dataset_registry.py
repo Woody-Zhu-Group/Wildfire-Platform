@@ -13,6 +13,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+# Naming conventions (utilities, counties, tiers, causes, incident types, and
+# question wording) are defined in services.shared.naming and exported here.
+# Import them from this module.
+from services.shared.naming import *  # noqa: F401,F403
+
 
 # ---------------------------------------------------------------------------
 # Cross-cutting constants (verbatim from the modules named in comments)
@@ -20,33 +25,10 @@ from typing import Any, Mapping
 
 # data_query/queries.py grouped-counts / regional-series
 NOT_RECORDED = "Not recorded"
-# data_query/queries.py /rank — different missing label than grouped-counts.
+# data_query/queries.py /rank: a different missing label than grouped-counts.
 MISSING_LABEL_RANK = "(unknown)"
-# data_query/queries.py workspace utility padding (display labels, not warehouse codes)
-WORKSPACE_UTILITIES = ("PG&E", "SCE", "SDG&E")
-# data_query/queries.py — grouped-counts allow-list is global, not per-column
+# data_query/queries.py: the grouped-counts allow-list is global, not per-column
 GROUP_BY_FIELDS = frozenset({"cause", "utility", "county"})
-
-# EPSS cause codes (written rule from Michael, 2026-09-24): a cause code and
-# its word form are the same cause. Filters and groupings match both, and
-# results display the word form. The codes appear only in the 2021 rows; from
-# 2022 the source writes words. Applied only to unambiguous pairs:
-#   VEG (1 row)  -> Vegetation (1,042)
-#   UNK (6 rows) -> Unknown (3,724)
-#   3RD (1 row)  -> 3rd Party (914)
-# Left alone: EF (1 row, 2021). It reads as "Equipment Failure", but two word
-# forms could claim it: "Equipment" (290 rows, 2022 only) and "Equipment
-# Failure/Involved" (986 rows, 2023 on). "Equipment" and "Equipment
-# Failure/Involved" are two words, not a code and a word, so the rule does
-# not merge them either.
-EPSS_CAUSE_CODE_WORDS: dict[str, str] = {
-    "VEG": "Vegetation",
-    "UNK": "Unknown",
-    "3RD": "3rd Party",
-}
-EPSS_CAUSE_CODES_LEFT_ALONE: dict[str, str] = {
-    "EF": 'ambiguous between "Equipment" (2022) and "Equipment Failure/Involved" (2023 on)',
-}
 
 # visualization/styles.py (not in DATASET_STYLES)
 IOU_STYLE = {
@@ -573,6 +555,65 @@ DATASET_STYLES = {
 AGENT_DATASET_VALUES = tuple(
     entry.agent_key for entry in DATASETS.values() if entry.agent_key
 )
+
+# Agent keys that name a map layer, to the layer's viz key. DQ_TO_VIZ without
+# circuits: circuits have a viz key for /event-detail but no map layer.
+LAYER_VIZ_KEYS = {key: viz for key, viz in DQ_TO_VIZ.items() if key != "circuits"}
+
+# Agent harness model-argument repairs (services/agent/argument_normalize.py).
+# Discrepancy: these predate ALIASES and differ from it (no "ignition",
+# "cpuc", "cal_fire", "usignitions"; the viz map also lacks "national
+# ignitions", which the records map has). Kept as is: widening them would
+# change which model arguments the harness repairs.
+ARGUMENT_VIZ_DATASET_ALIASES: dict[str, str] = {
+    "cpuc_ignitions": "ignitions",
+    "ignitions": "ignitions",
+    "us_ignitions": "us_ignitions",
+    "us ignition": "us_ignitions",
+    "us ignitions": "us_ignitions",
+    "epss_outages": "epss",
+    "epss": "epss",
+    "psps_events": "psps",
+    "psps": "psps",
+    "calfire_incidents": "calfire",
+    "calfire": "calfire",
+    "cal fire": "calfire",
+    "wildfire_incidents": "calfire",
+    "hftd": "hftd",
+}
+ARGUMENT_RECORDS_DATASET_ALIASES: dict[str, str] = {
+    "cpuc_ignitions": "cpuc_ignitions",
+    "ignitions": "cpuc_ignitions",
+    "us_ignitions": "us_ignitions",
+    "us ignition": "us_ignitions",
+    "us ignitions": "us_ignitions",
+    "national ignitions": "us_ignitions",
+    "epss_outages": "epss_outages",
+    "epss": "epss_outages",
+    "psps_events": "psps_events",
+    "psps": "psps_events",
+    "calfire_incidents": "calfire_incidents",
+    "calfire": "calfire_incidents",
+    "cal fire": "calfire_incidents",
+    "wildfire_incidents": "calfire_incidents",
+    "circuits": "circuits",
+    "hftd": "hftd",
+    "iou_territories": "iou_territories",
+}
+
+# Dataset nouns in clarification questions (services/agent/clarify_missing.py).
+# Discrepancy with stat_label: "US ignition sample events", lowercase
+# "circuits", and "HFTD areas" where HFTD has no stat_label. Kept as written.
+CLARIFY_DATASET_LABELS: dict[str, str] = {
+    "cpuc_ignitions": "CPUC ignitions",
+    "calfire_incidents": "CAL FIRE incidents",
+    "epss_outages": "EPSS outages",
+    "epss": "EPSS outages",
+    "psps_events": "PSPS events",
+    "us_ignitions": "US ignition sample events",
+    "circuits": "circuits",
+    "hftd": "HFTD areas",
+}
 
 
 def to_canonical(name: str) -> str:

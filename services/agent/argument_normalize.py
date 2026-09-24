@@ -9,62 +9,14 @@ from __future__ import annotations
 
 from typing import Any
 
-# Human / cross-catalog spellings → canonical schema values.
-UTILITY_ALIASES = {
-    "PG&E": "PGE",
-    "PGE": "PGE",
-    "PACIFIC GAS & ELECTRIC": "PGE",
-    "PACIFIC GAS AND ELECTRIC": "PGE",
-    "SCE": "SCE",
-    "SOUTHERN CALIFORNIA EDISON": "SCE",
-    "SDG&E": "SDGE",
-    "SDGE": "SDGE",
-    "SAN DIEGO GAS & ELECTRIC": "SDGE",
-    "PACIFICORP": "PACIFICORP",
-    "LIBERTY": "Liberty",
-    "BVES": "BVES",
-    "UNTAGGED": "untagged",
-}
+from services.shared.dataset_registry import (
+    ARGUMENT_RECORDS_DATASET_ALIASES as RECORDS_DATASET_ALIASES,
+    ARGUMENT_VIZ_DATASET_ALIASES as VISUALIZATION_DATASET_ALIASES,
+    UTILITY_ARGUMENT_ALIASES as UTILITY_ALIASES,
+)
 
-# Warehouse / prose names → visualization catalog enums.
-VISUALIZATION_DATASET_ALIASES = {
-    "cpuc_ignitions": "ignitions",
-    "ignitions": "ignitions",
-    "us_ignitions": "us_ignitions",
-    "us ignition": "us_ignitions",
-    "us ignitions": "us_ignitions",
-    "epss_outages": "epss",
-    "epss": "epss",
-    "psps_events": "psps",
-    "psps": "psps",
-    "calfire_incidents": "calfire",
-    "calfire": "calfire",
-    "cal fire": "calfire",
-    "wildfire_incidents": "calfire",
-    "hftd": "hftd",
-}
-
-# Prose / viz names → data_query dataset enums.
-RECORDS_DATASET_ALIASES = {
-    "cpuc_ignitions": "cpuc_ignitions",
-    "ignitions": "cpuc_ignitions",
-    "us_ignitions": "us_ignitions",
-    "us ignition": "us_ignitions",
-    "us ignitions": "us_ignitions",
-    "national ignitions": "us_ignitions",
-    "epss_outages": "epss_outages",
-    "epss": "epss_outages",
-    "psps_events": "psps_events",
-    "psps": "psps_events",
-    "calfire_incidents": "calfire_incidents",
-    "calfire": "calfire_incidents",
-    "cal fire": "calfire_incidents",
-    "wildfire_incidents": "calfire_incidents",
-    "circuits": "circuits",
-    "hftd": "hftd",
-    "iou_territories": "iou_territories",
-}
-
+# The alias maps (human and cross-catalog spellings to canonical schema
+# values) are naming conventions defined in the registry.
 
 def normalize_model_arguments(tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Map near-miss aliases; does not invent missing temporal fields."""

@@ -222,8 +222,8 @@ a Vegetation count missed the 2021 row and a cause breakdown listed both.
 
 A cause code and its word form are the same cause. Filters and groupings
 match both, and results display the word form. Recorded as
-`EPSS_CAUSE_CODE_WORDS` in `services/shared/dataset_registry.py` (see
-`services/shared/README.md`) and applied by `services/shared/epss_causes.py`
+`EPSS_CAUSE_CODE_WORDS` in `services/shared/naming.py`, exported by
+`services/shared/dataset_registry.py` (see `services/shared/README.md`) and applied by `services/shared/epss_causes.py`
 and `parse_cause`.
 
 Applied to the three unambiguous pairs: VEG to Vegetation, UNK to Unknown,

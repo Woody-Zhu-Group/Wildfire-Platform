@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.clarify_missing import _UTILITY_LABELS, complete_clarification
+from services.agent.clarify_missing import complete_clarification
 from services.agent.places import (
     GAZETTEER_VINTAGE,
     CityPoint,
@@ -15,7 +15,29 @@ from services.agent.places import (
     county_word_places,
 )
 from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
-from services.shared.dataset_registry import HDW_YEARS
+from services.shared.dataset_registry import (
+    ALL_CAUSES_AFTER_IGNITIONS_PATTERN,
+    ALL_CAUSES_BEFORE_IGNITIONS_PATTERN,
+    BARE_IGNITIONS_PATTERN,
+    BARE_OUTAGES_PATTERN,
+    CALIFORNIA_COUNTIES,
+    COUNTIES_NEEDING_QUALIFIER,
+    COUNT_MAP_DATASETS,
+    CPUC_OR_UTILITY_BEFORE_IGNITIONS_PATTERN,
+    DATASET_QUESTION_PATTERNS,
+    EVENT_DATASET_WORDS,
+    HDW_YEARS,
+    HFTD_TIER_NAMES,
+    IGNITION_QUALIFIER_PATTERN,
+    LAYER_VIZ_KEYS,
+    SAMPLE_BEFORE_IGNITIONS_PATTERN,
+    STAT_LABELS,
+    TIER_MENTION_PATTERN,
+    US_SAMPLE_NAMED_PATTERN,
+    UTILITY_ADVICE_SUBJECT_WORDS,
+    UTILITY_CLARIFY_LABELS,
+    UTILITY_PATTERNS,
+)
 
 
 @dataclass
@@ -28,78 +50,11 @@ class RouteDecision:
     slots: dict[str, Any] = field(default_factory=dict)
 
 
-UTILITY_PATTERNS = {
-    "PGE": r"\b(?:pge|pg\s*&\s*e|pg\s+and\s+e|pacific gas(?:(?: and| &) electric)?)\b",
-    "SCE": r"\b(?:sce|socal edison|southern california edison|edison)\b",
-    "SDGE": r"\b(?:sdge|sdg\s*&\s*e|san diego gas(?:(?: and| &) electric)?)\b",
-    "PACIFICORP": r"\bpacificorp\b",
-    "Liberty": r"\bliberty\b",
-    "BVES": r"\b(?:bves|bear valley(?: electric)?)\b",
-}
-
+# UTILITY_PATTERNS (imported above) holds how a question names each utility.
 # California counties used for place/county constraint detection. Bare city
 # names that coincide with a county seat (Sacramento, Fresno, …) are treated
 # as county constraints so the router never silently drops them.
-_CA_COUNTIES = (
-    "Alameda",
-    "Alpine",
-    "Amador",
-    "Butte",
-    "Calaveras",
-    "Colusa",
-    "Contra Costa",
-    "Del Norte",
-    "El Dorado",
-    "Fresno",
-    "Glenn",
-    "Humboldt",
-    "Imperial",
-    "Inyo",
-    "Kern",
-    "Kings",
-    "Lake",
-    "Lassen",
-    "Los Angeles",
-    "Madera",
-    "Marin",
-    "Mariposa",
-    "Mendocino",
-    "Merced",
-    "Modoc",
-    "Mono",
-    "Monterey",
-    "Napa",
-    "Nevada",
-    "Orange",
-    "Placer",
-    "Plumas",
-    "Riverside",
-    "Sacramento",
-    "San Benito",
-    "San Bernardino",
-    "San Diego",
-    "San Francisco",
-    "San Joaquin",
-    "San Luis Obispo",
-    "San Mateo",
-    "Santa Barbara",
-    "Santa Clara",
-    "Santa Cruz",
-    "Shasta",
-    "Sierra",
-    "Siskiyou",
-    "Solano",
-    "Sonoma",
-    "Stanislaus",
-    "Sutter",
-    "Tehama",
-    "Trinity",
-    "Tulare",
-    "Tuolumne",
-    "Ventura",
-    "Yolo",
-    "Yuba",
-)
+_CA_COUNTIES = CALIFORNIA_COUNTIES
 
 # Cities that are not county names. A county-seat that shares the county name
 # (Sacramento, Fresno) stays a county. These names are not a grid cell, a
@@ -594,12 +549,9 @@ _CITY_CUE_BEFORE = re.compile(
     r")\s+$",
     re.I,
 )
-# Orange is a county and a color, and Kings, Lake, Mono, Trinity, Glenn, and
-# Alpine are ordinary words or parts of other place names. These need the word
-# County to count as the county.
-_COUNTY_REQUIRES_QUALIFIER = frozenset(
-    {"orange", "kings", "lake", "mono", "trinity", "glenn", "alpine"}
-)
+# Orange, Kings, Lake, Mono, Trinity, Glenn, and Alpine need the word County
+# to count as the county (the set is defined with the other county names).
+_COUNTY_REQUIRES_QUALIFIER = COUNTIES_NEEDING_QUALIFIER
 # A bare county name followed by a place noun is part of a longer place name
 # (Kings Canyon, Trinity Alps, Mono Basin, Lake Tahoe), not the county.
 _COUNTY_PLACE_NOUN_AFTER = re.compile(
@@ -772,10 +724,8 @@ _COUNTY_CAPABLE_DATASETS = {
 }
 
 _VIZ_DATASET_NAME = {
-    "cpuc_ignitions": "ignitions",
-    "epss_outages": "epss",
-    "psps_events": "psps",
-    "calfire_incidents": "calfire",
+    key: LAYER_VIZ_KEYS[key]
+    for key in ("cpuc_ignitions", "epss_outages", "psps_events", "calfire_incidents")
 }
 _TIME_SERIES_VIZ = frozenset(
     {"ignitions", "us_ignitions", "epss", "psps", "calfire"}
@@ -857,9 +807,7 @@ _PAST_FORECAST = re.compile(
 # utility, or the CPUC penalizing one. "Should I use", "would you recommend
 # for SCE", and "should I expect" are data questions.
 _ADVICE_SUBJECT = (
-    r"(?:the\s+)?(?:cpuc|commission|utilit(?:y|ies)|pge|pg\s*&\s*e|sce|sdge|"
-    r"sdg\s*&\s*e|pacificorp|liberty|bear\s+valley|bves|"
-    r"pacific\s+gas|southern\s+california\s+edison|san\s+diego\s+gas)"
+    r"(?:the\s+)?(?:cpuc|commission|utilit(?:y|ies)|" + UTILITY_ADVICE_SUBJECT_WORDS + ")"
 )
 _ADVICE = re.compile(
     rf"\b{_ADVICE_SUBJECT}\b(?:\s+\w+){{0,3}}?\s+(?:should|ought\s+to|must)\b"
@@ -953,7 +901,7 @@ def candidate_tools(question: str) -> list[str]:
         add("data_query_spatial")
     # Bare "ignition" in "ignition risk" is not a count question.
     if re.search(
-        r"\b(?:how many|count|number of|list|records?|outages?|incidents?|psps|epss|cal\s*fire)\b",
+        rf"\b(?:how many|count|number of|list|records?|outages?|incidents?|{EVENT_DATASET_WORDS})\b",
         lower,
     ) or (
         re.search(r"\bignitions?\b", lower) and not _wants_risk(lower)
@@ -1552,39 +1500,13 @@ def _dataset(text: str) -> str | None:
 _EVENT_DATASETS_BESIDE_IGNITIONS = frozenset(
     {"epss_outages", "psps_events", "calfire_incidents"}
 )
-# A word right before "ignitions" that already names whose ignitions they are.
-_IGNITION_QUALIFIER = re.compile(
-    r"(?:\bus|\bnational|\bsampled?|\ball[- ]causes?|\bcal\s*fire|\bcalfire|\bepss|\bpsps)"
-    r"\s+(?:wildfire\s+)?$",
-    re.I,
-)
-# Wording that names the US ignitions sample (FireCastRL) outright.
-_US_SAMPLE_NAMED = re.compile(
-    r"\b(?:us|u\.s\.|national)\s+(?:wildfire\s+)?ignitions?\b|"
-    r"\b(?:us|u\.s\.|national)\s+(?:ignitions?\s+)?sample\b|"
-    r"\bignitions?\s+sample\b|"
-    r"\bfirecast",
-    re.I,
-)
-# "sampled/sample ... ignitions" with up to three words between, never across
-# "of" ("a sample of PGE ignitions" is list wording).
-_SAMPLE_BEFORE_IGNITIONS = re.compile(
-    r"\bsampled?\s+(?:(?!of\b)[\w&'-]+\s+){0,3}$", re.I
-)
-_ALL_CAUSES_BEFORE_IGNITIONS = re.compile(
-    r"\ball[- ]causes?\s+(?:wildfire\s+)?$", re.I
-)
-_ALL_CAUSES_AFTER_IGNITIONS = re.compile(
-    r"^[^.?!]{0,80}?\b(?:of|from)\s+all\s+causes\b", re.I
-)
-# CPUC or a utility named right before "ignitions" means CPUC ignitions, even
-# with sample or all-causes wording around it.
-_CPUC_OR_UTILITY_BEFORE_IGNITIONS = re.compile(
-    r"(?:\bcpuc\b|\butility[- ](?:caused|attributed|tagged)\b|"
-    + "|".join(f"(?:{pattern})" for pattern in UTILITY_PATTERNS.values())
-    + r")(?:\W+[\w&'-]+){0,2}\W*$",
-    re.I,
-)
+_IGNITION_QUALIFIER = IGNITION_QUALIFIER_PATTERN
+# US-sample wording (FireCastRL) and the CPUC or utility words that override it.
+_US_SAMPLE_NAMED = US_SAMPLE_NAMED_PATTERN
+_SAMPLE_BEFORE_IGNITIONS = SAMPLE_BEFORE_IGNITIONS_PATTERN
+_ALL_CAUSES_BEFORE_IGNITIONS = ALL_CAUSES_BEFORE_IGNITIONS_PATTERN
+_ALL_CAUSES_AFTER_IGNITIONS = ALL_CAUSES_AFTER_IGNITIONS_PATTERN
+_CPUC_OR_UTILITY_BEFORE_IGNITIONS = CPUC_OR_UTILITY_BEFORE_IGNITIONS_PATTERN
 
 
 def _names_us_sample(text: str) -> bool:
@@ -1630,19 +1552,10 @@ def _has_bare_ignitions(text: str) -> bool:
 
 def _datasets(text: str) -> list[str]:
     candidates: list[str] = ["us_ignitions"] if _names_us_sample(text) else []
-    checks = [
-        ("epss_outages", r"\bepss\b|\bfast[- ]trip\b"),
-        ("psps_events", r"\bpsps\b|\bpublic safety power shutoff"),
-        ("calfire_incidents", r"\bcal\s*fire\b|\bcalfire\b"),
-        ("cpuc_ignitions", r"\bcpuc\b|\butility[- ](?:caused|attributed|tagged)\b"),
-        ("circuits", r"\bcircuits?\b"),
-        ("hftd", r"\bhftd\b|\bhigh fire threat"),
-        ("iou_territories", r"\biou territor|\butility territor"),
-    ]
-    for key, pattern in checks:
+    for key, pattern in DATASET_QUESTION_PATTERNS:
         if re.search(pattern, text, re.I):
             candidates.append(key)
-    if not candidates and re.search(r"\bignitions?\b", text, re.I):
+    if not candidates and re.search(BARE_IGNITIONS_PATTERN, text, re.I):
         candidates.append("cpuc_ignitions")
     elif (
         "cpuc_ignitions" not in candidates
@@ -1652,7 +1565,7 @@ def _datasets(text: str) -> list[str]:
         # "ignitions and EPSS outages" names two datasets; bare ignitions are CPUC.
         candidates.append("cpuc_ignitions")
     # Bare "outages" (without PSPS/EPSS) is treated as EPSS for map/count routing.
-    if not candidates and re.search(r"\boutages?\b", text, re.I):
+    if not candidates and re.search(BARE_OUTAGES_PATTERN, text, re.I):
         candidates.append("epss_outages")
     return list(dict.fromkeys(candidates))
 
@@ -1823,7 +1736,7 @@ def _asks_ranking(lower: str) -> bool:
     )
 
 
-_TIER_MENTION = re.compile(r"\bhftd\b|\bhigh fire threat|\btier\s*[23]\b", re.I)
+_TIER_MENTION = TIER_MENTION_PATTERN
 
 
 def _hftd_constraint_unavailable(lower: str) -> bool:
@@ -1903,8 +1816,9 @@ def _asks_territory_boundary(lower: str) -> bool:
             re.search(r"\b(?:service[- ]area|outline|boundary|polygon|footprint)\b", lower)
             and not _has_quantity_op(lower)
             and not re.search(
-                r"\b(?:ignitions?|outages?|incidents?|events?|epss|psps|cal\s*fire|"
-                r"risk|compare|versus|trend|time series)\b",
+                r"\b(?:ignitions?|outages?|incidents?|events?|"
+                + EVENT_DATASET_WORDS
+                + r"|risk|compare|versus|trend|time series)\b",
                 lower,
             )
         )
@@ -1913,7 +1827,7 @@ def _asks_territory_boundary(lower: str) -> bool:
     if re.search(r"\b(?:compare|versus|\bvs\.?\b|trend|time series|forecast|predict)\b", lower):
         return False
     if _asks_map_view(lower) and re.search(
-        r"\b(?:ignitions?|outages?|incidents?|epss|psps|cal\s*fire)\b", lower
+        rf"\b(?:ignitions?|outages?|incidents?|{EVENT_DATASET_WORDS})\b", lower
     ):
         return False
     # Boundary asks: "territory map", "show ... territory", "what is the
@@ -1931,7 +1845,7 @@ def _asks_territory_boundary(lower: str) -> bool:
         return True
     # Bare "... territory" with a utility and no other dataset/operation.
     if not re.search(
-        r"\b(?:ignitions?|outages?|incidents?|epss|psps|cal\s*fire|risk)\b", lower
+        rf"\b(?:ignitions?|outages?|incidents?|{EVENT_DATASET_WORDS}|risk)\b", lower
     ):
         return True
     return False
@@ -2011,14 +1925,7 @@ def compile_selected_tools(
 
     if "visualization_create" in selected:
         dataset = datasets[0] if datasets else "cpuc_ignitions"
-        dataset_name = {
-            "cpuc_ignitions": "ignitions",
-            "us_ignitions": "us_ignitions",
-            "epss_outages": "epss",
-            "psps_events": "psps",
-            "calfire_incidents": "calfire",
-            "hftd": "hftd",
-        }.get(dataset, "ignitions")
+        dataset_name = LAYER_VIZ_KEYS.get(dataset, "ignitions")
         arguments = {
             "kind": (
                 "map"
@@ -2057,11 +1964,14 @@ def compile_selected_tools(
 
 
 _DATASET_LABELS = {
-    "cpuc_ignitions": "CPUC ignitions",
-    "calfire_incidents": "CAL FIRE incidents",
-    "epss_outages": "EPSS outages",
-    "psps_events": "PSPS events",
-    "us_ignitions": "US ignitions",
+    key: STAT_LABELS[key]
+    for key in (
+        "cpuc_ignitions",
+        "calfire_incidents",
+        "epss_outages",
+        "psps_events",
+        "us_ignitions",
+    )
 }
 
 
@@ -2754,7 +2664,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
     # series, rank) rather than passing the utility to a tool that cannot apply
     # it or dropping it and answering with the national count.
     if utilities and (dataset == "us_ignitions" or "us_ignitions" in _datasets(text)):
-        name = _UTILITY_LABELS.get(utilities[0], utilities[0])
+        name = UTILITY_CLARIFY_LABELS.get(utilities[0], utilities[0])
         return RouteDecision(
             "clarification",
             "us_sample_utility_filter",
@@ -2834,13 +2744,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
     )
     if explicit_pair or series_and_total:
         time_args = _time_filter_args(time_resolution)
-        viz_dataset = {
-            "cpuc_ignitions": "ignitions",
-            "us_ignitions": "us_ignitions",
-            "epss_outages": "epss",
-            "psps_events": "psps",
-            "calfire_incidents": "calfire",
-        }.get(dataset or "", "")
+        viz_dataset = COUNT_MAP_DATASETS.get(dataset or "", "")
         if dataset and time_args and viz_dataset in _TIME_SERIES_VIZ:
             interval = _default_series_interval(lower, time_resolution)
             records_args: dict[str, Any] = {
@@ -2891,7 +2795,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         re.search(r"\bterritor", lower)
         and re.search(r"\b(?:map|layer)\b", lower)
         and re.search(
-            r"\b(?:ignitions?|outages?|incidents?|epss|psps|cal\s*fire)\b", lower
+            rf"\b(?:ignitions?|outages?|incidents?|{EVENT_DATASET_WORDS})\b", lower
         )
     ):
         return RouteDecision(
@@ -3205,7 +3109,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                         {
                             "kind": "regions",
                             "region_type": "hftd",
-                            "regions": ["Tier 2", "Tier 3"],
+                            "regions": list(HFTD_TIER_NAMES),
                             "metric": metric,
                             "start_date": start,
                             "end_date": end,
@@ -3359,12 +3263,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 answer="What year or date range should I map?",
                 slots=slots,
             )
-        viz_dataset = {
-            "cpuc_ignitions": "ignitions",
-            "epss_outages": "epss",
-            "psps_events": "psps",
-            "calfire_incidents": "calfire",
-        }.get(dataset, dataset)
+        viz_dataset = _VIZ_DATASET_NAME.get(dataset, dataset)
         args: dict[str, Any] = {
             "kind": "map",
             "dataset": viz_dataset,
@@ -3526,12 +3425,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 slots=slots,
             )
         interval = _default_series_interval(lower, time_resolution)
-        viz_dataset = {
-            "cpuc_ignitions": "ignitions",
-            "epss_outages": "epss",
-            "psps_events": "psps",
-            "calfire_incidents": "calfire",
-        }.get(dataset, dataset)
+        viz_dataset = _VIZ_DATASET_NAME.get(dataset, dataset)
         args = {
             "kind": "time_series",
             "dataset": viz_dataset,

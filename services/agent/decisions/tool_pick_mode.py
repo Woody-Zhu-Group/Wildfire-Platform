@@ -20,6 +20,12 @@ from services.agent.routing import (
     _ignition_definition,
     _range_for_year,
 )
+from services.shared.dataset_registry import (
+    HFTD_TIER_BY_NUMBER,
+    HFTD_TIER_NAMES,
+    LAYER_VIZ_KEYS,
+    TIER_DIGIT_PATTERN,
+)
 
 
 def _comparison_metric(lower: str) -> str | None:
@@ -38,14 +44,7 @@ def _comparison_metric(lower: str) -> str | None:
         return "ignition_count"
     return None
 
-_VIZ_DATASET = {
-    "cpuc_ignitions": "ignitions",
-    "us_ignitions": "us_ignitions",
-    "epss_outages": "epss",
-    "psps_events": "psps",
-    "calfire_incidents": "calfire",
-    "hftd": "hftd",
-}
+_VIZ_DATASET = LAYER_VIZ_KEYS
 _SERIES_WORD = r"\b(?:trend|time series|weekly|monthly|daily)\b"
 _INTERVAL_WORD = r"\b(daily|weekly|monthly)\b"
 _MULTI_PRIMARY_RULES = {
@@ -317,13 +316,13 @@ def _comparison_args(slots: dict[str, Any], question: str) -> dict[str, Any] | N
             "ignition_definition": _ignition_definition(lower),
         }
         return args
-    tiers = sorted(set(re.findall(r"tier\s*([23])", lower)))
-    if metric and tiers == ["2", "3"] and span is not None and slots.get("year") is not None:
+    tiers = sorted(set(re.findall(TIER_DIGIT_PATTERN, lower)))
+    if metric and tiers == sorted(HFTD_TIER_BY_NUMBER) and span is not None and slots.get("year") is not None:
         start, end = span
         return {
             "kind": "regions",
             "region_type": "hftd",
-            "regions": ["Tier 2", "Tier 3"],
+            "regions": list(HFTD_TIER_NAMES),
             "metric": metric,
             "start_date": start,
             "end_date": end,

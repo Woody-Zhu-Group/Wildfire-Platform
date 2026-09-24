@@ -22,8 +22,12 @@ def test_generated_frontend_files_are_not_stale():
     gen = _generator()
     caveats = json.loads(gen.CAVEATS_PATH.read_text(encoding="utf-8"))
     datasets = json.loads(gen.DATASETS_PATH.read_text(encoding="utf-8"))
+    naming = json.loads(gen.NAMING_PATH.read_text(encoding="utf-8"))
     assert caveats == gen.caveat_catalog()
     assert datasets == gen.dataset_catalog()
+    assert naming == gen.naming_catalog()
+    assert len(naming["california_counties"]) == 58
+    assert naming["workspace_utilities"] == ["PG&E", "SCE", "SDG&E"]
     assert "epss_pge_only" in caveats
     assert "us_ignitions_sample" in caveats
     assert "calfire_missingness" not in caveats

@@ -17,14 +17,15 @@ from db.loaders.util import (
     table_count,
     truncate,
 )
+from services.shared.dataset_registry import EPSS_UNKNOWN_CAUSE, EPSS_UNKNOWN_CAUSE_SOURCE_SPELLINGS
 
 
 def _normalize_cause(cause: str | None) -> str | None:
     cause = blank_to_none(cause)
     if cause is None:
         return None
-    if cause.strip().lower() in {"unknown", "unknown cause"}:
-        return "Unknown"
+    if cause.strip().lower() in EPSS_UNKNOWN_CAUSE_SOURCE_SPELLINGS:
+        return EPSS_UNKNOWN_CAUSE
     return cause
 
 

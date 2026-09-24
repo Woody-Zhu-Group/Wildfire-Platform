@@ -9,24 +9,17 @@ count was found; set A is one system_one call.
 from __future__ import annotations
 
 from services.agent.decisions.backend import QuestionSpec
-from services.agent.routing import (
-    ALL_MODEL_TOOLS,
-    UNSUPPORTED,
-    UTILITY_PATTERNS,
-    _CA_COUNTIES,
-)
+from services.agent.routing import ALL_MODEL_TOOLS, UNSUPPORTED
 from services.agent.schemas import TOOL_DESCRIPTIONS
+from services.shared.dataset_registry import (
+    CALIFORNIA_COUNTIES,
+    UTILITY_FULL_NAMES,
+    UTILITY_PATTERNS,
+)
 
 SCHEMA_VERSION = "v2"
 
-UTILITY_NAMES = {
-    "PGE": "Pacific Gas and Electric",
-    "SCE": "Southern California Edison",
-    "SDGE": "San Diego Gas and Electric",
-    "PACIFICORP": "PacifiCorp",
-    "Liberty": "Liberty Utilities",
-    "BVES": "Bear Valley Electric Service",
-}
+UTILITY_NAMES = UTILITY_FULL_NAMES
 
 # Clarification rule ids produced by route_question, plus not_applicable.
 CLARIFY_REASONS = (
@@ -374,7 +367,7 @@ def routing_questions() -> dict[str, QuestionSpec]:
             {
                 **{
                     county_option_id(name): f"The question names {name} County as the place, not merely a similar word."
-                    for name in _CA_COUNTIES
+                    for name in CALIFORNIA_COUNTIES
                 },
                 "none": "The question does not name a California county as a place filter.",
             },

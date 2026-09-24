@@ -1,6 +1,7 @@
 """EPSS cause codes and their word forms, applied in SQL and in filters.
 
-The rule and the pairs live in ``dataset_registry.EPSS_CAUSE_CODE_WORDS``: a
+The rule and the pairs are ``EPSS_CAUSE_CODE_WORDS`` (defined in
+``services.shared.naming``, exported by the registry): a
 code and its word form are one cause, filters match both spellings, and
 results show the word form.
 """

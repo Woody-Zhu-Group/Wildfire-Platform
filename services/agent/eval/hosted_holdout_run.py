@@ -30,11 +30,12 @@ from services.agent.orchestrator import AgentOrchestrator
 from services.agent.provider import OpenAICompatibleProvider
 from services.agent.routing import route_question
 from services.agent.tools import ToolExecutor
+from services.shared.dataset_registry import COUNT_MAP_DATASETS
 
 RUNS = Path(__file__).resolve().parent / "runs"
 STATUS_FOR = {"answer": "answer", "clarify": "clarification", "unsupported": "unsupported"}
 # visualization_* dataset names mapped to warehouse names used in labels.
-DATASET_ALIASES = {"ignitions": "cpuc_ignitions", "epss": "epss_outages", "psps": "psps_events", "calfire": "calfire_incidents"}
+DATASET_ALIASES = {viz: key for key, viz in COUNT_MAP_DATASETS.items()}
 
 
 class CostCapExceeded(RuntimeError):

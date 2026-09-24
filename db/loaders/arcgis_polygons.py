@@ -28,6 +28,7 @@ from typing import Any
 import httpx
 import psycopg
 
+from services.shared.dataset_registry import HFTD_TIERS, IOU_PUBLISHER_UTILITY_CODES
 from shared.db import REPO_ROOT
 
 CACHE_DIR = REPO_ROOT / "data" / "boundaries"
@@ -108,7 +109,7 @@ HFTD_LAYER = Layer(
         "CPUC_High_Fire_Threat_District/FeatureServer/0"
     ),
     key_field="HFTD",
-    expected_keys=frozenset({"Tier 2", "Tier 3"}),
+    expected_keys=HFTD_TIERS,
 )
 IOU_LAYER = Layer(
     name="cpuc_iou_service_territories",
@@ -117,7 +118,7 @@ IOU_LAYER = Layer(
         "IOU_Service_Territories/FeatureServer/0"
     ),
     key_field="UtilityID",
-    expected_keys=frozenset({"PG&E", "SCE", "PacifiCorp", "SDG&E", "LU", "BVES"}),
+    expected_keys=frozenset(IOU_PUBLISHER_UTILITY_CODES),
     ring_overrides=(
         RingOverride(
             key="PG&E",

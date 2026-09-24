@@ -8,6 +8,15 @@ from typing import Any
 from fastapi import HTTPException, Query
 
 from services.shared.counties import UnknownCountyError, normalize_county
+from services.shared.dataset_registry import (
+    CALFIRE_DEFAULT_INCIDENT_TYPES,
+    CALFIRE_INCIDENT_TYPE_KEYWORDS,
+    HFTD_TIER_BY_NUMBER,
+    KNOWN_UTILITIES,
+    UNTAGGED_UTILITY,
+    UTILITY_FILTER_KEYS,
+    UTILITY_FILTER_SUFFIXES,
+)
 from services.shared.epss_causes import cause_word
 from services.shared.stored_values import (
     UnknownStoredValueError,
@@ -15,10 +24,6 @@ from services.shared.stored_values import (
     stored_values,
 )
 
-KNOWN_UTILITIES = frozenset(
-    {"PGE", "SCE", "SDGE", "PACIFICORP", "Liberty", "BVES"}
-)
-HFTD_TIERS = frozenset({"Tier 2", "Tier 3"})
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 1000
 RANK_DEFAULT_LIMIT = 10
@@ -52,36 +57,16 @@ def parse_utility(value: str | None, *, allow_untagged: bool = True) -> str | No
         .replace(",", "")
         .replace(" ", "")
     )
-    mapping = {
-        "PGE": "PGE",
-        "PACIFICGASANDELECTRIC": "PGE",
-        "PACIFICGASELECTRIC": "PGE",
-        "SCE": "SCE",
-        "SOUTHERNCALIFORNIAEDISON": "SCE",
-        "EDISON": "SCE",
-        "SDGE": "SDGE",
-        "SANDIEGOGASANDELECTRIC": "SDGE",
-        "SANDIEGOGASELECTRIC": "SDGE",
-        "PACIFICORP": "PACIFICORP",
-        "PACIFICPOWER": "PACIFICORP",
-        "LIBERTY": "Liberty",
-        "LIBERTYUTILITIES": "Liberty",
-        "BVES": "BVES",
-        "BEARVALLEY": "BVES",
-        "BEARVALLEYELECTRIC": "BVES",
-        "BEARVALLEYELECTRICSERVICE": "BVES",
-        "BEARVALLEYELECTRICSERVICES": "BVES",
-        "UNTAGGED": "untagged",
-    }
+    mapping = UTILITY_FILTER_KEYS
     if key not in mapping:
         # "Pacific Gas & Electric Company", "Liberty Utilities Inc": drop a
         # trailing corporate word and try again.
-        for suffix in ("COMPANY", "CORPORATION", "UTILITIES", "UTILITY", "INC", "CORP"):
+        for suffix in UTILITY_FILTER_SUFFIXES:
             if key.endswith(suffix) and key[: -len(suffix)] in mapping:
                 key = key[: -len(suffix)]
                 break
     if key not in mapping:
-        allowed = sorted(KNOWN_UTILITIES) + (["untagged"] if allow_untagged else [])
+        allowed = sorted(KNOWN_UTILITIES) + ([UNTAGGED_UTILITY] if allow_untagged else [])
         raise HTTPException(
             status_code=400,
             detail=(
@@ -90,7 +75,7 @@ def parse_utility(value: str | None, *, allow_untagged: bool = True) -> str | No
             ),
         )
     resolved = mapping[key]
-    if resolved == "untagged" and not allow_untagged:
+    if resolved == UNTAGGED_UTILITY and not allow_untagged:
         raise HTTPException(status_code=400, detail="utility=untagged is not valid here")
     return resolved
 
@@ -151,7 +136,7 @@ def parse_tier(value: str | None) -> str | None:
             break
     if key.startswith("t") and key[1:].strip().isdigit():
         key = key[1:].strip()
-    resolved = {"2": "Tier 2", "3": "Tier 3"}.get(key.strip())
+    resolved = HFTD_TIER_BY_NUMBER.get(key.strip())
     if resolved is None:
         raise HTTPException(
             status_code=400,
@@ -213,8 +198,7 @@ def parse_cause(conn: Any, value: str | None) -> str | None:
         raise HTTPException(status_code=400, detail=str(folded)) from exc
 
 
-CALFIRE_TYPE_KEYWORDS = frozenset({"all", "untyped"})
-_CALFIRE_DEFAULT_TYPES = frozenset({"wildfire", "fire"})
+_CALFIRE_DEFAULT_TYPES = frozenset(value.casefold() for value in CALFIRE_DEFAULT_INCIDENT_TYPES)
 
 
 def parse_incident_type(conn: Any, value: str | None) -> str | None:
@@ -229,7 +213,7 @@ def parse_incident_type(conn: Any, value: str | None) -> str | None:
     if value is None or value.strip() == "":
         return None
     key = " ".join(value.split()).casefold()
-    if key in CALFIRE_TYPE_KEYWORDS:
+    if key in CALFIRE_INCIDENT_TYPE_KEYWORDS:
         return key
     parts = {part.strip() for part in key.split(",")}
     if "," in key and parts == _CALFIRE_DEFAULT_TYPES:

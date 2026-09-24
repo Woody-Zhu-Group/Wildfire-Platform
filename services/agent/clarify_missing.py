@@ -11,6 +11,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from services.shared.dataset_registry import (
+    CALIFORNIA_COUNTIES,
+    CLARIFY_DATASET_LABELS,
+    UTILITY_CLARIFY_LABELS,
+)
+
 # Each clarification rule: what it already asks for, then what else it may need.
 # Rules that are not about a missing input (coverage, tool gaps, contradictions,
 # forward dates) are not listed and keep their text.
@@ -46,16 +52,7 @@ ALREADY_ASKED: dict[str, set[str]] = {
 _EVENT_DATASETS = {"cpuc_ignitions", "calfire_incidents", "epss_outages", "psps_events", "us_ignitions"}
 _PLACE_RULES = {"missing_location", "undefined_spatial_scope", "city_needs_place", "unknown_county", "undefined_region"}
 
-_LABELS = {
-    "cpuc_ignitions": "CPUC ignitions",
-    "calfire_incidents": "CAL FIRE incidents",
-    "epss_outages": "EPSS outages",
-    "epss": "EPSS outages",
-    "psps_events": "PSPS events",
-    "us_ignitions": "US ignition sample events",
-    "circuits": "circuits",
-    "hftd": "HFTD areas",
-}
+_LABELS = CLARIFY_DATASET_LABELS
 _ASK = {
     "year": "a year or date range",
     "date": "one past calendar day through 2025-12-31",
@@ -132,7 +129,7 @@ def missing_items(rule: str, text: str, slots: dict[str, Any]) -> list[str]:
 
 
 PLACE_PLACEHOLDER = "[a county]"
-_UTILITY_LABELS = {"PGE": "PG&E", "SDGE": "SDG&E", "PACIFICORP": "PacifiCorp", "BVES": "Bear Valley"}
+_UTILITY_LABELS = UTILITY_CLARIFY_LABELS
 # A place phrase starts after one of these words and ends at the next stop word.
 _PLACE_START = r"(?:near|around|close to|in|for|at)"
 _PLACE_STOP = {
@@ -149,9 +146,7 @@ def _bare_county(text: str) -> str | None:
     """
     import re
 
-    from services.agent.routing import _CA_COUNTIES
-
-    names = {name.lower(): name for name in _CA_COUNTIES}
+    names = {name.lower(): name for name in CALIFORNIA_COUNTIES}
     for match in re.finditer(rf"\b{_PLACE_START}\s+(.+)", text, re.I):
         words = []
         for token in re.split(r"\s+", match.group(1)):

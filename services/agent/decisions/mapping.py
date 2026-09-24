@@ -11,10 +11,10 @@ from services.agent.decisions.backend import Answer
 from services.agent.decisions.schemas import county_option_id
 from services.agent.routing import (
     UNSUPPORTED,
-    UTILITY_PATTERNS,
     RouteDecision,
     route_question,
 )
+from services.shared.dataset_registry import UTILITY_PATTERNS
 
 # Every rule id route_question can emit maps to exactly one coarse intent.
 # filtered_records is the count/list rule; regex_labels upgrades it to

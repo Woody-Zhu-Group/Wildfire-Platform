@@ -9,6 +9,8 @@ from typing import Any, Iterable, Sequence
 
 import psycopg
 
+from services.shared.dataset_registry import UTILITY_CODES
+
 
 def connect(dsn: str) -> psycopg.Connection:
     """Open a connection from a DSN string (prefer shared.db.connect for new code)."""
@@ -185,14 +187,8 @@ def normalize_psps_utility(iou_raw: str) -> str:
     s = (iou_raw or "").strip().upper().replace("&", "")
     # PG&E -> PGE, SDG&E -> SDGE after & removal; also handle spaced forms
     s = s.replace(" ", "")
-    mapping = {
-        "PGE": "PGE",
-        "SCE": "SCE",
-        "SDGE": "SDGE",
-        "LIBERTY": "Liberty",
-        "PACIFICORP": "PACIFICORP",
-        "BVES": "BVES",
-    }
+    # Each warehouse code, keyed by its upper-case form ("LIBERTY" -> "Liberty").
+    mapping = {code.upper(): code for code in UTILITY_CODES}
     return mapping.get(s, iou_raw.strip())
 
 

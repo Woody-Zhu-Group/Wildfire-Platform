@@ -16,6 +16,19 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from services.shared.dataset_registry import (
+    ALL_INCIDENT_TYPES_PATTERN,
+    CALIFORNIA_COUNTIES,
+    DEFAULT_INCIDENT_TYPE_MODE,
+    HFTD_TIER_NAMES,
+    TIER_LIST_PATTERN,
+    TIER_WORD_PATTERN,
+    UNTAGGED_UTILITY,
+    UNTAGGED_UTILITY_PATTERN,
+    UNTYPED_INCIDENT_PATTERN,
+    UTILITY_PATTERNS,
+)
+
 TIER_FIELDS = ("tier", "hftd_tier")
 COORD_FIELDS = ("lat", "lon")
 # Fields that are filters. Structural fields (dataset, kind, metric, interval) are not.
@@ -24,35 +37,15 @@ FILTER_FIELDS = ("circuit_id", "county", *TIER_FIELDS, *COORD_FIELDS)
 # Enum values that are valid for the tool but change what is counted. Each is
 # grounded only when the question asks for it in words; a model that picks
 # one on its own is inventing a filter even though the schema accepts it.
-UNTAGGED = "untagged"
-_UNTAGGED_RE = re.compile(
-    r"\b(?:untagged|un-?attributed|not attributed|unassigned|no utility|"
-    r"without (?:a |an |any )?utility|non-?utility|not tagged|missing (?:a |the )?utility|"
-    r"unknown utility|no (?:known |named )?utility)\b",
-    re.IGNORECASE,
-)
-_ALL_TYPES_RE = re.compile(
-    r"\b(?:all (?:calfire |cal fire )?(?:incident |record )?types|every (?:incident |record )?type|"
-    r"any (?:incident |record )?type|regardless of (?:incident |record )?type|"
-    r"all (?:calfire |cal fire )?records|including non-?wildfire|non-?wildfire|"
-    r"all incidents(?: of any type)?|not (?:just|only) wildfires?)\b",
-    re.IGNORECASE,
-)
-_UNTYPED_RE = re.compile(
-    r"\b(?:untyped|no incident type|without (?:an |any )?incident type|"
-    r"missing (?:an |the |their )?(?:incident )?type|unknown (?:incident )?type|"
-    r"null (?:incident )?type|no type)\b",
-    re.IGNORECASE,
-)
-DEFAULT_INCIDENT_TYPE_MODE = "wildfire_default"
+UNTAGGED = UNTAGGED_UTILITY
+_UNTAGGED_RE = UNTAGGED_UTILITY_PATTERN
+_ALL_TYPES_RE = ALL_INCIDENT_TYPES_PATTERN
+_UNTYPED_RE = UNTYPED_INCIDENT_PATTERN
 
 # "tier 2", "tier 2 or 3", "tiers 2 and 3", "tier 2/tier 3".
-_TIER_RE = re.compile(
-    r"\btiers?\s*([23])(?:\s*(?:,|and|or|&|/)\s*(?:tier\s*)?([23]))?\b",
-    re.IGNORECASE,
-)
-_TIER_WORD_RE = re.compile(r"\btiers?\b", re.IGNORECASE)
-ALL_TIERS = {"Tier 2", "Tier 3"}
+_TIER_RE = TIER_LIST_PATTERN
+_TIER_WORD_RE = TIER_WORD_PATTERN
+ALL_TIERS = set(HFTD_TIER_NAMES)
 _NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
 _DIGITS_RE = re.compile(r"\d{3,}")
 
@@ -282,8 +275,6 @@ def named_counties(question: str, county_slot: str | None) -> list[str]:
     "Riverside, San Bernardino, and Los Angeles counties" name several. Bare names
     count only when the question says county or counties.
     """
-    from services.agent.routing import _CA_COUNTIES, UTILITY_PATTERNS
-
     found: list[str] = [county_slot] if county_slot else []
     lower = _norm(question)
     if not re.search(r"\bcount(?:y|ies)\b", lower):
@@ -291,7 +282,7 @@ def named_counties(question: str, county_slot: str | None) -> list[str]:
     scrubbed = lower
     for pattern in UTILITY_PATTERNS.values():
         scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
-    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+    for name in sorted(CALIFORNIA_COUNTIES, key=len, reverse=True):
         pattern = rf"\b{re.escape(name.lower())}\b"
         if re.search(pattern, scrubbed):
             scrubbed = re.sub(pattern, " ", scrubbed)

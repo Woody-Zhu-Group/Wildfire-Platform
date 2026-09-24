@@ -1,4 +1,4 @@
-import { configFor, filterError, unavailableReason, utilityCode, recordsFromFeatures, type Bucket, type DatasetId, type Filters, type GroupBy, type Interval, type LayerResponse, type Boundary } from './data.ts';
+import { configFor, filterError, unavailableReason, utilityCode, UTILITIES, recordsFromFeatures, type Bucket, type DatasetId, type Filters, type GroupBy, type Interval, type LayerResponse, type Boundary } from './data.ts';
 import type { AgentAnswer, AgentStreamEvent } from './agentContracts.ts';
 import { readSummary, type SummaryResponse } from './stats.ts';
 import type { RegionSeries } from './temporal.ts';
@@ -143,7 +143,7 @@ export async function getBoundaries(kind: 'hftd' | 'territories'): Promise<Bound
     const data = await getJSON<LayerResponse>(`${VISUALIZATION_URL}/map-layer?dataset=hftd`);
     return data.geojson.features as Boundary[];
   }
-  const results = await Promise.all(['PGE', 'SCE', 'SDGE'].map(utility => getJSON<{ geojson: Boundary }>(`${VISUALIZATION_URL}/utility-territory?utility=${utility}`)));
+  const results = await Promise.all(UTILITIES.map(utilityCode).map(utility => getJSON<{ geojson: Boundary }>(`${VISUALIZATION_URL}/utility-territory?utility=${utility}`)));
   return results.map(result => result.geojson);
 }
 export interface DetailResponse {

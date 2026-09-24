@@ -9,9 +9,10 @@ from fastapi import HTTPException
 
 from services.data_query.filters import parse_utility
 from services.shared.counties import UnknownCountyError, normalize_county
+from services.shared.dataset_registry import RISK_MODEL_UTILITIES
 from shared.db import connect, get_settings
 
-_RISK_UTILITIES = frozenset({"PGE", "SCE", "SDGE"})
+_RISK_UTILITIES = RISK_MODEL_UTILITIES
 _CELL_ID_SAMPLE = 24
 
 
