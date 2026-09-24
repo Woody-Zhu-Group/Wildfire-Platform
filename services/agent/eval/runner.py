@@ -1,4 +1,8 @@
-"""Run selectable model/thinking/output cells and score full trajectories."""
+"""Run one or more model cells against the eval cases and score full trajectories.
+
+Every cell calls the hosted model through OpenRouter and spends API credits.
+Do not run this without an explicit budget; the offline Jev evals never call it.
+"""
 
 from __future__ import annotations
 
@@ -17,9 +21,8 @@ from typing import Any
 import httpx
 
 from services.agent.artifacts import ArtifactStore
-from services.agent.config import AgentSettings
+from services.agent.config import OPENROUTER_DEFAULT_MODEL, AgentSettings
 from services.agent.orchestrator import AgentOrchestrator
-from services.agent.model_setup import ensure_runtime_model
 from services.agent.provider import OpenAICompatibleProvider
 from services.agent.tools import ToolExecutor
 from shared.db import REPO_ROOT
@@ -38,16 +41,10 @@ MIN_MODEL_CASES_FOR_STOP = 5
 @dataclass(frozen=True)
 class EvalCell:
     model: str
-    thinking: str
-    mode: str
 
     @property
     def key(self) -> str:
-        return (
-            f"{self.model}__thinking-{self.thinking}__{self.mode}"
-            .replace(":", "-")
-            .replace("/", "-")
-        )
+        return self.model.replace(":", "-").replace("/", "-")
 
 
 async def preflight(settings: AgentSettings) -> None:
@@ -67,12 +64,15 @@ async def preflight(settings: AgentSettings) -> None:
                 or payload.get("model_loaded") is False
             ):
                 raise RuntimeError(f"risk service is degraded: {payload}")
-        response = await client.get(settings.model_base_url + "/models")
+        response = await client.get(
+            settings.model_base_url + "/models",
+            headers={"Authorization": f"Bearer {settings.model_api_key}"},
+        )
         response.raise_for_status()
         available = {item.get("id") for item in response.json().get("data") or []}
-        if settings.request_model not in available:
+        if settings.model not in available:
             raise RuntimeError(
-                f"model {settings.request_model!r} unavailable; found {sorted(available)}"
+                f"model {settings.model!r} unavailable on the provider"
             )
 
 
@@ -98,21 +98,11 @@ async def run_cell(
     run_tag: str,
     disable_deterministic: bool = False,
 ) -> dict[str, Any]:
-    settings = base.with_eval_cell(
-        model=cell.model,
-        thinking=cell.thinking,
-        structured_mode=cell.mode,
-    )
+    settings = base.with_eval_cell(model=cell.model)
     if disable_deterministic:
         settings = replace(settings, disable_deterministic_routing=True)
-    settings = await ensure_runtime_model(settings)
     await preflight(settings)
     provider = OpenAICompatibleProvider(settings)
-    context_info = await provider.ensure_context_loaded()
-    print(
-        f"[eval] context configured={context_info.get('configured_num_ctx')} "
-        f"effective={context_info.get('effective_num_ctx')}"
-    )
     warmup_ms = await warmup(provider)
     print(f"[eval] warmup {cell.key}: {warmup_ms / 1000:.1f}s")
 
@@ -773,8 +763,6 @@ def write_reports(summaries: list[dict[str, Any]], stopped: bool) -> None:
     with CSV_FILE.open("w", newline="", encoding="utf-8") as handle:
         fields = [
             "model",
-            "thinking",
-            "mode",
             "routing_accuracy_all",
             "routing_accuracy_model_tier",
             "caveat_surfacing_rate",
@@ -798,8 +786,6 @@ def write_reports(summaries: list[dict[str, Any]], stopped: bool) -> None:
             writer.writerow(
                 {
                     "model": summary["cell"]["model"],
-                    "thinking": summary["cell"]["thinking"],
-                    "mode": summary["cell"]["mode"],
                     "routing_accuracy_all": summary["routing_accuracy_all"],
                     "routing_accuracy_model_tier": summary[
                         "routing_accuracy_model_tier"
@@ -853,46 +839,10 @@ def write_reports(summaries: list[dict[str, Any]], stopped: bool) -> None:
     lines = [
         "# Agent feasibility evaluation",
         "",
-        "## Superseded baseline",
-        "",
-        "The earlier **0/5 model-tier routing result is superseded and must not be "
-        "used as evidence that local models cannot route.** Its root cause was "
-        "**token budget exhaustion during tool-catalog deliberation, not a model "
-        "capability limit**. Direct isolated calls proved `qwen3:4b` emits tool "
-        "calls through both Ollama endpoints.",
-        "",
-        "Controlled integration measurements on the same spatial question:",
-        "",
-        "- Full catalog, 1,800-token cap: 1,470 prompt tokens, 438.2s, "
-        "`finish_reason=length`, zero calls.",
-        "- Trimmed six-tool catalog: 1,125 prompt tokens, 333.8s, "
-        "`finish_reason=stop`, zero calls.",
-        "- Prefiltered two-tool catalog with the mixed routing/synthesis prompt: "
-        "641 prompt tokens, 361.3s, `finish_reason=length`, zero calls.",
-        "- Routing-only prompt with all six trimmed tools: 901 prompt tokens, "
-        "419.8s, `finish_reason=length`, zero calls.",
-        "- Routing-only prompt with two candidates: 414 prompt tokens, 281.5s, "
-        "`finish_reason=tool_calls`, one correct call.",
-        "",
-        "Description/enum trimming reduced prompt size and stopped one runaway "
-        "completion, but did not produce a call. Candidate prefiltering had the "
-        "larger practical effect only after routing and synthesis instructions "
-        "were separated. The corrected harness therefore uses all three.",
-        "",
-        "## Prominent local-provider constraint",
-        "",
-        "**Ollama’s OpenAI-compatible endpoint does not support `tool_choice`.** "
-        "The harness cannot force Qwen to call a tool. It blocks unsupported direct "
-        "answers and retries, but the attempts and latency are real local-model costs "
-        "that a hosted provider with forced tool choice may avoid.",
-        "",
-        "The installed Qwen3 manifest also forced a thinking prefix despite "
-        "`reasoning_effort=none`; the thinking-off cell used a template-only alias "
-        "with identical weights and a pre-closed thinking block. The alias was "
-        "faster in the isolated test, but Qwen can still emit deliberative prose "
-        "before a tool call or JSON. The harness strips that prose from tool history "
-        "and recovers a trailing schema-valid JSON object while reporting raw strict "
-        "schema validity separately.",
+        "Model cells run through OpenRouter (tool_choice required for routing, "
+        "strict structured output for synthesis). Earlier local-model runs and "
+        "their Ollama constraints are recorded in the historical reports under "
+        "`services/agent/eval/` and are not comparable to these rows.",
         "",
         f"Stop gate: **{STOP_THRESHOLD:.0%} model-tier routing accuracy** after at "
         f"least {MIN_MODEL_CASES_FOR_STOP} model-tier cases. "
@@ -902,7 +852,7 @@ def write_reports(summaries: list[dict[str, Any]], stopped: bool) -> None:
             [
                 outcome,
                 "",
-                f"Qwen produced {last['no_tool_response_attempts_before_evidence']} "
+                f"The model produced {last['no_tool_response_attempts_before_evidence']} "
                 "no-tool responses before evidence and "
                 f"{last['direct_answer_without_tool_attempts']} valid direct "
                 "answer attempts. The harness blocked all no-evidence output.",
@@ -933,21 +883,19 @@ def write_reports(summaries: list[dict[str, Any]], stopped: bool) -> None:
         "",
         "## Cell results",
         "",
-        "| Model | Thinking | Output | Deterministic/model routing | Schema first/eventual | Caveats | Recovery | Model done / rescued | No-tool/direct attempts | Request p50/p95 | Model p50/p95 | Runtime |",
-        "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Model | Deterministic/model routing | Schema first/eventual | Caveats | Recovery | Model done / rescued | No-tool/direct attempts | Request p50/p95 | Model p50/p95 | Runtime |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for summary in summaries:
         cell = summary["cell"]
         latency = summary["latency_ms"]
         lines.append(
-            "| {model} | {thinking} | {mode} | {det_routing:.1%}/{routing:.1%} | "
+            "| {model} | {det_routing:.1%}/{routing:.1%} | "
             "{schema1:.1%}/{schema2:.1%} | {caveat:.1%} | {recovery:.1%} | "
             "{done:.1%}/{rescued:.1%} ({done_n}/{fb_n} of {fb_d}) | "
             "{no_tool}/{direct} ({no_tool_rate:.1%}/{direct_rate:.1%} per turn) | "
             "{request_p50}/{request_p95} ms | {p50}/{p95} ms | {runtime:.1f}s |".format(
                 model=cell["model"],
-                thinking=cell["thinking"],
-                mode=cell["mode"],
                 routing=summary["routing_accuracy_model_tier"],
                 det_routing=summary["routing_accuracy_deterministic_tier"],
                 schema1=summary["schema_validity_first_pass"],
@@ -998,10 +946,7 @@ def write_reports(summaries: list[dict[str, Any]], stopped: bool) -> None:
         ]
     )
     for summary in summaries:
-        lines.append(
-            f"### {summary['cell']['model']} / thinking={summary['cell']['thinking']} "
-            f"/ {summary['cell']['mode']}"
-        )
+        lines.append(f"### {summary['cell']['model']}")
         if not summary["failed_cases"]:
             lines.append("- None")
         for failed in summary["failed_cases"]:
@@ -1026,12 +971,7 @@ async def async_main(args: argparse.Namespace) -> int:
         if missing:
             raise SystemExit(f"Unknown case IDs: {sorted(missing)}")
 
-    cells = [
-        EvalCell(model=model, thinking=thinking, mode=mode)
-        for model in args.models.split(",")
-        for thinking in args.thinking.split(",")
-        for mode in args.modes.split(",")
-    ]
+    cells = [EvalCell(model=model) for model in args.models.split(",")]
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     summaries: list[dict[str, Any]] = []
     stopped = False
@@ -1069,9 +1009,14 @@ async def async_main(args: argparse.Namespace) -> int:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--models", default="qwen3:4b")
-    parser.add_argument("--thinking", default="off", help="comma-separated off,on")
-    parser.add_argument("--modes", default="prompt", help="prompt,constrained")
+    parser.add_argument(
+        "--models",
+        default=OPENROUTER_DEFAULT_MODEL,
+        help=(
+            "comma-separated OpenRouter model ids; the default is the production "
+            "model. Every cell spends API credits."
+        ),
+    )
     parser.add_argument("--case-ids", default="")
     parser.add_argument("--stop-threshold", type=float, default=STOP_THRESHOLD)
     parser.add_argument(

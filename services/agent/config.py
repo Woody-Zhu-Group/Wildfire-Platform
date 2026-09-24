@@ -29,23 +29,16 @@ def _bool(name: str, default: bool) -> bool:
 
 @dataclass(frozen=True)
 class AgentSettings:
-    provider: str = "openai_compatible"
-    model_base_url: str = "http://127.0.0.1:11434/v1"
-    # repr=False keeps a hosted key out of logs and tracebacks that print settings.
-    model_api_key: str = field(default="ollama", repr=False)
-    model: str = "qwen2.5:7b"
-    model_runtime: str | None = None
-    # ollama keeps the local Qwen path. openrouter sends routing and synthesis
-    # to OpenRouter's OpenAI-compatible API with native tool_choice and
-    # structured outputs; llm_fallback_model handles retries after a failed turn.
-    llm_provider: str = "ollama"
-    llm_fallback_model: str | None = None
-    thinking: str = "off"
-    # Constrained synthesis returns tokens reliably; prompt mode often times out.
-    structured_mode: str = "constrained"
-    # Routing stays thinking-off; synthesis may enable thinking separately.
-    # Default false: on CPU-only hosts, synthesis with think=true exceeded the
-    # 180s timeout in probes; set AGENT_SYNTHESIS_THINKING=true on GPU/hosted.
+    # openrouter is the only LLM provider. Routing and synthesis go to
+    # OpenRouter's OpenAI-compatible API with native tool_choice and structured
+    # outputs; llm_fallback_model handles retries after a failed turn.
+    llm_provider: str = "openrouter"
+    model_base_url: str = OPENROUTER_BASE_URL
+    # repr=False keeps the hosted key out of logs and tracebacks that print settings.
+    model_api_key: str = field(default="", repr=False)
+    model: str = OPENROUTER_DEFAULT_MODEL
+    llm_fallback_model: str | None = OPENROUTER_DEFAULT_FALLBACK_MODEL
+    # Routing runs with reasoning effort none; synthesis may enable it separately.
     synthesis_thinking: bool = False
     request_timeout_seconds: float = 900.0
     max_completion_tokens: int = 1800
@@ -53,11 +46,11 @@ class AgentSettings:
     max_synthesis_tokens: int = 1200
     max_tool_steps: int = 5
     max_validation_retries: int = 2
-    # Ollama defaults to 4096 when unset; configure more only when needed.
-    num_ctx: int = 32768
     synthesis_timeout_seconds: float = 180.0
     seed: int = 42
     temperature: float = 0.0
+    # The remote-provider gate. The only provider is remote, so the service
+    # refuses to start until AGENT_ALLOW_REMOTE_PROVIDER=true is set on purpose.
     allow_remote_provider: bool = False
     # Architecture experiment only. Default remains deterministic-first.
     disable_deterministic_routing: bool = False
@@ -87,36 +80,28 @@ class AgentSettings:
 
     @classmethod
     def from_env(cls) -> "AgentSettings":
-        llm_provider = os.getenv("AGENT_LLM_PROVIDER", "ollama").strip().lower()
+        llm_provider = os.getenv("AGENT_LLM_PROVIDER", "openrouter").strip().lower()
         jev_backend = os.getenv("AGENT_JEV_BACKEND", "typesafe").strip().lower()
-        hosted: dict[str, object] = {}
-        if llm_provider == "openrouter":
-            hosted = {
-                "model_base_url": OPENROUTER_BASE_URL,
-                "model_api_key": _required_openrouter_key("AGENT_LLM_PROVIDER"),
-                "model": os.getenv("AGENT_LLM_MODEL", OPENROUTER_DEFAULT_MODEL).strip(),
-                "llm_fallback_model": os.getenv(
-                    "AGENT_LLM_FALLBACK_MODEL", OPENROUTER_DEFAULT_FALLBACK_MODEL
-                ).strip()
-                or None,
-            }
+        if llm_provider != "openrouter":
+            raise ValueError(
+                f"AGENT_LLM_PROVIDER={llm_provider!r} is not supported. The only LLM "
+                "provider is openrouter; the local Ollama path was removed."
+            )
+        model_api_key = _required_openrouter_key("AGENT_LLM_PROVIDER")
         if jev_backend == "openrouter":
             _required_openrouter_key("AGENT_JEV_BACKEND")
         default_jev_model = (
             OPENROUTER_DEFAULT_JEV_MODEL if jev_backend == "openrouter" else "jev-latest"
         )
         value = cls(
-            provider=os.getenv("AGENT_PROVIDER", "openai_compatible"),
-            model_base_url=os.getenv(
-                "AGENT_MODEL_BASE_URL", "http://127.0.0.1:11434/v1"
-            ).rstrip("/"),
-            model_api_key=os.getenv("AGENT_MODEL_API_KEY", "ollama"),
-            model=os.getenv("AGENT_MODEL", "qwen2.5:7b"),
-            model_runtime=os.getenv("AGENT_MODEL_RUNTIME") or None,
-            thinking=os.getenv("AGENT_THINKING", "off").strip().lower(),
-            structured_mode=os.getenv(
-                "AGENT_STRUCTURED_MODE", "constrained"
-            ).strip().lower(),
+            llm_provider=llm_provider,
+            model_base_url=OPENROUTER_BASE_URL,
+            model_api_key=model_api_key,
+            model=os.getenv("AGENT_LLM_MODEL", OPENROUTER_DEFAULT_MODEL).strip(),
+            llm_fallback_model=os.getenv(
+                "AGENT_LLM_FALLBACK_MODEL", OPENROUTER_DEFAULT_FALLBACK_MODEL
+            ).strip()
+            or None,
             synthesis_thinking=_bool("AGENT_SYNTHESIS_THINKING", False),
             request_timeout_seconds=float(
                 os.getenv("AGENT_TIMEOUT_SECONDS", "900")
@@ -132,7 +117,6 @@ class AgentSettings:
             max_validation_retries=int(
                 os.getenv("AGENT_MAX_VALIDATION_RETRIES", "2")
             ),
-            num_ctx=int(os.getenv("AGENT_NUM_CTX", "32768")),
             synthesis_timeout_seconds=float(
                 os.getenv("AGENT_SYNTHESIS_TIMEOUT_SECONDS", "180")
             ),
@@ -176,23 +160,16 @@ class AgentSettings:
             jev_decide_answer_confidence=float(
                 os.getenv("AGENT_JEV_DECIDE_ANSWER_CONFIDENCE", "0.9")
             ),
-            llm_provider=llm_provider,
             slot_plan=_bool("AGENT_SLOT_PLAN", False),
         )
-        if hosted:
-            value = replace(value, **hosted)
         value.validate()
         return value
 
     def validate(self) -> None:
-        if self.provider != "openai_compatible":
-            raise ValueError("AGENT_PROVIDER must be openai_compatible")
-        if self.thinking not in {"off", "on"}:
-            raise ValueError("AGENT_THINKING must be off|on")
-        if self.structured_mode not in {"prompt", "constrained"}:
-            raise ValueError("AGENT_STRUCTURED_MODE must be prompt|constrained")
-        if self.num_ctx < 2048:
-            raise ValueError("AGENT_NUM_CTX must be >= 2048")
+        if self.llm_provider != "openrouter":
+            raise ValueError("AGENT_LLM_PROVIDER must be openrouter")
+        if not self.model:
+            raise ValueError("AGENT_LLM_MODEL must not be empty")
         if self.synthesis_timeout_seconds < 5:
             raise ValueError("AGENT_SYNTHESIS_TIMEOUT_SECONDS must be >= 5")
         if self.jev_mode in {"verify", "fallback", "route"}:
@@ -212,8 +189,6 @@ class AgentSettings:
             raise ValueError("AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE must be between 0 and 1")
         if self.jev_backend not in {"typesafe", "openrouter"}:
             raise ValueError("AGENT_JEV_BACKEND must be typesafe or openrouter")
-        if self.llm_provider not in {"ollama", "openrouter"}:
-            raise ValueError("AGENT_LLM_PROVIDER must be ollama or openrouter")
         if self.jev_timeout_seconds <= 0:
             raise ValueError("AGENT_JEV_TIMEOUT_SECONDS must be positive")
         if not 0 <= self.jev_sample_rate <= 1:
@@ -236,8 +211,9 @@ class AgentSettings:
             )
         if not self.allow_remote_provider and not _is_loopback(self.model_base_url):
             raise ValueError(
-                "Remote model providers are blocked. Security review and "
-                "AGENT_ALLOW_REMOTE_PROVIDER=true are required."
+                "The LLM provider is remote (OpenRouter) and the remote-provider "
+                "gate is off. Set AGENT_ALLOW_REMOTE_PROVIDER=true to confirm that "
+                "questions may leave this host, or the agent will not start."
             )
         for name, url in {
             "DATA_QUERY_BASE_URL": self.data_query_url,
@@ -248,29 +224,14 @@ class AgentSettings:
             if not _is_loopback(url):
                 raise ValueError(f"{name} must remain a loopback URL")
 
-    def with_eval_cell(
-        self, *, model: str, thinking: str, structured_mode: str
-    ) -> "AgentSettings":
-        updated = replace(
-            self,
-            model=model,
-            model_runtime=None,
-            thinking=thinking,
-            structured_mode=structured_mode,
-        )
+    def with_eval_cell(self, *, model: str) -> "AgentSettings":
+        updated = replace(self, model=model)
         updated.validate()
         return updated
 
     @property
     def hosted_llm(self) -> bool:
-        return self.llm_provider == "openrouter"
-
-    @property
-    def request_model(self) -> str:
-        return self.model_runtime or self.model
-
-    def with_runtime_model(self, runtime_model: str) -> "AgentSettings":
-        return replace(self, model_runtime=runtime_model)
+        return True
 
 
 def _required_openrouter_key(flag: str) -> str:

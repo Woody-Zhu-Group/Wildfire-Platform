@@ -1,4 +1,7 @@
-"""Jev tool_pick mode. Qwen still writes the answer. Default stays off."""
+"""Jev tool_pick mode. The LLM still writes the answer. Default stays off.
+
+The path label "qwen" in the shadow log is the historical name for the LLM loop.
+"""
 
 from __future__ import annotations
 
@@ -63,7 +66,7 @@ class _Provider:
         phase = kwargs.get("phase")
         self.phases.append(phase)
         if phase != "synthesis":
-            raise AssertionError("qwen was asked to pick a tool")
+            raise AssertionError("the LLM was asked to pick a tool")
         return ModelReply(
             content=(
                 '{"status":"answer","answer":"3 ignitions.",'
@@ -82,7 +85,7 @@ def _decision(**kwargs) -> ToolPickDecision:
     return ToolPickDecision(**base)
 
 
-def test_high_confidence_jev_picks_the_tool_and_qwen_only_synthesizes(tmp_path, monkeypatch):
+def test_high_confidence_jev_picks_the_tool_and_llm_only_synthesizes(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "services.agent.decisions.tool_pick_mode.decide_tool_pick",
         lambda *args, **kwargs: _decision(),
@@ -101,7 +104,7 @@ def test_high_confidence_jev_picks_the_tool_and_qwen_only_synthesizes(tmp_path, 
     assert record["confidence"] == 0.91
 
 
-def test_low_confidence_falls_back_to_qwen(tmp_path, monkeypatch):
+def test_low_confidence_falls_back_to_llm(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "services.agent.decisions.tool_pick_mode.decide_tool_pick",
         lambda *args, **kwargs: _decision(confidence=0.4, path="qwen", reason="below_threshold"),
@@ -138,7 +141,7 @@ def test_low_confidence_falls_back_to_qwen(tmp_path, monkeypatch):
     assert record["reason"] == "below_threshold"
 
 
-def test_jev_error_falls_back_to_qwen(tmp_path, monkeypatch):
+def test_jev_error_falls_back_to_llm(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "services.agent.decisions.tool_pick_mode.decide_tool_pick",
         lambda *args, **kwargs: _decision(tool=None, confidence=None, path="qwen", reason="timeout", error="TimeoutError"),
@@ -217,23 +220,23 @@ def test_off_mode_does_not_ask_jev(tmp_path, monkeypatch):
     assert result.response["status"] == "answer"
 
 
-def test_count_plus_trend_uses_qwen(tmp_path, monkeypatch):
-    _assert_two_part_uses_qwen(
+def test_count_plus_trend_uses_llm(tmp_path, monkeypatch):
+    _assert_two_part_uses_llm(
         tmp_path,
         monkeypatch,
         "Give me the PGE ignition count and its monthly trend for 2024.",
     )
 
 
-def test_holdout_count_trend_uses_qwen(tmp_path, monkeypatch):
-    _assert_two_part_uses_qwen(
+def test_holdout_count_trend_uses_llm(tmp_path, monkeypatch):
+    _assert_two_part_uses_llm(
         tmp_path,
         monkeypatch,
         "Give me the SCE ignition count and its weekly trend for 2023.",
     )
 
 
-def _assert_two_part_uses_qwen(tmp_path, monkeypatch, question: str) -> None:
+def _assert_two_part_uses_llm(tmp_path, monkeypatch, question: str) -> None:
     def boom(*args, **kwargs):
         raise AssertionError("Jev picked a tool for a two-part question")
 
@@ -285,7 +288,7 @@ def _assert_two_part_uses_qwen(tmp_path, monkeypatch, question: str) -> None:
     assert record["reason"] == "multiple_primary_tools"
 
 
-def test_template_count_skips_qwen(tmp_path, monkeypatch):
+def test_template_count_skips_llm(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "services.agent.decisions.tool_pick_mode.decide_tool_pick",
         lambda *args, **kwargs: _decision(confidence=0.86),
@@ -297,7 +300,7 @@ def test_template_count_skips_qwen(tmp_path, monkeypatch):
 
     class Provider:
         async def complete(self, **kwargs):
-            raise AssertionError("qwen was called for a count template")
+            raise AssertionError("the LLM was called for a count template")
 
     result = asyncio.run(
         AgentOrchestrator(
@@ -380,7 +383,7 @@ def test_plain_comparison_uses_the_template(tmp_path, monkeypatch):
 
     class Provider:
         async def complete(self, **kwargs):
-            raise AssertionError("qwen was called for a plain comparison")
+            raise AssertionError("the LLM was called for a plain comparison")
 
     class Executor(_Executor):
         async def execute(self, tool, arguments, **kwargs):

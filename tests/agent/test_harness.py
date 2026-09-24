@@ -365,7 +365,7 @@ def test_embedded_json_recovery_keeps_answer_grounded():
 def test_harness_retries_recoverable_tool_failure_without_model():
     class OneShotProvider:
         async def complete(self, **kwargs):
-            if kwargs.get("constrained_tool_routing"):
+            if kwargs.get("tool_routing"):
                 return ModelReply(
                     content="",
                     tool_calls=[
@@ -465,7 +465,7 @@ def test_caveats_attach_when_synthesis_fails_but_tools_succeed():
 
         async def complete(self, **kwargs):
             self.calls += 1
-            if kwargs.get("constrained_tool_routing"):
+            if kwargs.get("tool_routing"):
                 return ModelReply(
                     content="",
                     tool_calls=[

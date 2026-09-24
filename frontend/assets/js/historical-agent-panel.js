@@ -65,7 +65,7 @@
       const modelUp = Boolean(health?.model?.available);
       if (!modelUp) {
         setBanner(
-          "Counts, maps, and rankings work now; open-ended questions need the GPU.",
+          "Counts, maps, and rankings work now; open-ended questions need the language model, which is unavailable.",
           false
         );
         if (askBtn) askBtn.disabled = Boolean(abortController);

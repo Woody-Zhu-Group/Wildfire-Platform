@@ -1,5 +1,7 @@
 # Deterministic vs model-only routing experiment
 
+> Historical record. This document describes the local Ollama/qwen model path, which was removed on 2026-09-24 when production switched to OpenRouter (GPT-6 Luna). The measurements below are kept as they were made and are not comparable to the hosted path. See `docs/OPENROUTER.md`.
+
 Default remains **deterministic-first**. Flag: `AGENT_DISABLE_DETERMINISTIC_ROUTING` / eval `--disable-deterministic`.
 
 Harness guarantees stayed active on both paths: caveat injection, grounding, argument validation, year guards, retry bounding, relative-date resolution, and unsupported refusals.

@@ -1,13 +1,13 @@
 # AWS migration audit: Wildfire Services
 
-> Status (2026-09-23): historical audit of the tree as of 2026-08-21. Its findings are left as written, but these statements no longer match the current code:
+> Historical record (2026-09-24): audit of the tree as of 2026-08-21. Its findings are left as written, but these statements no longer match the current code:
 >
-> - There are six FastAPI apps, not five: `services/gpu_control/` (optional, port 8005) was added.
+> - The agent's model tier is OpenRouter (GPT-6 Luna). The local Ollama/qwen path, `model_setup.py`, the GPU control service (`services/gpu_control/`, port 8005), its systemd unit, and the frontend GPU strip were removed on 2026-09-24 (see `docs/OPENROUTER.md`). Every Ollama, `AGENT_MODEL*`, `AGENT_NUM_CTX`, and GPU statement below is history.
 > - The risk API now has CORS (`services/risk_forecasting/app.py` 61-67) and serves `/surface`, `/observed`, `/observed-training` and `/metrics` besides `/predict` (`app.py` 149-303). The website calls `/surface` and `/observed-training` directly (`website/src/api.ts` 105, 111), so "the frontend does not call risk" (sections 4.3, 9.1, blocker 12) is out of date. See `services/risk_forecasting/README.md`.
 > - The agent no longer needs a live model to start: lifespan catches model and warmup failures and still binds 8004 (`services/agent/app.py` 33-45). Section 5.7 and blocker 3 are out of date.
-> - systemd units now exist in `deploy/systemd/` for data query, visualization, comparison, agent, frontend and gpu control, with uvicorn bound to `0.0.0.0` (see `deploy/systemd/SYSTEMD_SETUP.md`). There is still no unit for the risk API on 8001. Section 8 and blockers 4 and 5 are out of date on this point.
+> - systemd units now exist in `deploy/systemd/` for data query, risk forecasting, visualization, comparison, agent, and frontend, with uvicorn bound to `0.0.0.0` (see `deploy/systemd/SYSTEMD_SETUP.md`). Section 8 and blockers 4 and 5 are out of date on this point.
 > - The current website is a Vite/TypeScript app in `website/` (`website/package.json`) built into `docs/`, with default API bases under CloudFront `/api/...` (`website/src/api.ts` 9-12). Section 4 and "no `package.json`" describe only the older `frontend/` app.
-> - Agent defaults changed: `AGENT_MODEL` defaults to `qwen2.5:7b` (`services/agent/config.py` 108), and `AGENT_LLM_PROVIDER` accepts `ollama` or `openrouter` (`config.py` 198). The loopback rule for backend URLs is still there (`config.py` 231-232). `services/agent/eval/cases.json` now has 107 cases.
+> - Agent defaults changed: `AGENT_LLM_PROVIDER` is `openrouter` only, with `OPENROUTER_API_KEY` and `AGENT_ALLOW_REMOTE_PROVIDER=true` required (`services/agent/config.py`). The loopback rule for backend URLs is still there (`config.py` 231-232). `services/agent/eval/cases.json` now has 107 cases.
 > - `requirements.txt` now also lists `boto3` and `typesafe-sdk`.
 > - File:line references below point to the 2026-08-21 tree and may have moved.
 

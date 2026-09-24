@@ -1,4 +1,4 @@
-"""OpenAI-compatible model provider used by Ollama and future hosted APIs."""
+"""OpenAI-compatible model provider for hosted APIs (OpenRouter)."""
 
 from __future__ import annotations
 
@@ -11,9 +11,7 @@ from typing import Any
 import httpx
 
 from services.agent.config import AgentSettings
-from services.agent.constrained import call_envelope_schema, parse_envelope_content
 from services.agent.pricing import cost_usd
-from services.agent.schemas import AgentAnswer
 
 
 class SynthesisTimeoutError(TimeoutError):
@@ -21,7 +19,7 @@ class SynthesisTimeoutError(TimeoutError):
 
 
 def agent_answer_format_schema() -> dict[str, Any]:
-    """Compact JSON schema for native Ollama constrained synthesis."""
+    """Compact JSON schema for the structured synthesis answer."""
     return {
         "type": "object",
         "properties": {
@@ -112,8 +110,8 @@ async def _cancellable_post(
 ) -> httpx.Response:
     """POST that aborts the in-flight HTTP request when cancel_event is set.
 
-    Cancelling the httpx task drops the connection to Ollama so a single-slot
-    generation does not keep running after the client disconnects.
+    Cancelling the httpx task drops the connection so a generation does not
+    keep billing after the client disconnects.
     """
     request_task = asyncio.create_task(client.post(path, json=json_payload))
     if cancel_event is None:
@@ -172,90 +170,12 @@ class OpenAICompatibleProvider:
         self._client = httpx.AsyncClient(
             base_url=settings.model_base_url,
             timeout=settings.request_timeout_seconds,
-            headers={
-                "Authorization": f"Bearer {settings.model_api_key or 'ollama'}"
-            },
+            headers={"Authorization": f"Bearer {settings.model_api_key}"},
             transport=transport,
         )
-        # Native Ollama endpoint exposes `format` + timing fields used for
-        # constrained tool routing; OpenAI-compatible /v1 does not.
-        self._native_base = settings.model_base_url.removesuffix("/v1")
-        self._native_client = httpx.AsyncClient(
-            base_url=self._native_base,
-            timeout=settings.request_timeout_seconds,
-            transport=transport,
-        )
-        self.effective_num_ctx: int | None = None
-        self.hosted = settings.hosted_llm
 
     async def close(self) -> None:
         await self._client.aclose()
-        await self._native_client.aclose()
-
-    def _options(self, *, num_predict: int) -> dict[str, Any]:
-        return {
-            "num_ctx": self.settings.num_ctx,
-            "num_predict": num_predict,
-            "temperature": self.settings.temperature,
-            "seed": self.settings.seed,
-        }
-
-    async def ensure_context_loaded(self) -> dict[str, Any]:
-        """Unload any stale 4096 load and warm the model with configured num_ctx."""
-        model = self.settings.request_model
-        if self.hosted:
-            # Hosted models have no native Ollama endpoint or num_ctx to pin.
-            return {
-                "configured_num_ctx": None,
-                "effective_num_ctx": None,
-                "warmup_latency_ms": 0.0,
-                "model": model,
-                "provider": self.settings.llm_provider,
-            }
-        try:
-            await self._native_client.post(
-                "/api/generate",
-                json={"model": model, "keep_alive": 0, "stream": False},
-            )
-        except httpx.HTTPError:
-            pass
-        started = time.perf_counter()
-        response = await self._native_client.post(
-            "/api/chat",
-            json={
-                "model": model,
-                "messages": [{"role": "user", "content": "OK"}],
-                "stream": False,
-                "keep_alive": -1,
-                "think": False,
-                "options": self._options(num_predict=1),
-            },
-        )
-        response.raise_for_status()
-        latency_ms = (time.perf_counter() - started) * 1000
-        loaded = await self._read_loaded_context(model)
-        self.effective_num_ctx = loaded
-        info = {
-            "configured_num_ctx": self.settings.num_ctx,
-            "effective_num_ctx": loaded,
-            "warmup_latency_ms": round(latency_ms, 2),
-            "model": model,
-        }
-        print(json.dumps({"event": "model_context", **info}))
-        return info
-
-    async def _read_loaded_context(self, model: str) -> int | None:
-        try:
-            response = await self._native_client.get("/api/ps")
-            response.raise_for_status()
-            for item in response.json().get("models") or []:
-                name = item.get("name") or item.get("model")
-                if name == model or (name or "").startswith(model):
-                    value = item.get("context_length")
-                    return int(value) if value is not None else None
-        except Exception:  # noqa: BLE001
-            return None
-        return None
 
     async def complete(
         self,
@@ -264,7 +184,7 @@ class OpenAICompatibleProvider:
         tools: list[dict[str, Any]],
         max_tokens: int | None = None,
         structured_response: bool = True,
-        constrained_tool_routing: bool = False,
+        tool_routing: bool = False,
         candidate_tools: list[str] | None = None,
         cancel_event: asyncio.Event | None = None,
         phase: str = "model",
@@ -272,64 +192,17 @@ class OpenAICompatibleProvider:
         thinking: bool | None = None,
         model: str | None = None,
     ) -> ModelReply:
-        use_thinking = (
-            self.settings.thinking == "on" if thinking is None else bool(thinking)
-        )
-        request_model = model or self.settings.request_model
-
-        if self.effective_num_ctx is None and not self.hosted:
-            try:
-                await self.ensure_context_loaded()
-            except Exception as exc:  # noqa: BLE001
-                print(
-                    json.dumps(
-                        {
-                            "event": "model_lazy_warmup_failed",
-                            "error": str(exc),
-                            "model": request_model,
-                        }
-                    )
-                )
+        use_thinking = bool(thinking)
+        request_model = model or self.settings.model
 
         async def _run() -> ModelReply:
-            if self.hosted:
-                return await self._complete_hosted_with_fallback(
-                    messages=messages,
-                    tools=tools,
-                    max_tokens=max_tokens,
-                    structured_response=structured_response,
-                    tool_routing=constrained_tool_routing,
-                    candidate_tools=candidate_tools or [],
-                    cancel_event=cancel_event,
-                    phase=phase,
-                    thinking=use_thinking,
-                    model=request_model,
-                )
-            if constrained_tool_routing:
-                return await self._complete_native_tool_envelope(
-                    messages=messages,
-                    tools=tools,
-                    max_tokens=max_tokens,
-                    candidate_tools=candidate_tools or [],
-                    cancel_event=cancel_event,
-                    phase=phase,
-                    thinking=use_thinking,
-                    model=request_model,
-                )
-            if structured_response and self.settings.structured_mode == "constrained":
-                return await self._complete_native_structured(
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    cancel_event=cancel_event,
-                    phase=phase,
-                    thinking=use_thinking,
-                    model=request_model,
-                )
-            return await self._complete_openai(
+            return await self._complete_hosted_with_fallback(
                 messages=messages,
                 tools=tools,
                 max_tokens=max_tokens,
                 structured_response=structured_response,
+                tool_routing=tool_routing,
+                candidate_tools=candidate_tools or [],
                 cancel_event=cancel_event,
                 phase=phase,
                 thinking=use_thinking,
@@ -347,77 +220,13 @@ class OpenAICompatibleProvider:
                         "event": "model_timeout",
                         "phase": phase,
                         "timeout_seconds": timeout_seconds,
-                        "model": self.settings.request_model,
-                        "num_ctx": self.settings.num_ctx,
+                        "model": request_model,
                     }
                 )
             )
             raise SynthesisTimeoutError(
                 f"{phase} exceeded {timeout_seconds:.0f}s"
             ) from exc
-
-    async def _complete_openai(
-        self,
-        *,
-        messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]],
-        max_tokens: int | None,
-        structured_response: bool,
-        cancel_event: asyncio.Event | None,
-        phase: str,
-        thinking: bool,
-        model: str,
-    ) -> ModelReply:
-        payload: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-            "tools": tools,
-            "stream": False,
-            "temperature": self.settings.temperature,
-            "seed": self.settings.seed,
-            "max_tokens": max_tokens or self.settings.max_completion_tokens,
-            "reasoning_effort": ("medium" if thinking else "none"),
-            # Ollama OpenAI shim accepts options.num_ctx; without it loads at 4096.
-            "options": {"num_ctx": self.settings.num_ctx},
-        }
-        if structured_response and self.settings.structured_mode == "constrained":
-            payload["response_format"] = {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "agent_answer",
-                    "strict": True,
-                    "schema": AgentAnswer.model_json_schema(),
-                },
-            }
-
-        started = time.perf_counter()
-        response = await _cancellable_post(
-            self._client,
-            "/chat/completions",
-            json_payload=payload,
-            cancel_event=cancel_event,
-            phase=phase,
-        )
-        latency_ms = (time.perf_counter() - started) * 1000
-        response.raise_for_status()
-        raw = response.json()
-        choices = raw.get("choices") or []
-        if not choices:
-            raise ValueError("model response has no choices")
-        message = choices[0].get("message") or {}
-        content = message.get("content") or ""
-        tool_calls = message.get("tool_calls") or []
-        for call in tool_calls:
-            function = call.get("function") or {}
-            if isinstance(function.get("arguments"), dict):
-                function["arguments"] = json.dumps(function["arguments"])
-        return ModelReply(
-            content=content,
-            tool_calls=tool_calls,
-            raw=raw,
-            latency_ms=latency_ms,
-            usage=raw.get("usage") or {},
-        )
 
     async def _complete_hosted_with_fallback(
         self,
@@ -460,11 +269,7 @@ class OpenAICompatibleProvider:
         thinking: bool,
         model: str,
     ) -> ModelReply:
-        """OpenRouter chat completion with native tool_choice and strict outputs.
-
-        Replaces two Ollama workarounds: the JSON call envelope used because
-        Ollama has no tool_choice, and native /api/chat format for synthesis.
-        """
+        """OpenRouter chat completion with native tool_choice and strict outputs."""
         payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -481,7 +286,7 @@ class OpenAICompatibleProvider:
                 for tool in tools
                 if not allowed or tool.get("function", {}).get("name") in allowed
             ]
-            # "required" forces at least one call, as the envelope schema did.
+            # "required" forces at least one call.
             payload["tool_choice"] = "required"
             # Several calls per turn are allowed by default. Do not send
             # parallel_tool_calls: OpenRouter does not list it for GPT-6 Luna, and
@@ -554,109 +359,6 @@ class OpenAICompatibleProvider:
             usage=usage,
         )
 
-    async def _complete_native_structured(
-        self,
-        *,
-        messages: list[dict[str, Any]],
-        max_tokens: int | None,
-        cancel_event: asyncio.Event | None,
-        phase: str,
-        thinking: bool,
-        model: str,
-    ) -> ModelReply:
-        """Constrained JSON synthesis via native /api/chat (same path as routing)."""
-        payload: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-            "format": agent_answer_format_schema(),
-            "think": thinking,
-            "stream": False,
-            "keep_alive": -1,
-            "options": self._options(
-                num_predict=max_tokens or self.settings.max_synthesis_tokens
-            ),
-        }
-        started = time.perf_counter()
-        response = await _cancellable_post(
-            self._native_client,
-            "/api/chat",
-            json_payload=payload,
-            cancel_event=cancel_event,
-            phase=phase,
-        )
-        latency_ms = (time.perf_counter() - started) * 1000
-        response.raise_for_status()
-        raw = response.json()
-        message = raw.get("message") or {}
-        content = str(message.get("content") or "")
-        return ModelReply(
-            content=content,
-            tool_calls=[],
-            raw=raw,
-            latency_ms=latency_ms,
-            usage={
-                "prompt_tokens": int(raw.get("prompt_eval_count") or 0),
-                "completion_tokens": int(raw.get("eval_count") or 0),
-            },
-        )
-
-    async def _complete_native_tool_envelope(
-        self,
-        *,
-        messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]],
-        max_tokens: int | None,
-        candidate_tools: list[str],
-        cancel_event: asyncio.Event | None = None,
-        phase: str = "routing",
-        thinking: bool = False,
-        model: str | None = None,
-    ) -> ModelReply:
-        options = self._options(
-            num_predict=max_tokens or self.settings.max_routing_tokens
-        )
-        options["stop"] = ["\n\n\n"]
-        payload: dict[str, Any] = {
-            "model": model or self.settings.request_model,
-            "messages": messages,
-            "tools": tools,
-            "format": call_envelope_schema(candidate_tools, profile="lean_enums"),
-            "think": thinking,
-            "stream": False,
-            "keep_alive": -1,
-            "options": options,
-        }
-        started = time.perf_counter()
-        response = await _cancellable_post(
-            self._native_client,
-            "/api/chat",
-            json_payload=payload,
-            cancel_event=cancel_event,
-            phase=phase,
-        )
-        latency_ms = (time.perf_counter() - started) * 1000
-        response.raise_for_status()
-        raw = response.json()
-        message = raw.get("message") or {}
-        content = str(message.get("content") or "")
-        tool_calls = message.get("tool_calls") or []
-        if not tool_calls:
-            tool_calls = parse_envelope_content(content)
-        for call in tool_calls:
-            function = call.get("function") or {}
-            if isinstance(function.get("arguments"), dict):
-                function["arguments"] = json.dumps(function["arguments"])
-        return ModelReply(
-            content=content,
-            tool_calls=tool_calls,
-            raw=raw,
-            latency_ms=latency_ms,
-            usage={
-                "prompt_tokens": int(raw.get("prompt_eval_count") or 0),
-                "completion_tokens": int(raw.get("eval_count") or 0),
-            },
-        )
-
     async def health(self) -> dict[str, Any]:
         started = time.perf_counter()
         try:
@@ -664,21 +366,21 @@ class OpenAICompatibleProvider:
             response.raise_for_status()
             models = response.json().get("data") or []
             names = [m.get("id") for m in models]
+            available = self.settings.model in names
             return {
-                "status": (
-                    "ok" if self.settings.request_model in names else "degraded"
-                ),
+                "status": "ok" if available else "degraded",
+                "provider": self.settings.llm_provider,
                 "model": self.settings.model,
-                "runtime_model": self.settings.request_model,
-                "available": self.settings.request_model in names,
-                "configured_num_ctx": self.settings.num_ctx,
-                "effective_num_ctx": self.effective_num_ctx,
+                "fallback_model": self.settings.llm_fallback_model,
+                "available": available,
                 "latency_ms": round((time.perf_counter() - started) * 1000, 2),
             }
         except Exception as exc:  # noqa: BLE001
             return {
                 "status": "unavailable",
+                "provider": self.settings.llm_provider,
                 "model": self.settings.model,
+                "fallback_model": self.settings.llm_fallback_model,
                 "available": False,
                 "detail": str(exc),
             }

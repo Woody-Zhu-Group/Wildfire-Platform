@@ -67,14 +67,15 @@ Services on this host (from `deploy/systemd/`):
 | `wildfire-comparison` | 8003 | `http://127.0.0.1:8003/health` |
 | `wildfire-agent` | 8004 | `http://127.0.0.1:8004/health` |
 | `wildfire-frontend` | 8765 | `http://127.0.0.1:8765/` |
-| `wildfire-gpu-control` | 8005 | legacy, keep disabled |
 
 The agent calls the risk service at `RISK_FORECASTING_BASE_URL` (default
 `http://127.0.0.1:8001`). `wildfire-risk-forecasting` is newer than the other
 units, so the first deploy that includes it must install it (section 2.1).
 
-The model host (172.31.6.133, Ollama `qwen2.5:7b`, CPU only) is separate and
-is not restarted by this runbook.
+The agent's model tier is OpenRouter (GPT-6 Luna). The CPU model instance
+(172.31.6.133, formerly Ollama `qwen2.5:7b`) and the old GPU instance are
+retired; nothing in this runbook touches them. The agent unit needs
+`OPENROUTER_API_KEY` and `AGENT_ALLOW_REMOTE_PROVIDER=true` in the host `.env`.
 
 ## 1. Record the current state
 
@@ -123,7 +124,8 @@ sudo cp /home/ubuntu/Wildfire-Services/deploy/systemd/wildfire-*.service /etc/sy
 sudo systemctl daemon-reload
 ```
 
-`wildfire-gpu-control` is copied too but stays disabled. Do not enable it.
+If an old `wildfire-gpu-control.service` is still installed on the host,
+disable and remove it; it is no longer in the repo.
 
 ### 2.1 First deploy with the risk unit
 
@@ -208,8 +210,7 @@ curl -s --max-time 15 http://127.0.0.1:8004/health | python3 -m json.tool
 ```
 
 Then run the smoke test. Health checks only first, then the full run with the
-5 `/ask` questions (these can take up to 15 minutes in total on the CPU model
-host):
+6 `/ask` questions (each takes seconds on the hosted model):
 
 ```bash
 SMOKE_SKIP_ASK=1 bash scripts/smoke_test.sh

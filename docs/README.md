@@ -56,7 +56,7 @@ the other assets, including the existing HDW files, are retained.
 - Overview panels scroll with the page. The expand button opens a focused modal
   view; its X or Escape restores the same panel. Filters use a dialog, and record-table
   pagination fits the overview height so its controls remain visible.
-- Ask uses `POST /ask/stream`, without waiting for agent health or starting a GPU.
+- Ask uses `POST /ask/stream`, without waiting for agent health.
   Supported grounded map (including risk surface and residual), series, ranking
   comparison, record and metric views append panels. Other view contracts remain
   in the answer rather than becoming approximate charts.

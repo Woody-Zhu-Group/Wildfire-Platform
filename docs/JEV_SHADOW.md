@@ -6,9 +6,9 @@ Jev is a TypeSafe System One model. `off` and `shadow` do not change answers, to
 
 `AGENT_JEV_MODE=shadow` logs Jev's decisions next to the regex router. A timeout, exception, missing key, missing package, or bad response is a warning plus a log line. The user request does not wait.
 
-`AGENT_JEV_MODE=tool_pick` lets Jev choose the tool on the model path. It is off unless you set it. Qwen still writes the prose. The tool_pick request is the same call the offline `v3_hybrid` ablation sends, including the policy glossary. A context change is scored on that live payload, and the report includes the label and its confidence. If Jev's tool_pick confidence is below `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (default 0.8), or the call times out or errors, the normal qwen tool loop runs. Every decision is a `tool_pick_decision` line in the shadow log with the confidence and `path` `jev` or `qwen`.
+`AGENT_JEV_MODE=tool_pick` lets Jev choose the tool on the model path. It is off unless you set it. The LLM still writes the prose. The tool_pick request is the same call the offline `v3_hybrid` ablation sends, including the policy glossary. A context change is scored on that live payload, and the report includes the label and its confidence. If Jev's tool_pick confidence is below `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (default 0.8), or the call times out or errors, the normal LLM tool loop runs. Every decision is a `tool_pick_decision` line in the shadow log with the confidence and `path` `jev` or `qwen` (the historical label for the LLM loop, kept so older logs parse).
 
-`AGENT_JEV_MODE=tool_pick_template` uses that same gate, slot fill, and multi-tool refusal. After the tool succeeds, a template writes the answer for count, records list, map, trend, rank, spatial context, and a single comparison that does not ask why, explain, difference, or reason. Anything else, including an overview, still goes to qwen synthesis.
+`AGENT_JEV_MODE=tool_pick_template` uses that same gate, slot fill, and multi-tool refusal. After the tool succeeds, a template writes the answer for count, records list, map, trend, rank, spatial context, and a single comparison that does not ask why, explain, difference, or reason. Anything else, including an overview, still goes to LLM synthesis.
 
 `verify`, `fallback`, and `route` are reserved names. Setting them aborts startup. They are not implemented.
 
@@ -75,18 +75,18 @@ Keep `AGENT_JEV_MODE=off` until a local scored eval with shadow off and shadow o
 
 ## No-op diff on the EC2 host
 
-The production model there is `qwen2.5:7b`. `--run-tag` suffixes the artifact directory. Run this from the repo root with the services and Ollama already up:
+The production model is `openai/gpt-6-luna` on OpenRouter, so each runner pass spends API credits (about $0.10 per full pass of the 14 model-path dev cases at the prices in `services/agent/pricing.py`); set a budget before running. `--run-tag` suffixes the artifact directory. Run this from the repo root with the services up:
 
 ```bash
 cd /home/ubuntu/Wildfire-Services
-AGENT_JEV_MODE=off    .venv/bin/python -m services.agent.eval.runner --models qwen2.5:7b --thinking off --modes constrained --run-tag jev-off
-AGENT_JEV_MODE=off    .venv/bin/python -m services.agent.eval.runner --models qwen2.5:7b --thinking off --modes constrained --run-tag jev-off-2
-AGENT_JEV_MODE=shadow .venv/bin/python -m services.agent.eval.runner --models qwen2.5:7b --thinking off --modes constrained --run-tag jev-shadow
+AGENT_JEV_MODE=off    .venv/bin/python -m services.agent.eval.runner --models openai/gpt-6-luna --run-tag jev-off
+AGENT_JEV_MODE=off    .venv/bin/python -m services.agent.eval.runner --models openai/gpt-6-luna --run-tag jev-off-2
+AGENT_JEV_MODE=shadow .venv/bin/python -m services.agent.eval.runner --models openai/gpt-6-luna --run-tag jev-shadow
 .venv/bin/python -m services.agent.eval.jev_noop_diff jev-off jev-shadow --baseline-tag jev-off-2
-.venv/bin/python -m services.agent.eval.jev_vs_qwen jev-shadow --log services/agent/logs/jev_shadow.jsonl
+.venv/bin/python -m services.agent.eval.jev_shadow_report --log services/agent/logs/jev_shadow.jsonl
 ```
 
-`jev_vs_qwen` reads qwen tools from each trajectory event, not from `response.tool_calls`. It joins Jev on the question text. The shadow log is `AGENT_JEV_LOG_PATH`. It is not a file inside the run folder. On this host that file is `services/agent/logs/jev_shadow.jsonl` in `/home/ubuntu/Wildfire-Services`. Pass `--log` when the eval checkout is a different directory.
+The shadow report compares Jev's tool_pick with the tools the model emitted, read from each trajectory event, not from `response.tool_calls`. The shadow log is `AGENT_JEV_LOG_PATH`. It is not a file inside the run folder. On this host that file is `services/agent/logs/jev_shadow.jsonl` in `/home/ubuntu/Wildfire-Services`. Pass `--log` when the eval checkout is a different directory. The earlier `jev_vs_qwen` comparison script was removed with the local model path.
 
 A field that differs between off and shadow, and also between the two off runs, is `llm_variance`. Only a difference that appears in the shadow run alone is a shadow effect. `AGENT_JEV_DAILY_CALL_CAP` counts user questions. One question may send several Jev calls. `AGENT_JEV_ABLATION` selects the shadow question layout.
 
@@ -102,7 +102,7 @@ Set `AGENT_JEV_MODE=tool_pick` and restart. Leave `AGENT_JEV_TOOL_PICK_MIN_CONFI
 
 A pick of any other tool (`data_query_rank`, `visualization_inspect`, `risk_forecast`) has no slot fill and falls back. An HFTD map needs no year.
 
-A missing required slot falls back to the qwen routing loop. So do a confidence below the threshold, a timeout, an error, a tool outside the candidate list, a failed tool call, and any question that needs more than one primary tool. Eval can still force `multi_intent_count_and_trend` onto the model path. A normal Ask with a dataset and a year runs that rule deterministically: the records count and the time series both, then the template, with no model call. One Jev pick does not answer a two-part question. Qwen still writes the prose when the template does not apply. Shadow mode stays identical to off for anything a user or the eval suite observes, aside from timings and request ids.
+A missing required slot falls back to the LLM routing loop. So do a confidence below the threshold, a timeout, an error, a tool outside the candidate list, a failed tool call, and any question that needs more than one primary tool. Eval can still force `multi_intent_count_and_trend` onto the model path. A normal Ask with a dataset and a year runs that rule deterministically: the records count and the time series both, then the template, with no model call. One Jev pick does not answer a two-part question. The LLM still writes the prose when the template does not apply. Shadow mode stays identical to off for anything a user or the eval suite observes, aside from timings and request ids.
 
 ## detect_partial_200 tool_pick tie
 
@@ -117,7 +117,7 @@ A missing required slot falls back to the qwen routing loop. So do a confidence 
 
 The word "sample" costs 14 points when the year stays in front (0.54 to 0.68) and 21 points when the year stays at the end (0.55 to 0.76). Year position does not matter: the two sample wordings are 0.54 and 0.55.
 
-In `services/agent/eval/runs/jev_hybrid_raw_20260922T204748Z.json` (a local run file, not committed), 12 of 14 model-path questions have a minimum top-two gap from 0.28 to 0.95. This case stays at 0.01 to 0.07. Confidence on the original wording was 0.25 to 0.37, so the default 0.8 gate falls back to the qwen tool loop (`below_threshold`).
+In `services/agent/eval/runs/jev_hybrid_raw_20260922T204748Z.json` (a local run file, not committed), 12 of 14 model-path questions have a minimum top-two gap from 0.28 to 0.95. This case stays at 0.01 to 0.07. Confidence on the original wording was 0.25 to 0.37, so the default 0.8 gate falls back to the LLM tool loop (`below_threshold`).
 
 The glossary line in the tool_pick context says "us_ignitions is an all-cause sample, not a census." That line may be priming the clarify option when the question also says "sample." Question text and policy were left unchanged.
 

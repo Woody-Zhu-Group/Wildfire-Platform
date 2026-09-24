@@ -11,9 +11,16 @@ running service (not ones that use httpx.MockTransport). Example:
 
 from __future__ import annotations
 
+import os
 import socket
 
 import pytest
+
+# The only LLM provider is OpenRouter, so AgentSettings.from_env() needs a key
+# and the remote gate. Tests never call the network (mocked transports and
+# fake providers only); a fake key keeps a real one out of the test run.
+os.environ.setdefault("OPENROUTER_API_KEY", "sk-or-test-not-a-real-key")
+os.environ.setdefault("AGENT_ALLOW_REMOTE_PROVIDER", "true")
 
 _REACHABLE: dict[tuple[str, int], bool] = {}
 

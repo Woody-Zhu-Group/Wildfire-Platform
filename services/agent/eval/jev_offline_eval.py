@@ -1,4 +1,4 @@
-"""Score Jev against eval cases without Ollama or the backend services.
+"""Score Jev against eval cases without the LLM or the backend services.
 
 Accuracy is against the case files. Regex-versus-Jev is reported as agreement.
 """

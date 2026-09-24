@@ -26,7 +26,6 @@ def clean_env(monkeypatch):
 
 def _hosted(clean_env, **env: str) -> AgentSettings:
     clean_env.setenv("OPENROUTER_API_KEY", FAKE_KEY)
-    clean_env.setenv("AGENT_LLM_PROVIDER", "openrouter")
     clean_env.setenv("AGENT_ALLOW_REMOTE_PROVIDER", "true")
     for name, value in env.items():
         clean_env.setenv(name, value)
@@ -57,75 +56,53 @@ def _chat_reply(message: dict, *, model: str = "openai/gpt-6-luna") -> httpx.Res
     )
 
 
-def test_defaults_are_unchanged(clean_env):
-    settings = AgentSettings.from_env()
-    assert settings.llm_provider == "ollama"
-    assert settings.hosted_llm is False
-    assert settings.model == "qwen2.5:7b"
-    assert settings.model_base_url == "http://127.0.0.1:11434/v1"
-    assert settings.llm_fallback_model is None
-    assert settings.jev_backend == "typesafe"
-    assert settings.jev_model == "jev-latest"
-    assert settings.jev_mode == "off"
-
-
-def test_default_ollama_requests_still_use_the_native_workarounds(clean_env):
-    settings = AgentSettings.from_env()
-    recorder = _Recorder(
-        [
-            httpx.Response(
-                200,
-                json={
-                    "message": {"content": '{"calls":[{"tool":"data_query_records","arguments":{}}]}'},
-                    "prompt_eval_count": 5,
-                    "eval_count": 3,
-                },
-            ),
-            httpx.Response(
-                200,
-                json={
-                    "message": {"content": '{"status":"answer","answer":"x","claims":[]}'},
-                    "prompt_eval_count": 5,
-                    "eval_count": 3,
-                },
-            ),
-        ]
-    )
-    provider = OpenAICompatibleProvider(settings, transport=httpx.MockTransport(recorder))
-    provider.effective_num_ctx = settings.num_ctx
-
-    async def run():
-        routed = await provider.complete(
-            messages=[{"role": "user", "content": "q"}],
-            tools=[],
-            structured_response=False,
-            constrained_tool_routing=True,
-            candidate_tools=["data_query_records"],
-        )
-        synth = await provider.complete(messages=[{"role": "user", "content": "q"}], tools=[])
-        await provider.close()
-        return routed, synth
-
-    routed, _ = asyncio.run(run())
-    assert [r.url.path for r in recorder.requests] == ["/api/chat", "/api/chat"]
-    assert "format" in recorder.body(0) and "tool_choice" not in recorder.body(0)
-    assert routed.tool_calls[0]["id"] == "call_envelope_0"
-    assert recorder.body(1)["format"]["required"] == ["status", "answer", "claims"]
-
-
-def test_openrouter_settings_use_luna_and_sol(clean_env):
+def test_defaults_are_openrouter_with_luna_and_sol(clean_env):
     settings = _hosted(clean_env)
+    assert settings.llm_provider == "openrouter"
     assert settings.model_base_url == "https://openrouter.ai/api/v1"
     assert settings.model == "openai/gpt-6-luna"
     assert settings.llm_fallback_model == "openai/gpt-6-sol"
+    assert settings.jev_backend == "typesafe"
+    assert settings.jev_model == "jev-latest"
+    assert settings.jev_mode == "off"
     assert FAKE_KEY not in repr(settings)
 
 
-def test_openrouter_still_needs_the_remote_provider_gate(clean_env):
+def test_model_and_fallback_come_from_the_environment(clean_env):
+    settings = _hosted(
+        clean_env, AGENT_LLM_MODEL="openai/gpt-6-sol", AGENT_LLM_FALLBACK_MODEL=""
+    )
+    assert settings.model == "openai/gpt-6-sol"
+    assert settings.llm_fallback_model is None
+
+
+def test_the_remote_provider_gate_fails_loudly_when_off(clean_env):
     clean_env.setenv("OPENROUTER_API_KEY", FAKE_KEY)
-    clean_env.setenv("AGENT_LLM_PROVIDER", "openrouter")
     with pytest.raises(ValueError, match="AGENT_ALLOW_REMOTE_PROVIDER"):
         AgentSettings.from_env()
+
+
+def test_ollama_is_no_longer_a_provider(clean_env):
+    clean_env.setenv("OPENROUTER_API_KEY", FAKE_KEY)
+    clean_env.setenv("AGENT_ALLOW_REMOTE_PROVIDER", "true")
+    clean_env.setenv("AGENT_LLM_PROVIDER", "ollama")
+    with pytest.raises(ValueError, match="only LLM provider is openrouter"):
+        AgentSettings.from_env()
+
+
+def test_removed_ollama_settings_are_ignored(clean_env):
+    settings = _hosted(
+        clean_env,
+        AGENT_MODEL="qwen2.5:7b",
+        AGENT_MODEL_BASE_URL="http://127.0.0.1:11434/v1",
+        AGENT_THINKING="on",
+        AGENT_STRUCTURED_MODE="prompt",
+        AGENT_NUM_CTX="4096",
+    )
+    assert settings.model == "openai/gpt-6-luna"
+    assert settings.model_base_url == "https://openrouter.ai/api/v1"
+    for removed in ("thinking", "structured_mode", "num_ctx", "model_runtime", "provider"):
+        assert not hasattr(settings, removed)
 
 
 @pytest.mark.parametrize("flag", ["AGENT_LLM_PROVIDER", "AGENT_JEV_BACKEND"])
@@ -154,9 +131,9 @@ def test_tool_call_path_uses_native_tool_choice(clean_env, capsys):
             messages=[{"role": "user", "content": "q"}],
             tools=catalog,
             structured_response=False,
-            constrained_tool_routing=True,
+            tool_routing=True,
             candidate_tools=["data_query_records"],
-            model=settings.request_model,
+            model=settings.model,
         )
         await provider.close()
         return reply
@@ -174,8 +151,8 @@ def test_tool_call_path_uses_native_tool_choice(clean_env, capsys):
     from services.agent.provider import strict_nullable_tool
 
     assert body["tools"][0] == strict_nullable_tool(catalog[0])
-    for ollama_only in ("format", "options", "keep_alive", "think"):
-        assert ollama_only not in body
+    for removed in ("format", "options", "keep_alive", "think"):
+        assert removed not in body
     assert "response_format" not in body
     assert [c["function"]["name"] for c in reply.tool_calls] == ["data_query_records"]
     assert json.loads(reply.tool_calls[0]["function"]["arguments"]) == {"dataset": "epss_outages"}
@@ -212,6 +189,7 @@ def test_synthesis_path_uses_strict_structured_output(clean_env):
     assert claim["required"] == ["text", "evidence_ids"]
     assert claim["additionalProperties"] is False
     assert "tools" not in body and "tool_choice" not in body
+    assert body["reasoning"] == {"effort": "none"}
     assert json.loads(reply.content) == answer
 
 
@@ -235,16 +213,38 @@ def test_failed_luna_request_retries_once_on_sol(clean_env):
     assert reply.usage["computed_cost_usd"] == pytest.approx((1000 * 2.0 + 200 * 10.0) / 1e6)
 
 
-def test_hosted_retry_turns_escalate_to_the_fallback_model(clean_env):
+def test_retry_turns_escalate_to_the_fallback_model(clean_env):
     from services.agent.orchestrator import AgentOrchestrator
 
     hosted = _hosted(clean_env)
-    local = replace(hosted, llm_provider="ollama", llm_fallback_model=None)
-    for settings, second in ((hosted, "openai/gpt-6-sol"), (local, "openai/gpt-6-luna")):
+    no_fallback = replace(hosted, llm_fallback_model=None)
+    for settings, second in ((hosted, "openai/gpt-6-sol"), (no_fallback, "openai/gpt-6-luna")):
         orchestrator = AgentOrchestrator.__new__(AgentOrchestrator)
         orchestrator.settings = settings
         assert orchestrator._turn_model(1, "openai/gpt-6-luna") == "openai/gpt-6-luna"
         assert orchestrator._turn_model(2, "openai/gpt-6-luna") == second
+
+
+def test_health_reports_provider_model_and_fallback(clean_env):
+    settings = _hosted(clean_env)
+    recorder = _Recorder(
+        [httpx.Response(200, json={"data": [{"id": "openai/gpt-6-luna"}, {"id": "openai/gpt-6-sol"}]})]
+    )
+    provider = OpenAICompatibleProvider(settings, transport=httpx.MockTransport(recorder))
+
+    async def run():
+        health = await provider.health()
+        await provider.close()
+        return health
+
+    health = asyncio.run(run())
+    assert recorder.requests[0].url.path == "/api/v1/models"
+    assert health["status"] == "ok" and health["available"] is True
+    assert health["provider"] == "openrouter"
+    assert health["model"] == "openai/gpt-6-luna"
+    assert health["fallback_model"] == "openai/gpt-6-sol"
+    for removed in ("configured_num_ctx", "effective_num_ctx", "runtime_model"):
+        assert removed not in health
 
 
 def test_openrouter_jev_backend_without_key_does_not_call(clean_env, caplog):
@@ -280,6 +280,7 @@ def test_make_backend_follows_the_setting():
 
 def test_openrouter_jev_backend_pins_the_dated_model(clean_env):
     clean_env.setenv("OPENROUTER_API_KEY", FAKE_KEY)
+    clean_env.setenv("AGENT_ALLOW_REMOTE_PROVIDER", "true")
     clean_env.setenv("AGENT_JEV_BACKEND", "openrouter")
     assert AgentSettings.from_env().jev_model == "typesafe/jev-1.13-20260917"
     clean_env.setenv("AGENT_JEV_MODEL", "jev-latest")
@@ -325,7 +326,7 @@ def test_null_arguments_mean_not_set(clean_env):
             messages=[{"role": "user", "content": "q"}],
             tools=[],
             structured_response=False,
-            constrained_tool_routing=True,
+            tool_routing=True,
             candidate_tools=["data_query_spatial"],
         )
         await provider.close()

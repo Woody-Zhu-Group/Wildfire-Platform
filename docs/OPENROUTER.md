@@ -1,20 +1,19 @@
 # OpenRouter backends
 
-Both switches default off. With no new env vars set, the agent runs exactly as before:
-Qwen on the local Ollama host and Jev on api.typesafe.ai.
+OpenRouter is the agent's only LLM provider. Jev stays on api.typesafe.ai unless
+`AGENT_JEV_BACKEND=openrouter` is set.
 
 ## Production switch
 
-Do not switch yet. The provider-level fixes are in: invented placeholder filters went from
-37 to 0 on the force_model cases, all 14 of those cases now pass, and the 8 multi-part holdout
-failures now cover every named entity with SQL-correct numbers. The remaining holdout failures
-are not provider problems. They need the Jev-first decider turned on and the slot planner
-before the switch. The decider is `AGENT_JEV_MODE=decide` (off by default,
-`docs/JEV_DECIDE.md`); the slot planner is `AGENT_SLOT_PLAN` (off by default, `docs/JEV_MULTI_TOOL.md`). See "What the switch still needs"
-below.
-Keep this note until invented filters are zero and every wrong answer is explained.
+Production switched to OpenRouter on 2026-09-24, and the local Ollama/qwen path and its
+workarounds were removed from the code the same day. The provider-level fixes recorded here
+were in before the switch: invented placeholder filters went from 37 to 0 on the force_model
+cases, all 14 of those cases pass, and the 8 multi-part holdout failures cover every named
+entity with SQL-correct numbers. The remaining holdout failures below are not provider
+problems; they need the Jev-first decider (`AGENT_JEV_MODE=decide`, `docs/JEV_DECIDE.md`)
+and the slot planner (`AGENT_SLOT_PLAN`, `docs/JEV_MULTI_TOOL.md`), both still off by default.
 
-### What the switch still needs
+### What still needs the decider and the planner
 
 Failure categories from the 105-question holdout run, and what clears each:
 
@@ -43,22 +42,21 @@ only in that file on the host, never in git, logs, or chat.
 Check the switch took: `GET /health` reports model `openai/gpt-6-luna`, and every model call
 prints an `llm_usage` line with that model.
 
-Once the agent runs on OpenRouter it makes no calls to the Ollama model host (172.31.6.133),
-so that host can be stopped. Keep it only if something else still needs local Qwen, such as
-a qwen eval run.
+The agent makes no calls to the former Ollama model host (172.31.6.133); that instance and
+the old GPU instance are retired.
 
 ## LLM: `AGENT_LLM_PROVIDER`
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AGENT_LLM_PROVIDER` | `ollama` | `ollama` or `openrouter` |
-| `AGENT_LLM_MODEL` | `openai/gpt-6-luna` | Primary model when the provider is `openrouter` |
+| `AGENT_LLM_PROVIDER` | `openrouter` | The only accepted value; any other value fails at startup |
+| `AGENT_LLM_MODEL` | `openai/gpt-6-luna` | Primary model |
 | `AGENT_LLM_FALLBACK_MODEL` | `openai/gpt-6-sol` | Used for retries after a failed turn, and once when a primary request errors |
-| `AGENT_ALLOW_REMOTE_PROVIDER` | `false` | Must be `true` for `openrouter`. The existing security gate is kept |
-| `OPENROUTER_API_KEY` | unset | Required for `openrouter`. Startup fails with a clear error if missing. Never commit it |
+| `AGENT_ALLOW_REMOTE_PROVIDER` | `false` | Must be `true` or the agent refuses to start with a clear message. The gate is kept so sending questions off the host is a deliberate choice |
+| `OPENROUTER_API_KEY` | unset | Required. Startup fails with a clear error if missing. Never commit it |
 
-With `openrouter`, requests go to `https://openrouter.ai/api/v1/chat/completions`. Two Ollama
-workarounds are replaced:
+Requests go to `https://openrouter.ai/api/v1/chat/completions`. Two workarounds from the
+removed Ollama path are gone:
 
 - Routing: native `tools` with `tool_choice: "required"` instead of the JSON call envelope
   sent through `/api/chat` `format`. The tool list is the same `lean_enums` catalog, filtered
@@ -68,8 +66,7 @@ workarounds are replaced:
   all required), with `additionalProperties: false` added because strict mode requires it.
 
 Everything after the model call is unchanged: deterministic routing first, the same tools,
-harness rules, evidence_ids grounding, and caveats. Ollama-only fields (`options.num_ctx`,
-`keep_alive`, `think`) and the context warmup are skipped. `temperature` is not sent because
+harness rules, evidence_ids grounding, and caveats. `temperature` is not sent because
 OpenRouter lists no temperature support for the GPT-6 models; `seed` is still sent.
 `provider.require_parameters` keeps requests on hosts that honor `tool_choice` and
 `response_format`.
@@ -104,8 +101,7 @@ any are uncovered it asks the model for the missing ones and continues, within t
 empty turns escalate to Sol. If entities are still uncovered at the limit, the answer is an
 error naming them, never a partial answer. `parallel_tool_calls` is not sent: OpenRouter does
 not list it for GPT-6 Luna, and with `provider.require_parameters` the request then 404s.
-Several calls per turn are allowed by default. The Ollama loop is unchanged because the native
-endpoint rejects multi-turn tool history.
+Several calls per turn are allowed by default.
 
 Synthesis sample sizes: the quantity check no longer rejects a record-list sample size
 ("returned 10 records") when the number equals a records call's `returned` value and the
@@ -180,7 +176,7 @@ Jev, dev set (cases.json plus paraphrases, used for tuning), one pass through ea
 
 Luna, one pass, run tag `openrouter-luna`, 14 force_model cases from cases.json (dev, used
 for tuning). 5 of 14 pass the runner's status, tools, and caveat checks plus evidence present;
-p50 3.9 s, p95 12.8 s per case; $0.083 total. No request reached the Ollama host.
+p50 3.9 s, p95 12.8 s per case; $0.083 total. No request reached the then-current Ollama host.
 Run files: `services/agent/eval/runs/openai-gpt-6-luna__thinking-off__constrained__openrouter-luna/`.
 
 Not ready for production. Luna fills optional tool fields with placeholder values instead of
@@ -232,14 +228,14 @@ Where the 47 wrong answers come from:
 
 - 29 answered a question labeled clarify (11) or refuse (18). On main nothing on the
   model path can clarify or refuse once the router sends a question there: routing forces a
-  tool call (the Ollama envelope does the same) and Jev disposition gating is not enabled.
+  tool call (the removed Ollama envelope did the same) and Jev disposition gating is not enabled.
   This is a pipeline gap, not specific to Luna.
 - 18 answered a question labeled answer, but partially or with the wrong tool:
   - 8 multi-part questions answered with one call (`ho_006`, `ho_018`, `ho_022`, `ho_047`,
     `hv2_020`, `hv2_025`, `hv2_028`, `hv3_006`): "2021 or 2022" answered for 2021 only, three
     counties answered for one, "PG&E, SCE, and SDGE" answered for PG&E only, Tier 2 and Tier 3
-    answered for Tier 2 only. The Ollama envelope asks for a `calls` array; the native tool
-    path returns one call and the routing loop stops after a successful turn.
+    answered for Tier 2 only. The removed Ollama envelope asked for a `calls` array; the
+    native tool path returns one call and the routing loop stops after a successful turn.
   - 3 rankings or breakdowns answered with one statewide total (`ho_069`, `hv2_001`, `hv3_037`).
   - 4 used a tool that cannot answer the question (`ho_026` overlay, `ho_029` PSPS by tier,
     `hv2_014` share by tier, `hv3_005` California share of the US sample).
@@ -278,10 +274,9 @@ where the label names `comparison_run` or `data_query_rank`. One answer is incom
 it cannot place Bear Valley rather than inventing a number. Shasta's 4 is exact-county: 2 more
 2020 incidents are tagged "Shasta, Tehama" and are excluded by the data service's county filter.
 
-LLM, the 14 force_model cases in cases.json, with the data services and PostGIS running. This does not
-contact the Ollama host:
+LLM, the 14 force_model cases in cases.json, with the data services and PostGIS running (the
+`--thinking` and `--modes` flags from the original command were removed with the Ollama path):
 
-    AGENT_LLM_PROVIDER=openrouter AGENT_ALLOW_REMOTE_PROVIDER=true \
-      python -m services.agent.eval.runner --models openai/gpt-6-luna --thinking off \
-      --modes constrained --case-ids \
+    AGENT_ALLOW_REMOTE_PROVIDER=true \
+      python -m services.agent.eval.runner --models openai/gpt-6-luna --case-ids \
       spatial_pge_ignitions_2024,cpuc_vs_us,count_plus_trend,recover_validation,recover_503,detect_partial_200,holdout_spatial_sce_2023,holdout_count_trend_sce_2023,collision_wrong_kind_model_repair,schema_retry_bound_persistent,model_explicit_year_filled,model_synthesis_bounded,model_cpuc_tell_me_about_2023,model_sacramento_tell_me_about_2024 --run-tag openrouter-luna

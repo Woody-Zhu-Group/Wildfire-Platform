@@ -104,18 +104,6 @@ def test_mode_off_never_imports_sdk_or_builds_runner(monkeypatch, tmp_path):
     sys.modules.pop("typesafe_sdk", None)
     app_module = importlib.reload(importlib.import_module("services.agent.app"))
 
-    async def _runtime(settings):
-        return settings
-
-    async def _context(self):
-        return {}
-
-    monkeypatch.setattr(app_module, "ensure_runtime_model", _runtime)
-    monkeypatch.setattr(
-        "services.agent.provider.OpenAICompatibleProvider.ensure_context_loaded",
-        _context,
-    )
-
     async def _run():
         async with app_module.lifespan(app_module.app):
             assert app_module.orchestrator is not None

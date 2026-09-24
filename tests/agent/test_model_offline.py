@@ -19,7 +19,7 @@ class _UnusedExecutor:
         raise AssertionError("model-offline short-circuit must not execute tools")
 
 
-def test_model_path_returns_error_not_500_when_gpu_is_down():
+def test_model_path_returns_error_not_500_when_the_provider_is_down():
     async def run():
         orchestrator = AgentOrchestrator(
             AgentSettings(max_tool_steps=2),

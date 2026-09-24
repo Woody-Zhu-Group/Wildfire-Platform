@@ -1,5 +1,7 @@
 # Agent feasibility evaluation
 
+> Historical record. This document describes the local Ollama/qwen model path, which was removed on 2026-09-24 when production switched to OpenRouter (GPT-6 Luna). The measurements below are kept as they were made and are not comparable to the hosted path. See `docs/OPENROUTER.md`.
+
 ## Superseded baseline
 
 The earlier **0/5 model-tier routing result is superseded and must not be used as evidence that local models cannot route.** Its root cause was **token budget exhaustion during tool-catalog deliberation, not a model capability limit**. Direct isolated calls proved `qwen3:4b` emits tool calls through both Ollama endpoints.

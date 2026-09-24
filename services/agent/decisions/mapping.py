@@ -205,7 +205,7 @@ def regex_labels(decision: RouteDecision) -> dict[str, Any]:
 
 
 def model_tool_labels(trajectory: list[dict[str, Any]], status: str) -> dict[str, Any]:
-    """Tools qwen3 emitted on its first routing turn, and the last successful primary tool."""
+    """Tools the model emitted on its first routing turn, and the last successful primary tool."""
     phase = "before"
     first: list[str] = []
     for event in trajectory:

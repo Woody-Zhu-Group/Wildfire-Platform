@@ -1957,46 +1957,6 @@ article.page:has(#sect-fasttrip-psps) .page__content {
   color: var(--sfps-muted);
 }
 
-.sfps-gpu-control {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.55rem 0.65rem;
-  border: 1px solid var(--sfps-border);
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.sfps-gpu-status {
-  margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: var(--sfps-text);
-}
-
-.sfps-gpu-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.sfps-gpu-note {
-  margin: 0;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: var(--sfps-muted);
-}
-
-.sfps-gpu-control[data-state="ready"] {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-}
-
-.sfps-gpu-control[data-state="error"],
-.sfps-gpu-control[data-state="unavailable"] {
-  background: #f8fafc;
-}
-
 .sfps-agent-form {
   display: flex;
   flex-direction: column;

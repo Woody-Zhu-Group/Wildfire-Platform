@@ -23,7 +23,7 @@ HDWI, day scrubber, and HFTD legend are Map chrome, not components. Max **two** 
 
 `ViewPlanner` (`plan_views` in `services/agent/views.py`) builds specs from **successful primary tool results**. The model does not pick components. There is no `render_view` tool.
 
-Why: tool selection is already the weak path on `qwen3:4b`. A wrong tool call fails loudly. A wrong visual paints and looks authoritative. Selection therefore uses the same guarantees as tools (schema, validation, grounding) with a different producer: the harness, analogous to caveats.
+Why: tool selection was the weak path on the earlier local model (`qwen3:4b`, since removed) and is still the model-dependent step. A wrong tool call fails loudly. A wrong visual paints and looks authoritative. Selection therefore uses the same guarantees as tools (schema, validation, grounding) with a different producer: the harness, analogous to caveats.
 
 Optional overlay: synthesis JSON may include `views`. The harness would ground that array and **discard it on any failure**, then use the planner. Missing `views` is not an error. Fail closed; do not block the answer on it. Today the overlay is not wired; the planner is the only producer. If you add it, keep that discard-on-failure rule.
 
