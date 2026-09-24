@@ -2,6 +2,8 @@
 
 Every item here is a change to Jev (TypeSafe) or to the layer around it that was deliberately not made. Each entry says why it was deferred, which rows or cases motivate it, and what must be measured when it lands.
 
+Status, 2026-09-23: only holdout v1 (`services/agent/eval/jev_holdout.json`, 97 rows) is on main. The holdout v2 and v3 question files are not on main; they live on unmerged branches (the offline scorers read v3 from `platform/jev-multi-tool`). Main has only the v3 scoring outputs (`jev_holdout_v3_independent_score.json`, `jev_holdout_v3_labels_chatgpt.json`). The v2 and v3 row ids below (`hv2_*`, `hv3_*`) refer to those branch files.
+
 ## Rules that apply to every item
 
 - Holdout v3 is frozen. None of these changes may be tuned, scored for selection, or justified against v3. The v3 rows named below are evidence that a gap exists, not a target. Production shadow logs are the next clean test set.
@@ -25,9 +27,9 @@ Measure when it lands: label accuracy and mean confidence on dev, v1, and v2, be
 
 What: give Jev a way to recognize a grid map, risk surface, or residual map question with a date and no place, so it does not clarify with `risk_missing_place` once Jev owns disposition.
 
-Why deferred: today `derive_outcome` fires `risk_missing_place` whenever `asks_risk` is yes and `names_specific_place` is no. PR #26 answers these questions through `risk_surface`, a router-only tool kept out of `TOOL_MODELS`, `TOOL_DESCRIPTIONS`, and the Jev payloads so those payloads stay unchanged. Recognizing the case in Jev needs a new fact or a new intent option, which is a wording change with a five-repeat run, and PR #26 is not merged yet.
+Why deferred: today `derive_outcome` fires `risk_missing_place` whenever `asks_risk` is yes and `names_specific_place` is no. PR #26 (merged in `374ccca`) answers these questions through `risk_surface`, a router-only tool kept out of `TOOL_MODELS`, `TOOL_DESCRIPTIONS`, and the Jev payloads so those payloads stay unchanged. Recognizing the case in Jev needs a new fact or a new intent option, which is a wording change with a five-repeat run.
 
-Motivating cases: the three cases added to cases.json by commit `a1242cc` on `panel-summary-stats` (a grid question with a date and no place). PR #26 states the gap plainly: with a Jev mode on, a statewide surface question may still be clarified for a place.
+Motivating cases: the three cases added to cases.json by commit `a1242cc` on `panel-summary-stats` (on main as `3a5fd97`; a map, surface, or residual question with a date and no place). PR #26 states the gap plainly: with a Jev mode on, a statewide surface question may still be clarified for a place.
 
 Measure when it lands: five repeats on the new question, with the flip rate. Label accuracy and mean confidence on dev, v1, and v2 before and after. Every existing `risk_missing_place` row must still clarify. The router's `risk_surface` date checks (missing day, month only, forward phrase, after 2025-12-31) must still apply ahead of the answer.
 
@@ -45,7 +47,9 @@ Measure when it lands: route changes across all eval sets. Label accuracy on dev
 
 What: when a question is missing two things, ask for both in one clarification instead of the first one found.
 
-Why deferred: `clarify_reason` is a single Choice, so a second reason needs a schema change to the Jev questions or a second call, either of which changes the payload and needs a five-repeat run. Commit `8309b01` on `jev-shadow` handles it on the label side only, by accepting either matching label when a question is missing two things or asks for separate counts.
+Status, 2026-09-23: the router side is on main (PR #51, `services/agent/clarify_missing.py`). One clarification now asks for every missing year, place, and dataset and ends with an example rephrasing; the rule id does not change. The Jev side below is still deferred.
+
+Why deferred (Jev side): `clarify_reason` is a single Choice, so a second reason needs a schema change to the Jev questions or a second call, either of which changes the payload and needs a five-repeat run. Commit `8309b01` on `jev-shadow` (on main as `d6a8497`) handles it on the label side only, by accepting either matching label when a question is missing two things or asks for separate counts.
 
 Motivating rows: hv3_050 (per-event customers, missing a year), hv3_076 (PSPS during fire season, missing a year and a metric), and the rows covered by `8309b01`.
 
@@ -73,7 +77,7 @@ Measure when it lands: if the threshold changes, one pass on dev, v1, and v2: th
 
 What: the combined decider (router hard backstops first, then Jev's disposition, then the router's slots and tools) exists only as offline scoring in `services/agent/eval/_v3_gap_score.py` and the rescoring recorded in `jev_holdout_v3_independent_score.json`. On the 65 certain v3 rows, tuned, it scored 56 of 65 against 51 for Jev alone and 45 for the router alone. There is no `AGENT_JEV_MODE` value that runs it.
 
-Why deferred: main accepts `off`, `shadow`, `tool_pick`, and `tool_pick_template` since PR 43; `plan` arrives with `jev-multi-tool`. None of those is the Jev-first decider. A runtime mode also needs decisions that offline scoring skips: the confidence gate on the disposition, the 3 second Jev timeout and what happens on a timeout or error, and the null backend fallback.
+Why deferred: main accepts `off`, `shadow`, `tool_pick`, and `tool_pick_template` since PR 43 (`services/agent/config.py` `validate()`). None of those is the Jev-first decider. A `plan` mode (open PR #46) and a `decide` mode (open PR #49) are proposed on other branches; neither is on main. A runtime mode also needs decisions that offline scoring skips: the confidence gate on the disposition, the 3 second Jev timeout and what happens on a timeout or error, and the null backend fallback.
 
 Motivating rows: the whole v3 rescoring, plus the dev rows where the intent-gated measure policy restored six answers.
 

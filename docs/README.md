@@ -44,24 +44,27 @@ the other assets, including the existing HDW files, are retained.
   Configured-service failures do not switch data sources at runtime. An explicit
   empty URL selects the complete-record path and browser calculations at build time.
 - Unsupported filter controls/options show a short reason underneath. Card header
-  information controls share dataset definitions with CSV exports. Ask comparison
-  and spatial-context views show a small pending-support notice while retaining
-  the answer and full response contract.
-- Each panel has independent filters. Names, order and settings persist in the
-  browser; conversation text and selected-event context do not.
+  information controls share dataset definitions with CSV exports. Ask non-ranking
+  comparison (utilities, regions, periods) and spatial-context views show a small
+  pending-support notice while retaining the answer and full response contract.
+- A workspace Year bar (2014 to 2025, default 2024) sets the date window panels
+  inherit; a panel can pin its own dates instead. Otherwise each panel has
+  independent filters. Names, order, settings and the workspace year persist in
+  the browser; conversation text and selected-event context do not.
 - Add panel groups the available views under Map, Time series, Comparison,
   Record table and Stat card. Change view switches analyses within a category.
 - Overview panels scroll with the page. The expand button opens a focused modal
   view; its X or Escape restores the same panel. Filters use a dialog, and record-table
   pagination fits the overview height so its controls remain visible.
 - Ask uses `POST /ask/stream`, without waiting for agent health or starting a GPU.
-  Supported grounded map, series, record and metric views append panels. Other
-  view contracts remain in the answer rather than becoming approximate charts.
+  Supported grounded map (including risk surface and residual), series, ranking
+  comparison, record and metric views append panels. Other view contracts remain
+  in the answer rather than becoming approximate charts.
 - Source metadata reports the first/last recorded event dates, not scrape times.
   The source panel and website guide document data limitations; unavailable
   values are not converted into zeros.
 - HDW playback uses the supplied static cubes; event overlays follow the shown
-  day by start date. The legend explains event symbols, acreage, HFTD and HDW.
+  day by start date. Event maps without HDW also offer Day by day playback. The legend explains event symbols, acreage, HFTD and HDW.
 - Time series can compare years with marked partial endpoints. Header actions
   export filtered CSV / chart PNG and duplicate panel settings independently.
 - Regional trends compare EPSS counts by PG&E division on a shared scale;
@@ -69,8 +72,9 @@ the other assets, including the existing HDW files, are retained.
   years inside Filters: one year is a solid weekly line; multiple years use
   dashed individual lines and a thicker solid mean. Closed filters show only
   the number of selected years.
-- This slice does not introduce model risk surfaces, raw weather/vegetation
-  querying, national census counts, or full network topology.
+- The modeled risk surface and residual map are statistical hindcasts for one
+  historical date. The site does not offer raw weather/vegetation querying,
+  national census counts, or full network topology.
 
 The former static page scripts and canvas documentation are historical context;
 the new entrypoint does not load them. The local Planning Tool remains under

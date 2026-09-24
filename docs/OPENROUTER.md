@@ -8,8 +8,9 @@ Qwen on the local Ollama host and Jev on api.typesafe.ai.
 Do not switch yet. The provider-level fixes are in: invented placeholder filters went from
 37 to 0 on the force_model cases, all 14 of those cases now pass, and the 8 multi-part holdout
 failures now cover every named entity with SQL-correct numbers. The remaining holdout failures
-are not provider problems. They need the Jev-first decider and the slot planner, which live on
-`jev-multi-tool`, before the switch. See "What the switch still needs" below.
+are not provider problems. They need the Jev-first decider and the slot planner before the
+switch. Neither is on main: open PR #46 proposes plan mode and the slot planner, and open PR #49
+proposes a decide mode. See "What the switch still needs" below.
 Keep this note until invented filters are zero and every wrong answer is explained.
 
 ### What the switch still needs
@@ -18,8 +19,8 @@ Failure categories from the 105-question holdout run, and what clears each:
 
 | Category | Count | Cleared by |
 |---|---|---|
-| Answered a question labeled clarify or refuse | 29 | Jev-first decider. On this branch nothing on the model path can clarify or refuse once the router sends a question there, because routing forces a tool call. Jev decides answer, clarify, or refuse before any tool runs. |
-| Multi-part question answered with one call | 8 | Fixed here for hosted models by the coverage continuation (all 8 now cover every entity). The slot planner (`AGENT_SLOT_PLAN`) makes it deterministic: one planned call per named entity, no dependence on the model choosing to call again. |
+| Answered a question labeled clarify or refuse | 29 | Jev-first decider (not on main). On main nothing on the model path can clarify or refuse once the router sends a question there, because routing forces a tool call. Jev decides answer, clarify, or refuse before any tool runs. |
+| Multi-part question answered with one call | 8 | Fixed here for hosted models by the coverage continuation (all 8 now cover every entity). The slot planner (open PR #46, not on main; its flag there is `AGENT_SLOT_PLAN`) would make it deterministic: one planned call per named entity, no dependence on the model choosing to call again. |
 | Ranking or breakdown answered with one statewide total | 3 | Jev-first decider tool pick (intent rank, tool `data_query_rank`), so the model is not left to pick `data_query_records`. |
 | Tool cannot answer the question (overlay, PSPS by tier, share by tier, California share of the US sample) | 4 | Jev-first decider: refuse or clarify when no tool can express the operation, instead of answering a neighbouring question. |
 | Named entity the router does not extract (Bear Valley in `ho_022`) | 1 | Slot planner with the router's utility aliases extended to Bear Valley (BVES), so the entity is planned rather than left to the model. |
@@ -213,7 +214,7 @@ SCE 2023 90 attribute and 86 spatial; Sacramento CAL FIRE 2024 11). The 3 failur
 ### Holdouts v1, v2, v3 (2026-09-23)
 
 Every model-path question in `jev_holdout.json`, `jev_holdout_v2.json`, and
-`jev_holdout_v3.json` (v2 and v3 read from `platform/jev-multi-tool`), 105 questions, one pass,
+`jev_holdout_v3.json` (v2 and v3 are not on main; they were read from `platform/jev-multi-tool`), 105 questions, one pass,
 `AGENT_JEV_MODE=off`. These were never used to tune Luna's tool arguments. Scored against the
 holdout labels by `services/agent/eval/hosted_holdout_run.py`: status matches the label, the
 labeled tool and dataset ran, evidence present, and no invented or missing filters.
@@ -228,7 +229,7 @@ Run file: `services/agent/eval/runs/hosted_holdout_20260923T221428Z_rescored.jso
 
 Where the 47 wrong answers come from:
 
-- 29 answered a question labeled clarify (11) or refuse (18). On this branch nothing on the
+- 29 answered a question labeled clarify (11) or refuse (18). On main nothing on the
   model path can clarify or refuse once the router sends a question there: routing forces a
   tool call (the Ollama envelope does the same) and Jev disposition gating is not enabled.
   This is a pipeline gap, not specific to Luna.

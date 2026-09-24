@@ -20,12 +20,16 @@ setup, warehouse prerequisites and historical model limitations.
 | `src/PanelCaveats.tsx`, `src/caveats.ts` | Dataset notes in card headers and the shared CSV caveat catalog |
 | `src/EventMap.tsx`, `src/MapEventPreview.tsx`, `src/spatial.ts` | Leaflet maps, event bubbles and location lookups |
 | `src/HdwPlayer.tsx`, `src/weather.ts` | Yearly static weather cubes and daily playback |
+| `src/playback.ts`, `src/PlaybackControls.tsx` | Day-by-day event playback on event maps (shared with HDW controls) |
+| `src/globalFilters.ts`, `src/WorkspaceFilters.tsx`, `src/PanelYearPin.tsx` | Workspace year bar, year inheritance and per-panel year pins |
+| `src/RiskSurfaceMap.tsx`, `src/ResidualMap.tsx`, `src/riskSurface.ts`, `src/residual.ts` | Modeled risk surface and residual grid maps from the Historical Risk API |
 | `src/AnalysisCharts.tsx`, `src/YearComparison.tsx`, `src/RegionalSeries.tsx`, `src/SeasonalSeries.tsx` | Grouped and temporal visualizations |
 | `src/data.ts`, `src/stats.ts`, `src/annual.ts`, `src/temporal.ts` | Record normalization, counts and time aggregation |
 | `src/RecordPanels.tsx` | Record tables and summary metrics |
 | `src/ExportActions.tsx`, `src/exports.ts` | CSV and chart PNG exports |
 
-Maps and records use the Visualization API. The development and production build
+Maps and records use the Visualization API; the risk surface and residual maps
+use the Historical Risk API. The development and production build
 profiles set `VITE_DATA_QUERY_URL`, so grouped comparisons, summary metrics and
 regional time series use geometry-free Data Query aggregates. Calendar alignment
 and seasonal profiles retain the existing daily time-series API. The browser does
@@ -63,7 +67,7 @@ Preview the actual generated page using the command in the
 
 The deployed API defaults remain in `src/api.ts`. To use local services, copy
 `website/.env.example` to `website/.env.development.local`, or set `VITE_VISUALIZATION_URL`,
-`VITE_AGENT_URL` and `VITE_DATA_QUERY_URL` in the build environment. Restart the development server or
+`VITE_AGENT_URL`, `VITE_DATA_QUERY_URL` and `VITE_RISK_URL` in the build environment. Restart the development server or
 rebuild after changing them. These are public browser URLs; do not put secrets
 in `VITE_` variables. The repository-root `.env` configures Python services.
 Ordinary website preview does not require a local database or model runtime.
@@ -172,7 +176,13 @@ in the chart body. Existing saved panels continue to load without a migration.
   This replaces the separate Spatial context panel and picker entry. Existing
   saved workspaces drop that retired panel while retaining other panels and filters.
 
-The initial scope is 2024. Date inputs are not limited to that year. Recorded
+A workspace **Year** bar above the grid (2014 to 2025, default 2024) sets the
+date window that panels inherit. Each inheriting panel has a pin button: pinning
+keeps its own dates and shows a `Pinned: YYYY` badge; editing a panel's dates away
+from the workspace year pins it automatically. Year comparison, Seasonal profile
+and agent scalar cards choose their own years and do not follow the bar. Panels
+added from Ask arrive pinned to the dates the tools ran. Date inputs are not
+limited to the workspace years. Recorded
 date ranges come from full-dataset daily aggregates, not a page of records.
 The warehouse does not expose authoritative ingestion/scrape timestamps.
 
@@ -186,9 +196,11 @@ It can append the supported harness-planned views, and can open each of the 18
 workspace views; it does not execute render
 instructions from model prose. A four-minute timeout or Cancel leaves the data
 panels usable. Generated scalar answers are not saved across page refreshes.
-Multiple-dataset map specs and advanced comparison/spatial specs are not yet
-ported; their answer text remains available. Comparison and spatial-context
-responses include a small `not supported here yet` notice in the conversation.
+Ranking comparisons (county, utility or cause), multi-dataset timelines and
+risk/residual grid maps are adapted. Multiple-dataset map specs, non-ranking
+comparisons (utilities, regions, periods) and spatial-context specs are not yet
+ported; their answer text remains available, and the latter two add a small
+`not supported here yet` notice in the conversation.
 
 `src/agentContracts.ts` defines all six existing `ComponentSpec` types, including
 their parameters, evidence IDs and artifact references. The complete answer,
@@ -218,6 +230,12 @@ the document becomes hidden. Map zoom and pan remain stable between frames.
 Event overlays show **starts on the displayed day**, including outage starts
 aggregated onto EPSS circuit lines. They do not represent all active incidents.
 
+Without HDW, an event map can switch between **Full range** and **Day by day**.
+Day by day adds the same Play/Pause, speed and day slider for the map's date
+window and shows only events that started on the selected day (for PSPS, areas
+that started that day, not areas still active). An empty day says so instead of
+showing a blank map.
+
 HDW is decoded using the supplied metadata (`value × 2`, hPa·m/s), on the
 824-cell grid. It is a surface daily approximation, not an operational
 lowest-500-m HDWI product or an ignition-risk forecast. Missing cells remain
@@ -232,8 +250,8 @@ download PNG with titles, scope and legends. Maps export event CSV, not basemap
 images or raw HDW cubes. Duplicate copies a panel's filters, layer settings and
 year choices into independent state.
 
-CPUC and CAL FIRE CSV exports prepend quoted `# Note:` rows with the dataset
-definitions from `shared/dataset_caveats.json`, also used by Agent qualifications.
+CPUC, CAL FIRE, EPSS and national-sample CSV exports prepend quoted `# Note:`
+rows with the dataset definitions from `shared/dataset_caveats.json`, also used by Agent qualifications.
 The same `datasetCaveats()` function supplies a collapsed information control in
 applicable card headers. Its notes follow the active datasets; agent scalar cards
 use their cited `source_dataset`, so a model-risk card does not inherit CPUC notes.
@@ -250,7 +268,8 @@ comma-separated multi-county records before deduplication; circuits and utilitie
 are also distinct counts. Missing fields stay unavailable or are marked beside
 partial totals. Stat CSV downloads include every displayed metric and its unit.
 
-Panel settings use `wildfire-workspace-v1` in browser local storage. Storage
+Panel settings use `wildfire-workspace-v1` in browser local storage; the workspace
+year uses `wildfire-workspace-global-v1`. Storage
 failure is visible; no chat text, credentials, or fetched datasets are saved.
 Panel order is saved in the same workspace. Drag an overview panel by its title
 bar or grip; release it to insert at the closest grid slot while the intervening
