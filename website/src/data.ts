@@ -1,5 +1,6 @@
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import catalog from '../../shared/datasets.json' with {type: 'json'};
+import naming from '../../shared/naming.json' with {type: 'json'};
 
 // Workspace-only fields. Registry map colors, style.label, and viz keys stay
 // in shared/datasets.json; these names, hex values, panel order, and hasCause
@@ -31,8 +32,14 @@ export const DATASETS = WORKSPACE.map(overlay => {
 });
 export type DatasetId = typeof WORKSPACE[number]['id'];
 export const CHART_DATASETS = DATASETS.slice(0, 3);
-export const UTILITIES = ['PG&E', 'SCE', 'SDG&E'];
-export const COUNTIES = ['Alameda','Alpine','Amador','Butte','Calaveras','Colusa','Contra Costa','Del Norte','El Dorado','Fresno','Glenn','Humboldt','Imperial','Inyo','Kern','Kings','Lake','Lassen','Los Angeles','Madera','Marin','Mariposa','Mendocino','Merced','Modoc','Mono','Monterey','Napa','Nevada','Orange','Placer','Plumas','Riverside','Sacramento','San Benito','San Bernardino','San Diego','San Francisco','San Joaquin','San Luis Obispo','San Mateo','Santa Barbara','Santa Clara','Santa Cruz','Shasta','Sierra','Siskiyou','Solano','Sonoma','Stanislaus','Sutter','Tehama','Trinity','Tulare','Tuolumne','Ventura','Yolo','Yuba'];
+// Utility labels and county names come from the generated naming catalog
+// (services/shared/naming.py via scripts/generate_frontend_registry.py).
+const UTILITY_LABELS: Record<string, string> = naming.utility_display_labels;
+const UTILITY_CODES_BY_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(UTILITY_LABELS).map(([code, label]) => [label, code]),
+);
+export const UTILITIES: string[] = naming.workspace_utilities;
+export const COUNTIES: string[] = naming.california_counties;
 export type Interval = 'daily' | 'weekly' | 'monthly' | 'quarterly';
 export type GroupBy = 'cause' | 'utility' | 'county';
 export interface Filters { start: string; end: string; county: string; utility: string }
@@ -48,8 +55,8 @@ export interface LayerResponse {
 }
 export interface Bucket { start: string; end: string; count: number }
 export const configFor = (id: DatasetId) => DATASETS.find(d => d.id === id)!;
-export const utilityCode = (label: string) => ({ 'PG&E': 'PGE', 'SDG&E': 'SDGE' }[label] ?? label);
-export const utilityLabel = (code: unknown) => typeof code === 'string' ? ({ PGE: 'PG&E', SDGE: 'SDG&E' }[code] ?? code) : null;
+export const utilityCode = (label: string) => UTILITY_CODES_BY_LABEL[label] ?? label;
+export const utilityLabel = (code: unknown) => typeof code === 'string' ? (UTILITY_LABELS[code] ?? code) : null;
 export const asText = (value: unknown): string | null => value === null || value === undefined || value === '' ? null : String(value);
 export const asNumber = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null;
 
