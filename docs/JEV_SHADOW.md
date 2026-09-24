@@ -113,6 +113,7 @@ Set `AGENT_JEV_MODE=tool_pick` and restart. Leave `AGENT_JEV_TOOL_PICK_MIN_CONFI
 - `data_query_spatial` needs one utility plus that time span, or a coordinate pair.
 - `visualization_create` needs a dataset, a year or date range, and one explicit kind: a map word, or a trend/time-series word with daily, weekly, or monthly. Both kinds at once, or neither, falls back.
 - `comparison_run` needs a named metric plus either two or more utilities and one year, one utility and two years, or both HFTD tiers and one year.
+- Label rule I: no slot fill is built for an EPSS count or chart for a utility other than PG&E, or for an EPSS comparison where no named utility is PG&E. Those fall back (the router already clarifies them).
 
 A pick of any other tool (`data_query_rank`, `visualization_inspect`, `risk_forecast`) has no slot fill and falls back. An HFTD map needs no year.
 

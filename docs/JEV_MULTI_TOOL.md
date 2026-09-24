@@ -26,6 +26,7 @@ A candidate plan stands only if every slot and constraint the router resolved is
 - output form: map or where wording needs a map call, list or records wording needs record calls, series wording (monthly, trend, chart) needs a series call and a series needs that wording, and a by-county ask needs the rank
 - measure: acres, customers, or a rate cannot be carried by a count, so they fall back
 - US sample: US-sample wording (sampled, all causes, national) must resolve to `us_ignitions`; the router sometimes resolves it to `cpuc_ignitions`, and then the plan falls back. The US sample has no state filter, so a US-sample question restricted to a state (California) also falls back (label rule H)
+- EPSS: an EPSS call for a utility other than PG&E falls back (`epss_non_pge_utility`, label rule I), because EPSS is PG&E-only and that count would read as zero when the data is absent
 
 `fallback_reason(question)` returns the first check a plan would fail. `tests/agent/test_slot_plan_fallbacks.py` holds the reviewer questions, the earlier fallback cases, and probes for each check; `tests/agent/test_slot_plan.py` covers the plans that stand.
 
