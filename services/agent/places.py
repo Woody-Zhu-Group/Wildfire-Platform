@@ -87,13 +87,51 @@ def incorporated_names() -> frozenset[str]:
     return frozenset(_index())
 
 
+@lru_cache(maxsize=4)
+def county_word_places(counties: tuple[str, ...]) -> dict[str, CityPoint]:
+    """Census places whose name contains a county name, such as Kings Beach.
+
+    Keyed by normalized name. Includes census designated places (CDPs), since
+    a name like Kings Beach or Plumas Lake is that place, not Kings or Plumas
+    County. An incorporated place wins over a CDP of the same name.
+    """
+    words = [normalize_place_name(county) for county in counties]
+    found: dict[str, CityPoint] = {}
+    with PLACES_CSV.open(encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            name = normalize_place_name(row["name"])
+            if name in words or not any(
+                f" {word} " in f" {name} " for word in words
+            ):
+                continue
+            point = CityPoint(
+                name=row["name"],
+                place_type=row["place_type"],
+                geoid=row["geoid"],
+                lat=float(row["lat"]),
+                lon=float(row["lon"]),
+            )
+            current = found.get(name)
+            if current is None or (
+                current.place_type not in _INCORPORATED
+                and row["place_type"] in _INCORPORATED
+            ):
+                found[name] = point
+    return found
+
+
 def city_point_caveat(point: CityPoint) -> str:
+    kind = (
+        f"incorporated {point.place_type}"
+        if point.place_type in _INCORPORATED
+        else "census designated place (unincorporated)"
+    )
     return (
         f"This answer uses one point for {point.name}: the Census "
-        f"{GAZETTEER_VINTAGE} Gazetteer internal point of the incorporated "
-        f"{point.place_type} ({point.lat:.4f}, {point.lon:.4f}). Parts of the "
-        "city may be in a different utility territory, HFTD tier, or grid cell. "
-        "A center point outside Tier 2 or Tier 3 does not mean the whole city "
+        f"{GAZETTEER_VINTAGE} Gazetteer internal point of the {kind} "
+        f"({point.lat:.4f}, {point.lon:.4f}). Parts of the "
+        "place may be in a different utility territory, HFTD tier, or grid cell. "
+        "A center point outside Tier 2 or Tier 3 does not mean the whole place "
         "is outside the HFTD."
     )
 

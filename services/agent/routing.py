@@ -8,7 +8,12 @@ from datetime import date
 from typing import Any
 
 from services.agent.clarify_missing import complete_clarification
-from services.agent.places import GAZETTEER_VINTAGE, CityPoint, city_point
+from services.agent.places import (
+    GAZETTEER_VINTAGE,
+    CityPoint,
+    city_point,
+    county_word_places,
+)
 from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
 from services.shared.dataset_registry import HDW_YEARS
 
@@ -703,7 +708,8 @@ def _city_point_plan(text: str, lower: str) -> _CityPointPlan | None:
     names = {match.group(0).lower() for match in matches}
     if len(names) != 1:
         return None
-    point = city_point(next(iter(names)))
+    name = next(iter(names))
+    point = city_point(name) or _COUNTY_WORD_CDPS.get(name)
     if point is None:
         return None
     # Drop the city name first, so West Sacramento is not Sacramento County
@@ -1022,6 +1028,10 @@ def _unresolved_county_place(text: str) -> str | None:
     for pattern in UTILITY_PATTERNS.values():
         scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
     scrubbed = " ".join(scrubbed.split())
+    # A Census place whose name holds a county word (Lake Forest, Kings Beach,
+    # Shasta Lake) is that place, not the county.
+    if _COUNTY_WORD_PLACE_RE is not None:
+        scrubbed = _COUNTY_WORD_PLACE_RE.sub(" ", scrubbed)
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
         for match in re.finditer(rf"\b{re.escape(name.lower())}\b", scrubbed):
             after = scrubbed[match.end() :]
@@ -2393,7 +2403,13 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             "A city that is not a county name is not a query layer",
             slots=slots,
             answer=(
-                f"{city.group(0).title()} is a city, not a county or utility "
+                f"{city.group(0).title()} is "
+                + (
+                    "a community (census designated place)"
+                    if city.group(0).lower() in _COUNTY_WORD_CDPS
+                    else "a city"
+                )
+                + ", not a county or utility "
                 "territory. Which coordinates, county, or utility territory "
                 "should I use? I will not answer with a statewide or county layer."
             ),
@@ -3400,3 +3416,46 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         "No high-confidence deterministic rule matched",
         slots=slots,
     )
+
+
+# ---- County-word Census places -------------------------------------------------
+# Built last because it asks _unresolved_county_place which place names the
+# county-word rule would misread. A Census place whose name holds a county
+# word wins over that rule:
+# - incorporated ones (Lake Forest, Shasta Lake, South Lake Tahoe, Sutter
+#   Creek, Monterey Park, Imperial Beach) are already in _CA_CITIES;
+# - census designated places that the rule would misread (Kings Beach, Plumas
+#   Lake, Butte Valley, Butte Creek Canyon, Orange Park Acres, Monterey Park
+#   Tract) are added to the city matcher and resolve to their CDP point.
+# A bare county word ("in Trinity") still clarifies.
+_COUNTY_WORD_PLACE_RE: re.Pattern | None = None
+_ALL_COUNTY_WORD_PLACES = county_word_places(tuple(_CA_COUNTIES))
+_COUNTY_WORD_CDPS: dict[str, CityPoint] = {
+    name: point
+    for name, point in _ALL_COUNTY_WORD_PLACES.items()
+    if point.place_type == "CDP"
+    and name not in _CA_CITIES
+    and _unresolved_county_place(f"in {point.name}")
+}
+_COUNTY_WORD_PLACE_RE = re.compile(
+    r"\b(?:"
+    + "|".join(
+        re.escape(name)
+        for name in sorted(
+            {name for name in _ALL_COUNTY_WORD_PLACES if name in _CA_CITIES}
+            | set(_COUNTY_WORD_CDPS),
+            key=len,
+            reverse=True,
+        )
+    )
+    + r")\b"
+)
+_CITY_NOT_COUNTY = re.compile(
+    r"\b(?:"
+    + "|".join(
+        re.escape(name)
+        for name in sorted(set(_CA_CITIES) | set(_COUNTY_WORD_CDPS), key=len, reverse=True)
+    )
+    + r")\b",
+    re.I,
+)
