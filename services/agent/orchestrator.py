@@ -493,6 +493,9 @@ class AgentOrchestrator:
                             response=response, raw_log=raw_log
                         )
                 city = decision.slots.get("city_point") or {}
+                # A deterministic period comparison answers a change question
+                # only with the harness-derived difference and percentage.
+                self._attach_derived(question, executions, trajectory)
                 answer = _render_deterministic(
                     executions,
                     place_label=(
@@ -681,19 +684,7 @@ class AgentOrchestrator:
             elif need_synthesis:
                 # Changes, differences, percents, and ratios come from the
                 # harness, never from the model; synthesis cites this evidence.
-                derived = derive_arithmetic(question, executions)
-                if derived is not None:
-                    executions.append(derived)
-                    trajectory.append(
-                        {
-                            "type": "derived_evidence",
-                            "tool": derived.tool,
-                            "evidence_id": derived.evidence_id,
-                            "source_evidence_ids": derived.arguments["source_evidence_ids"],
-                            "operations": derived.arguments["operations"],
-                            "derivation_count": len(derived.summary["derivations"]),
-                        }
-                    )
+                self._attach_derived(question, executions, trajectory)
                 await self._emit(
                     on_event,
                     "synthesizing",
@@ -815,6 +806,64 @@ class AgentOrchestrator:
         if attempt > 1 and fallback:
             return fallback
         return primary
+
+    @staticmethod
+    def _attach_derived(
+        question: str,
+        executions: list[ToolExecution],
+        trajectory: list[dict[str, Any]],
+    ) -> None:
+        """Append the harness arithmetic evidence once, when the question asks for it."""
+        if any(item.tool == DERIVED_TOOL for item in executions):
+            return
+        derived = derive_arithmetic(question, executions)
+        if derived is None:
+            return
+        executions.append(derived)
+        trajectory.append(
+            {
+                "type": "derived_evidence",
+                "tool": derived.tool,
+                "evidence_id": derived.evidence_id,
+                "source_evidence_ids": derived.arguments["source_evidence_ids"],
+                "operations": derived.arguments["operations"],
+                "derivation_count": len(derived.summary["derivations"]),
+            }
+        )
+
+    def _executed_arguments(
+        self,
+        tool: str,
+        args: dict[str, Any],
+        *,
+        year: int | None,
+        years: list[int] | None,
+        utilities: list[str] | None,
+        allow_untagged: bool,
+        time_resolution: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """The arguments a model call will run with after harness correction.
+
+        Slot fill, utility stripping, and the year and window guards can turn
+        two different model calls into the same backend call. Duplicate
+        suppression keys on this, so the answer never runs one call twice.
+        """
+        preview = getattr(self.executor, "preview_arguments", None)
+        if not callable(preview):
+            return args
+        try:
+            return preview(
+                tool,
+                args,
+                year=year,
+                years=years,
+                utilities=utilities,
+                allow_untagged=allow_untagged,
+                time_resolution=time_resolution,
+                harness_call=False,
+            )
+        except Exception:  # noqa: BLE001
+            return args
 
     async def _execute_with_repair(
         self,
@@ -1329,7 +1378,22 @@ class AgentOrchestrator:
                     turn_had_failure = True
                     continue
 
-                cache_key = (tool, canonical_args)
+                # Two calls the harness corrects to the same window (a 2020
+                # count and a 2023 count both held to one span) are one call.
+                # The key is what will run, not what the model wrote.
+                executed_args = self._executed_arguments(
+                    tool,
+                    args,
+                    year=year,
+                    years=years,
+                    utilities=utilities,
+                    allow_untagged=allow_untagged,
+                    time_resolution=time_resolution,
+                )
+                cache_key = (
+                    tool,
+                    json.dumps(executed_args, sort_keys=True, default=str),
+                )
                 execution = turn_results.get(cache_key) or successful_cache.get(
                     cache_key
                 )
@@ -1372,6 +1436,12 @@ class AgentOrchestrator:
                             "type": "duplicate_tool_call_suppressed",
                             "tool": tool,
                             "arguments": args,
+                            "executed_arguments": executed_args,
+                            "reason": (
+                                "identical arguments"
+                                if executed_args == args
+                                else "identical after harness correction"
+                            ),
                             "phase": "routing",
                             "step": step,
                         }
@@ -2990,7 +3060,7 @@ def _render_deterministic(
     place_label: str | None = None,
     city_name: str | None = None,
 ) -> str:
-    parts = []
+    parts: list[str] = []
     for item in [execution for execution in executions if execution.ok and not execution.qualification_call]:
         summary = item.summary
         if item.tool == "data_query_records":
@@ -3070,7 +3140,9 @@ def _render_deterministic(
                     f"period B={summary.get('period_b', {}).get('value')}, "
                     f"delta={summary.get('delta', {}).get('value')}."
                 )
-    return " ".join(parts) or "The service returned no usable evidence."
+    # The same evidence rendered twice reads as two findings. One line each.
+    unique = list(dict.fromkeys(part for part in parts if part))
+    return " ".join(unique) or "The service returned no usable evidence."
 
 
 def _execution_event(execution: ToolExecution) -> dict[str, Any]:

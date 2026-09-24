@@ -31,7 +31,14 @@ dataset/metric, scope, and required time/location slots are explicit:
   sample or that utility's CPUC ignitions instead of passing or dropping it
 - coordinate context → `data_query_spatial`
 - map/time series/detail → a visualization tool
-- fully specified utility/region/period comparison → `comparison_run`
+- fully specified utility/region/period comparison → `comparison_run`. A change
+  question between two years ("by what percentage did SCE's ignitions change
+  between 2020 and 2023", "from 2020 to 2023", "2020 vs 2023") with one
+  utility or one county and a known dataset is a period comparison too
+  (`period_comparison`, scope utility or county); the harness arithmetic
+  evidence then supplies the difference and percent change. A change question
+  that also asks for a chart or map, or names two utilities or counties, goes
+  to the later rules instead
 - explicit cell/date, coordinate/date, county/date, or utility/date risk → `risk_forecast` chain
 - a risk map or surface question with a date and no place → `risk_surface`
   (statewide hindcast; a router-only tool, not in the model's tool list)
@@ -59,7 +66,11 @@ Compositions, cross-dataset questions, and requests not matching those strict
 rules go to the model. Every response logs `path`, `rule`, and tool trajectory.
 
 On the model path the harness holds tool calls to the resolved years and date
-range (`time_resolve.apply_harness_years`), strips invented utilities
+range (`time_resolve.apply_harness_years`; a change, difference, increase,
+decrease, percent change, or ratio between two years resolves to the two
+endpoint years, marked `endpoints`, so per-year calls are kept and a call over
+the whole span is refused, while a total or count over the range stays one
+span), strips invented utilities
 (`tools._strip_ungrounded_utilities`), and drops model-proposed filters (circuit
 id, HFTD tier, county, coordinates) and sentinel values that the question and
 router slots do not support (`grounding.ground_model_filters`); each drop is
@@ -122,7 +133,8 @@ suppressed rather than returned without its qualification.
 Synthesis may state only numbers found in evidence or caveats, and the model
 never does arithmetic. When a question asks for a change, difference,
 increase, decrease, percent change, or ratio, `derived.py` computes those
-values from the successful primary counts before synthesis and adds them as
+values from the successful primary counts before synthesis (and on the
+deterministic path before the answer is rendered) and adds them as
 one `harness_arithmetic` evidence item (`evidence_derived_...`). Each
 derivation carries its `source_evidence_ids`. Pairs are the same entity across
 periods (earliest first, with `direction`) and two entities in one period
