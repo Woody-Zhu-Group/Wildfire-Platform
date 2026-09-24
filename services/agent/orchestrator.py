@@ -2168,6 +2168,20 @@ def _user_facing_tool_failure(
         }
         | set(blocked_tools)
     )
+    for code in ("unknown_county", "unknown_utility"):
+        if code in codes:
+            # The backend names the value and the closest matches; that is
+            # the clarification the user needs, so pass it through.
+            detail = next(
+                str(err.get("message") or "")
+                for err in errors
+                if str(err.get("code") or "") == code
+            )
+            return (
+                "I could not run the query because the data service does not "
+                f"recognize a filter: {detail} Please restate the question with "
+                "the exact name."
+            )
     if "year_not_derived" in codes:
         return (
             "I could not run the query because a calendar year in the tool call "

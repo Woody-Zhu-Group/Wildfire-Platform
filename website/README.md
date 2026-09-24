@@ -308,6 +308,13 @@ lookups, weather decoding, annual alignment, regional API contracts, seasonal ag
 view switching and exports. These tests use local fixtures or mocked requests;
 they do not require the live APIs. The build also checks TypeScript.
 
+`tests/build-freshness.test.ts` rebuilds the site into a temporary directory
+(the same build as `npm run build`, without touching `docs/`) and fails when
+`docs/index.html` or `docs/assets/workspace/` differs from it, listing each
+missing, stale, or changed file. `npm run check-build` runs the same check on
+its own. Any change to website source must commit the rebuilt `docs/` in the
+same PR.
+
 The September 13, 2026 implementation verification passed 28 Node tests and the
 build. Separate live-data and rendered-browser checks included:
 

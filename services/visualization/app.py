@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from services.data_query.filters import (
     parse_bbox,
+    parse_county,
     parse_date_param,
     parse_tier,
     parse_utility,
@@ -164,7 +165,7 @@ def map_layer(
     validate_date_range(start, end)
     bb = parse_bbox(bbox)
     t = parse_tier(tier)
-    county = county.strip() if county and county.strip() else None
+    county = parse_county(county)
 
     if ds == "us_ignitions" and (utility or county):
         raise HTTPException(
@@ -314,6 +315,7 @@ def time_series(
             status_code=400,
             detail="time-series supports ignitions|us_ignitions|epss|psps|calfire",
         )
+    county = parse_county(county)
     if ds == "us_ignitions" and (utility or county):
         raise HTTPException(
             status_code=400,

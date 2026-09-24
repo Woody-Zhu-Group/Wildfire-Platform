@@ -7,6 +7,8 @@ from typing import Any
 
 from fastapi import HTTPException, Query
 
+from services.shared.counties import UnknownCountyError, normalize_county
+
 KNOWN_UTILITIES = frozenset(
     {"PGE", "SCE", "SDGE", "PACIFICORP", "Liberty", "BVES"}
 )
@@ -35,22 +37,51 @@ def parse_utility(value: str | None, *, allow_untagged: bool = True) -> str | No
     if value is None or value.strip() == "":
         return None
     raw = value.strip()
-    # Accept common ampersand forms
-    key = raw.upper().replace("&", "").replace(" ", "")
+    # Accept common ampersand, spacing, and full-name forms.
+    key = (
+        raw.upper()
+        .replace("&", "")
+        .replace(".", "")
+        .replace("-", "")
+        .replace(",", "")
+        .replace(" ", "")
+    )
     mapping = {
         "PGE": "PGE",
+        "PACIFICGASANDELECTRIC": "PGE",
+        "PACIFICGASELECTRIC": "PGE",
         "SCE": "SCE",
+        "SOUTHERNCALIFORNIAEDISON": "SCE",
+        "EDISON": "SCE",
         "SDGE": "SDGE",
+        "SANDIEGOGASANDELECTRIC": "SDGE",
+        "SANDIEGOGASELECTRIC": "SDGE",
         "PACIFICORP": "PACIFICORP",
+        "PACIFICPOWER": "PACIFICORP",
         "LIBERTY": "Liberty",
+        "LIBERTYUTILITIES": "Liberty",
         "BVES": "BVES",
+        "BEARVALLEY": "BVES",
+        "BEARVALLEYELECTRIC": "BVES",
+        "BEARVALLEYELECTRICSERVICE": "BVES",
+        "BEARVALLEYELECTRICSERVICES": "BVES",
         "UNTAGGED": "untagged",
     }
+    if key not in mapping:
+        # "Pacific Gas & Electric Company", "Liberty Utilities Inc": drop a
+        # trailing corporate word and try again.
+        for suffix in ("COMPANY", "CORPORATION", "UTILITIES", "UTILITY", "INC", "CORP"):
+            if key.endswith(suffix) and key[: -len(suffix)] in mapping:
+                key = key[: -len(suffix)]
+                break
     if key not in mapping:
         allowed = sorted(KNOWN_UTILITIES) + (["untagged"] if allow_untagged else [])
         raise HTTPException(
             status_code=400,
-            detail=f"unknown utility {value!r}; allowed: {', '.join(allowed)}",
+            detail=(
+                f"unknown utility {value!r}; it matches no utility in the warehouse. "
+                f"Did you mean {' or '.join(allowed)}?"
+            ),
         )
     resolved = mapping[key]
     if resolved == "untagged" and not allow_untagged:
@@ -100,15 +131,46 @@ def parse_bbox(value: str | None) -> tuple[float, float, float, float] | None:
 
 
 def parse_tier(value: str | None) -> str | None:
+    """Resolve "Tier 2", "tier 3", "T2", "2", or "HFTD Tier 3" to the stored value.
+
+    Anything else is a 400, never an empty result.
+    """
     if value is None or value.strip() == "":
         return None
-    v = value.strip()
-    if v not in HFTD_TIERS:
+    key = value.strip().lower().replace("hftd", "").replace("-", " ").replace("_", " ")
+    key = " ".join(key.split())
+    for prefix in ("tier ", "tier", "t "):
+        if key.startswith(prefix):
+            key = key[len(prefix):]
+            break
+    if key.startswith("t") and key[1:].strip().isdigit():
+        key = key[1:].strip()
+    resolved = {"2": "Tier 2", "3": "Tier 3"}.get(key.strip())
+    if resolved is None:
         raise HTTPException(
             status_code=400,
-            detail=f"tier must be one of {sorted(HFTD_TIERS)}; got {value!r}",
+            detail=(
+                f"unknown tier {value!r}; it matches no HFTD tier in the warehouse. "
+                "Did you mean Tier 2 or Tier 3?"
+            ),
         )
-    return v
+    return resolved
+
+
+def parse_county(value: str | None) -> str | None:
+    """Resolve a county filter to the canonical warehouse name, or 400.
+
+    "Butte County", "butte", and "LA" all resolve. A value that matches no
+    California county is rejected with the closest names, because an
+    unmatched exact-match filter used to return 0 rows and read as a real
+    count.
+    """
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return normalize_county(value)
+    except UnknownCountyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def parse_pagination(
