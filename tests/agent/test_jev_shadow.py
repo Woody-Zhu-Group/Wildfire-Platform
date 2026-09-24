@@ -54,7 +54,8 @@ def _strip(value):
         return {
             key: _strip(item)
             for key, item in value.items()
-            if key not in {"request_id", "timings_ms"}
+            # decision_source reports the mode in force by design (checked below).
+            if key not in {"request_id", "timings_ms", "decision_source"}
         }
     if isinstance(value, list):
         return [_strip(item) for item in value]
@@ -151,6 +152,9 @@ def test_shadow_exception_does_not_change_response(tmp_path):
         _orchestrator(shadow_settings, shadow=runner).ask(question)
     ).response
     assert _strip(off_response) == _strip(shadow_response)
+    assert off_response["decision_source"]["why"] == "jev_off"
+    assert shadow_response["decision_source"]["why"] == "jev_shadow"
+    assert off_response["decision_source"]["source"] == shadow_response["decision_source"]["source"]
 
 
 def test_slow_backend_does_not_block_ask_and_logs_timeout(tmp_path):

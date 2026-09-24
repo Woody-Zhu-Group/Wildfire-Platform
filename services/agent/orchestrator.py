@@ -167,6 +167,15 @@ class AgentOrchestrator:
             )
         if decision.path == "model":
             decision.slots.setdefault("candidate_tools", candidate_tools(question))
+        # Who made the answer, clarify, or refuse decision, on the final route.
+        from services.agent.decisions.provenance import decision_source
+
+        decision.slots["decision_source"] = decision_source(
+            path=decision.path,
+            rule=decision.rule,
+            slots=decision.slots,
+            jev_mode=self.settings.jev_mode,
+        )
         shadow = self.shadow
         if shadow is not None:
             try:
@@ -335,6 +344,7 @@ class AgentOrchestrator:
                 "reason": decision.reason,
                 "slot_resolution": _slot_resolution(decision),
                 "expect_slow": decision.path == "model",
+                "decision_source": decision.slots.get("decision_source"),
             },
         )
         trajectory: list[dict[str, Any]] = [
@@ -1994,6 +2004,7 @@ class AgentOrchestrator:
             "request_id": request_id,
             "status": status,
             "answer_text": answer,
+            "decision_source": decision.slots.get("decision_source"),
             "route": {
                 "path": decision.path,
                 "rule": decision.rule,

@@ -79,6 +79,15 @@ rule, Jev's disposition, rule, and confidence, the winner, and why (`gate`, `bel
 `contradicts_slot`, `code_verified`, `error`, `timeout`). The response slots carry the same
 summary under `jev_decide`.
 
+**Who decided.** Every `/ask` response and `/ask/stream` routing event carries
+`decision_source` (`services/agent/decisions/provenance.py`, documented in
+`services/agent/README.md`): `backstop` with the rule id, `jev` with the disposition and
+confidence when the winner is Jev, or `router` with why (`jev_below_gate`, `jev_error`,
+`jev_timeout`, `verified_fact` for `code_verified` and `contradicts_slot`,
+`router_only_route` for `regex_only` and `router_only_tool`, `jev_agreed`). When Jev and the
+router agree, the router is recorded as the decider, as in the log. The website shows it as
+one line in the Ask panel's Tool chain.
+
 **Threads.** All decide requests share one bounded pool (`decide_mode.MAX_WORKERS`, 8
 threads). A question waits at most `AGENT_JEV_TIMEOUT_SECONDS` for its three calls; calls
 that have not started are cancelled, and a call already running keeps its worker only until
