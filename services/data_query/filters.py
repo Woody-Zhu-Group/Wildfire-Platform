@@ -16,6 +16,7 @@ from services.shared.dataset_registry import (
     UNTAGGED_UTILITY,
     UTILITY_FILTER_KEYS,
     UTILITY_FILTER_SUFFIXES,
+    to_canonical,
 )
 from services.shared.epss_causes import cause_word
 from services.shared.stored_values import (
@@ -146,6 +147,19 @@ def parse_tier(value: str | None) -> str | None:
             ),
         )
     return resolved
+
+
+def parse_dataset(value: str) -> str:
+    """Resolve a dataset name to its registry key ("cal fire" -> calfire_incidents).
+
+    Accepts every registry alias, as county and utility filters accept
+    theirs. A name the registry does not know passes through lowercased, so
+    each endpoint still rejects it with its own message.
+    """
+    try:
+        return to_canonical(value)
+    except KeyError:
+        return value.strip().lower()
 
 
 def parse_county(value: str | None) -> str | None:

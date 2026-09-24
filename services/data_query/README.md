@@ -41,6 +41,8 @@ Connection settings come from repo-root `.env` via `shared/db.py` (default port 
 
 Common query params: `utility`, `year`, `start_date`, `end_date`, `bbox`, `format=json|geojson`, `geometry=true|false`, `limit` (default 100, max 1000), `offset`.
 
+`dataset` on `/rank`, `/grouped-counts`, and `/summary` accepts any registry alias (`ALIASES` in `services/shared/dataset_registry.py`), as `county` and `utility` accept theirs: `cal fire`, `calfire`, `wildfire_incidents`, `epss`, `ignitions`, `cpuc`, `psps`, `us ignitions`, and so on. The response echoes the canonical key. An unknown name is still a 400.
+
 Workspace aggregate routes accept `utility` and `county` where the dataset
 supports them. They return geometry-free JSON and have no pagination or top-N
 truncation. `/summary` and `/grouped-counts` support

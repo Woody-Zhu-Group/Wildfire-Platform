@@ -25,6 +25,8 @@ Docs: http://127.0.0.1:8002/docs
 | `GET /utility-territory` | `utility` (required). IOU polygon + bbox + suggested center |
 | `GET /event-detail` | Full attributes + website-ordered detail fields |
 
+`dataset` accepts the short keys above and any registry alias that has a visualization key (`cal fire`, `wildfire_incidents`, `cpuc_ignitions`, `hftd_tiers`, `us ignitions`, and so on); see `parse_viz_dataset` in `services/shared/dataset_registry.py`.
+
 CORS is enabled (`*`) so a local frontend on another port can call this API.
 
 ### `/map-layer`
