@@ -5,6 +5,10 @@ from __future__ import annotations
 import psycopg
 
 from db.loaders.util import print_step, table_count
+from services.shared.dataset_registry import (
+    CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
+    calfire_default_type_sql,
+)
 
 
 def _orphan_circuit_ids(
@@ -137,14 +141,16 @@ def run_validation(conn: psycopg.Connection) -> None:
         )
         cpuc_county_tagged, cpuc_county_untagged = cur.fetchone()
 
-        # CAL FIRE quick health
+        # CAL FIRE quick health. Typed rows outside the registry's default
+        # incident types (Wildfire and Fire), the same default every service uses.
         cur.execute(
-            """
+            f"""
             SELECT
               count(*) FILTER (WHERE utility IS NULL) AS null_utility,
               count(*) FILTER (WHERE date_only_created IS NULL) AS null_created_date,
-              count(*) FILTER (WHERE incident_type IS DISTINCT FROM 'Wildfire'
-                                   AND incident_type IS NOT NULL) AS non_wildfire_typed,
+              count(*) FILTER (WHERE incident_type IS NOT NULL
+                                   AND NOT {calfire_default_type_sql("incident_type")})
+                AS non_default_typed,
               count(*) FILTER (WHERE incident_type IS NULL) AS null_type
             FROM wildfire.calfire_incidents
             """
@@ -212,7 +218,9 @@ def run_validation(conn: psycopg.Connection) -> None:
     print("  CAL FIRE notes:")
     print(f"    null utility: {null_util}")
     print(f"    null date_only_created (includes nulled 1970 sentinels): {null_created}")
-    print(f"    non-wildfire incident_type: {non_wf}")
+    print(
+        f"    incident_type outside the {CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM} default: {non_wf}"
+    )
     print(f"    null incident_type: {null_type}")
 
     print()
