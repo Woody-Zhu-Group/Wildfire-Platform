@@ -235,14 +235,24 @@ the reason under `summary.not_covered`. An unknown count key raises. Then:
 - the answer text says the count is not covered, once, on every path
   (`_with_not_covered_notes`, the last step of `_ensure_readable_answer`); the
   deterministic line reads `epss_outages=not covered`;
-- the stat card for that count has `value: null` and `not_covered_reason`
+- the stat card for that count has `value: null` and `unavailable_reason`
   (`StatCardViewParams` allows no value only with a reason, and grounding
-  accepts it only when the cited result marked that count), and the website
-  shows "Not covered" with the reason instead of a number;
+  accepts it only when the cited evidence has no value for that count either),
+  and the website shows "Not available" with the reason instead of a number;
 - a synthesized answer that states a number beside that dataset's registry
   names ("0 EPSS outages") fails grounding (`_uncovered_count_claims`), even
   when the same number appears elsewhere in the evidence, and falls back to
   the evidence.
+
+A missing count is never a zero either. Where a count used to default to 0
+(`or 0` in the count, spatial, and rank renders), a missing total or count now
+renders as not available with its reason: the stat card has no value and an
+`unavailable_reason` (the service's `empty_reason`, or that the service returned
+no total), the fallback text reads `count: not available`, and a rank headline
+without a group total says the number of groups is not available. On the
+website, a medical-exposure total whose every outage lacks the value, and the
+cumulative-acres count of incidents without acreage before the records load,
+also read "not available" instead of 0.
 
 A comparison answer (`_render_comparison_answer` in `orchestrator.py`) is
 plain sentences on every comparison route. A null value is never shown as

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { getRecords, getSummary } from './api.ts';
 import { ChartFilters, LoadState } from './Controls';
-import { cumulativeAcres } from './cumulative.ts';
+import { cumulativeAcres, cumulativeCaption } from './cumulative.ts';
 import { ExportActions } from './ExportActions';
 import { lineSvg } from './exports.ts';
 import { usePanel } from './state';
@@ -30,7 +30,7 @@ export function CumulativeAcres() {
   const values = points.map(point => point.acres);
   const ceiling = Math.max(1, remote.data?.total ?? 0);
   const active = inspected === null ? null : points[inspected];
-  const caption = `CAL FIRE incident-map feed; ${filters.start} – ${filters.end}; cumulative reported acres. ${remote.data?.missing ?? 0} incidents have no acreage.`;
+  const caption = cumulativeCaption(filters.start, filters.end, remote.data?.missing);
   return <div className="analysis-chart seasonal-panel">
     <ExportActions datasets={['calfire']} disabled={Boolean(remote.error||remote.loading||!points.length)}
       rows={()=>points.map(point=>({dataset:'CAL FIRE',date:point.date,cumulative_acres:point.acres,period_start:filters.start,period_end:filters.end,utility:filters.utility,county:filters.county}))}

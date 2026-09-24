@@ -51,7 +51,7 @@ export interface RecordTableViewParams extends ScopedParams {
 }
 export interface StatCardViewParams extends Record<string, unknown> {
   kind: 'count' | 'risk' | 'spatial_metric' | 'model_metrics';
-  // null only with not_covered_reason: the dataset has no rows for the named utility.
+  // null only with unavailable_reason: the count is missing, or its dataset has no rows for the named utility.
   value: number | null;
   label: string;
   scope: string;
@@ -67,7 +67,7 @@ export interface StatCardViewParams extends Record<string, unknown> {
   county?: string | null;
   eval_year?: number | null;
   params_sha256?: string | null;
-  not_covered_reason?: string | null;
+  unavailable_reason?: string | null;
 }
 export interface SpatialContextViewParams extends Record<string, unknown> {
   lat: number;

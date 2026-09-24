@@ -98,13 +98,13 @@ test('stat specs retain source values, including zero counts and risk probabilit
 test('a count the dataset does not cover opens as not covered, never as zero', () => {
   const reason = 'EPSS is PG&E-only in this warehouse, so there are no SCE rows in EPSS outages: that count would be absent, not zero.';
   const result = panelsFromAnswer(answer([
-    {type: 'stat_card', params: {kind: 'spatial_metric', source_dataset: 'epss_outages', value: null, not_covered_reason: reason, label: 'EPSS outages', scope: 'SCE territory', period: '2024', unit: 'events'}},
+    {type: 'stat_card', params: {kind: 'spatial_metric', source_dataset: 'epss_outages', value: null, unavailable_reason: reason, label: 'EPSS outages', scope: 'SCE territory', period: '2024', unit: 'events'}},
     // No value and no reason is malformed; it is dropped rather than drawn as 0.
     {type: 'stat_card', params: {kind: 'spatial_metric', source_dataset: 'epss_outages', value: null, label: 'EPSS outages', scope: 'SCE territory', period: '2024', unit: 'events'}},
   ]));
   assert.equal(result.length, 1);
   assert.equal(result[0].settings.answerStat?.value, null);
-  assert.equal(result[0].settings.answerStat?.notCoveredReason, reason);
+  assert.equal(result[0].settings.answerStat?.unavailableReason, reason);
 });
 
 test('unrepresentable incident filters and missing dates never become a different query', () => {

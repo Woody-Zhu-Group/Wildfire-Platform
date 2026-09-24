@@ -3024,6 +3024,13 @@ def _with_not_covered_notes(text: str, executions: list[ToolExecution]) -> str:
     return " ".join([text, *notes]).strip() if notes else text
 
 
+def _count_text(value: Any, reason: Any = None) -> str:
+    """A count for answer text, or "not available" with the reason. Never 0."""
+    if value is None:
+        return f"not available ({reason})" if reason else "not available"
+    return f"{value:,}" if isinstance(value, (int, float)) else str(value)
+
+
 def _scope_phrase(arguments: dict[str, Any], summary: dict[str, Any]) -> str:
     """Compact scope/time phrase for readable count prose."""
     bits: list[str] = []
@@ -3177,8 +3184,8 @@ def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> s
     dataset = summary.get("dataset") or arguments.get("dataset") or "records"
     group_by = summary.get("group_by") or arguments.get("group_by") or "groups"
     metric = summary.get("metric") or "count"
-    total = summary.get("total") or 0
-    returned = summary.get("returned") or 0
+    total = summary.get("total")
+    returned = summary.get("returned")
     limit = summary.get("limit") or arguments.get("limit") or 10
     noun = {
         "county": "counties",
@@ -3190,9 +3197,14 @@ def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> s
         "acres_burned": "acres burned",
     }.get(str(metric), str(metric))
     scope = _scope_phrase(arguments, summary)
-    headline = f"The top {limit} of {total:,} {noun}"
+    # A missing group total is not zero groups.
+    headline = (
+        f"The top {limit} of {total:,} {noun}"
+        if total is not None
+        else f"The top {limit} {noun} (the number of {noun} is not available)"
+    )
     notes = []
-    if returned > limit:
+    if returned is not None and returned > limit:
         notes.append(f"{returned} shown because of ties at the cutoff")
     if summary.get("ties_cut"):
         notes.append(f"additional {noun} tied at the cutoff were not listed")
@@ -3319,14 +3331,18 @@ def _render_deterministic(
             scope = _scope_phrase(item.arguments or {}, summary)
             if summary.get("result_mode") == "count":
                 parts.append(
-                    f"{summary.get('dataset')} count: {summary.get('total'):,} "
+                    f"{summary.get('dataset')} count: "
+                    f"{_count_text(summary.get('total'), summary.get('empty_reason'))} "
                     f"({scope})."
                 )
             else:
                 total = summary.get("total")
                 returned = summary.get("returned")
                 noun = "record" if total == 1 else "records"
-                line = f"{summary.get('dataset')}: {total:,} matching {noun} ({scope})"
+                line = (
+                    f"{summary.get('dataset')}: "
+                    f"{_count_text(total, summary.get('empty_reason'))} matching {noun} ({scope})"
+                )
                 if (
                     returned is not None
                     and total is not None
@@ -3349,7 +3365,9 @@ def _render_deterministic(
                 parts.append(
                     f"Spatial counts for {_format_region(summary.get('region'))}: "
                     + ", ".join(
-                        f"{key}=not covered" if key in uncovered else f"{key}={value}"
+                        f"{key}=not covered"
+                        if key in uncovered
+                        else f"{key}={_count_text(value)}"
                         for key, value in counts.items()
                     )
                     + "."

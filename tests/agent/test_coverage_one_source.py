@@ -160,7 +160,7 @@ def _assert_epss_not_covered(response: dict, utility_label: str) -> None:
     # The view says not covered instead of drawing a 0 card.
     card = _epss_card(response)
     assert card["value"] is None
-    assert "absent, not zero" in card["not_covered_reason"]
+    assert "absent, not zero" in card["unavailable_reason"]
     # Covered counts are untouched.
     assert summary["counts"]["ignitions"] == 7 and summary["counts"]["calfire_incidents"] == 3
 
@@ -266,9 +266,9 @@ def test_a_card_without_a_value_needs_a_reason_and_a_marked_count():
     with pytest.raises(ValueError):
         StatCardViewParams(**base, value=None)
     with pytest.raises(ValueError):
-        StatCardViewParams(**base, value=0.0, not_covered_reason="not covered")
+        StatCardViewParams(**base, value=0.0, unavailable_reason="not covered")
     with pytest.raises(ValueError):
-        StatCardViewParams(**{**base, "kind": "risk"}, value=None, not_covered_reason="x")
+        StatCardViewParams(**{**base, "kind": "risk"}, value=None, unavailable_reason="x")
     # A no-value card citing a result that did not mark that count is refused.
     execution = ToolExecution(
         tool="data_query_spatial",
@@ -279,11 +279,92 @@ def test_a_card_without_a_value_needs_a_reason_and_a_marked_count():
     )
     card = ComponentSpec(
         type="stat_card",
-        params=StatCardViewParams(**base, value=None, not_covered_reason="made up").model_dump(mode="json"),
+        params=StatCardViewParams(**base, value=None, unavailable_reason="made up").model_dump(mode="json"),
         evidence_ids=["ev_pge"],
     )
     with pytest.raises(GroundingError):
         ground_views([card], [execution])
+
+
+# A missing count is never a zero: the card and the answer text say it is not
+# available, with the reason, wherever a count used to default to 0.
+
+
+def _execution(tool: str, arguments: dict, summary: dict, evidence_id: str = "ev") -> ToolExecution:
+    return ToolExecution(
+        tool=tool, arguments=arguments, ok=True, summary=summary,
+        raw=None, error=None, artifact=None, latency_ms=0.0, evidence_id=evidence_id,
+    )
+
+
+def _cards(execution: ToolExecution) -> list[dict]:
+    from services.agent.views import plan_views
+
+    planned = plan_views([execution], status="answer", slots={})
+    return [spec.params for spec in planned.views if spec.type == "stat_card"]
+
+
+def test_a_missing_records_total_is_not_available_in_the_card_and_the_text():
+    from services.agent.orchestrator import _render_deterministic
+
+    execution = _execution(
+        "data_query_records",
+        {"dataset": "cpuc_ignitions", "result_mode": "count", "utility": "SCE", "year": 2023},
+        {"dataset": "cpuc_ignitions", "result_mode": "count", "total": None, "filters": {}},
+    )
+    card = next(params for params in _cards(execution) if params["kind"] == "count")
+    assert card["value"] is None
+    assert card["unavailable_reason"] == "The service returned no CPUC ignitions total."
+    text = _render_deterministic([execution])
+    assert "count: not available" in text and "count: 0" not in text and "None" not in text
+
+
+def test_a_missing_spatial_count_is_not_available_even_when_covered():
+    from services.agent.orchestrator import _render_deterministic
+
+    execution = _execution(
+        "data_query_spatial",
+        {"kind": "summary", "utility": "PGE", "start_date": "2024-01-01", "end_date": "2024-12-31"},
+        {"kind": "summary", "region": {"kind": "utility", "id": "PGE"},
+         "counts": {"ignitions": 7, "epss_outages": None, "calfire_incidents": 3}},
+    )
+    cards = {params["source_dataset"]: params for params in _cards(execution)}
+    assert cards["epss_outages"]["value"] is None
+    assert cards["epss_outages"]["unavailable_reason"].startswith("The service returned no EPSS outages count")
+    assert cards["ignitions"]["value"] == 7
+    assert "epss_outages=not available" in _render_deterministic([execution])
+
+
+def test_a_missing_rank_total_is_not_zero_groups():
+    from services.agent.orchestrator import _render_rank_answer
+
+    text = _render_rank_answer(
+        {"dataset": "cpuc_ignitions", "group_by": "county", "limit": 5},
+        {"dataset": "cpuc_ignitions", "group_by": "county", "metric": "count",
+         "total": None, "returned": None, "limit": 5, "results": []},
+    )
+    assert "of 0" not in text
+    assert "the number of counties is not available" in text
+
+
+def test_a_card_without_a_value_is_grounded_only_on_a_missing_evidence_value():
+    base = dict(kind="count", label="CPUC ignitions", scope="SCE", period="2023",
+                source_dataset="cpuc_ignitions", value=None, unavailable_reason="missing")
+    card = ComponentSpec(type="stat_card", params=StatCardViewParams(**base).model_dump(mode="json"),
+                         evidence_ids=["ev"])
+    present = _execution("data_query_records", {"dataset": "cpuc_ignitions", "result_mode": "count"},
+                         {"dataset": "cpuc_ignitions", "result_mode": "count", "total": 12})
+    with pytest.raises(GroundingError):
+        ground_views([card], [present])
+    missing = _execution("data_query_records", {"dataset": "cpuc_ignitions", "result_mode": "count"},
+                         {"dataset": "cpuc_ignitions", "result_mode": "count", "total": None})
+    assert ground_views([card], [missing])
+
+
+def test_views_hold_no_zero_default_for_a_count():
+    # A missing count must not silently become 0 in a card again.
+    source = (ROOT / "services/agent/views.py").read_text(encoding="utf-8")
+    assert not re.search(r"""get\(["'](?:total|count|value)["']\)\s*or\s*0\b""", source)
 
 
 # ---------------------------------------------------------------------------

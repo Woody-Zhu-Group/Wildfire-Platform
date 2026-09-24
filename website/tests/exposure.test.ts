@@ -30,3 +30,12 @@ test('medical exposure sums customer-events and retains missing-value counts', (
     {id: 'life_support', label: 'Life support customer-event total', value: 7, missing: 1, unit: 'customer-events'},
   ]);
 });
+
+test('an exposure total whose every value is missing is not available, never 0', () => {
+  const metrics = medicalExposureMetrics([outage('1', null, 2), outage('2', null, null)]);
+  assert.equal(metrics[1].value, null);
+  assert.equal(metrics[1].missing, 2);
+  assert.equal(metrics[2].value, 2);
+  // No outages at all is a true zero.
+  assert.equal(medicalExposureMetrics([])[1].value, 0);
+});

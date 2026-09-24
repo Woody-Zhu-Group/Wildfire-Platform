@@ -16,7 +16,7 @@ export interface PanelSettings {
   metricsCitation?: { evalYear: number; paramsSha256: string };
   weatherYear?: number; weatherDate?: string;
   seriesMode?: 'timeline' | 'yearly' | 'regional' | 'seasonal' | 'cumulative_acres' | 'customer_events'; comparisonYears?: number[]; seasonYears?: number[];
-  answerStat?: { value: number | null; label: string; scope: string; period: string; unit: string; sourceDataset?: string; notCoveredReason?: string };
+  answerStat?: { value: number | null; label: string; scope: string; period: string; unit: string; sourceDataset?: string; unavailableReason?: string };
 }
 export function newPanel(id: number, type: PanelId): PanelInstance {
   return { id, type, settings: {
