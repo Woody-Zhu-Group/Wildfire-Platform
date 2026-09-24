@@ -71,3 +71,9 @@ services/agent/logs/
 # Hillclimb hook files
 /.claude/settings.local.json
 /.claude/settings.local.json.malformed-*
+/.cursor/hooks.json
+/.cursor/hooks.json.malformed-*
+/.github/hooks/hooks.json
+/.github/hooks/hooks.json.malformed-*
+/.codex/hooks.json
+/.codex/hooks.json.malformed-*
