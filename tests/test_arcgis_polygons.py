@@ -119,8 +119,42 @@ def test_short_rings_are_dropped_and_counted():
 def test_a_zero_area_ring_is_rejected():
     outer = square(0, 0, 10, clockwise=True)
     collinear = [[1, 1], [2, 2], [3, 3], [1, 1]]
-    with pytest.raises(GeometryGateError, match="zero area"):
+    with pytest.raises(GeometryGateError, match="degenerate"):
         esri_rings_to_polygons([outer, collinear])
+
+
+def test_a_float_collinear_ring_is_rejected_by_the_area_floor():
+    # Float coordinates make a collinear ring's shoelace area tiny but nonzero,
+    # so an exact == 0 check would let it through (issue #55).
+    outer = square(-122.2, 37.0, 0.5, clockwise=True)
+    collinear = [[-122.1, 37.1], [-122.0, 37.2], [-121.9, 37.3], [-122.1, 37.1]]
+    assert signed_area(collinear) != 0.0
+    area_m2, diagonal_m = ap.ring_planar_m2(collinear)
+    # Float noise over 28 km leaves more than MIN_RING_M2 of area, so the
+    # relative test is what catches it.
+    assert area_m2 > ap.MIN_RING_M2
+    assert area_m2 < ap.DEGENERATE_RATIO * diagonal_m**2
+    assert ap.is_degenerate(collinear)
+    with pytest.raises(GeometryGateError, match="degenerate"):
+        esri_rings_to_polygons([outer, collinear])
+
+
+def test_a_near_collinear_ring_is_degenerate_but_a_real_triangle_is_not():
+    near = [[-122.1, 37.1], [-122.0, 37.2 + 1e-12], [-121.9, 37.3], [-122.1, 37.1]]
+    assert ap.is_degenerate(near)
+    small_triangle = [[-122.1, 37.1], [-122.1, 37.1001], [-122.0999, 37.1], [-122.1, 37.1]]
+    assert not ap.is_degenerate(small_triangle)
+
+
+def test_cpuc_sized_slivers_stay_above_the_floor():
+    # CPUC's smallest real sliver is about 0.002 m2, far above the 1e-6 m2 floor.
+    outer = square(-121.0, 39.0, 0.1, clockwise=True)
+    sliver = [[-120.92, 39.08], [-120.9199, 39.08], [-120.92, 39.0800003], [-120.92, 39.08]]
+    area_m2, _ = ap.ring_planar_m2(sliver)
+    assert ap.MIN_RING_M2 * 100 < area_m2 < ap.SLIVER_M2
+    assert not ap.is_degenerate(sliver)
+    polygons, report = esri_rings_to_polygons([outer, sliver])
+    assert report.slivers == 1 and len(polygons[0]) == 2
 
 
 def test_slivers_are_counted_not_changed():
@@ -345,6 +379,34 @@ def test_an_incomplete_download_is_refused_and_not_cached(cache_dir):
     with pytest.raises(GeometryGateError, match="missing"):
         load_source(LAYER, transport=httpx.MockTransport(handler))
     assert not LAYER.cache_path.exists()
+
+
+def test_a_server_that_ignores_the_offset_hits_the_page_cap(cache_dir):
+    calls = []
+
+    def handler(request):
+        if request.url.path.endswith("/query"):
+            calls.append(request.url.params["resultOffset"])
+            return httpx.Response(200, json={"features": [_feature("A")], "exceededTransferLimit": True})
+        return httpx.Response(200, json={"extent": {"spatialReference": {"wkid": 3310}}})
+
+    with pytest.raises(SourceUnavailable, match=f"after {ap.MAX_PAGES} pages"):
+        load_source(LAYER, transport=httpx.MockTransport(handler))
+    assert len(calls) == ap.MAX_PAGES
+    assert not LAYER.cache_path.exists()
+
+
+def test_the_committed_fixture_passes_every_source_check():
+    from pathlib import Path
+
+    fixtures = Path(__file__).resolve().parent / "fixtures" / "boundaries"
+    reports = {}
+    for layer in (ap.HFTD_LAYER, ap.IOU_LAYER):
+        payload = json.loads((fixtures / f"{layer.name}.esri.json").read_text(encoding="utf-8"))
+        for row in features_to_rows(payload, layer):
+            reports[row["key"]] = row["report"]
+    assert set(reports) == ap.HFTD_LAYER.expected_keys | ap.IOU_LAYER.expected_keys
+    assert reports["PG&E"].overridden and reports["Tier 2"].slivers == 1
 
 
 def test_dataset_demo_geometry_is_optional(tmp_path):
