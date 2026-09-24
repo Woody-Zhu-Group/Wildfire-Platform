@@ -691,11 +691,21 @@ def hftd(
     tier: Optional[str] = Query(None, description="Tier 2 or Tier 3"),
     format: str = Query("json"),
     geometry: bool = Query(True),
+    simplify: Optional[float] = Query(
+        None,
+        gt=0,
+        le=queries.SIMPLIFY_MAX_DEGREES,
+        description=(
+            "Optional display simplification in degrees (ST_SimplifyPreserveTopology, "
+            "5-decimal coordinates). Omit for the full stored geometry that counts and "
+            "point answers use. The map layers use 0.001."
+        ),
+    ),
     conn: psycopg.Connection = Depends(get_conn),
 ) -> dict[str, Any]:
     t = parse_tier(tier)
     fmt = parse_format(format)
-    rows = queries.query_hftd(conn, tier=t)
+    rows = queries.query_hftd(conn, tier=t, simplify=simplify)
     return respond(
         rows,
         total=len(rows),
@@ -704,7 +714,10 @@ def hftd(
         filters={"tier": t},
         fmt=fmt,
         include_geometry=geometry,
-        extra_meta={"note": "No CPZ data in warehouse (known gap)."},
+        extra_meta={
+            "note": "No CPZ data in warehouse (known gap).",
+            "geometry_simplified_degrees": simplify,
+        },
     )
 
 
@@ -713,11 +726,21 @@ def iou_territories(
     utility: Optional[str] = Query(None),
     format: str = Query("json"),
     geometry: bool = Query(True),
+    simplify: Optional[float] = Query(
+        None,
+        gt=0,
+        le=queries.SIMPLIFY_MAX_DEGREES,
+        description=(
+            "Optional display simplification in degrees (ST_SimplifyPreserveTopology, "
+            "5-decimal coordinates). Omit for the full stored geometry that counts and "
+            "point answers use. The map layers use 0.001."
+        ),
+    ),
     conn: psycopg.Connection = Depends(get_conn),
 ) -> dict[str, Any]:
     util = parse_utility(utility, allow_untagged=False) if utility else None
     fmt = parse_format(format)
-    rows = queries.query_iou(conn, utility=util)
+    rows = queries.query_iou(conn, utility=util, simplify=simplify)
     return respond(
         rows,
         total=len(rows),
@@ -726,6 +749,7 @@ def iou_territories(
         filters={"utility": util},
         fmt=fmt,
         include_geometry=geometry,
+        extra_meta={"geometry_simplified_degrees": simplify},
     )
 
 
@@ -733,9 +757,17 @@ def iou_territories(
 def spatial_point(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
+    snap_shoreline: bool = Query(
+        False,
+        description=(
+            "For a point just off a mapped coastline (a Census city center), use the "
+            "nearest IOU within 50 m (never from inside a hole) and the nearest county "
+            "within 150 m, when exactly one is in range. HFTD and grid cell never snap."
+        ),
+    ),
     conn: psycopg.Connection = Depends(get_conn),
 ) -> dict[str, Any]:
-    return queries.spatial_point(conn, lat=lat, lon=lon)
+    return queries.spatial_point(conn, lat=lat, lon=lon, snap_shoreline=snap_shoreline)
 
 
 @app.get("/spatial/summary")

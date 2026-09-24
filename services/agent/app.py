@@ -93,6 +93,22 @@ app.add_middleware(
 )
 
 
+def _risk_degraded_detail(response: httpx.Response) -> dict[str, Any] | None:
+    """Degraded status from a risk 503 body, or None if the body is not a health report."""
+    try:
+        payload = response.json()
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("status") == "degraded" or payload.get("model_loaded") is False or payload.get("ready") is False:
+        result: dict[str, Any] = {"status": "degraded", "detail": payload.get("detail")}
+        if payload.get("failed_stage"):
+            result["failed_stage"] = payload["failed_stage"]
+        return result
+    return None
+
+
 @app.get("/health")
 async def health() -> dict[str, Any]:
     model_health = (
@@ -111,6 +127,12 @@ async def health() -> dict[str, Any]:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get(base + "/health")
+                if name == "risk_forecasting" and response.status_code == 503:
+                    # Risk answers 503 with a JSON body when its startup check
+                    # failed. Keep the load error; only no answer is unavailable.
+                    degraded = _risk_degraded_detail(response)
+                    if degraded is not None:
+                        return name, degraded
                 response.raise_for_status()
                 payload = response.json()
             if name == "risk_forecasting" and (

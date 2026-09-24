@@ -40,7 +40,7 @@
    "decide": 38,
    "jev_errors": 0,
    "exempt": 12,
-   "jev_won": 4,
+   "jev_won": 3,
    "overrides_right": 2,
    "overrides_wrong": 0,
    "router_acc": 0.857,
@@ -4652,7 +4652,7 @@
    ],
    "router": [
     "clarification",
-    "undefined_spatial_scope"
+    "forecast_missing_date"
    ],
    "jev": [
     "clarify",
@@ -4661,9 +4661,9 @@
    ],
    "decide": [
     "clarification",
-    "missing_location",
-    "jev",
-    "gate"
+    "forecast_missing_date",
+    "router",
+    "contradicts_slot"
    ]
   },
   "v2|hv2_037": {
@@ -4862,18 +4862,18 @@
    ],
    "router": [
     "clarification",
-    "city_needs_place"
+    "forecast_missing_date"
    ],
    "jev": [
     "clarify",
-    null,
-    null
+    "risk_missing_place",
+    0.88
    ],
    "decide": [
     "clarification",
-    "city_needs_place",
+    "forecast_missing_date",
     "router",
-    "backstop"
+    "contradicts_slot"
    ]
   },
   "v2|hv2_048": {

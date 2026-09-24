@@ -716,8 +716,8 @@
   "unsupported_ranking"
  ],
  "jev_holdout.json:ho_073": [
-  "clarification",
-  "undefined_spatial_scope"
+  "deterministic",
+  "city_point_risk_chain"
  ],
  "jev_holdout.json:ho_074": [
   "clarification",

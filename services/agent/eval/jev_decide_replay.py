@@ -6,9 +6,8 @@
              with the replay of the same store
 
 Sets. dev: cases.json + jev_paraphrases.json (used for tuning). v1: jev_holdout.json.
-v2: jev_holdout_v2.json from platform/jev-multi-tool. Holdout rows marked
-needs_human_review are left out. v3: jev_holdout_v3_questions.json (renamed from
-jev_holdout_v3.json on jev-multi-tool; same ids, questions, and order) with the 65 rows the
+v2: jev_holdout_v2.json. Holdout rows marked
+needs_human_review are left out. v3: jev_holdout_v3_questions.json (on main since PR #46) with the 65 rows the
 independent ChatGPT labels made certain; v3 was partly tuned on and is labeled tuned.
 
     python -m services.agent.eval.jev_decide_replay capture --cap-usd 0.3
@@ -20,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import time
 from datetime import date
 from pathlib import Path
@@ -48,11 +46,6 @@ LIVE = HERE / "runs" / "jev_decide_live_dev.json"
 TUNED = {"dev": "used for tuning", "v1": "seen, now development data", "v2": "seen, now development data", "v3": "tuned (router fixes written from its disagreements)"}
 
 
-def _git_json(ref_path: str) -> Any:
-    raw = subprocess.check_output(["git", "show", ref_path], cwd=REPO_ROOT)
-    return json.loads(raw.decode("utf-8"))
-
-
 def _disposition_labels(expected: dict[str, Any]) -> list[str]:
     branches = expected.get("acceptable_outcomes")
     if branches:
@@ -73,14 +66,14 @@ def load_sets() -> dict[str, list[dict[str, Any]]]:
             sets["dev"].append({"id": f"{source}:{case['id']}", "question": case["question"], "labels": _disposition_labels(expected)})
     holdouts = {
         "v1": json.loads((HERE / "jev_holdout.json").read_text(encoding="utf-8")),
-        "v2": _git_json("platform/jev-multi-tool:services/agent/eval/jev_holdout_v2.json"),
+        "v2": json.loads((HERE / "jev_holdout_v2.json").read_text(encoding="utf-8")),
     }
     for name, rows in holdouts.items():
         for row in rows:
             if row.get("needs_human_review"):
                 continue
             sets[name].append({"id": row["id"], "question": row["question"], "labels": [row["expected_disposition"]]})
-    v3 = _git_json("platform/jev-multi-tool:services/agent/eval/jev_holdout_v3_questions.json")
+    v3 = json.loads((HERE / "jev_holdout_v3_questions.json").read_text(encoding="utf-8"))
     chatgpt = json.loads((HERE / "jev_holdout_v3_labels_chatgpt.json").read_text(encoding="utf-8"))
     for index, label in enumerate(chatgpt):
         if "disposition" not in label or label.get("uncertain"):

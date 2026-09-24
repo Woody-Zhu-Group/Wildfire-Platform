@@ -8,7 +8,7 @@ Order for one question:
    - Jev clarify or refuse at or above the decline gate (default 0.8) returns
      that decision and reason.
    - A Jev clarification about an item the router already resolved (the time,
-     or the place: county, utility, or coordinates) is ignored.
+     or the place: county, utility, coordinates, or a geocoded city) is ignored.
    - Jev answer where the router declined wins only at or above the separate,
      higher answer gate (default 0.9) on the facts behind the router's rule, since
      a wrong answer is worse than a clarifying question. The question then takes
@@ -190,7 +190,14 @@ def router_resolved(item: str, slots: dict[str, Any]) -> bool:
     if item == "time":
         return _time_status(slots) in _KNOWN_TIME
     if item == "place":
-        return bool(slots.get("county") or slots.get("counties") or slots.get("utilities") or slots.get("coords"))
+        # city_point is a city the router geocoded to a Census place point (PR #28).
+        return bool(
+            slots.get("county")
+            or slots.get("counties")
+            or slots.get("utilities")
+            or slots.get("coords")
+            or slots.get("city_point")
+        )
     return False
 
 

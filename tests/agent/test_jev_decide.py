@@ -373,3 +373,70 @@ def test_timed_out_jev_calls_do_not_leak_threads():
     assert _time.perf_counter() - started < 3.0
     workers = [t for t in threading.enumerate() if t.name.startswith("jev-decide")]
     assert len(workers) <= decide_mode.MAX_WORKERS
+
+
+MULTI_Q = "How many PG&E PSPS events were recorded in 2018, 2019, and 2020?"
+
+
+def _both_on():
+    return replace(AgentSettings.from_env(), jev_mode="decide", slot_plan=True)
+
+
+def _routed_capture(orchestrator, monkeypatch):
+    seen = {}
+
+    async def routed(question, *, decision, **kwargs):
+        seen["decision"] = decision
+        return None
+
+    monkeypatch.setattr(orchestrator, "_ask_routed", routed)
+    return seen
+
+
+def test_decide_runs_before_the_slot_planner_on_the_router_decision(monkeypatch):
+    assert route_question(MULTI_Q).rule == "multi_entity_deferred"
+    orchestrator = _orchestrator(_both_on(), FakeBackend(_answer_facts(intent=_choice("count"), dataset=_choice("psps_events"))))
+    decided = {}
+    original = orchestrator._jev_decide
+
+    async def spy(question, decision, request_id):
+        decided["rule"] = decision.rule
+        return await original(question, decision, request_id)
+
+    monkeypatch.setattr(orchestrator, "_jev_decide", spy)
+    seen = _routed_capture(orchestrator, monkeypatch)
+    asyncio.run(orchestrator.ask(MULTI_Q))
+    # decide saw the router's own decision, not the planner's rewrite.
+    assert decided["rule"] == "multi_entity_deferred"
+    # Jev left it as an answer, so the slot planner then planned the calls.
+    assert seen["decision"].rule == "slot_plan"
+    assert [tool for tool, _ in seen["decision"].tool_calls] == ["data_query_records"] * 3
+
+
+def test_slot_planner_does_not_act_on_a_jev_decline(monkeypatch):
+    backend = FakeBackend(_answer_facts(off_topic=_choice("cost_or_budget", 0.95)))
+    orchestrator = _orchestrator(_both_on(), backend)
+    seen = _routed_capture(orchestrator, monkeypatch)
+    asyncio.run(orchestrator.ask(MULTI_Q))
+    assert backend.calls == 3
+    assert seen["decision"].path == "unsupported" and seen["decision"].rule == "unsupported_cost"
+
+
+def test_slot_planner_alone_is_unchanged_with_decide_off(monkeypatch):
+    settings = replace(AgentSettings.from_env(), jev_mode="off", slot_plan=True)
+    backend = FakeBackend(raises=AssertionError("Jev was called"))
+    orchestrator = _orchestrator(settings, backend)
+    seen = _routed_capture(orchestrator, monkeypatch)
+    asyncio.run(orchestrator.ask(MULTI_Q))
+    assert backend.calls == 0 and seen["decision"].rule == "slot_plan"
+
+
+def test_a_geocoded_city_counts_as_a_resolved_place():
+    question = "Give me the ignition risk for Bakersfield on a past date."
+    decision = route_question(question)
+    assert decision.rule == "forecast_missing_date" and decision.slots.get("city_point")
+    # Jev asks for a place at 0.95; the router already geocoded Bakersfield.
+    facts = _answer_facts(asks_risk=_noul(0.97), names_specific_place=_noul(0.05), has_time_scope=_noul(0.05))
+    result = decide_from_answers(question, decision, facts, gate=0.8)
+    assert result.jev_rule == "risk_missing_place"
+    assert result.winner == "router" and result.why == "contradicts_slot" and result.decision is decision

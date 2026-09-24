@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 from services.agent.time_resolve import resolve_time
 
@@ -98,6 +99,22 @@ def fragment_without_verb(question: str) -> bool:
             lower,
         )
     )
+
+
+def plans_equivalent(gold: list[str] | None, actual: list[str] | None) -> bool:
+    """Rule D. A comparison and the matching per-entity counts are the same numbers."""
+    if not gold or not actual:
+        return False
+    if Counter(gold) == Counter(actual):
+        return True
+
+    def counts(plan: list[str]) -> bool:
+        return len(plan) >= 2 and all(name == "data_query_records" for name in plan)
+
+    def comparison(plan: list[str]) -> bool:
+        return plan == ["comparison_run"]
+
+    return (comparison(gold) and counts(actual)) or (counts(gold) and comparison(actual))
 
 
 def intent_alternatives(question: str, gold) -> list[str] | None:

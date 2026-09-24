@@ -42,7 +42,8 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
      about the time (`*_missing_year`, `ambiguous_relative_time`, `forecast_missing_date`)
      is ignored when the router resolved the time, and one about the place
      (`missing_location`, `risk_missing_place`) is ignored when the router resolved a
-     county, utility, or coordinates (why: `contradicts_slot`).
+     county, utility, coordinates, or a geocoded city (`city_point`) (why:
+     `contradicts_slot`).
    - **Code-verified facts win.** When the router's own resolver proved the time missing or
      ambiguous, or found no place, a Jev answer cannot override that decline (why:
      `code_verified`). `time_out_of_coverage` has no Jev fact and is never overridden.
@@ -53,6 +54,17 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
    - Below the relevant gate, on a timeout, or on any Jev error, the router's decision stands.
 4. **When the final disposition is answer**, the question proceeds exactly as today: the
    router's deterministic call if it has one, otherwise the model path.
+
+## Decide and the slot planner
+
+`AGENT_SLOT_PLAN` (off by default, `docs/JEV_MULTI_TOOL.md`) turns a `multi_entity_deferred`
+route into several deterministic calls built from router slots. When both are on, decide
+runs first, on the router's own decision, and the slot planner then acts only on a question
+decide left as an answer. A Jev clarification or refusal is never planned, and a Jev answer
+that overrides a router decline (`jev_decide_answer`) is not a `multi_entity_deferred` route,
+so the planner leaves it alone (`test_decide_runs_before_the_slot_planner_on_the_router_decision`,
+`test_slot_planner_does_not_act_on_a_jev_decline`). Jev's own plan mode was archived on the
+`jev-plan-archive` branch; `AGENT_JEV_MODE=plan` is rejected at startup.
 
 Confidence of a Jev decision is the lowest confidence among the facts behind the rule that
 fired (`_RULE_FACTS`). A Noul counts as max(p, 1 - p); a Choice uses its own confidence.
@@ -104,23 +116,29 @@ not as a measured optimum. Production shadow logs are where the answer gate can 
 Stored calls: `services/agent/eval/runs/jev_decide_store.json`, TypeSafe `jev-latest`
 (served `jev-1.13.0`), 307 questions, 0 errors, $0.079. Holdout rows marked
 `needs_human_review` are left out. v3 uses the 65 rows the independent ChatGPT labels made
-certain, read from `jev_holdout_v3_questions.json` on `jev-multi-tool`.
+certain, from `jev_holdout_v3_questions.json`. Holdouts v2 and v3 are read from the local
+files on main (PR #46). The v1 and v2 files on main now have 67 and 43 rows without
+`needs_human_review`; the store has calls for 63 and 42 of them, and the five newer rows
+(`ho_021`, `ho_030`, `ho_056`, `ho_065`, `hv2_011`) are not replayed, since no new Jev calls
+were made.
 
 Disposition accuracy with the default gates, decline 0.8 and answer 0.9, replayed from the
-store with no new Jev calls (`runs/jev_decide_replay.json`):
+store with no new Jev calls, router as of main after PRs #28, #46, #58, and #69
+(`runs/jev_decide_replay.json`):
 
 | Set | n | Status | Router alone | Jev alone | Decide | Jev won (fixed / broke) |
 |---|---|---|---|---|---|---|
 | dev | 137 | used for tuning | 0.934 | 0.964 | 0.964 | 7 (4 / 0) |
 | v1 | 63 | seen, now development data | 0.905 | 0.937 | 0.952 | 7 (3 / 0) |
-| v2 | 42 | seen, now development data | 0.857 | 0.857 | 0.905 | 4 (2 / 0) |
+| v2 | 42 | seen, now development data | 0.857 | 0.857 | 0.905 | 3 (2 / 0) |
 | v3 | 65 | **tuned**, reported only, not used for any choice | 0.692 | 0.723 | 0.769 | 9 (5 / 0) |
 
 Across all four sets Jev's wins fix 14 decisions and break 0. The slot and code-verified
-rules changed the recorded reason on two rows and no final decision:
+rules changed the recorded reason on four rows and no final decision:
 `timeline_missing_year` (router `trend_missing_year`, Jev answered at 0.47, now
-`code_verified`) and `hv3_079` (router `forecast_missing_date`, Jev asked for a place the
-router resolved, now `contradicts_slot`).
+`code_verified`), and `hv3_079`, `hv2_036`, and `hv2_047` (router `forecast_missing_date`
+after PR #28 geocoded the city; Jev asked for a place the router resolved, now
+`contradicts_slot`).
 
 None of these sets is clean; production shadow logs are the next clean test.
 

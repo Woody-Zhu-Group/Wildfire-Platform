@@ -33,6 +33,20 @@ from shared.db import REPO_ROOT
 CACHE_DIR = REPO_ROOT / "data" / "boundaries"
 AREA_TOLERANCE = 0.001  # 0.1% of the publisher's area
 SLIVER_M2 = 1.0  # rings smaller than this are reported, not changed
+# Degenerate rings (collinear or repeated points) stop the load. In float
+# coordinates their area is tiny but not zero, and it grows with the ring's
+# length (a 28 km collinear ring measures about 3.5e-6 m2), so the test is
+# relative as well as absolute. A ring is degenerate when its local planar
+# area is under MIN_RING_M2, or under DEGENERATE_RATIO times the square of
+# its bounding-box diagonal. Across all 1,189 real CPUC HFTD and IOU rings,
+# the smallest area is 0.0015 m2 and the smallest ratio is 4.6e-5, so every
+# real sliver is kept with a wide margin; float-collinear rings measure
+# around 1e-15.
+MIN_RING_M2 = 1e-6
+DEGENERATE_RATIO = 1e-9
+# The layers have 2 and 6 features in one page. A server that ignores
+# resultOffset and keeps reporting more pages would otherwise loop forever.
+MAX_PAGES = 20
 
 # Square meters per squared unit of the layer's native spatial reference, the
 # CRS its Shape__Area attribute is measured in. The area check projects our
@@ -149,6 +163,32 @@ def ring_area_km2(ring: list[list[float]]) -> float:
     return abs(total) * _AUTHALIC_RADIUS_KM**2 / 2
 
 
+def ring_planar_m2(ring: list[list[float]]) -> tuple[float, float]:
+    """(area in m2, bounding-box diagonal in m) in a local equirectangular frame.
+
+    Coordinates are taken relative to the first vertex, so a sub-meter sliver
+    keeps its precision. Accurate for the small rings the degeneracy and
+    sliver checks care about.
+    """
+    x0, y0 = ring[0][0], ring[0][1]
+    lat0 = sum(point[1] for point in ring) / len(ring)
+    kx = 111_320.0 * math.cos(math.radians(lat0))
+    ky = 110_574.0
+    points = [((x - x0) * kx, (y - y0) * ky) for x, y in (p[:2] for p in ring)]
+    if points[0] != points[-1]:
+        points.append(points[0])
+    twice = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(points, points[1:]))
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    diagonal = math.hypot(max(xs) - min(xs), max(ys) - min(ys))
+    return abs(twice) / 2.0, diagonal
+
+
+def is_degenerate(ring: list[list[float]]) -> bool:
+    area_m2, diagonal_m = ring_planar_m2(ring)
+    return area_m2 < MIN_RING_M2 or area_m2 < DEGENERATE_RATIO * diagonal_m**2
+
+
 def is_outer_ring(ring: list[list[float]]) -> bool:
     """Esri rule: clockwise rings are outer boundaries, counterclockwise are holes."""
     return signed_area(ring) < 0
@@ -226,7 +266,7 @@ def esri_rings_to_polygons(
     """Group Esri rings into GeoJSON Polygon coordinate arrays.
 
     - Rings with fewer than 4 points are dropped and counted.
-    - A ring with exactly zero area raises.
+    - A degenerate ring (see is_degenerate) raises.
     - Each hole goes to the smallest outer ring containing it. A hole with no
       containing outer ring raises.
     - An outer ring nested directly inside another outer ring (not inside one
@@ -243,9 +283,13 @@ def esri_rings_to_polygons(
         if len(ring) < 4:
             report.dropped_short += 1
             continue
-        if signed_area(ring) == 0.0:
-            raise GeometryGateError(f"ring at {ring[0]} has zero area")
-        if ring_area_km2(ring) * 1e6 < SLIVER_M2:
+        area_m2, diagonal_m = ring_planar_m2(ring)
+        if is_degenerate(ring):
+            raise GeometryGateError(
+                f"ring at {ring[0]} is degenerate ({area_m2:.3g} m2 across "
+                f"{diagonal_m:,.1f} m); collinear or repeated points"
+            )
+        if area_m2 < SLIVER_M2:
             report.slivers += 1
         usable.append(ring)
     outers = [ring for ring in usable if is_outer_ring(ring)]
@@ -324,7 +368,13 @@ def fetch_layer(layer: Layer, *, transport: httpx.BaseTransport | None = None) -
         meta = _get_json(client, layer.url, {"f": "json"})
         features: list[dict] = []
         offset = 0
-        while True:
+        for page_number in range(1, MAX_PAGES + 2):
+            if page_number > MAX_PAGES:
+                raise SourceUnavailable(
+                    f"{layer.name}: {layer.url} still reported more features after "
+                    f"{MAX_PAGES} pages ({len(features)} features so far). The server may "
+                    "be ignoring resultOffset; nothing was cached."
+                )
             page = _get_json(
                 client,
                 f"{layer.url}/query",

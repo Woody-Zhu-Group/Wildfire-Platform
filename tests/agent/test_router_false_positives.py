@@ -431,7 +431,9 @@ def test_review_42_a_plural_counties_list_qualifies_every_name(question, expecte
 
 @pytest.mark.parametrize(
     "phrase",
-    ["Napa Valley", "Sonoma Valley", "Kern River", "Santa Clara Valley", "Shasta Lake"],
+    # Shasta Lake is an incorporated city, so it routes as that city instead
+    # (tests/agent/test_city_points.py); a count in it asks for a place.
+    ["Napa Valley", "Sonoma Valley", "Kern River", "Santa Clara Valley"],
 )
 def test_review_42_the_single_and_list_county_slots_always_agree(phrase):
     question = f"How many CAL FIRE incidents were there in {phrase} in 2020?"

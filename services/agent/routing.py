@@ -8,6 +8,12 @@ from datetime import date
 from typing import Any
 
 from services.agent.clarify_missing import complete_clarification
+from services.agent.places import (
+    GAZETTEER_VINTAGE,
+    CityPoint,
+    city_point,
+    county_word_places,
+)
 from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
 from services.shared.dataset_registry import HDW_YEARS
 
@@ -610,6 +616,10 @@ def _city_match(lower: str):
     A name followed by County is a county phrase, not the city. Ambiguous
     names need a place cue such as "in Weed" or "Weed, California".
     """
+    return next(_city_matches(lower), None)
+
+
+def _city_matches(lower: str):
     for match in _CITY_NOT_COUNTY.finditer(lower):
         name = match.group(0).lower()
         after = lower[match.end() :]
@@ -624,8 +634,7 @@ def _city_match(lower: str):
             )
             if not cued:
                 continue
-        return match
-    return None
+        yield match
 
 
 def _city_named_as_county(lower: str) -> str | None:
@@ -634,6 +643,124 @@ def _city_named_as_county(lower: str) -> str | None:
         if re.match(r"\s+county\b", lower[match.end() :]):
             return match.group(0)
     return None
+
+
+# A city center point answers "which territory or tier is this city in" and
+# "fitted risk near this city on a past date". It cannot answer counts or
+# lists in a city, a radius around it, or whether part of it is in a tier.
+_CITY_POINT_RADIUS = re.compile(
+    r"\b\d+(?:\.\d+)?\s*(?:km|mi|miles?|kilometers?|kilometres?)\b|"
+    r"\bradius\b|\bwithin\b|\bmiles?\b|\bkilometers?\b"
+)
+_CITY_POINT_PARTIAL = re.compile(
+    r"\b(?:parts?|portions?|partly|partially|entire(?:ly)?|whole|all\s+of|"
+    r"much\s+of|percent(?:age)?|share\s+of|fraction|boundar\w*|city\s+limits|"
+    r"overlap\w*|intersect\w*|straddl\w*|span\w*|split|"
+    r"address(?:es)?|neighbou?rhoods?|streets?|parcels?|homes?|houses?|"
+    r"residen\w*|propert(?:y|ies)|downtown|uptown|suburbs?|outskirts|"
+    r"edge|east|west|north|south|eastern|western|northern|southern|"
+    r"buildings?|blocks?|acreage|square\s+miles?|sq\.?\s*mi)\b"
+)
+_CITY_POINT_OTHER_INTENT = re.compile(
+    r"\b(?:trend|time series|weekly|monthly|daily|compar\w*|versus|vs\.?|"
+    r"history|historically|over time|since|between|each|every|per)\b"
+)
+_CITY_POINT_EVENT_NOUN = re.compile(
+    r"\b(?:ignitions?|outages?|incidents?|events?|fires?|wildfires?|psps|epss|"
+    r"circuits?|shutoffs?|de-?energi\w*|acres?|records?)\b"
+)
+# Phrases whose "fire" or "ignition" is not an event count.
+_CITY_POINT_NOT_EVENTS = re.compile(
+    r"\b(?:(?:ignition|fire|wildfire)\s+(?:risk|probability|intensity)|"
+    r"probability\s+of\s+(?:an?\s+)?(?:ignition|fire|wildfire)|"
+    r"(?:high\s+)?fire\s+threat(?:\s+districts?)?)\b"
+)
+# Territory containment, not service. The IOU layer covers cities that run
+# their own municipal utility (Redding and Palo Alto fall in the PG&E polygon),
+# so "which utility serves Redding" is not a point question.
+_CITY_POINT_CONTEXT = re.compile(
+    r"\b(?:iou|territor\w*|hftd|high\s+fire\s+threat|"
+    r"fire\s+threat\s+district|tier\s*[123]?|grid\s+cell)\b"
+)
+_CITY_POINT_SERVICE = re.compile(
+    r"\b(?:serv(?:e|es|ed|ing|ice|iced)|provider|provides?|supplie[sd]|"
+    r"suppl(?:y|ies)|delivers?|power\s+company|electricity\s+(?:to|for))\b"
+)
+_NEAR = re.compile(r"\b(?:near|around|close\s+to|nearby)\b")
+
+
+@dataclass(frozen=True)
+class _CityPointPlan:
+    kind: str  # "context" or "risk"
+    point: CityPoint
+
+
+def _city_point_plan(text: str, lower: str) -> _CityPointPlan | None:
+    """A city question one city center point can answer, or None.
+
+    None keeps the city_needs_place clarification: the city is not in the
+    Gazetteer file, several cities or a county are named, or the question
+    asks for counts, lists, maps, a radius, or part of a city.
+    """
+    matches = list(_city_matches(lower))
+    if not matches:
+        return None
+    names = {match.group(0).lower() for match in matches}
+    if len(names) != 1:
+        return None
+    name = next(iter(names))
+    point = city_point(name) or _COUNTY_WORD_CDPS.get(name)
+    if point is None:
+        return None
+    # Drop the city name first, so West Sacramento is not Sacramento County
+    # and South Lake Tahoe is not "south".
+    without_city = lower[: matches[0].start()] + " " + lower[matches[0].end() :]
+    if (
+        _coords(text) is not None
+        or _counties(without_city)
+        or _city_named_as_county(lower)
+    ):
+        return None
+    if _CITY_POINT_RADIUS.search(lower) or _CITY_POINT_PARTIAL.search(without_city):
+        return None
+    if (
+        _has_quantity_op(lower)
+        or _has_list_op(lower)
+        or _asks_map_view(lower)
+        or _asks_ranking(lower)
+        or _CITY_POINT_OTHER_INTENT.search(lower)
+    ):
+        return None
+    if _CITY_POINT_EVENT_NOUN.search(_CITY_POINT_NOT_EVENTS.sub(" ", lower)):
+        return None
+    if _wants_risk(lower):
+        return _CityPointPlan("risk", point)
+    if _NEAR.search(lower):
+        return None
+    if _CITY_POINT_SERVICE.search(lower.replace("service territor", "territor")):
+        return None
+    if _CITY_POINT_CONTEXT.search(lower):
+        return _CityPointPlan("context", point)
+    return None
+
+
+def city_point_for_question(question: str) -> CityPoint | None:
+    """The city center point the router would use for this question, or None."""
+    text = question.strip()
+    plan = _city_point_plan(text, text.lower())
+    return plan.point if plan else None
+
+
+def _city_point_slot(point: CityPoint) -> dict[str, Any]:
+    return {
+        "name": point.name,
+        "place_type": point.place_type,
+        "geoid": point.geoid,
+        "lat": point.lat,
+        "lon": point.lon,
+        "source": f"census_gazetteer_{GAZETTEER_VINTAGE}_internal_point",
+    }
+
 
 # Datasets whose warehouse tables expose a county column.
 _COUNTY_CAPABLE_DATASETS = {
@@ -901,6 +1028,10 @@ def _unresolved_county_place(text: str) -> str | None:
     for pattern in UTILITY_PATTERNS.values():
         scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
     scrubbed = " ".join(scrubbed.split())
+    # A Census place whose name holds a county word (Lake Forest, Kings Beach,
+    # Shasta Lake) is that place, not the county.
+    if _COUNTY_WORD_PLACE_RE is not None:
+        scrubbed = _COUNTY_WORD_PLACE_RE.sub(" ", scrubbed)
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
         for match in re.finditer(rf"\b{re.escape(name.lower())}\b", scrubbed):
             after = scrubbed[match.end() :]
@@ -2027,6 +2158,60 @@ def _route_ranking(
     )
 
 
+def _city_point_route(
+    plan: _CityPointPlan,
+    *,
+    text: str,
+    time_resolution,
+    slots: dict[str, Any],
+) -> RouteDecision:
+    """Spatial context or the spatial to risk chain at a city center point."""
+    # A city center can sit just off a mapped shoreline (Albany is 3.5 m
+    # outside PG&E's polygon), so city points ask for the shoreline snap.
+    point_call = (
+        "data_query_spatial",
+        {
+            "kind": "point",
+            "lat": plan.point.lat,
+            "lon": plan.point.lon,
+            "snap_shoreline": True,
+        },
+    )
+    if plan.kind == "context":
+        return RouteDecision(
+            "deterministic",
+            "city_point_context",
+            f"{plan.point.name} resolved to its Census Gazetteer internal point",
+            tool_calls=[point_call],
+            slots=slots,
+        )
+    lower = text.lower()
+    on_date = _single_risk_date(text, time_resolution)
+    if (
+        _forward_relative_phrase(lower)
+        or _date_after_risk_coverage(on_date)
+        or not on_date
+    ):
+        return _risk_date_clarification(
+            text=text,
+            time_resolution=time_resolution,
+            reason="City forecast requires a scoreable past date",
+            slots=slots,
+        )
+    return RouteDecision(
+        "deterministic",
+        "city_point_risk_chain",
+        f"{plan.point.name} resolved to its Census Gazetteer internal point, "
+        "and a date fully specifies the spatial to risk chain",
+        tool_calls=[
+            point_call,
+            # cell_id is resolved from the first result by the orchestrator.
+            ("risk_forecast", {"cell_id": "$grid_cell_id", "date": on_date}),
+        ],
+        slots=slots,
+    )
+
+
 def route_question(question: str, *, force_model: bool = False) -> RouteDecision:
     """Route one question. A clarification asks for every missing item at once.
 
@@ -2145,6 +2330,11 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 "ignition count, CAL FIRE incidents, EPSS outages, or fitted cell risk?"
             ),
         )
+    city_plan = _city_point_plan(text, lower)
+    if city_plan is not None:
+        slots["city_point"] = _city_point_slot(city_plan.point)
+        # A county name inside the city name (West Sacramento) is not a county.
+        slots["county"] = None
     if re.search(r"\bnear me\b", lower) and _coords(text) is None:
         return RouteDecision(
             "clarification",
@@ -2161,6 +2351,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
     if (
         re.search(r"\b(?:near|around|close to)\b", lower)
         and not re.search(r"\bnear me\b", lower)
+        and city_plan is None
         and not proximity_is_numeric
         and _coords(text) is None
         and not re.search(
@@ -2205,21 +2396,32 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         )
     # Coordinates are the place; a city name beside them is a label.
     city = _city_match(lower) if coords is None else None
-    if city:
+    if city and city_plan is None:
         return RouteDecision(
             "clarification",
             "city_needs_place",
             "A city that is not a county name is not a query layer",
             slots=slots,
             answer=(
-                f"{city.group(0).title()} is a city, not a county or utility "
+                f"{city.group(0).title()} is "
+                + (
+                    "a community (census designated place)"
+                    if city.group(0).lower() in _COUNTY_WORD_CDPS
+                    else "a city"
+                )
+                + ", not a county or utility "
                 "territory. Which coordinates, county, or utility territory "
                 "should I use? I will not answer with a statewide or county layer."
             ),
         )
     # A ranking that mentions a tier reaches _route_ranking first, where an
     # unsupported ranking is refused before the tier constraint is considered.
-    if _hftd_constraint_unavailable(lower) and not _asks_ranking(lower):
+    # A city point asks which tier one point is in, not a tier measurement.
+    if (
+        city_plan is None
+        and _hftd_constraint_unavailable(lower)
+        and not _asks_ranking(lower)
+    ):
         return RouteDecision(
             "clarification",
             "hftd_constraint_unavailable",
@@ -2319,6 +2521,11 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             "forced_eval",
             "Evaluation case forces model tier",
             slots=slots,
+        )
+
+    if city_plan is not None:
+        return _city_point_route(
+            city_plan, text=text, time_resolution=time_resolution, slots=slots
         )
 
     ranking_decision = _route_ranking(
@@ -3209,3 +3416,46 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         "No high-confidence deterministic rule matched",
         slots=slots,
     )
+
+
+# ---- County-word Census places -------------------------------------------------
+# Built last because it asks _unresolved_county_place which place names the
+# county-word rule would misread. A Census place whose name holds a county
+# word wins over that rule:
+# - incorporated ones (Lake Forest, Shasta Lake, South Lake Tahoe, Sutter
+#   Creek, Monterey Park, Imperial Beach) are already in _CA_CITIES;
+# - census designated places that the rule would misread (Kings Beach, Plumas
+#   Lake, Butte Valley, Butte Creek Canyon, Orange Park Acres, Monterey Park
+#   Tract) are added to the city matcher and resolve to their CDP point.
+# A bare county word ("in Trinity") still clarifies.
+_COUNTY_WORD_PLACE_RE: re.Pattern | None = None
+_ALL_COUNTY_WORD_PLACES = county_word_places(tuple(_CA_COUNTIES))
+_COUNTY_WORD_CDPS: dict[str, CityPoint] = {
+    name: point
+    for name, point in _ALL_COUNTY_WORD_PLACES.items()
+    if point.place_type == "CDP"
+    and name not in _CA_CITIES
+    and _unresolved_county_place(f"in {point.name}")
+}
+_COUNTY_WORD_PLACE_RE = re.compile(
+    r"\b(?:"
+    + "|".join(
+        re.escape(name)
+        for name in sorted(
+            {name for name in _ALL_COUNTY_WORD_PLACES if name in _CA_CITIES}
+            | set(_COUNTY_WORD_CDPS),
+            key=len,
+            reverse=True,
+        )
+    )
+    + r")\b"
+)
+_CITY_NOT_COUNTY = re.compile(
+    r"\b(?:"
+    + "|".join(
+        re.escape(name)
+        for name in sorted(set(_CA_CITIES) | set(_COUNTY_WORD_CDPS), key=len, reverse=True)
+    )
+    + r")\b",
+    re.I,
+)

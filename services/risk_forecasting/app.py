@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from services.risk_forecasting.config import DATA_DIR, lookback_days_from_env
@@ -23,27 +24,32 @@ from services.risk_forecasting.predictor import (
     AGGREGATION_NOTE,
     CoverageError,
     FittedModel,
-    load_fitted_model,
     score_place,
     score_surface,
 )
+from services.risk_forecasting.readiness import Readiness, check_readiness
 
 _model: Optional[FittedModel] = None
 _load_error: Optional[str] = None
+_readiness: Optional[Readiness] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _model, _load_error
-    print("[API] Startup: loading fitted model ...")
-    try:
-        _model = load_fitted_model()
-        _load_error = None
-        print("[API] Startup complete.")
-    except Exception as exc:  # noqa: BLE001 — surface any load failure as 503
-        _model = None
-        _load_error = str(exc)
-        print(f"[API] Startup WARNING: model not loaded: {_load_error}")
+    global _model, _load_error, _readiness
+    print("[API] Startup: loading fitted model and running a trial prediction ...")
+    _readiness = check_readiness(DATA_DIR, lookback_days_from_env())
+    # /predict and /surface keep their old gate: they need only the fitted
+    # model, and report missing covariates per request.
+    _model = _readiness.model
+    _load_error = None if _model is not None else _readiness.error
+    if _readiness.ready:
+        print(
+            f"[API] Startup complete. Trial prediction for {_readiness.trial_date} "
+            f"took {_readiness.trial_ms} ms."
+        )
+    else:
+        print(f"[API] Startup WARNING: not ready ({_readiness.stage}): {_readiness.error}")
     yield
     print("[API] Shutdown.")
 
@@ -144,17 +150,44 @@ class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
     detail: Optional[str] = None
+    ready: bool = False
+    failed_stage: Optional[str] = Field(
+        None,
+        description="fitted_params, covariates, or trial_prediction when not ready",
+    )
+    trial_date: Optional[date] = None
+    trial_ms: Optional[float] = None
+    checked_at: Optional[str] = None
 
 
-@app.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
-    if _model is None:
-        return HealthResponse(
+@app.get(
+    "/health",
+    response_model=HealthResponse,
+    responses={503: {"model": HealthResponse, "description": "Startup check failed"}},
+)
+def health():
+    """Cached startup readiness. 200 only if a trial prediction ran at startup."""
+    state = _readiness
+    if state is None:
+        body = HealthResponse(
             status="degraded",
             model_loaded=False,
-            detail=_load_error or "Fitted model not loaded",
+            detail="Startup check has not run",
         )
-    return HealthResponse(status="ok", model_loaded=True)
+        return JSONResponse(status_code=503, content=body.model_dump(mode="json"))
+    body = HealthResponse(
+        status="ok" if state.ready else "degraded",
+        model_loaded=state.model is not None,
+        detail=state.error,
+        ready=state.ready,
+        failed_stage=None if state.ready else state.stage,
+        trial_date=state.trial_date,
+        trial_ms=state.trial_ms,
+        checked_at=state.checked_at,
+    )
+    if not state.ready:
+        return JSONResponse(status_code=503, content=body.model_dump(mode="json"))
+    return body
 
 
 @app.get("/metrics", response_model=MetricsResponse)

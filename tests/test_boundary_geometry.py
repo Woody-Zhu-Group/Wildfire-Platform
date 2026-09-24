@@ -8,14 +8,15 @@ from __future__ import annotations
 
 import copy
 import uuid
+from pathlib import Path
+from types import SimpleNamespace
 
 import psycopg
 import pytest
 
-from db.loaders import load_boundaries
+from db.loaders import arcgis_polygons, load_boundaries
 from db.loaders.arcgis_polygons import (
     AREA_TOLERANCE,
-    LAYERS,
     GeometryGateError,
     build_geometry,
     check_table,
@@ -129,10 +130,24 @@ def test_build_geometry_absorbs_an_outer_nested_in_another_outer(db_conn):
 # ---- Load into a throwaway schema -----------------------------------------------
 
 
+FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "boundaries"
+
+
+@pytest.fixture
+def fixture_sources(monkeypatch, tmp_path):
+    """Load from the committed fixture, never the network or data/boundaries.
+
+    The fixture (tests/fixtures/boundaries, built by make_fixture.py) has every
+    expected feature, the PG&E override hole, an SCE hole, and a CPUC-sized
+    sliver. dataset_demo is pointed at an empty folder, so geom_source is NULL
+    as on EC2.
+    """
+    monkeypatch.setattr(arcgis_polygons, "CACHE_DIR", FIXTURE_DIR)
+    return SimpleNamespace(dataset_demo_data_dir=tmp_path / "no_dataset_demo")
+
+
 @pytest.fixture
 def scratch_schema():
-    if not all(layer.cache_path.exists() for layer in LAYERS):
-        pytest.skip("seed data/boundaries with rebuild_boundaries --fetch-only first")
     schema = f"test_boundaries_{uuid.uuid4().hex[:8]}"
     conn = connect(get_settings(), autocommit=True)
     try:
@@ -161,10 +176,10 @@ def _fingerprint(conn, schema):
         return out
 
 
-def test_a_gate_failure_rolls_back_both_tables(scratch_schema):
+def test_a_gate_failure_rolls_back_both_tables(scratch_schema, fixture_sources):
     conn, schema = scratch_schema
     before = _fingerprint(conn, schema)
-    prepared = load_boundaries.prepare(get_settings())
+    prepared = load_boundaries.prepare(fixture_sources)
     broken = copy.deepcopy(prepared)
     # HFTD is inserted after IOU, so a failure there must also undo IOU.
     broken["hftd"]["rows"][0]["publisher_area_m2"] *= 1.01
@@ -173,10 +188,25 @@ def test_a_gate_failure_rolls_back_both_tables(scratch_schema):
     assert _fingerprint(conn, schema) == before
 
 
-def test_a_clean_load_replaces_both_tables_together(scratch_schema):
+def test_a_clean_load_replaces_both_tables_together(scratch_schema, fixture_sources):
     conn, schema = scratch_schema
-    counts = load_boundaries.apply(conn, load_boundaries.prepare(get_settings()), schema=schema)
+    counts = load_boundaries.apply(conn, load_boundaries.prepare(fixture_sources), schema=schema)
     assert counts == {"iou_territories": 6, "hftd_tiers": 2}
     with conn.cursor() as cur:
         for table, key in (("iou_territories", "utility"), ("hftd_tiers", "tier")):
             assert gate_failures(check_table(cur, f"{schema}.{table}", key)) == []
+            # No dataset_demo here, as on EC2.
+            cur.execute(f"SELECT count(*) FROM {schema}.{table} WHERE geom_source IS NOT NULL")
+            assert cur.fetchone()[0] == 0
+        holes = {}
+        for table, key in (("iou_territories", "utility"), ("hftd_tiers", "tier")):
+            cur.execute(
+                f"""SELECT {key}, (SELECT sum(ST_NumInteriorRings(d.geom)) FROM ST_Dump(geom) d)
+                    FROM {schema}.{table}"""
+            )
+            holes.update(dict(cur.fetchall()))
+    # SCE keeps its hole; the PG&E override hole became area; Tier 2 keeps its
+    # hole and the 0.002 m2 sliver.
+    assert holes["SCE"] == 1
+    assert holes["PGE"] == 0
+    assert holes["Tier 2"] == 2

@@ -83,6 +83,7 @@ class AgentSettings:
     # decide mode: a Jev answer overrides a router clarify or refuse only at or
     # above this higher confidence; a wrong answer is worse than a clarification.
     jev_decide_answer_confidence: float = 0.9
+    slot_plan: bool = False
 
     @classmethod
     def from_env(cls) -> "AgentSettings":
@@ -176,6 +177,7 @@ class AgentSettings:
                 os.getenv("AGENT_JEV_DECIDE_ANSWER_CONFIDENCE", "0.9")
             ),
             llm_provider=llm_provider,
+            slot_plan=_bool("AGENT_SLOT_PLAN", False),
         )
         if hosted:
             value = replace(value, **hosted)

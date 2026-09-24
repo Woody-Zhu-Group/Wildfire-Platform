@@ -94,6 +94,11 @@ suppressed rather than returned without its qualification.
   runs the Jev-first decider right after `route_question`: backstops first, then
   Jev's disposition behind a 0.8 decline gate and a 0.9 answer gate
   ([`docs/JEV_DECIDE.md`](../../docs/JEV_DECIDE.md), `decisions/decide_mode.py`).
+- `AGENT_SLOT_PLAN` (off by default) plans a deferred multi-entity question as
+  several deterministic calls from router slots
+  ([`docs/JEV_MULTI_TOOL.md`](../../docs/JEV_MULTI_TOOL.md)). With decide on,
+  decide runs first and the planner acts only on questions decide leaves as answer.
+  Jev's plan mode was archived and is not accepted.
 
 ## Run
 
