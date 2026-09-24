@@ -213,9 +213,15 @@ rows for, each one's first and last date, and rows per calendar year; see
 `db/README.md`), and the registry reads it (`dataset_coverage_gap`). A utility
 is covered from its first row to the dataset's last row; a read with no utility
 is checked against the dataset's own dates. A period whose every year has no
-rows in the dataset at all is not covered either (CAL FIRE has one 2009 row and
-none from 2010 to 2012: "CAL FIRE incidents have no rows between 2009 and
-2013"). For example, CPUC has rows for PacifiCorp (from
+rows in the dataset at all is not covered either (CAL FIRE's default count has
+one 2009 row and none from 2010 to 2013: "CAL FIRE incidents of the default
+incident types (...) have no rows between 2009 and 2014"). Coverage is that of
+the rows the call counts: a CAL FIRE call's `incident_type_mode` picks the
+measured definition (`call_definition`), so a 2013 count answers for `all` or
+`untyped` and is not covered for the default. The router and the Jev templates
+give a call the definition its question asks for, in the registry's wording
+(`carry_question_definition` in `services/agent/coverage.py`), and a call that
+cannot carry it (a comparison) is `unexpressed_filter_constraints`. For example, CPUC has rows for PacifiCorp (from
 2025-04-24), PG&E, SCE, and SDG&E only; PSPS for PG&E, SCE, SDG&E, and Liberty
 from 2021-10-11; EPSS for PG&E from 2021-11-01.
 
