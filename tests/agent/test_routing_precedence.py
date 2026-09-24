@@ -227,11 +227,14 @@ def test_see_where_outranks_count_and_maps():
 
 
 def test_locations_of_maps_even_with_how_many():
+    # The map still opens; the count runs beside it instead of being dropped
+    # (review of PR 82).
     decision = route_question(
         "How many and where are PG&E CPUC ignitions in 2024?"
     )
-    assert decision.rule == "map"
-    assert decision.tool_calls[0][1]["kind"] == "map"
+    assert decision.rule == "multi_intent_count_and_map"
+    assert decision.tool_calls[0][0] == "data_query_records"
+    assert decision.tool_calls[1][1]["kind"] == "map"
 
 
 def test_show_me_where_maps():

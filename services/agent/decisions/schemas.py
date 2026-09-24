@@ -153,6 +153,10 @@ CONTEXT_DEFERRED_RULES: dict[str, str] = {
         "A county word used as a different place, or a cue-required county word "
         "without County, is clarified by the router before Jev runs."
     ),
+    "epss_non_pge_utility": (
+        "An EPSS read for a utility other than PG&E is clarified by the router "
+        "before Jev runs, since EPSS rows exist only for PG&E."
+    ),
     "unsupported_future_prediction": (
         "A forward modal, expectation, or forecast of events or counts is refused "
         "by the router before Jev runs."

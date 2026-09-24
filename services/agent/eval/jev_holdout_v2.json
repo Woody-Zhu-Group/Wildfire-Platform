@@ -19,21 +19,32 @@
     "id": "hv2_002",
     "question": "For SCE, chart monthly EPSS fast-trip outage events during 2022 and include the annual total.",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "multi_intent",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "epss_outages",
-    "expected_tool_pick": [
-      "visualization_create",
-      "data_query_records"
-    ],
-    "expected_clarify_reason": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "epss_non_pge_utility",
     "expected_unsupported_topic": null,
-    "gold_plan": [
-      "visualization_create",
-      "data_query_records"
-    ],
-    "needs_human_review": true,
-    "label_rationale": "A monthly chart plus an annual total is two results. EPSS is PG&E only, so SCE may be empty."
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "EPSS covers PG&E only, so the SCE count and chart would be absent data, not zero.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "multi_intent",
+      "expected_tool_pick": [
+        "visualization_create",
+        "data_query_records"
+      ],
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null,
+      "gold_plan": [
+        "visualization_create",
+        "data_query_records"
+      ],
+      "needs_human_review": true
+    },
+    "rule": "I",
+    "rule_text": "Rule I, written by Michael on 2026-09-24: an EPSS question naming a utility other than PG&E is clarify / epss_non_pge_utility, because EPSS covers PG&E only and a count would be absent, not zero. Applied to ho_080 and hv2_002. needs_human_review cleared on the rows rule I decided."
   },
   {
     "id": "hv2_003",

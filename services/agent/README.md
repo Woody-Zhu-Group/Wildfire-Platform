@@ -10,7 +10,21 @@ The deterministic tier handles only high-confidence requests whose operation,
 dataset/metric, scope, and required time/location slots are explicit:
 
 - filtered count/list → `data_query_records`
-- explicit single-dataset ranking → `data_query_rank`
+- explicit single-dataset ranking → `data_query_rank`. A ranking restricted to
+  an HFTD tier clarifies (rank statewide or map the tier) once its dataset
+  resolves; bare "ignitions" resolves to CPUC ignitions and bare "outages" to
+  EPSS, as without the tier, and a tier ranking with no dataset asks for one
+- a count and a time series asked together, including a chart plus its total,
+  with one dataset, at most one utility and county, and one window →
+  `data_query_records` then `visualization_create` (`multi_intent_count_and_trend`).
+  A breakdown (by county, by utility, each year, annual) or a second utility or
+  county defers to the model instead of one collapsed pair
+- a map plus a count ("and how many there were") with one dataset and window →
+  `data_query_records` then the map (`multi_intent_count_and_map`), never the
+  map alone
+- an EPSS read for a utility other than PG&E (count, series, map, or pair) →
+  clarification `epss_non_pge_utility`: EPSS rows exist only for PG&E, so the
+  result would be absent, not zero
 - coordinate context → `data_query_spatial`
 - map/time series/detail → a visualization tool
 - fully specified utility/region/period comparison → `comparison_run`

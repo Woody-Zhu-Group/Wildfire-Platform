@@ -1155,18 +1155,30 @@
     "id": "ho_080",
     "question": "show monthly epss outage counts for sce in 2022",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "trend",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "epss_outages",
-    "expected_tool_pick": "visualization_create",
-    "expected_clarify_reason": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "epss_non_pge_utility",
     "expected_unsupported_topic": null,
-    "needs_human_review": true,
-    "label_rationale": "EPSS is PG&E only, so a monthly SCE series may be empty rather than a normal trend.",
-    "gold_plan": [
-      "visualization_create"
-    ],
-    "plan_type": "monthly_series"
+    "needs_human_review": false,
+    "label_rationale": "EPSS covers PG&E only, so an SCE monthly series would be absent data, not an empty trend.",
+    "gold_plan": null,
+    "plan_type": "monthly_series",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "trend",
+      "expected_tool_pick": "visualization_create",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null,
+      "gold_plan": [
+        "visualization_create"
+      ],
+      "plan_type": "monthly_series",
+      "needs_human_review": true
+    },
+    "rule": "I",
+    "rule_text": "Rule I, written by Michael on 2026-09-24: an EPSS question naming a utility other than PG&E is clarify / epss_non_pge_utility, because EPSS covers PG&E only and a count would be absent, not zero. Applied to ho_080 and hv2_002. needs_human_review cleared on the rows rule I decided."
   },
   {
     "id": "ho_081",

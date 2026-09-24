@@ -744,8 +744,8 @@
   "ranked_records"
  ],
  "jev_holdout.json:ho_080": [
-  "deterministic",
-  "time_series"
+  "clarification",
+  "epss_non_pge_utility"
  ],
  "jev_holdout.json:ho_081": [
   "model",
@@ -814,6 +814,618 @@
  "jev_holdout.json:ho_097": [
   "clarification",
   "ranking_missing_year"
+ ],
+ "jev_holdout_v2.json:hv2_001": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_002": [
+  "clarification",
+  "epss_non_pge_utility"
+ ],
+ "jev_holdout_v2.json:hv2_003": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v2.json:hv2_004": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v2.json:hv2_005": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_006": [
+  "deterministic",
+  "coordinate_risk_chain"
+ ],
+ "jev_holdout_v2.json:hv2_007": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_holdout_v2.json:hv2_008": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v2.json:hv2_009": [
+  "deterministic",
+  "time_series"
+ ],
+ "jev_holdout_v2.json:hv2_010": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "jev_holdout_v2.json:hv2_011": [
+  "clarification",
+  "unexpressable_county_filter"
+ ],
+ "jev_holdout_v2.json:hv2_012": [
+  "deterministic",
+  "map"
+ ],
+ "jev_holdout_v2.json:hv2_013": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_014": [
+  "clarification",
+  "hftd_constraint_unavailable"
+ ],
+ "jev_holdout_v2.json:hv2_015": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "jev_holdout_v2.json:hv2_016": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v2.json:hv2_017": [
+  "deterministic",
+  "spatial_utility_count"
+ ],
+ "jev_holdout_v2.json:hv2_018": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v2.json:hv2_019": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_020": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v2.json:hv2_021": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v2.json:hv2_022": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v2.json:hv2_023": [
+  "unsupported",
+  "unexpressable_county_filter"
+ ],
+ "jev_holdout_v2.json:hv2_024": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_025": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_026": [
+  "clarification",
+  "city_needs_place"
+ ],
+ "jev_holdout_v2.json:hv2_027": [
+  "deterministic",
+  "time_series"
+ ],
+ "jev_holdout_v2.json:hv2_028": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_029": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_030": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v2.json:hv2_031": [
+  "clarification",
+  "hftd_constraint_unavailable"
+ ],
+ "jev_holdout_v2.json:hv2_032": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v2.json:hv2_033": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_034": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_035": [
+  "clarification",
+  "unexpressable_county_filter"
+ ],
+ "jev_holdout_v2.json:hv2_036": [
+  "clarification",
+  "forecast_missing_date"
+ ],
+ "jev_holdout_v2.json:hv2_037": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v2.json:hv2_038": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_039": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v2.json:hv2_040": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v2.json:hv2_041": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v2.json:hv2_042": [
+  "clarification",
+  "ranking_missing_year"
+ ],
+ "jev_holdout_v2.json:hv2_043": [
+  "clarification",
+  "city_needs_place"
+ ],
+ "jev_holdout_v2.json:hv2_044": [
+  "clarification",
+  "records_missing_year"
+ ],
+ "jev_holdout_v2.json:hv2_045": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v2.json:hv2_046": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_047": [
+  "clarification",
+  "forecast_missing_date"
+ ],
+ "jev_holdout_v2.json:hv2_048": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_049": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v2.json:hv2_050": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout_v2.json:hv2_051": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "jev_holdout_v2.json:hv2_052": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "jev_holdout_v2.json:hv2_053": [
+  "clarification",
+  "risk_future_date"
+ ],
+ "jev_holdout_v2.json:hv2_054": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_055": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_056": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_057": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout_v2.json:hv2_058": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "jev_holdout_v2.json:hv2_059": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v2.json:hv2_060": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "jev_holdout_v2.json:hv2_061": [
+  "unsupported",
+  "unsupported_personnel"
+ ],
+ "jev_holdout_v2.json:hv2_062": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout_v2.json:hv2_063": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "jev_holdout_v2.json:hv2_064": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "jev_holdout_v2.json:hv2_065": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "jev_holdout_v3_questions.json:hv3_001": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_002": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v3_questions.json:hv3_003": [
+  "unsupported",
+  "unexpressable_county_filter"
+ ],
+ "jev_holdout_v3_questions.json:hv3_004": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v3_questions.json:hv3_005": [
+  "clarification",
+  "unexpressable_county_filter"
+ ],
+ "jev_holdout_v3_questions.json:hv3_006": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v3_questions.json:hv3_007": [
+  "model",
+  "multi_intent_count_and_trend"
+ ],
+ "jev_holdout_v3_questions.json:hv3_008": [
+  "unsupported",
+  "unsupported_ranking"
+ ],
+ "jev_holdout_v3_questions.json:hv3_009": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v3_questions.json:hv3_010": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v3_questions.json:hv3_011": [
+  "deterministic",
+  "city_point_context"
+ ],
+ "jev_holdout_v3_questions.json:hv3_012": [
+  "deterministic",
+  "city_point_context"
+ ],
+ "jev_holdout_v3_questions.json:hv3_013": [
+  "clarification",
+  "city_needs_place"
+ ],
+ "jev_holdout_v3_questions.json:hv3_014": [
+  "clarification",
+  "hftd_constraint_unavailable"
+ ],
+ "jev_holdout_v3_questions.json:hv3_015": [
+  "unsupported",
+  "unsupported_rank_epss_utility"
+ ],
+ "jev_holdout_v3_questions.json:hv3_016": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v3_questions.json:hv3_017": [
+  "deterministic",
+  "time_series"
+ ],
+ "jev_holdout_v3_questions.json:hv3_018": [
+  "clarification",
+  "city_needs_place"
+ ],
+ "jev_holdout_v3_questions.json:hv3_019": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v3_questions.json:hv3_020": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "jev_holdout_v3_questions.json:hv3_021": [
+  "unsupported",
+  "unsupported_ranking"
+ ],
+ "jev_holdout_v3_questions.json:hv3_022": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v3_questions.json:hv3_023": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_024": [
+  "clarification",
+  "hftd_constraint_unavailable"
+ ],
+ "jev_holdout_v3_questions.json:hv3_025": [
+  "clarification",
+  "forecast_missing_date"
+ ],
+ "jev_holdout_v3_questions.json:hv3_026": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v3_questions.json:hv3_027": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_028": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v3_questions.json:hv3_029": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v3_questions.json:hv3_030": [
+  "clarification",
+  "ranking_missing_slots"
+ ],
+ "jev_holdout_v3_questions.json:hv3_031": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v3_questions.json:hv3_032": [
+  "deterministic",
+  "utility_comparison"
+ ],
+ "jev_holdout_v3_questions.json:hv3_033": [
+  "deterministic",
+  "map"
+ ],
+ "jev_holdout_v3_questions.json:hv3_034": [
+  "deterministic",
+  "ranked_records"
+ ],
+ "jev_holdout_v3_questions.json:hv3_035": [
+  "clarification",
+  "hftd_constraint_unavailable"
+ ],
+ "jev_holdout_v3_questions.json:hv3_036": [
+  "clarification",
+  "unexpressable_county_filter"
+ ],
+ "jev_holdout_v3_questions.json:hv3_037": [
+  "clarification",
+  "ranking_missing_slots"
+ ],
+ "jev_holdout_v3_questions.json:hv3_038": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_039": [
+  "clarification",
+  "ranking_missing_slots"
+ ],
+ "jev_holdout_v3_questions.json:hv3_040": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v3_questions.json:hv3_041": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_042": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_043": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v3_questions.json:hv3_044": [
+  "unsupported",
+  "unsupported_ranking"
+ ],
+ "jev_holdout_v3_questions.json:hv3_045": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_046": [
+  "unsupported",
+  "unsupported_evacuation"
+ ],
+ "jev_holdout_v3_questions.json:hv3_047": [
+  "model",
+  "multi_entity_deferred"
+ ],
+ "jev_holdout_v3_questions.json:hv3_048": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_049": [
+  "clarification",
+  "ranking_missing_year"
+ ],
+ "jev_holdout_v3_questions.json:hv3_050": [
+  "clarification",
+  "records_missing_year"
+ ],
+ "jev_holdout_v3_questions.json:hv3_051": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_052": [
+  "unsupported",
+  "unsupported_cost"
+ ],
+ "jev_holdout_v3_questions.json:hv3_053": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout_v3_questions.json:hv3_054": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout_v3_questions.json:hv3_055": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_056": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_057": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "jev_holdout_v3_questions.json:hv3_058": [
+  "unsupported",
+  "unsupported_optimization"
+ ],
+ "jev_holdout_v3_questions.json:hv3_059": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout_v3_questions.json:hv3_060": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v3_questions.json:hv3_061": [
+  "clarification",
+  "ambiguous_relative_time"
+ ],
+ "jev_holdout_v3_questions.json:hv3_062": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout_v3_questions.json:hv3_063": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v3_questions.json:hv3_064": [
+  "unsupported",
+  "unsupported_future_prediction"
+ ],
+ "jev_holdout_v3_questions.json:hv3_065": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_066": [
+  "unsupported",
+  "unsupported_live_web"
+ ],
+ "jev_holdout_v3_questions.json:hv3_067": [
+  "clarification",
+  "risk_future_date"
+ ],
+ "jev_holdout_v3_questions.json:hv3_068": [
+  "unsupported",
+  "unsupported_optimization"
+ ],
+ "jev_holdout_v3_questions.json:hv3_069": [
+  "clarification",
+  "records_missing_year"
+ ],
+ "jev_holdout_v3_questions.json:hv3_070": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v3_questions.json:hv3_071": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_072": [
+  "unsupported",
+  "unexpressable_county_filter"
+ ],
+ "jev_holdout_v3_questions.json:hv3_073": [
+  "clarification",
+  "ambiguous_relative_time"
+ ],
+ "jev_holdout_v3_questions.json:hv3_074": [
+  "deterministic",
+  "map"
+ ],
+ "jev_holdout_v3_questions.json:hv3_075": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_holdout_v3_questions.json:hv3_076": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_077": [
+  "clarification",
+  "ranking_missing_slots"
+ ],
+ "jev_holdout_v3_questions.json:hv3_078": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v3_questions.json:hv3_079": [
+  "clarification",
+  "forecast_missing_date"
+ ],
+ "jev_holdout_v3_questions.json:hv3_080": [
+  "deterministic",
+  "filtered_records"
+ ],
+ "jev_holdout_v3_questions.json:hv3_081": [
+  "clarification",
+  "trend_missing_year"
+ ],
+ "jev_holdout_v3_questions.json:hv3_082": [
+  "clarification",
+  "undefined_spatial_scope"
+ ],
+ "jev_holdout_v3_questions.json:hv3_083": [
+  "clarification",
+  "ranking_missing_slots"
+ ],
+ "jev_holdout_v3_questions.json:hv3_084": [
+  "model",
+  "open_comparison"
+ ],
+ "jev_holdout_v3_questions.json:hv3_085": [
+  "clarification",
+  "city_needs_place"
+ ],
+ "jev_holdout_v3_questions.json:hv3_086": [
+  "clarification",
+  "records_missing_year"
+ ],
+ "jev_holdout_v3_questions.json:hv3_087": [
+  "model",
+  "open_ended"
+ ],
+ "jev_holdout_v3_questions.json:hv3_088": [
+  "clarification",
+  "city_needs_place"
  ],
  "jev_paraphrases.json:amb_better_or_worse": [
   "model",

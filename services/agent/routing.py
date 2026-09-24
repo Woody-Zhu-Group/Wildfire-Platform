@@ -1106,6 +1106,15 @@ def _enumerated_years(lower: str) -> bool:
     return any(not any(lo <= year <= hi for lo, hi in ranges) for year in named)
 
 
+# A series asked per year: one interval series would collapse the per-year totals.
+_PER_YEAR_SERIES = re.compile(
+    r"\bannual(?:ly)?\b|\bper\s+years?\b|\byear[- ]by[- ]year\b|\beach\s+years?\b"
+)
+# Interval words of a series ("by month"). Removed before the breakdown check
+# on a chart plus its total, since they name the chart's step, not a breakdown.
+_INTERVAL_WORDS = re.compile(r"\b(?:by|per)\s+(?:month|week|day)s?\b")
+
+
 def _single_call_would_collapse(
     lower: str,
     utilities: list[str],
@@ -1124,10 +1133,7 @@ def _single_call_would_collapse(
     per_period = _PER_PERIOD_ASK.search(lower) and len(named_years) > 1
     if kind == "count" and (enumerated or per_period or _BREAKDOWN.search(lower)):
         return True
-    if kind == "series" and re.search(
-        r"\bannual(?:ly)?\b|\bper\s+years?\b|\byear[- ]by[- ]year\b|\beach\s+years?\b",
-        lower,
-    ):
+    if kind == "series" and _PER_YEAR_SERIES.search(lower):
         return True
     # A chart plus a total is two results; one series call would drop the total.
     if kind == "series" and _asks_series_and_total(lower):
@@ -1187,11 +1193,11 @@ def _time_filter_args(time_resolution) -> dict[str, Any]:
 
 def _default_series_interval(lower: str, time_resolution) -> str:
     """Honor explicit interval words; otherwise match the view planner's window rule."""
-    if "monthly" in lower:
+    if "monthly" in lower or re.search(r"\bby month\b|\bper month\b", lower):
         return "monthly"
-    if "daily" in lower:
+    if "daily" in lower or re.search(r"\bby day\b|\bper day\b", lower):
         return "daily"
-    if "weekly" in lower:
+    if "weekly" in lower or re.search(r"\bby week\b|\bper week\b", lower):
         return "weekly"
     start = getattr(time_resolution, "start_date", None)
     end = getattr(time_resolution, "end_date", None)
@@ -1230,6 +1236,31 @@ def _block_unexpressed_constraints(
     reason: str,
 ) -> RouteDecision | None:
     """Refuse a deterministic answer that would silently drop asked filters."""
+    epss_utility = next(
+        (
+            str(args.get("utility"))
+            for _tool, args in tool_calls
+            if args.get("dataset") in {"epss_outages", "epss"}
+            and args.get("utility")
+            and str(args.get("utility")) != "PGE"
+        ),
+        None,
+    )
+    if epss_utility:
+        # EPSS rows exist only for PG&E. Another utility's EPSS read would come
+        # back as 0 or an empty series, which is absent data, not zero events.
+        return RouteDecision(
+            "clarification",
+            "epss_non_pge_utility",
+            f"EPSS is PG&E-only; {epss_utility} has no EPSS rows",
+            answer=(
+                f"EPSS outages in this warehouse are PG&E-only, so there are no "
+                f"{epss_utility} EPSS rows: that result would be absent, not zero. "
+                f"Do you want PG&E's EPSS outages for that period, or "
+                f"{epss_utility}'s PSPS events or CPUC ignitions instead?"
+            ),
+            slots=slots,
+        )
     dropped: list[str] = []
     county = slots.get("county")
     if county and not any(
@@ -1687,10 +1718,12 @@ def _asks_summary_panel(lower: str) -> bool:
 
 
 # A series or chart request that also asks for a total. One series call would
-# drop the total, so this defers as the count path does, until a deterministic
-# count-plus-series path exists.
+# drop the total. With one known dataset and window it takes the deterministic
+# count-plus-series pair (multi_intent_count_and_trend, issue 44); otherwise it
+# defers as the count path does.
 _SERIES_WORD = re.compile(
-    r"\b(?:chart|plot|graph|series|trend|over time|monthly|weekly|daily|by month)\b",
+    r"\b(?:chart|plot|graph|series|trend|over time|monthly|weekly|daily|"
+    r"by month|by week|by day)\b",
     re.I,
 )
 _TOTAL_ASK = re.compile(
@@ -2023,6 +2056,15 @@ def compile_selected_tools(
     return sorted(calls, key=lambda item: order[item[0]])
 
 
+_DATASET_LABELS = {
+    "cpuc_ignitions": "CPUC ignitions",
+    "calfire_incidents": "CAL FIRE incidents",
+    "epss_outages": "EPSS outages",
+    "psps_events": "PSPS events",
+    "us_ignitions": "US ignitions",
+}
+
+
 def _route_ranking(
     *,
     text: str,
@@ -2064,6 +2106,16 @@ def _route_ranking(
         named = [item for item in named if item not in {"circuits", "hftd"}]
         if group_by is None:
             group_by = _rank_dimension(re.sub(r"\bcircuits?\b", " ", lower))
+        # The router's dataset came from the same scan, so hftd or circuits
+        # there is the constraint too and the dataset is unresolved. With no
+        # other dataset named, resolve the rest of the question as a ranking
+        # without the tier would: bare "ignitions" is CPUC ignitions and bare
+        # "outages" is EPSS (issue 67). Nothing resolved asks for the dataset.
+        if dataset in {"circuits", "hftd"}:
+            dataset = None
+        if not named:
+            without_tier = re.sub(r"\bcircuits?\b", " ", _TIER_MENTION.sub(" ", text))
+            named = _datasets(without_tier)
     # "circuit" is the grouping dimension, not the circuits inventory table.
     if group_by == "circuit":
         named = [item for item in named if item != "circuits"]
@@ -2151,13 +2203,14 @@ def _route_ranking(
     # An allowed ranking restricted to an HFTD tier: no ranking tool takes a
     # tier argument, so ask rather than rank statewide and drop it.
     if tier_constraint:
+        label = _DATASET_LABELS.get(dataset, dataset)
         return RouteDecision(
             "clarification",
             "hftd_constraint_unavailable",
             "No tool restricts a ranking to an HFTD tier",
             answer=(
-                f"I can rank {group_by} groups in that dataset statewide, but no "
-                "tool restricts a ranking to an HFTD tier. Rank statewide, or map "
+                f"I can rank {label} by {group_by} statewide, but no tool "
+                "restricts a ranking to an HFTD tier. Rank statewide, or map "
                 "one HFTD tier?"
             ),
             slots=slots,
@@ -2737,7 +2790,29 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
     has_trend_clause = bool(
         re.search(r"\b(?:trend|time series|weekly|monthly|daily)\b", lower)
     )
-    if has_count_clause and has_trend_clause:
+    explicit_pair = has_count_clause and has_trend_clause
+    if explicit_pair and (len(utilities) > 1 or len(counties) > 1):
+        # One pair carries one utility and one county; a second named one
+        # would be dropped from both calls.
+        return _defer_collapsed(slots)
+    # A chart plus a total ("plus the annual total", "and how many overall") is
+    # the same two results. It takes the pair only when one dataset, at most one
+    # utility and county, and one window are known and nothing asks for a
+    # breakdown; otherwise the series branch defers it below (issue 44). The
+    # breakdown and per-year checks run with the total ask and the interval
+    # words removed, so "annual total" and "by month" do not read as per-year
+    # or per-month breakdowns while "by county", "each year", and "annual"
+    # charts still defer.
+    without_total = _INTERVAL_WORDS.sub(" ", _TOTAL_ASK.sub(" ", lower))
+    series_and_total = (
+        _asks_series_and_total(lower)
+        and len(utilities) <= 1
+        and len(counties) <= 1
+        and not _enumerated_years(lower)
+        and not _BREAKDOWN.search(without_total)
+        and not _PER_YEAR_SERIES.search(without_total)
+    )
+    if explicit_pair or series_and_total:
         time_args = _time_filter_args(time_resolution)
         viz_dataset = {
             "cpuc_ignitions": "ignitions",
@@ -2785,12 +2860,13 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 tool_calls=tool_calls,
                 slots=slots,
             )
-        return RouteDecision(
-            "model",
-            "multi_intent_count_and_trend",
-            "Question explicitly requires both a scalar read and a time series",
-            slots=slots,
-        )
+        if explicit_pair:
+            return RouteDecision(
+                "model",
+                "multi_intent_count_and_trend",
+                "Question explicitly requires both a scalar read and a time series",
+                slots=slots,
+            )
     if (
         re.search(r"\bterritor", lower)
         and re.search(r"\b(?:map|layer)\b", lower)
@@ -3279,19 +3355,43 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
         if county and dataset in _COUNTY_CAPABLE_DATASETS:
             args["county"] = county
         tool_calls = [("visualization_create", args)]
+        rule, reason = "map", "Explicit map, dataset, and time filter"
+        us_sample_utility = dataset == "us_ignitions" and bool(utilities)
+        if (
+            has_count_clause
+            and viz_dataset in _TIME_SERIES_VIZ
+            and not us_sample_utility
+        ):
+            # A map plus a count ("and how many there were") is two results.
+            # The count runs with the map's filters; the map alone would
+            # silently drop the number. Only event datasets count this way,
+            # the US sample included; hftd and circuits do not. The US sample
+            # has no utility column, so a utility-scoped sample count is not
+            # built here.
+            count_args: dict[str, Any] = {
+                "dataset": dataset,
+                "result_mode": "count",
+                **time_args,
+            }
+            if utilities:
+                count_args["utility"] = utilities[0]
+            if county and dataset in _COUNTY_CAPABLE_DATASETS:
+                count_args["county"] = county
+            tool_calls = [("data_query_records", count_args), *tool_calls]
+            rule, reason = "multi_intent_count_and_map", "Explicit map and count with one dataset and window"
         blocked = _block_unexpressed_constraints(
             question=text,
             tool_calls=tool_calls,
             slots=slots,
-            rule="map",
-            reason="Explicit map, dataset, and time filter",
+            rule=rule,
+            reason=reason,
         )
         if blocked:
             return blocked
         return RouteDecision(
             "deterministic",
-            "map",
-            "Explicit map, dataset, and time filter",
+            rule,
+            reason,
             tool_calls=tool_calls,
             slots=slots,
         )
