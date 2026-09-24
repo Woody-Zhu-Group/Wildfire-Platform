@@ -361,7 +361,13 @@ class AgentOrchestrator:
                         return OrchestrationResult(
                             response=response, raw_log=raw_log
                         )
-                answer = _render_deterministic(executions)
+                city = decision.slots.get("city_point") or {}
+                answer = _render_deterministic(
+                    executions,
+                    place_label=(
+                        f"the center point of {city['name']}" if city.get("name") else None
+                    ),
+                )
                 need_synthesis = False
             else:
                 jev_ready = None
@@ -2719,7 +2725,9 @@ def _city_point_outside_coverage(
     )
 
 
-def _render_deterministic(executions: list[ToolExecution]) -> str:
+def _render_deterministic(
+    executions: list[ToolExecution], *, place_label: str | None = None
+) -> str:
     parts = []
     for item in [execution for execution in executions if execution.ok and not execution.qualification_call]:
         summary = item.summary
@@ -2746,9 +2754,19 @@ def _render_deterministic(executions: list[ToolExecution]) -> str:
             if summary.get("kind") == "point":
                 iou = summary.get("iou") or {}
                 grid = summary.get("grid_cell") or {}
+                utility = iou.get("utility_name") or iou.get("utility")
+                if utility:
+                    iou_part = f"IOU={utility}, "
+                else:
+                    # Say it plainly rather than IOU=None.
+                    parts.append(
+                        "No investor-owned utility (IOU) territory contains "
+                        f"{place_label or 'this point'}."
+                    )
+                    iou_part = ""
                 parts.append(
                     "Point context: "
-                    f"IOU={iou.get('utility_name') or iou.get('utility')}, "
+                    f"{iou_part}"
                     f"HFTD={summary.get('hftd_tier')}, "
                     f"county={summary.get('county')}, "
                     f"grid cell={grid.get('cell_id')}."
