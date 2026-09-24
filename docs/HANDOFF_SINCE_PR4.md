@@ -1,8 +1,8 @@
 # Handoff: everything since PR #4
 
-Written 2026-09-23 for Stephen, who built the analysis workspace in PR #4 and has not followed the work since. It assumes you know your own workspace code (`website/src/`) and nothing else. Plain language comes first in each section, then the technical detail with the file (and function where useful) that backs each claim.
+Written 2026-09-23 and revised 2026-09-24 for Stephen, who built the analysis workspace in PR #4 and has not followed the work since. It assumes you know your own workspace code (`website/src/`) and nothing else. Plain language comes first in each section, then the technical detail with the file (and function where useful) that backs each claim.
 
-Every statement about code was checked against `main` at `510d2fd` (the merge of PR #68) on the team repo `Woody-Zhu-Group/Wildfire-Platform`. Every statement about history comes from the GitHub PR and issue list or `git log`. Facts that only Michael can see (the production host, the grants, the tooling) are marked as reported by Michael in section 13. An unmerged PR is never described as done; PR #29 is the only open PR and is marked open wherever it appears.
+Every statement about code was checked against `main` at `41e83d5` (the merge of PR #79) on the team repo `Woody-Zhu-Group/Wildfire-Platform`. Every statement about history comes from the GitHub PR and issue list or `git log`. Facts that only Michael can see (the production host, the grants, the tooling) are marked as reported by Michael in section 13. An unmerged PR is never described as done; PR #29 is the only open PR besides this document's own PR #74, and it is marked open wherever it appears.
 
 Sections:
 
@@ -36,22 +36,24 @@ Sections:
 - City questions that a single point can answer (which utility territory or HFTD tier a city is in, fitted risk near a city on a past day) are answered at the city's Census center point with caveats, instead of asking for coordinates (PR #28).
 - The HFTD tier and IOU territory polygons were rebuilt from CPUC's own sources with holes kept, so counts inside a tier or territory are right and PSPS-in-HFTD comparisons work again (PR #45, #69). The corrected geometry changed HFTD Tier 2 counts by 8 to 18 percent per year.
 - The risk service serves the full 824-cell hindcast surface, per-cell observed counts, and model metrics regenerated from the committed fit (PRs #9 to #12, #27, #70).
-- A second decision engine, Jev (TypeSafe's non-generative decision model), sits beside the regex router. It can log its decisions (shadow), pick the tool on the model path, or decide answer / clarify / refuse ahead of the router with the router as a backstop (PRs #22, #43, #46, #49). Every Jev mode is off by default.
-- The agent's language model can run on OpenRouter (GPT-6 Luna, GPT-6 Sol fallback) with native tool calls, strict schemas, filter grounding, and multi-part coverage (PR #25).
+- A second decision engine, Jev (TypeSafe's non-generative decision model), sits beside the regex router. It can log its decisions (shadow), pick the tool on the model path, or decide answer / clarify / refuse ahead of the router with the router as a backstop (PRs #22, #43, #46, #49). In decide mode Jev owns the disposition and the router owns the wording (PR #72), and every answer says who decided (`decision_source`, PR #71).
+- The agent's language model runs only on OpenRouter (GPT-6 Luna, GPT-6 Sol fallback) with native tool calls, strict schemas, filter grounding, and multi-part coverage (PR #25). The local Ollama/qwen path and the GPU control service were removed from the codebase (PR #73).
+- County, utility, and HFTD tier filters are normalized everywhere, and an unknown county is an error with close matches, never a zero (PR #76). Enum filters the question never asked for (`utility=untagged`, CAL FIRE `incident_type_mode`) are dropped (PR #79).
 - A deterministic slot planner can turn a deferred multi-entity question into several exact calls without a model (PR #46), off by default.
+- The published site was stale from 2026-09-18 to 2026-09-24 (two merged frontend PRs never committed their build); it is rebuilt, and a build-freshness test plus a `CLAUDE.md` rule stop it recurring (PR #75).
 - A research pilot turned 155 CPUC PSPS post-event reports into a structured, sourced table with a review queue (PR #29, open, not merged).
 
-**What changed for users.** Answers are slower to guess and quicker to ask. A missing year, place, or dataset gets one clarification that names everything missing and gives an example rephrasing (PR #51). Refusals say what is out of scope. Answers carry the same caveats the cards do. On the site, the year bar drives every panel unless a panel is pinned, and answers from Ask arrive as pinned panels.
+**What changed for users.** Answers are slower to guess and quicker to ask. A missing year, place, or dataset gets one clarification that names everything missing and gives an example rephrasing (PR #51). Refusals say what is out of scope. Answers carry the same caveats the cards do. The Ask panel's Tool chain shows one line saying who decided ("Decided by Jev (0.93)", "Safety rule: live data", "Router (Jev agreed)"). On the site, the year bar drives every panel unless a panel is pinned, and answers from Ask arrive as pinned panels.
 
-**What is live in production (deployed 2026-09-24, reported by Michael, section 13).** The EC2 backend moved from PR #15 to current `main`; the HFTD and IOU boundaries were reloaded from CPUC sources; the agent's language model is GPT-6 Luna on OpenRouter (about 4 seconds per model-path answer instead of 3 to 12 minutes); Jev runs in shadow mode through OpenRouter with a pinned model and a 500-question daily cap; qwen and the GPU control service are disconnected.
+**What is live in production (deployed 2026-09-24, reported by Michael, section 13).** The EC2 backend runs current `main`; the HFTD and IOU boundaries were reloaded from CPUC sources; the agent's language model is GPT-6 Luna on OpenRouter (about 4 seconds per model-path answer instead of 3 to 12 minutes); Jev runs in decide mode through OpenRouter, owning the answer / clarify / refuse decision behind the two gates with the router as backstop; qwen, Ollama, and GPU control are gone from both the server and the code.
 
-**Built but switched off.** Jev decide mode (`AGENT_JEV_MODE=decide`), Jev tool pick (`tool_pick`, `tool_pick_template`), and the slot planner (`AGENT_SLOT_PLAN`) are all on `main` and all default off (`services/agent/config.py`, `from_env`). Decide stays off until the production shadow logs have been reviewed (`docs/JEV_DECIDE.md`, `docs/JEV_BACKLOG.md` item 7). Jev's own plan mode was archived on the `jev-plan-archive` branch and is rejected at startup.
+**Built but switched off.** Jev tool pick (`tool_pick`, `tool_pick_template`) and the slot planner (`AGENT_SLOT_PLAN`) are on `main` and default off (`services/agent/config.py`, `from_env`). Decide mode also defaults off in the code and is switched on only by the production `.env`; switching production back to shadow is one line and a restart (section 9.8). Jev's own plan mode was archived on the `jev-plan-archive` branch and is rejected at startup.
 
 ---
 
 ## 2. PR timeline
 
-Every PR on `Woody-Zhu-Group/Wildfire-Platform` from #1 to #70, grouped by theme. Numbers not listed (#30 to #42, #44, #47, #52 to #56, #60 to #65, #67) are issues, covered in section 16. After PR #4 every commit on `main` arrived through a PR; the last direct commit to `main` was `615a375` on 2026-08-28, before PR #3 (`git log platform/main --first-parent`). PR #1 and #2 are the only closed unmerged PRs.
+Every PR on `Woody-Zhu-Group/Wildfire-Platform` from #1 to #79, grouped by theme. Numbers not listed (#30 to #42, #44, #47, #52 to #56, #60 to #65, #67, #77, #78) are issues, covered in section 16. After PR #4 every commit on `main` arrived through a PR; the last direct commit to `main` was `615a375` on 2026-08-28, before PR #3 (`git log platform/main --first-parent`). PR #1 and #2 are the only closed unmerged PRs. PR #74 is this document.
 
 ### The workspace (Stephen)
 
@@ -79,6 +81,7 @@ Every PR on `Woody-Zhu-Group/Wildfire-Platform` from #1 to #70, grouped by theme
 | #19 | ByteMasterMike | Merged 2026-09-18 | Added the workspace year bar with per-panel pins (`globalFilters.ts`, `WorkspaceFilters.tsx`, `PanelYearPin.tsx`). |
 | #20 | ByteMasterMike | Merged 2026-09-18 | Added day-by-day playback to event maps (`playback.ts`, `PlaybackControls.tsx`). |
 | #26 | ByteMasterMike | Merged 2026-09-23 | Made every one of the 18 views reachable from a chat answer, and added the router-only statewide risk surface. |
+| #75 | ByteMasterMike | Merged 2026-09-24 | Rebuilt the published site in `docs/`, which had been stale since 2026-09-18, and added the build-freshness check (`website/scripts/check-build.mjs`) and the `CLAUDE.md` rule. |
 
 ### Risk service
 
@@ -104,6 +107,8 @@ Every PR on `Woody-Zhu-Group/Wildfire-Platform` from #1 to #70, grouped by theme
 | #66 | ByteMasterMike | Merged 2026-09-24 | "From March to June 2023" resolves to the full window, not March only. |
 | #68 | ByteMasterMike | Merged 2026-09-24 | US-sample wording routes to `us_ignitions`; a US-sample question restricted to a state clarifies. |
 | #28 | ByteMasterMike | Merged 2026-09-24 | City questions answered at the Census center point, with the shoreline snap (`places.py`). |
+| #76 | ByteMasterMike | Merged 2026-09-24 | Normalized county, utility, and tier filters in every service (`services/shared/counties.py`, `services/data_query/filters.py`); an unknown county is a 400 with close matches, never 0 rows. |
+| #79 | ByteMasterMike | Merged 2026-09-24 | Dropped schema-valid enum filters the question never asked for (`utility=untagged`, CAL FIRE `incident_type_mode`), and accepted the Sacramento count-plus-records tool sequence in the eval. |
 
 ### Jev and the model provider
 
@@ -113,6 +118,9 @@ Every PR on `Woody-Zhu-Group/Wildfire-Platform` from #1 to #70, grouped by theme
 | #25 | ByteMasterMike | Merged 2026-09-23 | OpenRouter backends for the language model (Luna with Sol fallback) and for Jev, filter grounding, multi-part coverage, cost logging. |
 | #46 | ByteMasterMike | Merged 2026-09-24 | The deterministic slot planner (`AGENT_SLOT_PLAN`), holdouts v2 and v3 on main, label rules D and H, the payload pin test. Jev's plan mode removed and archived. |
 | #49 | ByteMasterMike | Merged 2026-09-24 | `AGENT_JEV_MODE=decide`: router backstops first, then Jev's disposition behind two gates. |
+| #71 | ByteMasterMike | Merged 2026-09-24 | `decision_source` on every answer and routing event, and one Tool chain line on the website saying who decided (`decisions/provenance.py`). |
+| #72 | ByteMasterMike | Merged 2026-09-24 | Decide mode: Jev owns the disposition, the router owns the wording; agreed answers log Jev's confidence. |
+| #73 | ByteMasterMike | Merged 2026-09-24 | Removed the Ollama/qwen path, its eval scripts, and the GPU control service; OpenRouter is the only provider; smoke test updated. |
 
 ### Data
 
@@ -135,12 +143,12 @@ Every PR on `Woody-Zhu-Group/Wildfire-Platform` from #1 to #70, grouped by theme
 | PR | Author | Status | What it did |
 |---|---|---|---|
 | #29 | ByteMasterMike | **Open**, not merged | Pilot, clean test, and full run that extract structured facts from 155 CPUC PSPS post-event reports with Jev and GPT-6 Luna (`research/psps_reports/`). See section 5. |
+| #74 | ByteMasterMike | **Open** | This document. |
 
 ### Branches that were never merged
 
 - `jev-plan-archive` (team repo): Jev's own multi-tool planner (`AGENT_JEV_MODE=plan`, `planner.py`, three plan-only Jev questions), 19 commits ahead of main from merge base `85580b1`. It lost to the slot rule on the seen holdouts and had paths that answered a narrower question than asked (PR #46 description, `docs/JEV_MULTI_TOOL.md`). It also holds the v3 question text that the labels file is indexed against. Section 10.
 - `research-psps-reports` (team repo): PR #29, open.
-- `remove-qwen` (local only, Michael's worktree): zero commits ahead of main, with uncommitted edits to `services/agent/config.py` and `services/agent/provider.py`. No PR exists yet. Section 16.
 
 ### The old fork (ByteMasterMike/Wildfire-Services)
 
@@ -156,7 +164,7 @@ The early Jev work started on Michael's personal fork before it moved to the tea
 
 ## 3. Architecture now
 
-Plain language: a question from the website goes to the agent. The agent first checks a list of hard stops (live questions, future dates, advice, cities, HFTD operations no tool can do, off-topic subjects). Then, if decide mode is on, Jev is asked whether the question can be answered, needs a clarification, or must be refused; the router's own decision stands whenever Jev is unsure. The router extracts the year, utility, county, dataset, and dates. If the router recognized the question exactly, it runs the exact tool calls itself. If not, the slot planner may build several exact calls, or the question goes to the language model, which must choose from a small list of tools and can only cite what the tools returned. Caveats attach to every successful path. The answer, its evidence, and any views come back to the website, which turns the views into workspace panels only when they cite evidence.
+Plain language: a question from the website goes to the agent. The agent first checks a list of hard stops (live questions, future dates, advice, cities, HFTD operations no tool can do, off-topic subjects). Then, in decide mode (on in production), Jev is asked whether the question can be answered, needs a clarification, or must be refused; the router's own decision stands whenever Jev is unsure, and when both decline the same way the router's wording is what the user reads. The router extracts the year, utility, county, dataset, and dates. If the router recognized the question exactly, it runs the exact tool calls itself. If not, the slot planner may build several exact calls, or the question goes to the language model on OpenRouter, which must choose from a small list of tools and can only cite what the tools returned. Caveats attach to every successful path. The answer, its evidence, who decided, and any views come back to the website, which turns the views into workspace panels only when they cite evidence.
 
 ```
 website Ask panel (POST /ask/stream, SSE)  ..  website/src/api.ts, useRemote.ts
@@ -174,23 +182,27 @@ services/agent/app.py  ask_stream  ->  orchestrator.AgentOrchestrator.ask
     |- deterministic rules (exact tool calls) or clarification/refusal,
     |  else path "model" with candidate_tools
     v
-[2] AGENT_JEV_MODE=decide (off in prod): decisions/decide_mode.py
+[2] AGENT_JEV_MODE=decide (on in prod since 2026-09-24): decisions/decide_mode.py
     |  backstops and regex-only rules stay with the router; otherwise
     |  Jev facts -> jev_policy.derive_outcome -> gates 0.8 (decline) / 0.9 (answer)
+    |  Jev owns the disposition, the router owns the wording (PR #72)
     v
 [3] AGENT_SLOT_PLAN (off in prod): eval/slot_plan.apply_slot_plan
     |  multi_entity_deferred -> several deterministic calls, or stands
     v
-[4] AGENT_JEV_MODE=shadow (on in prod): decisions/shadow.py logs Jev beside
-    |  the router in the background; never changes the answer
+[4] AGENT_JEV_MODE=shadow (the mode before decide; one mode at a time):
+    |  decisions/shadow.py logs Jev beside the router; never changes the answer
     v
 [5a] deterministic path            [5b] model path (orchestrator._model_loop)
      tool calls from the router          provider.OpenAICompatibleProvider:
-     via tools.ToolExecutor              OpenRouter Luna, tool_choice required,
-     (harness_call=True)                 Sol after a failed turn; Ollama path kept
-                                          guards: grounding.ground_model_filters,
+     via tools.ToolExecutor              OpenRouter only (PR #73): Luna,
+     (harness_call=True)                 tool_choice required, Sol after a
+                                          failed turn
+                                          guards: grounding.ground_model_filters
+                                          (incl. untagged and incident_type_mode),
                                           time_resolve.apply_harness_years,
                                           tools._strip_ungrounded_utilities,
+                                          county normalization (PR #76),
                                           strip_harness_only_arguments,
                                           schema retry bound, max_tool_steps,
                                           uncovered_entities (no partial answer)
@@ -200,28 +212,30 @@ services/agent/app.py  ask_stream  ->  orchestrator.AgentOrchestrator.ask
 [7] synthesis (model path) with claims[].evidence_ids, quantity checks,
     citation repair; deterministic renderer otherwise (_render_deterministic)
 [8] views.plan_views -> ComponentSpec[] with evidence_ids, ground_views
+[9] decisions/provenance.decision_source: backstop | jev | router, with why
         |
         v
-AskResponse: answer_text, status, route, evidence, qualifications, views,
-view_status, view_scope, trajectory
+AskResponse: answer_text, status, decision_source, route, evidence,
+qualifications, views, view_status, view_scope, trajectory
         |
         v
 website/src/answerPanels.ts panelsFromAnswer: a view becomes a panel only if
 it cites evidence and maps to a known dataset and date window; otherwise
-unsupportedViewNotice
+unsupportedViewNotice. ToolTrace.tsx shows decisionSourceLabel.
 ```
 
 Stage by stage:
 
 1. **Router backstops and slots** (`services/agent/routing.py`, `route_question` and `_route_question`). The order is fixed in code: the `UNSUPPORTED` keyword table, then live wording (`_asks_live`), future phrases (`_future_refusal_phrase`, split into `risk_future_date` when a risk word is present and `unsupported_future_prediction` otherwise), advice (`_asks_for_advice`), the riskiest phrase, the city point plan (`_city_point_plan`), near me, near X, county-word places (`_unresolved_county_place`), a municipality written as a county, a city that is not a place, the HFTD constraint, northern or southern California, then ambiguous and out-of-coverage time. Slots are built once and passed on every `RouteDecision`. Every deterministic rule is guarded by `_block_unexpressed_constraints`, which refuses to answer when a named county or month cannot be applied by the matched call.
-2. **Jev decide** (`services/agent/decisions/decide_mode.py`, wired in `AgentOrchestrator.ask`). Off by default and off in production today. Section 9 has the full policy.
+2. **Jev decide** (`services/agent/decisions/decide_mode.py`, wired in `AgentOrchestrator.ask`). Off by default in the code; on in production since 2026-09-24. Section 9 has the full policy, the wording rule, and what the logs record.
 3. **Slot planner** (`services/agent/eval/slot_plan.py`, `apply_slot_plan`). Off by default and off in production. Runs after decide, only on `multi_entity_deferred`. Section 10.
-4. **Jev shadow** (`services/agent/decisions/shadow.py`, `ShadowRunner`). On in production. Background thread pool; the user request never waits (`docs/JEV_SHADOW.md`).
-5. **Tools** (`services/agent/tools.py`, `ToolExecutor.execute`; models in `services/agent/schemas.py`). Seven model-facing tools plus the router-only `risk_surface`. The deterministic path passes `harness_call=True`, which exempts the router's own calls from the window hold and lets them send harness-only arguments. The model path is `AgentOrchestrator._model_loop` with the provider in `services/agent/provider.py`. Section 8 lists the guards.
+4. **Jev shadow** (`services/agent/decisions/shadow.py`, `ShadowRunner`). The mode production ran on 2026-09-24 before decide was switched on; `AGENT_JEV_MODE` holds one value, so shadow and decide do not run together. Background thread pool; the user request never waits (`docs/JEV_SHADOW.md`).
+5. **Tools** (`services/agent/tools.py`, `ToolExecutor.execute`; models in `services/agent/schemas.py`). Seven model-facing tools plus the router-only `risk_surface`. The deterministic path passes `harness_call=True`, which exempts the router's own calls from the window hold and lets them send harness-only arguments. County arguments are normalized to the canonical Census name before any call (`harness_county_correction`, PR #76). The model path is `AgentOrchestrator._model_loop` with the OpenRouter-only provider in `services/agent/provider.py` (PR #73). Section 8 lists the guards.
 6. **Caveats** (`services/agent/caveats.py`, `collect_qualifications`). One attachment point after any successful tool path. Companion calls (the attribute versus spatial pair, CAL FIRE metadata, the CPUC versus US sample read) run here, and a failed companion suppresses the answer.
 7. **Answer text.** Deterministic routes render from tool summaries (`orchestrator._render_deterministic`). The model path synthesizes with a strict schema whose claims cite `evidence_ids`; uncited numbers are rejected and, when the numbers are fine but citations are missing, repaired (`citation_repaired`). If synthesis fails, the tool summary is rendered (`synthesis_fallback_to_tool_summary`).
 8. **Views** (`services/agent/views.py`, `plan_views`, `ground_views`). The harness plans views from successful primary tool results; the model never emits render code and there is no `render_view` tool. Every spec has at least one `evidence_id` (`ComponentSpec`, `min_length=1`) and its parameters must match the cited execution.
-9. **Website** (`website/src/answerPanels.ts`, `panelsFromAnswer`). Section 7.
+9. **Who decided** (`services/agent/decisions/provenance.py`, `decision_source`, PR #71). Computed once on the final route: `backstop` with the rule id, `jev` with the disposition and confidence when Jev won, or `router` with a `why` (`jev_agreed`, `jev_below_gate`, `jev_error`, `jev_timeout`, `verified_fact`, `router_only_route`, `jev_off`, `jev_shadow`, `jev_tool_pick`, `jev_skipped`), always with the mode. It never carries Jev's raw payload.
+10. **Website** (`website/src/answerPanels.ts`, `panelsFromAnswer`; `website/src/agentTrace.ts`, `decisionSourceLabel`). Section 7.
 
 The SSE stream carries harness events only, never model prose (`services/agent/streaming.py`): `routing`, `tool_call`, `tool_result`, `synthesizing`, `answer`, `error`, and the trajectory records `filter_dropped`, `year_not_derived`, `schema_retry_bound`, `uncovered_entities_stop`, `synthesis_fallback_to_tool_summary`, `citation_repaired` (grep of `orchestrator.py`).
 
@@ -318,7 +332,7 @@ The text of every clarification is completed by `services/agent/clarify_missing.
 | `unexpressed_filter_constraints` | A deterministic match whose call cannot carry a named county or month, when the dataset is not the US sample (`_block_unexpressed_constraints`) | Map HFTD Tier 2 in Sacramento County for 2024 | Switch dataset, narrow the window another way, or drop the filter? |
 | `unexpressable_county_filter` (clarification form) | A US-sample question restricted to a state (PR #68, label rules F and H) | How many sampled wildfire ignitions of all causes occurred in California in 2016? | The sample has no state column; offers the national count or a CPUC or CAL FIRE California count |
 
-Decide mode can also return a clarification with a Jev reason id that the router has no rule for; those ids come from `jev_policy.derive_outcome` and reuse the ids above.
+Decide mode can also return a clarification with a Jev reason id; those ids come from `jev_policy.derive_outcome` and reuse the ids above. Since PR #72, when the router also clarified, the router's rule and text stand and Jev's rule goes to the log only; Jev's own text appears only when Jev changes the disposition (a clarify over a router answer or refusal), and it then goes through the same `complete_clarification` composition with the router's slots.
 
 ### 4.3 Refusals
 
@@ -347,7 +361,7 @@ Decide mode can also refuse with three Jev-only ids: `prompt_injection` (Jev's i
 ### 4.4 Cross-cutting behaviors
 
 - **Multi-entity deferral.** `_single_call_would_collapse` in `routing.py` defers when a question names more than one utility or county, enumerates years that are not one matched range (`_enumerated_years`), asks per period, uses a breakdown word, asks for a series and a total, or asks for a map with a breakdown. The deferral is the model path (`multi_entity_deferred`) unless the slot planner plans it (section 10).
-- **County and city handling.** One county scan feeds both the single `county` slot and the `counties` list, so they always agree (PR #58, issue #42). Several counties never collapse to one. Cities: 458 municipality names in `_CA_CITIES` plus 32 county-word census designated places; a bare county word ("in Trinity") or a non-place phrase ("Napa Valley") clarifies with `county_place_ambiguous`; "Orange County" still answers as that county (`docs/CITY_POINTS.md`). Cities that share a county name (Sacramento, Fresno, Los Angeles, and 22 more) route as counties by design (`data/places/README.md`).
+- **County and city handling.** One county scan feeds both the single `county` slot and the `counties` list, so they always agree (PR #58, issue #42). Several counties never collapse to one. Cities: 458 municipality names in `_CA_CITIES` plus 32 county-word census designated places; a bare county word ("in Trinity") or a non-place phrase ("Napa Valley") clarifies with `county_place_ambiguous`; "Orange County" still answers as that county (`docs/CITY_POINTS.md`). Cities that share a county name (Sacramento, Fresno, Los Angeles, and 22 more) route as counties by design (`data/places/README.md`). Every county value that reaches a service is normalized to the Census name (`services/shared/counties.py`, `normalize_county`, PR #76): "Butte County", "butte", "LA", and "SLO" resolve; an unknown value is a 400 with close matches ("Did you mean Butte or Sutter?"), never an empty result, and the agent shows that suggestion instead of a zero.
 - **Date handling** (`services/agent/time_resolve.py`, `resolve_time`): explicit years, calendar days, month plus year, month ranges inside one year (PR #66, `explicit_month_range_in_year`), year ranges, relative years (last year, N years ago), open ranges ending today ("from January 2024 up to today", "since 2020", PR #48, `open_ended_range`), apostrophe years with the `%y` pivot (`'24` is 2024, `'99` is 1999, then out of coverage), bare 1900s years out of coverage (PR #50), vague words ambiguous, and per-year questions marked `per_year` so the harness keeps one call per year. Coverage is 2014 through the current year (`DATA_YEAR_MIN`). A month range that crosses a year ("November to February 2023") is ambiguous and asks for the years.
 - **US-sample routing** (PR #68, `_names_us_sample`): "US ignitions", "national sample", "ignition sample", FireCastRL, "sampled ... ignitions", and "all causes" beside "ignitions" resolve to `us_ignitions`, unless CPUC, "utility-caused", or a utility name comes right before "ignitions". A state restriction clarifies; a county restriction refuses.
 - **Statewide risk surface** (PR #26): a risk or residual grid map with a date and no place calls `risk_surface`, a tool kept out of the model's tool list and the Jev payloads (`HARNESS_TOOL_MODELS` in `schemas.py`). Decide mode leaves such a route with the router (`decide_mode.router_only_tools`).
@@ -397,7 +411,7 @@ Areas after the rebuild match CPUC's to within 0.0001 percent (Tier 2 149,984.71
 - IOU territory counts: a few events per region-year at most. PGE 2024 CPUC ignitions stay 532 by attribute and 536 by spatial containment, so that gap is real.
 - 30 city center-point answers changed (12 for IOU, 18 for HFTD): Anaheim, Azusa, Banning, Colton, Riverside are no longer SCE (they are holes); Redding, Ukiah, Grass Valley are no longer Tier 2; Placerville is Tier 2 not Tier 3. `tests/test_city_point_answers.py` pins them.
 
-The doc still says "Not yet applied on EC2"; Michael reports the reload ran in production on 2026-09-24 (section 13). Recording that date in the doc is an open task.
+The doc's "When the corrected data applies" section records 2026-09-24 as the EC2 date (PR #73); its status line at the top still reads "Not yet applied on EC2" and needs the same edit.
 
 ### 5.3 The places gazetteer and the shoreline snap (PR #28)
 
@@ -430,23 +444,32 @@ On the `research-psps-reports` branch (`research/psps_reports/`, FINDINGS.md, `r
 
 **Cross-check against the warehouse** (`round3/warehouse_crosscheck.py`, `warehouse_crosscheck.csv`, read-only queries against `wildfire.psps_events`, which holds 56 PG&E, SCE, and SDG&E events from October 2021 to November 2025): all 56 warehouse events match a report one to one; inside that date range the dataset has 22 more events, all notifications with no shutoff, which the warehouse does not record. Customers de-energized match exactly on 37 of 56, differ by under 2 percent on 15, and differ a lot on 4 where the report explains the gap (total versus unique customers for SDG&E, one utility's report counting another utility's customers). First shutoff date matches on 51 of 53 and last restoration on 50 of 55; the misses trace to a few late or third-party customers. County comparison is weak because the warehouse has no county field. Conclusion in the findings memo: the two sources agree on which events happened and on nearly all dates and disagree on definitions, so a combined panel should carry both a total and a unique customer count and say whose customers are counted.
 
+### 5.6 Filter normalization (PR #76, follow-ups #77 and #78)
+
+Plain language: a filter value that matched nothing used to return zero rows, and the agent read that zero as a real count ("0 incidents in Butte County" when the model sent "Butte County" and the warehouse stores "Butte"). Now the value is resolved to the canonical name first, and a value that resolves to nothing is an error that names the close matches.
+
+- `services/shared/counties.py`: the 58 Census county names, known aliases, and `normalize_county`, which strips a trailing "County" or "Co.", ignores case and punctuation, and raises `UnknownCountyError` with the closest names. It never returns a name outside the canonical list.
+- `services/data_query/filters.py`: `parse_county` (400 with suggestions), `parse_tier` ("tier 3", "T3", "3", "HFTD Tier 3" all resolve), `parse_utility` (full names such as "Southern California Edison" and "Bear Valley Electric Service" resolve). Applied on every Data Query, Visualization, and Comparison endpoint that takes a county (PR #76 lists them), so the three services agree.
+- Agent side: county arguments are normalized before the call and logged as `harness_county_correction`; a backend unknown-county or unknown-utility 400 becomes a recoverable `unknown_county` or `unknown_utility` tool error, the model may retry with the suggestion, and if it keeps the bad value the user sees the suggestion, never a zero (`services/agent/tools.py`, `orchestrator.py`, `tests/agent/test_county_arguments.py`).
+- Still exact matches, recorded as open issues: EPSS `outage_type` and `cause` and a single CAL FIRE `incident_type` are free-text columns with no canonical list (issue #77); multi-county CAL FIRE values such as "Shasta, Tehama" are excluded by an exact county filter, so Shasta 2020 returns 4 incidents while 2 more are tagged to both counties (issue #78).
+
 ---
 
 ## 6. Services and endpoints
 
-Six FastAPI apps. The endpoint list is from the `@app.get` and `@app.post` decorators in each `app.py` on `main`, compared with the same files at the PR #4 merge (`ff21406`). "New" means added since PR #4.
+Five FastAPI apps. The endpoint list is from the `@app.get` and `@app.post` decorators in each `app.py` on `main`, compared with the same files at the PR #4 merge (`ff21406`). "New" means added since PR #4.
 
-**Data Query, port 8000** (`services/data_query/app.py`): `/health`, `/rank`, `/grouped-counts`, `/summary`, `/regional-series`, `/ignitions`, `/us-ignitions`, `/epss/outages`, `/psps/events`, `/psps/events/{event_name}/circuits`, `/calfire/incidents`, `/circuits`, `/circuits/{circuit_id}`, `/hftd`, `/iou-territories`, `/spatial/point`, `/spatial/summary`. No new endpoints since PR #4 (the three aggregates arrived in PR #3). Changed: `/spatial/point` takes `snap_shoreline` (PR #28); `/hftd` and `/iou-territories` take `simplify` (PR #69); CPUC rows carry `county`.
+**Data Query, port 8000** (`services/data_query/app.py`): `/health`, `/rank`, `/grouped-counts`, `/summary`, `/regional-series`, `/ignitions`, `/us-ignitions`, `/epss/outages`, `/psps/events`, `/psps/events/{event_name}/circuits`, `/calfire/incidents`, `/circuits`, `/circuits/{circuit_id}`, `/hftd`, `/iou-territories`, `/spatial/point`, `/spatial/summary`. No new endpoints since PR #4 (the three aggregates arrived in PR #3). Changed: `/spatial/point` takes `snap_shoreline` (PR #28); `/hftd` and `/iou-territories` take `simplify` (PR #69); CPUC rows carry `county`; every `county`, `utility`, and `tier` parameter is normalized and an unknown county is a 400 with close matches (PR #76).
 
-**Visualization, port 8002** (`services/visualization/app.py`): `/health`, `/map-layer`, `/time-series`, `/utility-territory`, `/event-detail`. No new endpoints. Changed: `/map-layer?dataset=hftd` and `/utility-territory` draw simplified copies of the rebuilt geometry (PR #45).
+**Visualization, port 8002** (`services/visualization/app.py`): `/health`, `/map-layer`, `/time-series`, `/utility-territory`, `/event-detail`. No new endpoints. Changed: `/map-layer?dataset=hftd` and `/utility-territory` draw simplified copies of the rebuilt geometry (PR #45); `/map-layer` and `/time-series` use the same county, utility, and tier parsers as Data Query (PR #76).
 
-**Comparison, port 8003** (`services/comparison/app.py`): `/health`, `/compare-utilities`, `/compare-regions`, `/compare-periods`. No new endpoints. HFTD regions now return values instead of errors (PR #45).
+**Comparison, port 8003** (`services/comparison/app.py`): `/health`, `/compare-utilities`, `/compare-regions`, `/compare-periods`. No new endpoints. HFTD regions now return values instead of errors (PR #45); county regions and county scopes are normalized (PR #76).
 
-**Historical Risk, port 8001** (`services/risk_forecasting/app.py`): `/health` (changed: 503 with `failed_stage` unless the startup trial prediction passed, PR #27), `/predict`, and **new**: `/surface` (PR #9), `/observed` (PR #10), `/observed-training` (PR #11), `/metrics` (PR #12, hardened in PR #70). CORS was added in PR #16 so the website can call it. A systemd unit for it exists since PR #24.
+**Historical Risk, port 8001** (`services/risk_forecasting/app.py`): `/health` (changed: 503 with `failed_stage` unless the startup trial prediction passed, PR #27), `/predict`, and **new**: `/surface` (PR #9), `/observed` (PR #10), `/observed-training` (PR #11), `/metrics` (PR #12, hardened in PR #70). CORS was added in PR #16 so the website can call it. A systemd unit for it exists since PR #24. County and utility place names are normalized the same way (`services/risk_forecasting/place.py`, PR #76).
 
-**Agent, port 8004** (`services/agent/app.py`): `/health`, `POST /ask`, `POST /ask/stream`, `/artifacts/{ref}`. No new endpoints. Changed: `/health` reports the risk service's degraded detail and `failed_stage` (PR #27), and the model block reports the provider and model (Luna on OpenRouter in production). `POST /ask` is kept unchanged for the eval runner.
+**Agent, port 8004** (`services/agent/app.py`): `/health`, `POST /ask`, `POST /ask/stream`, `/artifacts/{ref}`. No new endpoints. Changed: `/health` reports the risk service's degraded detail and `failed_stage` (PR #27), and its model block is the model name plus provider health (the `thinking`, `structured_mode`, and `num_ctx` fields went with the Ollama path, PR #73). Every `/ask` response and every `/ask/stream` routing event carries `decision_source` (PR #71). `POST /ask` is kept unchanged for the eval runner.
 
-**GPU control, port 8005** (`services/gpu_control/app.py`): `/health`, `/gpu/status`, `POST /gpu/start`, `POST /gpu/stop`. No new endpoints. Disabled in production and being retired (section 13).
+**Removed:** the GPU control service on port 8005 (`services/gpu_control/`, four endpoints) and its systemd unit were deleted in PR #73. Its `/health`, `/gpu/status`, `/gpu/start`, and `/gpu/stop` no longer exist anywhere.
 
 ---
 
@@ -493,11 +516,12 @@ Plain language: the agent never tells the website what to draw in free text. It 
 - **Year bar** (`website/src/globalFilters.ts`, `WorkspaceFilters.tsx`, `PanelYearPin.tsx`, PR #19): years 2014 to 2025, default 2024, stored under `wildfire-workspace-global-v1`. `effectiveSettings` overlays the year's window on a panel's filters when it inherits; a pinned panel (`filterMode: override`) shows a `Pinned: YYYY` badge. Year comparison, seasonal profile, and agent scalar cards never follow the bar (`panelUsesGlobalYear`).
 - **Playback** (`website/src/playback.ts`, `PlaybackControls.tsx`, PR #20): event maps toggle between Full range and Day by day; day-by-day filters already-paged features locally by start date; the HDW player shares the same controls. Empty days show a chip instead of a blank map.
 - **Clarifications.** An answer with `status` clarification or unsupported arrives as assistant text with no views (`plan_views` returns none unless the status is answer). The clarification text now names every missing item and an example rephrasing (PR #51). Qualifications not already in the answer text are appended to the message (`App.tsx`).
-- **Tool chain.** `ToolTrace.tsx` shows the streamed and final trajectory in a collapsed disclosure; the final trajectory replaces the streamed one.
+- **Tool chain.** `ToolTrace.tsx` shows the streamed and final trajectory in a collapsed disclosure; the final trajectory replaces the streamed one. Since PR #71 it also shows one line saying who made the answer, clarify, or refuse decision (`decisionSourceLabel` in `agentTrace.ts`): "Decided by Jev (0.93)", "Safety rule: live data", or "Router (Jev below confidence gate)". It is read from the streamed routing event until the answer arrives and never appears in the answer text. The wire type is `AgentDecisionSource` in `agentContracts.ts`.
+- **Build freshness.** The committed site in `docs/` was written on 2026-09-18 and never rebuilt after PRs #26 and #71 merged, so the published page lacked the chat-to-panel routing keys and the decision line until PR #75 rebuilt it. `website/scripts/check-build.mjs` now builds into a temporary directory and lists every file missing, stale, or different in `docs/`; `tests/build-freshness.test.ts` runs it inside `npm test`, and `npm run check-build` runs it alone. The `CLAUDE.md` rule: any PR that changes website source commits the rebuilt `docs/index.html` and `docs/assets/workspace/` in the same PR.
 
 ### 7.4 What changed in the code you wrote
 
-51 files under `website/src` and `website/tests` changed between PR #4 and `main` (2,665 insertions, 343 deletions, `git diff --stat ff21406 platform/main`). The changes to files you authored:
+51 files under `website/src` and `website/tests` changed between PR #4 and `510d2fd` (2,665 insertions, 343 deletions, `git diff --stat ff21406 510d2fd`); PRs #71 and #75 then touched `ToolTrace.tsx`, `agentTrace.ts`, `agentContracts.ts`, `package.json`, and added `scripts/check-build.mjs` plus two tests. The changes to files you authored:
 
 - `App.tsx`: the `GlobalFiltersContext` provider and its persistence, the `ThemeToggle` in a new site header, stricter validation of saved panels for the new settings fields. `applyAnswer` and the notice are unchanged in shape.
 - `state.tsx`: `PanelSettings` gained `filterMode`, `mapMode`, `mapView`, `playbackDate`, `riskDate`, `statMode`, and two more `seriesMode` values; `GlobalFiltersContext` and `useGlobalFilters` were added.
@@ -505,9 +529,10 @@ Plain language: the agent never tells the website what to draw in free text. It 
 - `panelViews.ts`: five new views, `currentView` and `panelDatasets` extended.
 - `agentContracts.ts` and `answerPanels.ts`: the wire contract additions above and the adapters for rankings, series modes, grid maps, summary and medical cards, HDW, and timelines (`answerPanels.ts` grew by 214 lines).
 - `EventMap.tsx` and `HdwPlayer.tsx`: playback extracted into shared controls; `RecordPanels.tsx`: the medical exposure card; `data.ts`: `DATASETS` generated from the registry with a local overlay; `exports.ts` and `caveats.ts`: the EPSS and US ignitions caveat strings on cards and CSV; `index.css`: theme tokens; `api.ts`: the risk API URL (`VITE_RISK_URL`).
-- New tests: `answer-panel-reach`, `answer-panels`, `cumulative`, `customer-events`, `event-map-playback`, `exposure`, `global-year-filter`, `grid-surface`, `residual`, `risk-surface`, `theme`. PR #26 reported 111 Node tests passing.
+- `ToolTrace.tsx` and `agentTrace.ts`: the decision line (PR #71); `agentContracts.ts`: `AgentDecisionSource` and `decision_source` on `AgentAnswer`.
+- New tests: `answer-panel-reach`, `answer-panels`, `cumulative`, `customer-events`, `event-map-playback`, `exposure`, `global-year-filter`, `grid-surface`, `residual`, `risk-surface`, `theme`, `decision-source`, `build-freshness` (27 test files). PR #75 reported 116 Node tests passing.
 
-Build and test commands are unchanged: `cd website && npm ci && npm test && npm run build` (Node 24; `website/README.md`). The workspace storage key is still `wildfire-workspace-v1`.
+Build and test commands: `cd website && npm ci && npm test && npm run build`, plus `npm run check-build` (Node 24; `website/README.md`). The workspace storage key is still `wildfire-workspace-v1`.
 
 ---
 
@@ -521,12 +546,14 @@ Plain language: the language model is not trusted. Code around it decides which 
 |---|---|---|
 | Candidate tools | `routing.candidate_tools` | The model sees at most three tools chosen from the wording, never all seven. |
 | Filter grounding | `services/agent/grounding.py`, `ground_model_filters` (PR #25) | Drops a model-proposed `circuit_id`, `tier`, `hftd_tier`, `county`, `lat`, or `lon` that the question text or router slots do not support, and sentinel values (all-zero ids, 0,0 coordinates, empty strings). Named tier numbers keep only those tiers; "which tier" keeps both. Each drop is a `filter_dropped` event. Deterministic router calls are not touched. |
+| Enum grounding | `grounding.question_allows_untagged`, `question_incident_type_modes` (PR #79) | A schema-valid enum value is still an invented filter when the question never asked for it: `utility=untagged` runs only when the question mentions untagged, unattributed, or non-utility records; CAL FIRE `incident_type_mode` `all` or `untyped` runs only when the question asks for every type or for records with no type. Injected eval faults record the arguments that would have run. |
 | Utility grounding | `tools._strip_ungrounded_utilities` | A utility filter must appear in the question or slots; place names are never coerced to an IOU. Attaches the `utility_filter_stripped` caveat. |
+| County normalization | `services/shared/counties.py`, `tools.py` (`harness_county_correction`), `orchestrator.py` (PR #76) | County arguments are resolved to the canonical Census name before the call; an unresolvable value is sent as written so the backend rejects it with suggestions; the `unknown_county` and `unknown_utility` error codes are recoverable, and a model that keeps the bad value ends in an error that shows the suggestion, never a zero. |
 | Year and range guards | `time_resolve.apply_harness_years` and `_hold_resolved_window` (PRs #21, #48, #50) | Out-of-coverage years always fail; a wrong model year is overridden with the harness year; an invented year with no harness year is rejected (`year_not_derived`); with `hold_window` a model call may not narrow a resolved span ("2021 to 2025" with `year=2023` becomes the full span); per-year questions keep per-year calls; listed years reject unlisted ones. Each correction is a `harness_time_correction` event. |
 | Harness-only argument stripping | `schemas.harness_only_arguments`, `tools.strip_harness_only_arguments` (PR #28) | Fields hidden from the model schema (today only `snap_shoreline`) are removed from every non-router call and logged as `harness_arguments_stripped`. |
 | Schema validation and retry bound | `tools.ToolExecutor.execute`, `orchestrator._model_loop` (`schema_retry_bound`) | Pydantic validates arguments before HTTP; an identical non-transient failure fingerprint twice blocks that tool. `AGENT_MAX_VALIDATION_RETRIES` bounds schema retries. |
 | Tool-call limit | `AGENT_MAX_TOOL_STEPS` (default 5) in `_model_loop` | Caps model turns, not identical-failure retries. |
-| Multi-part coverage, no partial answer | `grounding.named_entities`, `uncovered_entities`; `_model_loop` (`uncovered_entities_continue`, `uncovered_entities_stop`) (PR #25, hosted only) | After a successful turn the loop asks the model for any named utility, county, year, or tier no call covered; if any are still uncovered at the limit the answer is an error naming them, never a partial answer. |
+| Multi-part coverage, no partial answer | `grounding.named_entities`, `uncovered_entities`; `_model_loop` (`uncovered_entities_continue`, `uncovered_entities_stop`) (PR #25; always on since PR #73) | After a successful turn the loop asks the model for any named utility, county, year, or tier no call covered; if any are still uncovered at the limit the answer is an error naming them, never a partial answer. |
 | Risk not substituted | `orchestrator._ask_routed` | A risk question whose model path reached no successful `risk_forecast` is refused rather than answered with a count. |
 | Response contract checks | `tools.py` (`_require_dict`, `_require_int`) | Backend HTTP 200 responses are contract-checked so partial data cannot degrade into an answer (eval case `detect_partial_200`). |
 | Evidence ids in synthesis | `orchestrator._synthesize`, `provider.strict_agent_answer_schema` | The answer schema requires `claims[].evidence_ids`; cited ids must be real evidence; uncited numbers fail the quantity check (`_quantity_mismatches`, `_curated_evidence_numbers`); missing citations with correct numbers are repaired (`citation_repaired`); otherwise synthesis falls back to the tool summary. A record-list sample size ("returned 10 records") is accepted (PR #25). |
@@ -538,18 +565,18 @@ Plain language: the language model is not trusted. Code around it decides which 
 
 The August 2026 record of these guards and the runs that motivated them is `services/agent/eval/HARNESS_GUARDS.md` (historical, with a status note).
 
-### 8.2 The model path on OpenRouter (PR #25, `docs/OPENROUTER.md`)
+### 8.2 The model path on OpenRouter (PR #25, hosted-only since PR #73, `docs/OPENROUTER.md`)
 
-`AGENT_LLM_PROVIDER=openrouter` with `AGENT_ALLOW_REMOTE_PROVIDER=true` and `OPENROUTER_API_KEY` sends routing and synthesis to `https://openrouter.ai/api/v1/chat/completions` (`provider.OpenAICompatibleProvider._complete_hosted`).
+OpenRouter is the only provider. `AGENT_LLM_PROVIDER` accepts only `openrouter`, `OPENROUTER_API_KEY` is required, and startup fails with a clear message until `AGENT_ALLOW_REMOTE_PROVIDER=true` confirms that questions may leave the host (`services/agent/config.py`, `validate`). Routing and synthesis go to `https://openrouter.ai/api/v1/chat/completions` (`provider.OpenAICompatibleProvider._complete_hosted`). The Ollama client, the JSON call envelope (`constrained.py`), the no-think alias (`model_setup.py`), the context warmup, and the `num_ctx` and `structured_mode` settings were deleted in PR #73.
 
-- **Tool choice.** Routing sends native `tools` with `tool_choice: "required"`, so the model cannot answer without a tool. Ollama has no `tool_choice`, so the local path still sends a JSON call envelope and records no-tool attempts (`services/agent/constrained.py`).
+- **Tool choice.** Routing sends native `tools` with `tool_choice: "required"`, so the model cannot answer without a tool. The runner still records no-tool or direct-answer attempts.
 - **Strict nullable schemas.** Every optional tool field is nullable and listed in `required` (`strict_nullable_tool`), and nulls are dropped before the harness sees the call (`drop_null_arguments`). Without this, Luna filled optional filters with placeholders (37 invented values on the 14 forced-model cases; 0 after).
 - **Several calls per turn** are allowed; `parallel_tool_calls` is not sent because OpenRouter does not list it for Luna. `provider.require_parameters` keeps requests on hosts that honor `tool_choice` and `response_format`.
 - **Fallback model.** Routing turns after a failed or empty turn, synthesis attempts 2 and later, and one retry after an HTTP error use `AGENT_LLM_FALLBACK_MODEL` (default `openai/gpt-6-sol`, `_complete_hosted_with_fallback`, `_turn_model`). A continuation after a success stays on Luna.
 - **Synthesis** uses `response_format` `json_schema` with `strict: true` and the same answer schema.
 - **Cost logging.** Every hosted request prints an `llm_usage` line with tokens, computed cost, and OpenRouter's reported cost; prices with source URLs are in `services/agent/pricing.py` (Luna $0.10 in and $0.50 out per million tokens; Sol $2.00 and $10.00; Jev $0.042 in, checked 2026-09-23).
 
-Measured on the 14 forced-model dev cases after all fixes: 14 of 14 pass, 0 invented filters, every number matches SQL, p50 4.5 s, p95 7.5 s, $0.022 (`docs/OPENROUTER.md`). On the 105 model-path holdout questions (v1, v2, v3, one pass, Jev off): 48 pass; 29 of the 47 wrong answers were questions labeled clarify or refuse, which is what decide mode exists to fix.
+Measured on the 14 forced-model dev cases after all fixes: 14 of 14 pass, 0 invented filters, every number matches SQL, p50 4.5 s, p95 7.5 s, $0.022 (`docs/OPENROUTER.md`). On the 105 model-path holdout questions (v1, v2, v3, one pass, Jev off): 48 pass; 29 of the 47 wrong answers were questions labeled clarify or refuse, which is what decide mode exists to fix. The rerun after PRs #73 and #76 ($0.038, dev and holdout data) matched SQL on every holdout number, and `ho_006` (Butte 9, Shasta 4) passed because the harness normalized the model's "Butte County"; the two runner differences it surfaced (a count-plus-records sequence on the Sacramento case, and `utility=untagged` on `recover_503`) were fixed in PR #79.
 
 ### 8.3 Every caveat and when it attaches
 
@@ -607,7 +634,7 @@ Fix: commit `2ad599d` on `main` ("Send the live tool_pick call with the same pol
 
 ### 9.4 The head-to-head against qwen
 
-`services/agent/eval/jev_vs_qwen.py` joins a shadow log with a qwen eval run on the question text and compares Jev's tool pick with qwen's first-turn and final tools (`docs/JEV_SHADOW.md`, "No-op diff on the EC2 host"). Michael reports the EC2 result: both picked the right first tool on 13 of 14 model-path questions, but qwen2.5:7b on the CPU host took 146 to 745 seconds per question while Jev's calls take about 0.4 s (p50 between 370 and 470 ms in every recorded run). The run file from that comparison was local to the host and is not committed, so the numbers here are as reported, not reproduced from the repo.
+The comparison script `jev_vs_qwen.py` joined a shadow log with a qwen eval run on the question text and compared Jev's tool pick with qwen's first-turn and final tools. Michael reports the EC2 result: both picked the right first tool on 13 of 14 model-path questions, but qwen2.5:7b on the CPU host took 146 to 745 seconds per question while Jev's calls take about 0.4 s (p50 between 370 and 470 ms in every recorded run). The run file from that comparison was local to the host and is not committed, so the numbers here are as reported, not reproduced from the repo. The script itself was removed with the local model path in PR #73; `services/agent/eval/jev_shadow_report.py` now carries the tool-pick comparison against whatever model the trajectory shows (`docs/JEV_SHADOW.md`).
 
 ### 9.5 Every mode and both backends
 
@@ -616,10 +643,10 @@ Fix: commit `2ad599d` on `main` ("Send the live tool_pick call with the same pol
 | Mode | What it does | Default |
 |---|---|---|
 | `off` | Never builds a runner, never imports the SDK. | yes |
-| `shadow` | `ShadowRunner` sends the v3_hybrid calls in the background and writes `routing`, `tool_pick`, `outcome`, `dropped`, and `wiring_error` rows to `AGENT_JEV_LOG_PATH`. Answers, tools, caveats, views, and eval scores are unchanged. Sample rate, concurrency, daily cap, and timeout apply. On in production. | |
-| `tool_pick` | On the model path, a Jev tool pick at or above `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (0.8) chooses the tool and `tool_pick_mode.py` fills arguments from router slots; anything missing, a two-part question, or an error falls back to the model loop. | |
+| `shadow` | `ShadowRunner` sends the v3_hybrid calls in the background and writes `routing`, `tool_pick`, `outcome`, `dropped`, and `wiring_error` rows to `AGENT_JEV_LOG_PATH`. Answers, tools, caveats, views, and eval scores are unchanged. Sample rate, concurrency, daily cap, and timeout apply. Production ran this on 2026-09-24 before switching to decide. | |
+| `tool_pick` | On the model path, a Jev tool pick at or above `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE` (0.8) chooses the tool and `tool_pick_mode.py` fills arguments from router slots; anything missing, a two-part question, or an error falls back to the model loop. The shadow log's path label for the model loop is still the historical string `qwen`, kept so older logs parse. | |
 | `tool_pick_template` | Same, then a template writes the answer for count, list, map, trend, rank, spatial context, and a simple comparison. | |
-| `decide` | Router backstops first, then Jev's disposition behind two gates. Section 9.7. | |
+| `decide` | Router backstops first, then Jev's disposition behind two gates. Section 9.7. **On in production since 2026-09-24.** | |
 | `plan` | Archived on `jev-plan-archive`; rejected at startup. | |
 
 `verify`, `fallback`, and `route` are reserved names that abort startup.
@@ -645,13 +672,37 @@ Each call carries the per-call policy subset of `DOMAIN_CONTEXT` (`schemas.conte
 1. `BACKSTOP_RULES` (live, risk future date, future prediction, city needs place, HFTD constraint, every `unsupported_<key>`) decide without calling Jev.
 2. `REGEX_ONLY` rules and routes using a router-only tool (`risk_surface`) stay with the router.
 3. Otherwise Jev's outcome is compared with the router's. A Jev clarify or refuse wins at or above the decline gate `AGENT_JEV_DECIDE_MIN_CONFIDENCE` (0.8), unless it asks for a time or place the router already resolved (`contradicts_slot`). A Jev answer over a router decline wins only at or above the answer gate `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE` (0.9) measured on the facts behind the router's rule (`_RULE_FACTS`), and never when the router's resolver proved the time or place missing in code (`code_verified`; `time_out_of_coverage` has no Jev fact and is never overridden). Below a gate, on a timeout (`AGENT_JEV_TIMEOUT_SECONDS`, 3 s, one bounded pool of 8 threads), or on any error, the router stands.
-4. An answer proceeds as before: the router's call if it has one, else the model path (`jev_decide_answer`).
+4. **Jev owns the disposition, the router owns the wording** (PR #72). When Jev wins a decline and the router declined the same way (both clarify, or both refuse), the final decision keeps the router's text, rule, reason, and clarify-all-missing additions; Jev's rule goes to the log only (`wording: "router"`). When Jev changes the disposition, its clarification goes through `complete_clarification` with the router's slots (`wording: "jev"`). The production case that forced this: "Show PSPS events around Santa Rosa" got Jev's generic "What latitude/longitude or bounding box should I use?" (Jev `missing_location` at 0.88) instead of the router's `undefined_spatial_scope` question plus the missing year. On the 307 stored rows the rule changed 9 texts (7 `missing_location` to `undefined_spatial_scope`, 2 `ranking_missing_year` to `ranking_missing_slots`) and no disposition or winner.
+5. An answer proceeds as before: the router's call if it has one, else the model path (`jev_decide_answer`). When both answer, the log now records Jev's answer confidence, the lowest confidence among the decline facts Jev answered no to (`decide_mode.answer_confidence`).
 
 Why the gates are asymmetric: a wrong answer is worse than a clarifying question, so a Jev answer over a decline needs more confidence than a Jev decline over an answer. The decline gate is the 0.8 used by every Jev mode. The answer gate was swept from 0.8 to never on dev and v1 (`runs/jev_decide_answer_gate_sweep.json`): those sets contain no case where Jev answers over a router decline at any gate, so they cannot choose a value, and 0.9 is a stated default one step above the decline gate, not a measured optimum. v3 was not used to choose either gate.
 
-Replayed from stored calls with the default gates (`runs/jev_decide_replay.json`): decide beats both the router alone and Jev alone on every set (dev 0.964, v1 0.952, v2 0.905, v3 0.769 against router 0.934, 0.905, 0.857, 0.692), fixing 14 decisions and breaking 0. Every disagreement is a `jev_decide` log line and appears in the response slots.
+Replayed from stored calls with the default gates, router as of PR #79 (`runs/jev_decide_replay.json`, regenerated in PR #72): decide beats both the router alone and Jev alone on every set (dev 0.964, v1 0.952, v2 0.929, v3 0.800 against router 0.934, 0.905, 0.881, 0.723), Jev's wins fixing 14 decisions and breaking 0. None of these sets is clean.
 
-### 9.8 The measurement rules and the noise floor
+### 9.8 Decide mode in production: what the logs show, and how to switch back
+
+Decide mode was switched on in production on 2026-09-24 (reported by Michael, section 13), with Jev reached through the OpenRouter backend. Each request leaves two records:
+
+- `decision_source` on the response and the streamed routing event (`decisions/provenance.py`): `backstop` plus the rule when a hard backstop fired; `jev` plus the disposition and confidence when Jev won; `router` plus a `why` otherwise. The Ask panel shows it as one Tool chain line. When Jev and the router agree the router is recorded as the decider (`jev_agreed`) with Jev's disposition and confidence; that is the common case.
+- A `jev_decide` line on stdout and in `AGENT_JEV_LOG_PATH` for every disagreement, every Jev decline whose rule differs from the final rule, and every error or timeout: the router path and rule, Jev's disposition, rule, and confidence, the `winner` (`router` or `jev`), the `why` (`agree`, `gate`, `below_gate`, `contradicts_slot`, `code_verified`, `regex_only`, `router_only_tool`, `backstop`, `error`, `timeout`), and `wording` (`router`, `jev`, or null). `services/agent/eval/shadow_report.py` reads the same file.
+
+The production log itself lives on the host (`/home/ubuntu/wildfire-logs/`) and is not in the repo. What the repo records from it is the one finding that drove PR #72: the Santa Rosa question where Jev won a clarification the router had also made, and the user got Jev's narrower text. The closest committed picture of the winner and why distribution is the replay of the 307 stored questions (`runs/jev_decide_replay.json`, every row's `decide` entry):
+
+| Winner and why | Rows of 307 |
+|---|---|
+| router, agree | 188 |
+| router, backstop (Jev not asked) | 59 |
+| router, below_gate | 29 |
+| jev, gate | 26 |
+| router, contradicts_slot | 3 |
+| router, code_verified | 1 |
+| router, regex_only | 1 |
+
+So on that mix Jev changes the outcome on about 8 percent of questions, always toward a clarification or refusal, and the backstops keep about a fifth of questions away from Jev entirely.
+
+**Switching back to shadow** takes one line and a restart, with no code change and no rollback: on the host set `AGENT_JEV_MODE=shadow` in `/home/ubuntu/Wildfire-Services/.env` (or `off` to stop calling Jev), then `sudo systemctl restart wildfire-agent`, and confirm with the runbook's environment check that the mode reached the process (`docs/DEPLOY_RUNBOOK.md`, sections 5.1, 5.2, and 5.4). The runbook's section 5 still says not to set `decide` in production; that sentence predates the switch and is one of the doc fixes in section 16.
+
+### 9.9 The measurement rules and the noise floor
 
 From `CLAUDE.md`, `docs/JEV_BACKLOG.md`, and the tests:
 
@@ -661,13 +712,13 @@ From `CLAUDE.md`, `docs/JEV_BACKLOG.md`, and the tests:
 - **Route reports.** Every router change reports how many routes changed across `cases.json`, `jev_paraphrases.json`, and every holdout.
 - **The noise floor.** From the determinism study, labels at confidence 0.8 or above do not flip and probabilities wander by up to about 0.17. So a one-pass difference of a few rows on a field with a recorded flip rate is not evidence; the PR #43 report's v1 clarify_reason drop from 0.708 to 0.583 (3 rows of 24, the field with the highest flip rate) is recorded as unresolved for that reason (`docs/JEV_BACKLOG.md` item 8).
 
-### 9.9 Why tuning on holdout v3 stopped, and why Jev owns the decision
+### 9.10 Why tuning on holdout v3 stopped, and why Jev owns the decision
 
 Holdout v3 was labeled independently from written policy (section 11), and label rules E and F were written from its disagreements. After that the router fixes in PR #22 were also written from v3 disagreements, so v3 became partly tuned. On 2026-09-23 it was frozen (`jev_holdout_v3_labels_chatgpt.json`, the `frozen` record): no router, policy, question, or label change may use v3, and production shadow logs are the next clean test.
 
-The reason Jev now owns answer / clarify / refuse with the router as backstop is in the numbers. On the 65 certain v3 rows the combined decider scored 56 of 65 against 51 for Jev alone and 45 for the router alone (PR #22 description, `jev_holdout_v3_independent_score.json`). On the 105 model-path holdout questions run through Luna, 29 of the 47 wrong answers were questions labeled clarify or refuse: once the router sends a question to the model path, nothing there can decline, because routing forces a tool call (`docs/OPENROUTER.md`, "What the switch still needs"). The router keeps the decisions Jev cannot express (the backstops and `REGEX_ONLY`), and Jev decides the rest behind the gates.
+The reason Jev now owns answer / clarify / refuse with the router as backstop is in the numbers. On the 65 certain v3 rows the combined decider scored 56 of 65 against 51 for Jev alone and 45 for the router alone (PR #22 description, `jev_holdout_v3_independent_score.json`). On the 105 model-path holdout questions run through Luna, 29 of the 47 wrong answers were questions labeled clarify or refuse: once the router sends a question to the model path, nothing there can decline, because routing forces a tool call (`docs/OPENROUTER.md`). The router keeps the decisions Jev cannot express (the backstops and `REGEX_ONLY`), and Jev decides the rest behind the gates. That design went live on 2026-09-24.
 
-### 9.10 The backlog (`docs/JEV_BACKLOG.md`)
+### 9.11 The backlog (`docs/JEV_BACKLOG.md`)
 
 Ten deferred items, each with why it waits and what to measure when it lands: (1) a policy sentence for `unsupported_future_prediction`; (2) a Jev fact for the statewide risk surface so decide does not ask for a place; (3) ranking phrasings the router misses (largest increase, worst months); (4) the Jev side of asking for every missing item at once (the router side landed in PR #51); (5) four v3 rows where Jev misses a clarify; (6) a `prompt_injection` false positive on "Optimize next week's PSPS schedule" (scores 0.61 to 0.64); (7) the decider as a runtime mode (landed as decide; what remains is measurement on shadow logs); (8) a five-repeat check of clarify_reason on v1; (9) a scorer mapping from router topics to `other_off_topic`; (10) `unsupported_future_prediction` as an option of the topic Choice. Its status line still says v2 and v3 files are not on main; they have been since PR #46, so that line is stale.
 
@@ -742,12 +793,12 @@ Every gold label change is a written rule with an author and date, recorded on t
 
 ### 11.5 How to run tests and evals, and what runs cost
 
-- `pytest tests/agent`: 580 tests collected on `main` on 2026-09-23 (`pytest --collect-only`); the whole `tests/` tree collects 846, of which the data-query, boundary, and risk tests need the warehouse, the services on their ports, or the risk data files. One agent test needs Data Query on port 8000 and is marked `requires_service` (PR #24).
-- Website: `cd website && npm test` (25 test files).
+- `pytest tests/agent`: 638 tests collected on `main` at `41e83d5` (`pytest --collect-only`); the whole `tests/` tree collects 983, of which the data-query, boundary, and risk tests need the warehouse, the services on their ports, or the risk data files. One agent test needs Data Query on port 8000 and is marked `requires_service` (PR #24). `tests/agent/conftest.py` sets a fake `OPENROUTER_API_KEY` and the remote gate so settings load offline (PR #73).
+- Website: `cd website && npm test` (27 test files, 116 tests as of PR #75, including the build-freshness check) and `npm run check-build`.
 - Route report: `python -m tests.agent.route_snapshot > tests/agent/fixtures/route_snapshot.json` and compare.
 - Offline Jev scoring with no API calls: `python -m services.agent.eval.jev_offline_eval` reads the shadow log; `jev_decide_replay replay` replays decide mode from the stored calls in `runs/jev_decide_store.json`; `_rescore_rules.py` rescores stored answers with rules A to C.
 - Live Jev: `jev_decide_replay capture` (about $0.08 for 307 questions), `jev_backend_compare` ($0.03 per backend per pass on dev), `jev_ablation`, `jev_repeat`. Jev costs $0.042 per million input tokens and output is free; a full dev, v1, and v2 context report cost about $0.12 (`context_report_pr43.json`).
-- Live model runs: `python -m services.agent.eval.runner --models openai/gpt-6-luna --thinking off --modes constrained` with `AGENT_LLM_PROVIDER=openrouter` and `AGENT_ALLOW_REMOTE_PROVIDER=true` (the 14 forced-model cases cost $0.02 to $0.08; the 105 holdout questions through `hosted_holdout_run.py` cost $0.22). The runner defaults to `qwen3:4b` and its qwen form (`--models qwen2.5:7b`) needs the Ollama host, which production no longer has; do not run the qwen form unless asked (`CLAUDE.md`).
+- Live model runs: `AGENT_ALLOW_REMOTE_PROVIDER=true python -m services.agent.eval.runner --models openai/gpt-6-luna --case-ids ...` (the 14 forced-model cases cost $0.02 to $0.08; the 105 holdout questions through `hosted_holdout_run.py` cost $0.22). Since PR #73 the runner defaults to the production model, has one cell per `--models` entry, and no longer takes `--thinking` or `--modes`; every model-path case spends OpenRouter credits, so run it only when asked and with a budget (`CLAUDE.md`). An eval case may list `accepted_tool_sequences` with an `expectation_note` when more than one tool sequence is correct (PR #79).
 - Stop and report if TypeSafe or OpenRouter spend in a session passes $5 (`CLAUDE.md`).
 
 ---
@@ -756,17 +807,17 @@ Every gold label change is a written rule with an author and date, recorded on t
 
 Plain language: one EC2 backend host runs the six services under systemd; a CloudFront distribution in front of it serves the website from GitHub Pages and proxies `/api/...` to the services. Michael reaches the host through AWS Session Manager, not SSH.
 
-**Services and ports** (`deploy/systemd/*.service`, `docs/DEPLOY_RUNBOOK.md`): `wildfire-data-query` 8000, `wildfire-risk-forecasting` 8001 (unit added in PR #24), `wildfire-visualization` 8002, `wildfire-comparison` 8003, `wildfire-agent` 8004, `wildfire-frontend` 8765 (the older `frontend/` app, not the Pages site), `wildfire-gpu-control` 8005 (disabled). Each unit reads `/home/ubuntu/Wildfire-Services/.env` as its `EnvironmentFile` (`deploy/systemd/SYSTEMD_SETUP.md`). The repo path on the host is `/home/ubuntu/Wildfire-Services`; an eval worktree is at `/home/ubuntu/jev-eval` (`CLAUDE.md`).
+**Services and ports** (`deploy/systemd/*.service`, `docs/DEPLOY_RUNBOOK.md`): `wildfire-data-query` 8000, `wildfire-risk-forecasting` 8001 (unit added in PR #24), `wildfire-visualization` 8002, `wildfire-comparison` 8003, `wildfire-agent` 8004, `wildfire-frontend` 8765 (the older `frontend/` app, not the Pages site). The `wildfire-gpu-control` unit was deleted in PR #73; if a copy is still installed on the host, the runbook says to disable and remove it. Each unit reads `/home/ubuntu/Wildfire-Services/.env` as its `EnvironmentFile` (`deploy/systemd/SYSTEMD_SETUP.md`). The repo path on the host is `/home/ubuntu/Wildfire-Services`; an eval worktree is at `/home/ubuntu/jev-eval` (`CLAUDE.md`).
 
-**Env settings in use (names only, per Michael's report of the 2026-09-24 deploy and the code defaults):** `AGENT_LLM_PROVIDER` (openrouter), `AGENT_ALLOW_REMOTE_PROVIDER`, `OPENROUTER_API_KEY`, `AGENT_LLM_MODEL` and `AGENT_LLM_FALLBACK_MODEL` (defaults Luna and Sol), `AGENT_JEV_MODE` (shadow), `AGENT_JEV_BACKEND` (openrouter), `AGENT_JEV_MODEL` (pinned), `AGENT_JEV_DAILY_CALL_CAP` (500), `AGENT_JEV_LOG_PATH` (outside the repo, `/home/ubuntu/wildfire-logs/`), the four service base URLs, the `POSTGRES_*` settings, and the `RISK_FORECASTING_*` paths. The Ollama and GPU settings (`AGENT_MODEL_BASE_URL`, `AGENT_MODEL`, `GPU_*`) were removed from the server config. Never print `.env`, `TYPESAFE_API_KEY`, or `OPENROUTER_API_KEY`.
+**Env settings in use (names only, per Michael's report and the code defaults):** `OPENROUTER_API_KEY`, `AGENT_ALLOW_REMOTE_PROVIDER` (true, or the agent will not start), `AGENT_LLM_PROVIDER` (openrouter, the only value), `AGENT_LLM_MODEL` and `AGENT_LLM_FALLBACK_MODEL` (defaults Luna and Sol), `AGENT_JEV_MODE` (decide since 2026-09-24), `AGENT_JEV_BACKEND` (openrouter), `AGENT_JEV_MODEL` (pinned), `AGENT_JEV_DAILY_CALL_CAP` (500), `AGENT_JEV_LOG_PATH` (outside the repo, `/home/ubuntu/wildfire-logs/`), the four service base URLs, the `POSTGRES_*` settings, and the `RISK_FORECASTING_*` paths. The Ollama and GPU settings were removed from the server config and from the code. Never print `.env`, `TYPESAFE_API_KEY`, or `OPENROUTER_API_KEY`.
 
-**Every env var the code reads** (from `os.getenv` in `services/agent/config.py`, `services/risk_forecasting/config.py`, `services/gpu_control/config.py`, `shared/db.py`, `shared/paths.py`, and `.env.example`): agent `AGENT_PROVIDER`, `AGENT_MODEL_BASE_URL`, `AGENT_MODEL_API_KEY`, `AGENT_MODEL`, `AGENT_MODEL_RUNTIME`, `AGENT_THINKING`, `AGENT_SYNTHESIS_THINKING`, `AGENT_STRUCTURED_MODE`, `AGENT_TIMEOUT_SECONDS`, `AGENT_SYNTHESIS_TIMEOUT_SECONDS`, `AGENT_MAX_COMPLETION_TOKENS`, `AGENT_MAX_ROUTING_TOKENS`, `AGENT_MAX_SYNTHESIS_TOKENS`, `AGENT_MAX_TOOL_STEPS`, `AGENT_MAX_VALIDATION_RETRIES`, `AGENT_NUM_CTX`, `AGENT_SEED`, `AGENT_TEMPERATURE`, `AGENT_ARTIFACT_TTL_SECONDS`, `AGENT_ALLOW_REMOTE_PROVIDER`, `AGENT_DISABLE_DETERMINISTIC_ROUTING`, `AGENT_LLM_PROVIDER`, `AGENT_LLM_MODEL`, `AGENT_LLM_FALLBACK_MODEL`, `OPENROUTER_API_KEY`, `AGENT_SLOT_PLAN`, `AGENT_JEV_MODE`, `AGENT_JEV_BACKEND`, `AGENT_JEV_MODEL`, `AGENT_JEV_TIMEOUT_SECONDS`, `AGENT_JEV_SAMPLE_RATE`, `AGENT_JEV_MAX_CONCURRENCY`, `AGENT_JEV_DAILY_CALL_CAP`, `AGENT_JEV_LOG_PATH`, `AGENT_JEV_LOG_MAX_MB`, `AGENT_JEV_ABLATION`, `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`, `AGENT_JEV_DECIDE_MIN_CONFIDENCE`, `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE`, `TYPESAFE_API_KEY`, `DATA_QUERY_BASE_URL`, `RISK_FORECASTING_BASE_URL`, `VISUALIZATION_BASE_URL`, `COMPARISON_BASE_URL`; database `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `DATASET_DEMO_DATA_DIR`, `GRID_CELL_SPACING_DEG`; risk `RISK_FORECASTING_ROOT`, `RISK_FORECASTING_DATA_DIR`, `RISK_FORECASTING_ARTIFACTS_DIR`, `LOOKBACK_DAYS`, `TRAIN_YEARS`, `VAL_YEAR`; GPU control `GPU_INSTANCE_ID`, `GPU_AWS_REGION`, `AWS_REGION`, `AWS_DEFAULT_REGION`, `GPU_OLLAMA_URL`, `GPU_MODEL`, `GPU_AGENT_URL`, `GPU_CONTROL_TOKEN`. The website build reads `VITE_VISUALIZATION_URL`, `VITE_AGENT_URL`, `VITE_DATA_QUERY_URL`, `VITE_RISK_URL` (`website/src/api.ts`).
+**Every env var the code reads** (from `os.getenv` in `services/agent/config.py`, `services/risk_forecasting/config.py`, `shared/db.py`, `shared/paths.py`, and `.env.example`): agent `OPENROUTER_API_KEY`, `AGENT_ALLOW_REMOTE_PROVIDER`, `AGENT_LLM_PROVIDER`, `AGENT_LLM_MODEL`, `AGENT_LLM_FALLBACK_MODEL`, `AGENT_SYNTHESIS_THINKING`, `AGENT_TIMEOUT_SECONDS`, `AGENT_SYNTHESIS_TIMEOUT_SECONDS`, `AGENT_MAX_COMPLETION_TOKENS`, `AGENT_MAX_ROUTING_TOKENS`, `AGENT_MAX_SYNTHESIS_TOKENS`, `AGENT_MAX_TOOL_STEPS`, `AGENT_MAX_VALIDATION_RETRIES`, `AGENT_SEED`, `AGENT_TEMPERATURE`, `AGENT_ARTIFACT_TTL_SECONDS`, `AGENT_DISABLE_DETERMINISTIC_ROUTING`, `AGENT_SLOT_PLAN`, `AGENT_JEV_MODE`, `AGENT_JEV_BACKEND`, `AGENT_JEV_MODEL`, `AGENT_JEV_TIMEOUT_SECONDS`, `AGENT_JEV_SAMPLE_RATE`, `AGENT_JEV_MAX_CONCURRENCY`, `AGENT_JEV_DAILY_CALL_CAP`, `AGENT_JEV_LOG_PATH`, `AGENT_JEV_LOG_MAX_MB`, `AGENT_JEV_ABLATION`, `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`, `AGENT_JEV_DECIDE_MIN_CONFIDENCE`, `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE`, `TYPESAFE_API_KEY`, `DATA_QUERY_BASE_URL`, `RISK_FORECASTING_BASE_URL`, `VISUALIZATION_BASE_URL`, `COMPARISON_BASE_URL`; database `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL`, `DATASET_DEMO_DATA_DIR`, `GRID_CELL_SPACING_DEG`; risk `RISK_FORECASTING_ROOT`, `RISK_FORECASTING_DATA_DIR`, `RISK_FORECASTING_ARTIFACTS_DIR`, `LOOKBACK_DAYS`, `TRAIN_YEARS`, `VAL_YEAR`. Removed in PR #73 and now rejected or ignored: `AGENT_PROVIDER`, `AGENT_MODEL`, `AGENT_MODEL_BASE_URL`, `AGENT_MODEL_API_KEY`, `AGENT_MODEL_RUNTIME`, `AGENT_THINKING`, `AGENT_STRUCTURED_MODE`, `AGENT_NUM_CTX`, and every `GPU_*` and `AWS_*` setting. The website build reads `VITE_VISUALIZATION_URL`, `VITE_AGENT_URL`, `VITE_DATA_QUERY_URL`, `VITE_RISK_URL` (`website/src/api.ts`).
 
-**Deploy runbook** (`docs/DEPLOY_RUNBOOK.md`, PR #24): record the running commit in `/home/ubuntu/deploy_history.txt`; `git pull --ff-only origin main` (origin on the host is the platform repo); reinstall requirements and recopy systemd units if they changed; restart the six units; health checks on every port; the smoke test; shadow mode `.env` settings and log verification; the daily shadow report; locking port 8004 to the CloudFront origin-facing prefix list; rotating the TypeSafe key without echoing it; rollback to the recorded commit. Its "Merge and deploy order" section and the model-host references predate the 2026-09-24 deploy and the OpenRouter switch and need updating (section 16).
+**Deploy runbook** (`docs/DEPLOY_RUNBOOK.md`, PR #24, updated in PR #73): record the running commit in `/home/ubuntu/deploy_history.txt`; `git pull --ff-only origin main` (origin on the host is the platform repo); reinstall requirements and recopy systemd units if they changed; restart the six units; health checks on every port; the smoke test; Jev `.env` settings and log verification; the daily shadow report; locking port 8004 to the CloudFront origin-facing prefix list; rotating the TypeSafe key without echoing it; rollback to the recorded commit. Its service table and model-tier note now match the OpenRouter setup. Two parts are still older than the current state: the "Merge and deploy order" section describes the PR #22 era, and section 5 still says not to set `decide` in production (section 16).
 
-**Smoke test** (`scripts/smoke_test.sh`): health on 8000 to 8004 and 8765, then five `POST /ask` route checks: a PG&E 2024 count (`filtered_records`), a three-utility count (must not answer one utility), "What utility service territory contains Modesto?" (expects `city_needs_place`), an EPSS utility ranking (`unsupported_rank_epss_utility`), and a live question (`unsupported_live_web`). The Modesto check is outdated: since PR #28 that question is answered at the city point (`city_point_context`), so it fails by design and needs a new expectation.
+**Smoke test** (`scripts/smoke_test.sh`, updated in PR #73): health on 8000 to 8004 and 8765, then six `POST /ask` route checks: a PG&E 2024 count (`filtered_records`), a three-utility count (must not answer one utility), "What utility service territory contains Modesto?" (expects `city_point_context` with the `city_center_point` and `iou_territory_not_provider` caveats), "How many CAL FIRE incidents were there in Modesto in 2023?" (must still clarify with `city_needs_place`), an EPSS utility ranking (`unsupported_rank_epss_utility`), and a live question (`unsupported_live_web`). The default ask timeout is 120 s, since each answer takes seconds on the hosted model.
 
-**Shadow report** (`services/agent/eval/shadow_report.py`): reads the JSONL log and its rotated backups and prints question counts, router versus Jev disposition with the most confident disagreements, the confidence distribution and the share under 0.8, tool-pick decisions, and estimated cost at $0.042 per million input tokens. Stop and report if estimated spend passes $5. Its rows will be the first clean test of the router and of decide mode; record the first report before anyone tunes against it.
+**Shadow and decide report** (`services/agent/eval/shadow_report.py`): reads the JSONL log and its rotated backups and prints question counts, router versus Jev disposition with the most confident disagreements, the confidence distribution and the share under 0.8, tool-pick decisions, and estimated cost at $0.042 per million input tokens. Stop and report if estimated spend passes $5. The production log is the first clean test of the router and of decide mode; record the first report before anyone tunes against it.
 
 **HFTD reload on the host**: `python -m db.loaders.rebuild_boundaries` with the two cached Esri JSON files copied to `data/boundaries/` (they are gitignored). The reload takes an exclusive lock for about 4 seconds.
 
@@ -776,10 +827,10 @@ Plain language: one EC2 backend host runs the six services under systemd; a Clou
 
 These facts come from Michael and cannot be seen in the code. They are current as of 2026-09-24.
 
-- **Production deploy on 2026-09-24.** EC2 moved from PR #15 to current `main`. The HFTD and IOU boundaries were reloaded from CPUC sources on the host, with every area within 0.001 percent of CPUC's. The smoke test passed except the outdated Modesto check (section 12).
-- **The agent's language model moved off qwen.** It switched from local `qwen2.5:7b` on a CPU instance to GPT-6 Luna on OpenRouter (Sol fallback). Model-path answers went from 3 to 12 minutes to about 4 seconds. The repo's `docs/OPENROUTER.md` still opens with "Do not switch yet"; that note is now history.
-- **Jev in production.** Jev runs in shadow mode through the OpenRouter backend with a pinned model and a 500-question daily cap. Decide mode is merged but off until the shadow logs are reviewed.
-- **qwen and GPU control disconnected.** The GPU control service was disabled, all Ollama and GPU settings were removed from the server config, and the CPU model instance (172.31.6.133) and the old GPU instance are being retired. `CLAUDE.md` and `AGENTS.md` still describe the model host; they need the same update.
+- **Production deploy on 2026-09-24.** EC2 moved from PR #15 to current `main`. The HFTD and IOU boundaries were reloaded from CPUC sources on the host, with every area within 0.001 percent of CPUC's. The smoke test passed except the then-outdated Modesto check, which PR #73 fixed the same day (section 12).
+- **The agent's language model moved off qwen.** It switched from local `qwen2.5:7b` on a CPU instance to GPT-6 Luna on OpenRouter (Sol fallback). Model-path answers went from 3 to 12 minutes to about 4 seconds. PR #73 then removed the qwen path from the code, so OpenRouter is the only provider and `docs/OPENROUTER.md` records the switch date.
+- **Jev in production.** Jev first ran in shadow mode through the OpenRouter backend with a pinned model and a 500-question daily cap; later on 2026-09-24 decide mode was switched on, so Jev now owns the answer / clarify / refuse decision through OpenRouter with the router as backstop. The first production finding (a narrower Jev clarification replacing the router's) was fixed by PR #72. Section 9.8 has what the logs record and how to switch back.
+- **qwen and GPU control removed.** All Ollama and GPU settings were removed from the server config, the CPU model instance (172.31.6.133) and the old GPU instance are retired, and PR #73 deleted the GPU control service and the Ollama path from the repo. `CLAUDE.md`, `AGENTS.md`, and the runbook were updated in the same PR.
 - **TypeSafe credits.** TypeSafe's direct API ran out of credits (HTTP 402 from 2026-09-23), which is why Jev runs through OpenRouter.
 - **Funding.** A Hillclimb AI grant provided $5,000 in OpenRouter credits and 3 months of Claude Max 20x.
 - **Still open on the server.** Restricting port 8004 to CloudFront (runbook section 6) and revoking the old TypeSafe key (runbook section 7).
@@ -790,7 +841,7 @@ These facts come from Michael and cannot be seen in the code. They are current a
 ## 14. How we work
 
 - **Claude Code sessions.** Each piece of work runs in its own Claude Code session and its own git worktree (`git worktree add ../wf-<name> -b <branch> platform/main`), so sessions never share a working tree. Reviews run in a separate session that did not write the code.
-- **The rules files.** `CLAUDE.md` (project instructions, wins on conflict) and `AGENTS.md` (learned preferences and workspace facts shared with other tools) are read at the start of every session. The hard rules: no em dashes anywhere; push only to `platform` (the team repo), never to `origin` (Michael's old fork); never change `main` directly, work on branches, open PRs, do not merge; never print or commit `TYPESAFE_API_KEY`, `.env`, or any credential; never change a gold label without a written rule; evals run one pass unless Jev wording changes; do not run the qwen eval runner unless asked; stop at $5 of API spend; every routing change reports route changes across every eval set; every accuracy claim names its set and whether it is clean; every PR that changes behavior updates the affected docs in the same PR and lists them; never describe unmerged work as done.
+- **The rules files.** `CLAUDE.md` (project instructions, wins on conflict) and `AGENTS.md` (learned preferences and workspace facts shared with other tools) are read at the start of every session. The hard rules: no em dashes anywhere; push only to `platform` (the team repo), never to `origin` (Michael's old fork); never change `main` directly, work on branches, open PRs, do not merge; never print or commit `TYPESAFE_API_KEY`, `.env`, or any credential; never change a gold label without a written rule; evals run one pass unless Jev wording changes; do not run the eval runner unless asked with a budget, because every model-path case spends OpenRouter credits; stop at $5 of API spend; every routing change reports route changes across every eval set; every accuracy claim names its set and whether it is clean; every PR that changes behavior updates the affected docs in the same PR and lists them; any PR that changes website source commits the rebuilt `docs/` in the same PR (PR #75); never describe unmerged work as done.
 - **Reviews before merging.** A PR is opened with "Do not merge until review". An independent session reviews it; blocking findings are fixed on the branch, non-blocking ones become issues. Merges happen on GitHub after review, never from the host.
 - **Merge order.** After each merge, the next branch is rebased onto `platform/main`, `pytest tests/agent` is rerun, and route changes are reported (`CLAUDE.md`, "Branches and merge order"). Deploys pull `main` only.
 - **Verification habits** (`AGENTS.md`): verify data by content, not filenames; prefer failing loudly to adjusting tests; ground numbers against SQL or the source; for visual work verify against the rendered result; never call `grid_data_prep.load_year()`; never modify `models.py` or `grid_data_prep.py`.
@@ -812,10 +863,10 @@ Every file in `docs/` on `main`, plus this one:
 | `docs/DEPLOY_RUNBOOK.md` | The EC2 deploy, health, shadow mode, port lock, key rotation, and rollback runbook. |
 | `docs/JEV_SHADOW.md` | Jev modes off, shadow, tool_pick, tool_pick_template; every `AGENT_JEV_*` variable; logs and reports; privacy; the tie note. |
 | `docs/JEV_DETERMINISM.md` | The repeat study: byte-identical requests, flip rates by confidence. |
-| `docs/JEV_DECIDE.md` | Decide mode: order, gates, slot and code-verified rules, threads, the gate sweep, replay and live results. |
+| `docs/JEV_DECIDE.md` | Decide mode: order, gates, the wording rule, slot and code-verified rules, what the log records, `decision_source`, threads, the gate sweep, replay and live results. |
 | `docs/JEV_MULTI_TOOL.md` | The slot planner, its invariant, and why Jev's planner was archived. |
 | `docs/JEV_BACKLOG.md` | Ten deferred Jev changes with what to measure. |
-| `docs/OPENROUTER.md` | The OpenRouter LLM and Jev backends, prices, every measured run, and the (now historical) production switch note. |
+| `docs/OPENROUTER.md` | The OpenRouter LLM and Jev backends, prices, every measured run, the enum grounding rule, and the record of the 2026-09-24 production switch. |
 | `docs/dataset-comparison-cpuc-calfire-us.md` | Why CPUC, CAL FIRE, and US ignitions cannot be compared or combined (August 2026 memo with a status note). |
 | `docs/HANDOFF_SINCE_PR4.md` | This document. |
 
@@ -828,8 +879,7 @@ The root `README.md` has a documentation index that also points at the service R
 ### Open PRs
 
 - **#29** `research-psps-reports`: the PSPS post-event reports dataset (section 5.5). Not merged. Adds files under `research/psps_reports/` only.
-- **This handoff** (`handoff-doc` branch, "Handoff doc: everything since PR #4"), opened with this document.
-- **remove-qwen**: no PR exists yet. Michael's local `wf-remove-qwen` worktree is at `main` with uncommitted edits to `services/agent/config.py` and `services/agent/provider.py`. When it lands it should remove the Ollama defaults and the qwen-specific paths from the agent, and update `CLAUDE.md`, `AGENTS.md`, `.env.example`, `docs/OPENROUTER.md`, `docs/DEPLOY_RUNBOOK.md`, and the READMEs that still describe the model host.
+- **#74** `handoff-doc`: this document.
 
 ### Open issues
 
@@ -845,18 +895,21 @@ The root `README.md` has a documentation index that also points at the service R
 | #44 | Router: route series-plus-total questions to the deterministic count-plus-series pair | Today they defer to the model. |
 | #62 | Agent: Jev calls are not covered by `AGENT_ALLOW_REMOTE_PROVIDER` | A documented gap in `SECURITY.md`; decide whether shadow should require the opt-in. |
 | #67 | Router: a tier ranking with a bare ignitions dataset refuses as `unsupported_ranking` instead of the tier clarification | Found in the review of PR #58. |
+| #77 | Exact-match free-text filters can return 0 for a near-miss: EPSS `outage_type` and `cause`, CAL FIRE `incident_type` | Follow-up from PR #76; the columns have no canonical list, so the suggested fix builds one from `SELECT DISTINCT` at startup or at least matches case-insensitively and returns 400. |
+| #78 | Multi-county CAL FIRE values like "Shasta, Tehama" are excluded by an exact county filter | Follow-up from PR #76; about 45 rows across 25 multi-county values; the decision affects Data Query, Visualization, Comparison, the router, and the gold labels together. |
 
 Closed since #30: #30, #31, #32, #42, #47 (PR #58); #33, #40 (PR #48); #52, #53, #54, #55, #56, #61 (PR #69); #60, #63, #64, #65 (PR #70).
 
 ### Good starting tasks for Stephen
 
 1. **Reviewer B for the PSPS review queue.** Take `research/psps_reports/round3/review_reviewer_B.csv` on the PR #29 branch, follow `round3/REVIEW_GUIDE.md` (163 items, 40 of them shared with reviewer A, about 5.5 to 8 hours, decide before looking at the answer key), then run `round3/agreement.py` on the overlap. This gives the dataset its first second-reader accuracy figure.
-2. **Fix the smoke test's Modesto check** to expect `city_point_context` and add a `city_needs_place` example that still clarifies (for example a count in a city). Small, self-contained, and it unblocks a clean smoke run.
-3. **Refresh the deploy docs after the 2026-09-24 deploy**: record the EC2 reload date in `docs/DATA_CHANGE_HFTD_IOU.md`, retire the "Do not switch yet" note in `docs/OPENROUTER.md`, and update the model-host and merge-order text in `docs/DEPLOY_RUNBOOK.md`, `CLAUDE.md`, and `AGENTS.md` (or fold this into the `remove-qwen` PR).
-4. **Issue #44**: extend the deterministic count-plus-series pair to series-plus-total wording. Router work with a route report; the eval rows are named in the issue.
-5. **Issue #67**: the tier ranking with a bare "ignitions" dataset. A one-function router fix with tests in `test_router_false_positives.py`.
-6. **Website follow-ups you know best**: the non-ranking comparison and spatial-context views are still "not supported here yet" in `answerPanels.ts`; county and utility are not on the year bar; a model performance card for `GET /metrics` is not a workspace view.
-7. **Shadow log review** once the first production report exists: this is the first clean test, so the job is to read it, not tune against it, and record the baseline numbers.
+2. **Decide log review** once the first production report exists: the production `jev_decide` log is the first clean test of the router and of decide mode, so the job is to read it (winner, why, wording, and the `decision_source` mix), not tune against it, and record the baseline numbers. Section 9.8 says what each record holds.
+3. **Small doc fixes left after PR #73**: the status line at the top of `docs/DATA_CHANGE_HFTD_IOU.md` still says "Not yet applied on EC2" although its body records 2026-09-24; `docs/DEPLOY_RUNBOOK.md` section 5 still says not to set `decide` in production and its "Merge and deploy order" describes the PR #22 era; `docs/JEV_BACKLOG.md` still opens by saying the v2 and v3 files are not on main. Each is a few lines.
+4. **Issue #78**: decide whether a county filter includes multi-county CAL FIRE incidents, then apply it in the three services, the router, and the gold labels together with a route report. A good first look at how a data decision travels through the stack.
+5. **Issue #77**: canonical lists or case-insensitive matching for EPSS `outage_type` and `cause` and CAL FIRE `incident_type`, in the same shape as `parse_county`.
+6. **Issue #44**: extend the deterministic count-plus-series pair to series-plus-total wording. Router work with a route report; the eval rows are named in the issue.
+7. **Issue #67**: the tier ranking with a bare "ignitions" dataset. A one-function router fix with tests in `test_router_false_positives.py`.
+8. **Website follow-ups you know best**: the non-ranking comparison and spatial-context views are still "not supported here yet" in `answerPanels.ts`; county and utility are not on the year bar; a model performance card for `GET /metrics` is not a workspace view. Remember the build rule: rebuild `docs/` in the same PR.
 
 ---
 
@@ -869,7 +922,8 @@ Closed since #30: #30, #31, #32, #42, #47 (PR #58); #33, #40 (PR #48); #52, #53,
 - **Choice**: a Jev question with named options; the answer is one option with a probability.
 - **cNHPP, NHPP, HPP**: the convolutional non-homogeneous Poisson process ignition-risk model on the 824-cell grid, and its two baselines. cNHPP versus NHPP is a statistical tie.
 - **CPUC**: California Public Utilities Commission; also the utility-caused ignition dataset it publishes.
-- **Decide mode**: `AGENT_JEV_MODE=decide`, where Jev decides answer, clarify, or refuse behind two gates with the router as backstop.
+- **Decide mode**: `AGENT_JEV_MODE=decide`, where Jev decides answer, clarify, or refuse behind two gates with the router as backstop; Jev owns the disposition and the router owns the wording. On in production since 2026-09-24.
+- **decision_source**: the field on every answer and routing event that says who decided (`backstop`, `jev`, or `router` with a why), shown as one line in the Ask panel's Tool chain.
 - **Deterministic route**: a question the router answers with exact tool calls, no model.
 - **Dev set**: `cases.json` plus `jev_paraphrases.json`, used for tuning.
 - **EPSS**: PG&E's Enhanced Powerline Safety Settings (fast-trip) outages. PG&E only.
@@ -882,7 +936,7 @@ Closed since #30: #30, #31, #32, #42, #47 (PR #58); #33, #40 (PR #48); #52, #53,
 - **IOU**: investor-owned utility; the service territory polygons for PGE, SCE, SDGE, PacifiCorp, Liberty, BVES.
 - **Jev**: TypeSafe's non-generative typed-decision model (System One API).
 - **Label rule**: a written, dated, attributed rule that changes or widens a gold label (A to H).
-- **Luna, Sol**: OpenAI's GPT-6 Luna (primary) and GPT-6 Sol (fallback) on OpenRouter.
+- **Luna, Sol**: OpenAI's GPT-6 Luna (primary) and GPT-6 Sol (fallback) on OpenRouter, the agent's only language-model provider since PR #73.
 - **Model path**: a question the router hands to the language model with candidate tools.
 - **Noul**: a Jev yes/no question; the answer is a probability, and confidence is max(p, 1 - p).
 - **OpenRouter**: the hosted API gateway used for Luna, Sol, and now Jev.
