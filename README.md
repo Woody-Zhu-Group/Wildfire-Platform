@@ -303,7 +303,7 @@ Panel names, order and settings are saved in browser local storage. Chat message
 
 ### Data interpretation and current scope
 
-[db/schema.sql](db/schema.sql) is the schema reference. EPSS is PG&E-only, and its cause categories describe outages. CPUC and CAL FIRE records do not supply the same cause field. PSPS customer totals count customer-events, not distinct households.
+[db/schema.sql](db/schema.sql) is the schema reference. Which utilities and dates each dataset covers is measured at load, not declared ([db/README.md](db/README.md), `shared/dataset_coverage.json`): CPUC ignitions have rows for PacifiCorp (from 2025-04-24), PG&E, SCE, and SDG&E only, from 2020-01-01; PSPS events for PG&E, SCE, SDG&E, and Liberty (from 2024-11-11), from 2021-10-11; EPSS for PG&E only, from 2021-11-01. A count for a utility or period outside that is not available, with the reason, never 0, in the agent, the comparison service, and the workspace. EPSS cause categories describe outages. CPUC and CAL FIRE records do not supply the same cause field. PSPS customer totals count customer-events, not distinct households.
 
 Current rankings compare recorded counts, not modeled circuit risk or rates normalized by customers served. HDW playback is a supplied historical weather surface, not predicted ignition probability. The risk surface and residual map are historical hindcasts for dates with covariate files. A model performance card is not a workspace view yet; the risk API exposes the metrics at `GET /metrics`. Source date ranges reflect recorded events rather than verified collection completeness or last-scrape timestamps.
 

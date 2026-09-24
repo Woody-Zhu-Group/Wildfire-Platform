@@ -17,8 +17,10 @@ from services.agent.decisions.v3 import tool_pick_call
 from services.agent.routing import (
     _COUNTY_CAPABLE_DATASETS,
     _asks_map_view,
+    _comparison_metric,
     _ignition_definition,
     _range_for_year,
+    comparison_uncarried_constraints,
 )
 from services.shared.dataset_registry import (
     HFTD_TIER_BY_NUMBER,
@@ -26,23 +28,8 @@ from services.shared.dataset_registry import (
     LAYER_VIZ_KEYS,
     TIER_DIGIT_PATTERN,
 )
+from services.agent.coverage import call_coverage_gap, carry_question_definition
 
-
-def _comparison_metric(lower: str) -> str | None:
-    """Same metric words as the router's comparison block. None if unnamed."""
-    if "epss-to-ignition" in lower or "epss to ignition" in lower:
-        return "epss_to_ignition_ratio"
-    if "epss" in lower or "outage" in lower:
-        return "epss_outage_count"
-    if "cal fire" in lower or "calfire" in lower:
-        return "calfire_incident_count"
-    if (
-        "ignition" in lower
-        or "wildfire activity" in lower
-        or re.search(r"\bwildfire(?:s)?\b", lower)
-    ):
-        return "ignition_count"
-    return None
 
 _VIZ_DATASET = LAYER_VIZ_KEYS
 _SERIES_WORD = r"\b(?:trend|time series|weekly|monthly|daily)\b"
@@ -221,14 +208,36 @@ def arguments_for_tool(
 ) -> dict[str, Any] | None:
     """Arguments from route slots. Missing required fields fall back to the model loop."""
     if tool == "data_query_records":
-        return _records_args(slots)
-    if tool == "visualization_create":
-        return _visualization_args(slots, question)
-    if tool == "comparison_run":
-        return _comparison_args(slots, question)
-    if tool == "data_query_spatial":
-        return _spatial_args(slots)
-    return None
+        args = _records_args(slots)
+    elif tool == "visualization_create":
+        args = _visualization_args(slots, question)
+    elif tool == "comparison_run":
+        args = _comparison_args(slots, question)
+    elif tool == "data_query_spatial":
+        args = _spatial_args(slots)
+    else:
+        return None
+    if args is None:
+        return None
+    # The call reads the query definition the question asks for (CAL FIRE all
+    # or untyped incident types), and its coverage is that definition's; a
+    # call that cannot carry it falls back to the model loop.
+    if not carry_question_definition(tool, args, question) or _not_covered(tool, args, []):
+        return None
+    return args
+
+
+def _not_covered(tool: str, args: dict[str, Any], utilities: list[str]) -> bool:
+    """Measured coverage has no rows for the named utilities in the period.
+
+    Such a read is absent, not zero, so the template falls back to the model
+    loop, where the router's clarification or the executor's check applies.
+    """
+    for utility in utilities or [None]:
+        call = {**args, "utility": utility} if utility else args
+        if call_coverage_gap(tool, call) is not None:
+            return True
+    return False
 
 
 def _records_args(slots: dict[str, Any]) -> dict[str, Any] | None:
@@ -240,7 +249,9 @@ def _records_args(slots: dict[str, Any]) -> dict[str, Any] | None:
     if len(utilities) > 1:
         return None
     args: dict[str, Any] = {"dataset": dataset, "result_mode": "count", **time_args}
-    if len(utilities) == 1 and dataset != "us_ignitions":
+    if _not_covered("data_query_records", args, utilities):
+        return None
+    if len(utilities) == 1:
         args["utility"] = utilities[0]
     county = slots.get("county")
     if county and dataset in _COUNTY_CAPABLE_DATASETS:
@@ -272,6 +283,8 @@ def _visualization_args(slots: dict[str, Any], question: str) -> dict[str, Any] 
             return None
         args["interval"] = interval.group(1)
     utilities = list(slots.get("utilities") or [])
+    if _not_covered("visualization_create", args, utilities):
+        return None
     if len(utilities) == 1:
         args["utility"] = utilities[0]
     elif len(utilities) > 1:
@@ -283,6 +296,20 @@ def _visualization_args(slots: dict[str, Any], question: str) -> dict[str, Any] 
 
 
 def _comparison_args(slots: dict[str, Any], question: str) -> dict[str, Any] | None:
+    """Comparison arguments from slots, or None when a named constraint would drop."""
+    args = _comparison_slot_args(slots, question)
+    if args is None:
+        return None
+    if call_coverage_gap("comparison_run", args) is not None:
+        # Measured coverage has none of the named utilities in the period
+        # (label rule I), so every side would be null. The router clarifies.
+        return None
+    if comparison_uncarried_constraints(question, args, slots):
+        return None
+    return args
+
+
+def _comparison_slot_args(slots: dict[str, Any], question: str) -> dict[str, Any] | None:
     lower = " ".join(question.lower().split())
     metric = _comparison_metric(lower)
     if metric is None or "us ignition" in lower:

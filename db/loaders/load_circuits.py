@@ -17,6 +17,11 @@ from db.loaders.util import (
     truncate,
 )
 
+# The source files are PG&E's EPSS publication, and the table has no utility
+# column: every row loaded here is PG&E's. db.loaders.coverage attributes the
+# measured rows and dates to this utility.
+SOURCE_UTILITY = "PGE"
+
 
 def load(conn: psycopg.Connection, settings: Settings) -> int:
     path = settings.dataset_demo_data_dir / "epss_circuits.geojson"

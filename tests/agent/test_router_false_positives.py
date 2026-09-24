@@ -12,6 +12,7 @@ import pytest
 
 from services.agent.decisions.decide_mode import BACKSTOP_RULES
 from services.agent.routing import _counties, _county, route_question
+from services.shared.dataset_registry import UTILITY_CLARIFY_LABELS
 
 
 FORECAST_AND_PREDICT = [
@@ -29,7 +30,9 @@ LIVE_WORDING_WITH_A_PAST_PERIOD = [
 ]
 
 CITY_NAMES_THAT_ARE_NOT_PLACES = [
-    ("How many PSPS events were driven by Santa Ana wind events in 2020?", "deterministic", "filtered_records"),
+    # PSPS rows start on 2021-10-11 (measured coverage), so 2020 is not covered:
+    # a clarification, not a count of 0 (PR #93 re-review).
+    ("How many PSPS events were driven by Santa Ana wind events in 2020?", "clarification", "dataset_not_covered"),
     ("How many CAL FIRE incidents were there in Marina del Rey in 2021?", "deterministic", "filtered_records"),
     ("How many CPUC ignitions happened in the winters of 2021 to 2023?", "deterministic", "filtered_records"),
     ("What was the fitted risk at 38.55, -121.74 (Davis) on 2024-08-01?", "deterministic", "coordinate_risk_chain"),
@@ -774,8 +777,10 @@ def test_review_82_a_non_pge_utility_on_epss_never_returns_zero(question):
     assert decision.path == "clarification", (question, decision.rule)
     assert decision.rule == "epss_non_pge_utility", (question, decision.rule)
     assert decision.tool_calls == [], question
-    assert "PG&E-only" in decision.answer and "absent, not zero" in decision.answer
-    assert decision.slots["utilities"] and decision.slots["utilities"][0] in decision.answer
+    assert "rows only for PG&E" in decision.answer and "absent, not zero" in decision.answer
+    # Named as the reader knows it (SDG&E, not the code SDGE).
+    utility = decision.slots["utilities"][0]
+    assert UTILITY_CLARIFY_LABELS.get(utility, utility) in decision.answer
 
 
 @pytest.mark.parametrize(

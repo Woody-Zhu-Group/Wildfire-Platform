@@ -115,8 +115,8 @@ test('unsupported aggregate filters are blocked before network access', async t 
   clearDataCache(); t.after(clearDataCache);
   const fetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Unexpected fetch'); });
   await assert.rejects(getSummary('psps', {...DEFAULT_FILTERS, county: 'Marin'}), /not available/);
-  await assert.rejects(getGroupedCounts('epss', {...DEFAULT_FILTERS, utility: 'SCE'}, 'utility'), /PG&E only/);
-  await assert.rejects(getRegionalSeries({...DEFAULT_FILTERS, utility: 'SCE'}, 'daily'), /PG&E only/);
+  await assert.rejects(getGroupedCounts('epss', {...DEFAULT_FILTERS, utility: 'SCE'}, 'utility'), /rows only for PG&E/);
+  await assert.rejects(getRegionalSeries({...DEFAULT_FILTERS, utility: 'SCE'}, 'daily'), /rows only for PG&E/);
   assert.equal(fetch.mock.callCount(), 0);
 });
 

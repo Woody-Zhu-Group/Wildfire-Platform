@@ -48,8 +48,8 @@
   "ambiguous_risk_metric"
  ],
  "cases.json:collision_this_year_count": [
-  "deterministic",
-  "filtered_records"
+  "clarification",
+  "dataset_not_covered"
  ],
  "cases.json:collision_trend_calfire_sce_territory": [
   "deterministic",
@@ -136,8 +136,8 @@
   "map_missing_year"
  ],
  "cases.json:holdout_compare_epss_sce_sdge_2023": [
-  "deterministic",
-  "utility_comparison"
+  "clarification",
+  "epss_non_pge_utility"
  ],
  "cases.json:holdout_count_trend_sce_2023": [
   "deterministic",
@@ -488,8 +488,8 @@
   "coordinate_risk_chain"
  ],
  "jev_holdout.json:ho_016": [
-  "deterministic",
-  "map"
+  "clarification",
+  "dataset_not_covered"
  ],
  "jev_holdout.json:ho_017": [
   "model",
@@ -520,8 +520,8 @@
   "multi_entity_deferred"
  ],
  "jev_holdout.json:ho_024": [
-  "deterministic",
-  "filtered_records"
+  "clarification",
+  "dataset_not_covered"
  ],
  "jev_holdout.json:ho_025": [
   "model",
@@ -621,7 +621,7 @@
  ],
  "jev_holdout.json:ho_049": [
   "clarification",
-  "records_missing_year"
+  "dataset_not_covered"
  ],
  "jev_holdout.json:ho_050": [
   "clarification",
@@ -840,8 +840,8 @@
   "coordinate_risk_chain"
  ],
  "jev_holdout_v2.json:hv2_007": [
-  "deterministic",
-  "filtered_records"
+  "clarification",
+  "dataset_not_covered"
  ],
  "jev_holdout_v2.json:hv2_008": [
   "model",
@@ -860,8 +860,8 @@
   "unexpressable_county_filter"
  ],
  "jev_holdout_v2.json:hv2_012": [
-  "deterministic",
-  "map"
+  "clarification",
+  "dataset_not_covered"
  ],
  "jev_holdout_v2.json:hv2_013": [
   "model",
@@ -932,8 +932,8 @@
   "open_ended"
  ],
  "jev_holdout_v2.json:hv2_030": [
-  "model",
-  "open_comparison"
+  "clarification",
+  "dataset_not_covered"
  ],
  "jev_holdout_v2.json:hv2_031": [
   "clarification",
@@ -981,7 +981,7 @@
  ],
  "jev_holdout_v2.json:hv2_042": [
   "clarification",
-  "ranking_missing_year"
+  "dataset_not_covered"
  ],
  "jev_holdout_v2.json:hv2_043": [
   "clarification",
@@ -1136,8 +1136,8 @@
   "unsupported_rank_epss_utility"
  ],
  "jev_holdout_v3_questions.json:hv3_016": [
-  "model",
-  "open_comparison"
+  "clarification",
+  "dataset_not_covered"
  ],
  "jev_holdout_v3_questions.json:hv3_017": [
   "deterministic",
@@ -1408,8 +1408,8 @@
   "ranking_missing_slots"
  ],
  "jev_holdout_v3_questions.json:hv3_084": [
-  "model",
-  "open_comparison"
+  "clarification",
+  "dataset_not_covered"
  ],
  "jev_holdout_v3_questions.json:hv3_085": [
   "clarification",
@@ -1520,8 +1520,8 @@
   "unsupported_live_web"
  ],
  "jev_paraphrases.json:para_bear_valley": [
-  "deterministic",
-  "filtered_records"
+  "clarification",
+  "dataset_not_covered"
  ],
  "jev_paraphrases.json:para_calfire_monthly_chart": [
   "model",
@@ -1552,8 +1552,8 @@
   "spatial_utility_count"
  ],
  "jev_paraphrases.json:para_liberty_2021": [
-  "deterministic",
-  "filtered_records"
+  "clarification",
+  "dataset_not_covered"
  ],
  "jev_paraphrases.json:para_list_psps": [
   "deterministic",

@@ -534,18 +534,16 @@
   {
     "id": "para_bear_valley",
     "question": "How many Bear Valley Electric ignitions were recorded in 2022?",
-    "expected_route": "deterministic",
-    "expected_tools": [
-      "data_query_records"
-    ],
-    "expected_status": "answer",
-    "expected_disposition": "answer",
-    "expected_intent": "count",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "expected_status": "clarification",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "cpuc_ignitions",
     "expected_utilities": [
       "BVES"
     ],
-    "label_rationale": "Bear Valley Electric is BVES and a yearly ignition count is CPUC.",
+    "label_rationale": "CPUC has no Bear Valley rows (measured coverage), so the count would be absent, not zero.",
     "label_certainty": "high",
     "needs_human_review": false,
     "regex_agrees": {
@@ -553,8 +551,8 @@
       "intent": true,
       "dataset": true
     },
-    "regex_path": "deterministic",
-    "regex_rule": "filtered_records",
+    "regex_path": "clarification",
+    "regex_rule": "dataset_not_covered",
     "expected_facts": {
       "has_time_scope": {
         "value": true,
@@ -605,6 +603,29 @@
         "value": false,
         "rationale": "Datasets named: none.",
         "needs_human_review": false
+      }
+    },
+    "label_rule": {
+      "id": "K",
+      "date": "2026-09-24",
+      "written_by": "Michael",
+      "text": "Rule K, written by Michael on 2026-09-24: a question whose dataset has no measured coverage for the named utility and period is clarify / dataset_not_covered, because a count would be absent, not zero. Coverage is measured by the loaders (shared/dataset_coverage.json). Applied to collision_this_year_count (cases.json), para_bear_valley and para_liberty_2021 (jev_paraphrases.json), ho_016 and ho_024 (jev_holdout.json), hv2_007, hv2_012, and hv2_030 (jev_holdout_v2.json), and hv3_016 (jev_holdout_v3_labels_chatgpt.json). needs_human_review cleared on the rows rule K decided.",
+      "previous": {
+        "expected_route": "deterministic",
+        "expected_tools": [
+          "data_query_records"
+        ],
+        "expected_status": "answer",
+        "expected_disposition": "answer",
+        "expected_intent": "count",
+        "label_rationale": "Bear Valley Electric is BVES and a yearly ignition count is CPUC.",
+        "regex_path": "deterministic",
+        "regex_rule": "filtered_records",
+        "regex_agrees": {
+          "disposition": true,
+          "intent": true,
+          "dataset": true
+        }
       }
     }
   },
@@ -2251,18 +2272,16 @@
   {
     "id": "para_liberty_2021",
     "question": "Number of Liberty ignitions in 2021?",
-    "expected_route": "deterministic",
-    "expected_tools": [
-      "data_query_records"
-    ],
-    "expected_status": "answer",
-    "expected_disposition": "answer",
-    "expected_intent": "count",
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "expected_status": "clarification",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "cpuc_ignitions",
     "expected_utilities": [
       "Liberty"
     ],
-    "label_rationale": "Liberty is a named utility and a yearly ignition number is a CPUC count.",
+    "label_rationale": "CPUC has no Liberty rows (measured coverage), so the count would be absent, not zero.",
     "label_certainty": "high",
     "needs_human_review": false,
     "regex_agrees": {
@@ -2270,8 +2289,8 @@
       "intent": true,
       "dataset": true
     },
-    "regex_path": "deterministic",
-    "regex_rule": "filtered_records",
+    "regex_path": "clarification",
+    "regex_rule": "dataset_not_covered",
     "expected_facts": {
       "has_time_scope": {
         "value": true,
@@ -2322,6 +2341,29 @@
         "value": false,
         "rationale": "Datasets named: none.",
         "needs_human_review": false
+      }
+    },
+    "label_rule": {
+      "id": "K",
+      "date": "2026-09-24",
+      "written_by": "Michael",
+      "text": "Rule K, written by Michael on 2026-09-24: a question whose dataset has no measured coverage for the named utility and period is clarify / dataset_not_covered, because a count would be absent, not zero. Coverage is measured by the loaders (shared/dataset_coverage.json). Applied to collision_this_year_count (cases.json), para_bear_valley and para_liberty_2021 (jev_paraphrases.json), ho_016 and ho_024 (jev_holdout.json), hv2_007, hv2_012, and hv2_030 (jev_holdout_v2.json), and hv3_016 (jev_holdout_v3_labels_chatgpt.json). needs_human_review cleared on the rows rule K decided.",
+      "previous": {
+        "expected_route": "deterministic",
+        "expected_tools": [
+          "data_query_records"
+        ],
+        "expected_status": "answer",
+        "expected_disposition": "answer",
+        "expected_intent": "count",
+        "label_rationale": "Liberty is a named utility and a yearly ignition number is a CPUC count.",
+        "regex_path": "deterministic",
+        "regex_rule": "filtered_records",
+        "regex_agrees": {
+          "disposition": true,
+          "intent": true,
+          "dataset": true
+        }
       }
     }
   },

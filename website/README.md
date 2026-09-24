@@ -110,7 +110,16 @@ Use the header's Change view action to switch within a panel category. It retain
 the panel's position, custom name, dates, supported filters and expansion state.
 Changing source clears only filters that the new dataset cannot support.
 Unavailable controls/options are disabled with a short reason underneath, such
-as `PG&E only`. A mixed trend containing EPSS also restricts utility selection;
+as `PG&E only` (from measured coverage, `src/coverage.ts`). A dataset, utility,
+and date range outside measured coverage (`shared/dataset_coverage.json`: for
+example PSPS before 2021-10-11, Liberty in CPUC, untagged CPUC rows, or CAL FIRE
+in 2011, a year with no CAL FIRE rows) shows the reason instead of fetching,
+never a zero. Each dataset entry there measures the rows its default query
+reads, which is what the workspace queries (CAL FIRE's default incident types;
+its other definitions are under `definitions` and unused here). The workspace
+year list (`WORKSPACE_YEARS`) is every year in which some dataset's default
+query has rows, read from the same file (`workspaceYears` in
+`src/coverage.ts`). A mixed trend containing EPSS also restricts utility selection;
 EPSS cannot be enabled while an incompatible utility is selected. Cause breakdown
 disables datasets without cause fields. Request validation remains in place.
 Automatic names track the current view. The view
@@ -165,7 +174,8 @@ in the chart body. Existing saved panels continue to load without a migration.
 - **Customers affected over time:** PSPS customer-event totals over time; these
   count customer-events, not unique customers.
 - **Comparison:** count/share by cause, utility or county. CPUC/CAL FIRE have
-  no cause field. EPSS is PG&E-only, with explicit null bars for other utilities.
+  no cause field. A utility outside measured coverage for the period (EPSS for
+  any utility but PG&E) is an explicit null bar with its reason, not a zero.
   Unknown and missing causes are separate categories.
 - **Record table:** complete filtered records, local search, overview pages sized
   to the available height, 25-row pages in expanded view, and remote detail.

@@ -1,5 +1,6 @@
 import * as service from './api.ts';
-import { aggregateDaily, asNumber, asText, groupNames, UTILITIES, type Bucket, type DatasetId, type Filters, type GroupBy, type Interval } from './data.ts';
+import { aggregateDaily, asNumber, asText, configFor, groupNames, utilityCode, UTILITIES, type Bucket, type DatasetId, type Filters, type GroupBy, type Interval } from './data.ts';
+import { coverageReason } from './coverage.ts';
 import { readSummary, type SummaryResponse } from './stats.ts';
 import type { RegionSeries } from './temporal.ts';
 
@@ -16,7 +17,10 @@ async function groupedFromRecords(dataset: DatasetId, filters: Filters, groupBy:
     for (const key of keys) counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   const keys = groupBy === 'utility' ? [...new Set([...(filters.utility ? [filters.utility] : UTILITIES), ...counts.keys()])] : [...counts.keys()];
-  const rows = keys.map(key => ({key, ...groupNames(groupBy, key), value: groupBy === 'utility' && dataset === 'epss' && key !== 'PG&E' ? null : counts.get(key) ?? 0}))
+  // A utility outside measured coverage for the period is null with its reason, never 0.
+  const {query, name} = configFor(dataset);
+  const uncovered = (key: string) => groupBy === 'utility' && !counts.has(key) ? coverageReason(query, name, utilityCode(key), filters.start, filters.end) : null;
+  const rows = keys.map(key => { const reason = uncovered(key); return {key, ...groupNames(groupBy, key), value: reason ? null : counts.get(key) ?? 0, ...(reason ? {reason} : {})}; })
     .sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || a.key.localeCompare(b.key));
   return multi ? {rows, total: events.length, multi_county_incidents: multi, note: MULTI_COUNTY_NOTE} : {rows, total: events.length};
 }

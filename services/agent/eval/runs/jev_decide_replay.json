@@ -6,7 +6,7 @@
   "dev": {
    "n": 137,
    "router": 128,
-   "jev": 134,
+   "jev": 130,
    "decide": 133,
    "jev_errors": 0,
    "exempt": 24,
@@ -14,14 +14,14 @@
    "overrides_right": 5,
    "overrides_wrong": 0,
    "router_acc": 0.934,
-   "jev_acc": 0.978,
+   "jev_acc": 0.949,
    "decide_acc": 0.971,
    "status": "used for tuning"
   },
   "v1": {
    "n": 63,
    "router": 57,
-   "jev": 60,
+   "jev": 58,
    "decide": 60,
    "jev_errors": 0,
    "exempt": 10,
@@ -29,14 +29,14 @@
    "overrides_right": 3,
    "overrides_wrong": 0,
    "router_acc": 0.905,
-   "jev_acc": 0.952,
+   "jev_acc": 0.921,
    "decide_acc": 0.952,
    "status": "seen, now development data"
   },
   "v2": {
    "n": 42,
    "router": 37,
-   "jev": 36,
+   "jev": 35,
    "decide": 39,
    "jev_errors": 0,
    "exempt": 12,
@@ -44,14 +44,14 @@
    "overrides_right": 2,
    "overrides_wrong": 0,
    "router_acc": 0.881,
-   "jev_acc": 0.857,
+   "jev_acc": 0.833,
    "decide_acc": 0.929,
    "status": "seen, now development data"
   },
   "v3": {
    "n": 65,
    "router": 47,
-   "jev": 46,
+   "jev": 45,
    "decide": 53,
    "jev_errors": 0,
    "exempt": 15,
@@ -59,7 +59,7 @@
    "overrides_right": 6,
    "overrides_wrong": 0,
    "router_acc": 0.723,
-   "jev_acc": 0.708,
+   "jev_acc": 0.692,
    "decide_acc": 0.815,
    "status": "tuned (router fixes written from its disagreements)"
   },
@@ -84,7 +84,8 @@
    "jev_errors": 0,
    "decide_dispositions": {
     "unsupported": 8,
-    "answer": 14
+    "answer": 12,
+    "clarify": 2
    },
    "status": "issue #97 review probes, unlabeled, clean (not tuned on); reported, not scored",
    "scored": false
@@ -844,22 +845,22 @@
   "dev|cases:holdout_compare_epss_sce_sdge_2023": {
    "question": "Compare EPSS outage counts for SCE versus SDGE in 2023.",
    "labels": [
-    "answer"
+    "clarify"
    ],
    "router": [
-    "deterministic",
-    "utility_comparison"
+    "clarification",
+    "epss_non_pge_utility"
    ],
    "jev": [
     "answer",
-    "answer",
-    0.92
+    null,
+    null
    ],
    "decide": [
-    "deterministic",
-    "utility_comparison",
+    "clarification",
+    "epss_non_pge_utility",
     "router",
-    "agree"
+    "regex_only"
    ],
    "off_topic": [
     "on_topic",
@@ -1169,22 +1170,22 @@
   "dev|cases:collision_this_year_count": {
    "question": "How many PG&E utility-attributed ignitions were there this year?",
    "labels": [
-    "answer"
+    "clarify"
    ],
    "router": [
-    "deterministic",
-    "filtered_records"
+    "clarification",
+    "dataset_not_covered"
    ],
    "jev": [
     "answer",
     "answer",
-    0.54
+    null
    ],
    "decide": [
-    "deterministic",
-    "filtered_records",
+    "clarification",
+    "dataset_not_covered",
     "router",
-    "agree"
+    "below_gate"
    ],
    "off_topic": [
     "on_topic",
@@ -2670,22 +2671,22 @@
   "dev|paraphrases:para_bear_valley": {
    "question": "How many Bear Valley Electric ignitions were recorded in 2022?",
    "labels": [
-    "answer"
+    "clarify"
    ],
    "router": [
-    "deterministic",
-    "filtered_records"
+    "clarification",
+    "dataset_not_covered"
    ],
    "jev": [
     "answer",
     "answer",
-    0.94
+    null
    ],
    "decide": [
-    "deterministic",
-    "filtered_records",
+    "clarification",
+    "dataset_not_covered",
     "router",
-    "agree"
+    "below_gate"
    ],
    "off_topic": [
     "on_topic",
@@ -3271,22 +3272,22 @@
   "dev|paraphrases:para_liberty_2021": {
    "question": "Number of Liberty ignitions in 2021?",
    "labels": [
-    "answer"
+    "clarify"
    ],
    "router": [
-    "deterministic",
-    "filtered_records"
+    "clarification",
+    "dataset_not_covered"
    ],
    "jev": [
     "answer",
     "answer",
-    0.94
+    null
    ],
    "decide": [
-    "deterministic",
-    "filtered_records",
+    "clarification",
+    "dataset_not_covered",
     "router",
-    "agree"
+    "below_gate"
    ],
    "off_topic": [
     "on_topic",
@@ -3796,22 +3797,22 @@
   "v1|ho_016": {
    "question": "Map PacifiCorp's utility-caused ignition reports from 2021.",
    "labels": [
-    "answer"
+    "clarify"
    ],
    "router": [
-    "deterministic",
-    "map"
+    "clarification",
+    "dataset_not_covered"
    ],
    "jev": [
     "answer",
     "answer",
-    0.9299999999999999
+    null
    ],
    "decide": [
-    "deterministic",
-    "map",
+    "clarification",
+    "dataset_not_covered",
     "router",
-    "agree"
+    "below_gate"
    ],
    "off_topic": [
     "on_topic",
@@ -3946,22 +3947,22 @@
   "v1|ho_024": {
    "question": "Within Kern County, what was SCE's utility-caused ignition count for 2019?",
    "labels": [
-    "answer"
+    "clarify"
    ],
    "router": [
-    "deterministic",
-    "filtered_records"
+    "clarification",
+    "dataset_not_covered"
    ],
    "jev": [
     "answer",
     "answer",
-    0.94
+    null
    ],
    "decide": [
-    "deterministic",
-    "filtered_records",
+    "clarification",
+    "dataset_not_covered",
     "router",
-    "agree"
+    "below_gate"
    ],
    "off_topic": [
     "on_topic",
@@ -4325,7 +4326,7 @@
    ],
    "router": [
     "clarification",
-    "records_missing_year"
+    "dataset_not_covered"
    ],
    "jev": [
     "clarify",
@@ -4334,9 +4335,9 @@
    ],
    "decide": [
     "clarification",
-    "records_missing_year",
+    "dataset_not_covered",
     "router",
-    "agree"
+    "below_gate"
    ],
    "off_topic": [
     "on_topic",
@@ -5146,22 +5147,22 @@
   "v2|hv2_007": {
    "question": "List all PSPS events associated with PG&E during 2019, including the event dates.",
    "labels": [
-    "answer"
+    "clarify"
    ],
    "router": [
-    "deterministic",
-    "filtered_records"
+    "clarification",
+    "dataset_not_covered"
    ],
    "jev": [
     "answer",
     "answer",
-    0.92
+    null
    ],
    "decide": [
-    "deterministic",
-    "filtered_records",
+    "clarification",
+    "dataset_not_covered",
     "router",
-    "agree"
+    "below_gate"
    ],
    "off_topic": [
     "on_topic",
@@ -5675,7 +5676,7 @@
    ],
    "router": [
     "clarification",
-    "ranking_missing_year"
+    "dataset_not_covered"
    ],
    "jev": [
     "clarify",
@@ -5684,7 +5685,7 @@
    ],
    "decide": [
     "clarification",
-    "ranking_missing_year",
+    "dataset_not_covered",
     "router",
     "below_gate"
    ],
@@ -6421,22 +6422,22 @@
   "v3|hv3_016": {
    "question": "Compare Liberty and Bear Valley utility-caused ignition totals from 2019 through 2023.",
    "labels": [
-    "answer"
+    "clarify"
    ],
    "router": [
-    "model",
-    "open_comparison"
+    "clarification",
+    "dataset_not_covered"
    ],
    "jev": [
     "answer",
     "answer",
-    0.94
+    null
    ],
    "decide": [
-    "model",
-    "open_comparison",
+    "clarification",
+    "dataset_not_covered",
     "router",
-    "agree"
+    "below_gate"
    ],
    "off_topic": [
     "on_topic",
@@ -8182,19 +8183,19 @@
    "question": "How many PSPS events were there in 2019 across all utility schedules?",
    "labels": null,
    "router": [
-    "deterministic",
-    "filtered_records"
+    "clarification",
+    "dataset_not_covered"
    ],
    "jev": [
     "answer",
     "answer",
-    0.9299999999999999
+    null
    ],
    "decide": [
-    "deterministic",
-    "filtered_records",
+    "clarification",
+    "dataset_not_covered",
     "router",
-    "agree"
+    "below_gate"
    ],
    "off_topic": [
     "on_topic",
@@ -8329,8 +8330,8 @@
     0.97
    ],
    "decide": [
-    "deterministic",
-    "filtered_records",
+    "clarification",
+    "dataset_not_covered",
     "jev",
     "on_topic"
    ],

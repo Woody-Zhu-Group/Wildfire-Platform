@@ -44,9 +44,20 @@ from services.agent.schemas import (
 )
 from services.agent.streaming import ProgressCallback
 from services.agent.time_resolve import CallWindows, call_window, named_month_periods
-from services.agent.tools import ToolExecution, ToolExecutor
+from services.agent.tools import ToolExecution, ToolExecutor, not_covered_notes
 from services.agent.views import dump_planned, empty_views_payload, plan_views
-from services.shared.dataset_registry import EVENT_DATASET_WORDS, UTILITY_POSSESSIVE_NAMES
+from services.shared.dataset_registry import (
+    DATASETS,
+    EVENT_DATASET_WORDS,
+    REASON_CIRCUITS_SCOPE,
+    REASON_NO_COUNTY,
+    STAT_LABELS,
+    REASON_NO_COUNTY_AREA,
+    UTILITY_DISPLAY_LABELS,
+    UTILITY_POSSESSIVE_NAMES,
+    alternatives_records,
+    not_covered_question,
+)
 
 _shadow_log = logging.getLogger("services.agent.decisions")
 
@@ -482,11 +493,13 @@ class AgentOrchestrator:
                             answer = f"{answer} {detail}"
                         if execution.tool == "risk_metrics":
                             answer = _risk_metrics_failure(execution.error or {})
+                        not_covered = _not_covered_answer([execution])
+                        failed_status = "clarification" if not_covered else "error"
                         response = self._response(
                             request_id=request_id,
                             decision=decision,
-                            status="error",
-                            answer=answer,
+                            status=failed_status,
+                            answer=not_covered or answer,
                             executions=executions,
                             qualifications=[],
                             trajectory=trajectory,
@@ -496,7 +509,11 @@ class AgentOrchestrator:
                             model_turns=0,
                             synthesis_fallback=False,
                         )
-                        await self._emit(on_event, "error", response)
+                        await self._emit(
+                            on_event,
+                            "answer" if not_covered else "error",
+                            response,
+                        )
                         return OrchestrationResult(
                             response=response, raw_log=raw_log
                         )
@@ -1147,6 +1164,34 @@ class AgentOrchestrator:
             on_event=on_event,
             cancel_event=cancel_event,
         )
+        not_covered = _not_covered_answer([execution])
+        if not_covered:
+            # The dataset does not cover the utility: a clarification, not a
+            # model retry that could report a zero.
+            log_tool_pick(
+                self.settings,
+                question,
+                ToolPickDecision(
+                    picked.tool,
+                    picked.confidence,
+                    "jev",
+                    "not_covered",
+                    picked.latency_ms,
+                ),
+            )
+            trajectory.append(_execution_event(execution))
+            return (
+                "clarification",
+                not_covered,
+                [execution],
+                trajectory,
+                float(picked.latency_ms or 0.0),
+                0,
+                0,
+                [],
+                [],
+                None,
+            )
         if not execution.ok:
             log_tool_pick(
                 self.settings,
@@ -1599,6 +1644,28 @@ class AgentOrchestrator:
                     }
                 )
 
+            not_covered = _not_covered_answer(
+                [item for item in turn_results.values() if not item.ok]
+            )
+            if not_covered:
+                # The executor refused a read the dataset does not cover. Stop
+                # here so the model cannot answer that part with a zero.
+                trajectory.append(
+                    {"type": "not_covered_stop", "phase": "routing", "step": step}
+                )
+                return (
+                    "clarification",
+                    not_covered,
+                    executions,
+                    trajectory,
+                    model_latency,
+                    direct_without_tool,
+                    model_turns,
+                    raw_log,
+                    [],
+                    None,
+                )
+
             if not active_candidates and not any(
                 item.ok and not item.qualification_call for item in executions
             ):
@@ -1625,7 +1692,7 @@ class AgentOrchestrator:
 
             missing = (
                     uncovered_entities(entities, _primary_calls(executions))
-                    if check_coverage
+                    if check_coverage or _ran_comparison(executions)
                     else []
                 )
             if turn_had_success and not turn_had_failure and missing:
@@ -1724,7 +1791,7 @@ class AgentOrchestrator:
 
         still_missing = (
             uncovered_entities(entities, _primary_calls(executions))
-            if check_coverage
+            if check_coverage or _ran_comparison(executions)
             else []
         )
         if still_missing and _primary_calls(executions):
@@ -1737,6 +1804,26 @@ class AgentOrchestrator:
                 }
             )
             names = ", ".join(item.split(":", 1)[1] for item in still_missing)
+            if _ran_comparison(executions):
+                # A comparison that cannot carry a named utility, county, or
+                # tier is a question for the user, not a narrower answer.
+                return (
+                    "clarification",
+                    (
+                        f"The comparison I could run does not include {names}, "
+                        "which your question names. Should I drop "
+                        f"{names}, or give separate counts for each part instead? "
+                        "I will not answer with a broader comparison."
+                    ),
+                    executions,
+                    trajectory,
+                    model_latency,
+                    direct_without_tool,
+                    model_turns,
+                    raw_log,
+                    [],
+                    None,
+                )
             return (
                 "error",
                 (
@@ -2090,7 +2177,8 @@ class AgentOrchestrator:
                 quantity_mismatches = _quantity_mismatches(
                     answer.answer, executions, caveat_texts
                 )
-                if unsupported or quantity_mismatches:
+                uncovered_claims = _uncovered_count_claims(answer.answer, executions)
+                if unsupported or quantity_mismatches or uncovered_claims:
                     trajectory.append(
                         {
                             "type": "grounding_error",
@@ -2098,6 +2186,7 @@ class AgentOrchestrator:
                             "step": attempt,
                             "unsupported_numbers": sorted(unsupported),
                             "quantity_mismatches": sorted(quantity_mismatches),
+                            "uncovered_count_claims": uncovered_claims,
                         }
                     )
                     messages.extend(
@@ -2363,10 +2452,44 @@ def _harness_slot_hint(
     return hint
 
 
+def _ran_comparison(executions: list[ToolExecution]) -> bool:
+    """A comparison ran, so every named entity must be carried (never dropped)."""
+    return any(
+        item.ok and not item.qualification_call and item.tool == "comparison_run"
+        for item in executions
+    )
+
+
+def _not_covered_answer(executions: list[ToolExecution]) -> str | None:
+    """The clarification for executor not-covered results, or None when there are none.
+
+    The same registry question the router asks: the reason, then only the
+    offers with measured records, so no offer is made when none exists.
+    """
+    messages: list[str] = []
+    for item in executions:
+        error = item.error or {}
+        if item.ok or item.qualification_call or error.get("code") != "not_covered":
+            continue
+        gap = error.get("not_covered")
+        if isinstance(gap, dict):
+            message = not_covered_question(gap, comparison=item.tool == "comparison_run")
+        else:
+            message = str(error.get("message") or "")
+        if message and message not in messages:
+            messages.append(message)
+    if not messages:
+        return None
+    return " ".join(messages)
+
+
 def _user_facing_tool_failure(
     executions: list[ToolExecution], blocked_tools: set[str]
 ) -> str:
     """Translate harness/tool failures into actionable user language."""
+    not_covered = _not_covered_answer(executions)
+    if not_covered:
+        return not_covered
     errors = [
         item.error
         for item in executions
@@ -2657,6 +2780,38 @@ def _primary_calls(executions: list[ToolExecution]) -> list[tuple[str, dict[str,
     ]
 
 
+def _uncovered_count_claims(text: str, executions: list[ToolExecution]) -> list[str]:
+    """Numbers an answer states for a count the executor marked not covered.
+
+    A number can be grounded elsewhere in the evidence (a 0 in a companion's
+    metadata) and still be wrong beside that dataset's name, so the check is
+    by dataset: its registry aliases and label, next to a number.
+    """
+    # Underscores read as spaces on both sides ("epss_outages=0").
+    lower = " ".join((text or "").lower().replace("_", " ").split())
+    hits: list[str] = []
+    for execution in executions:
+        if not execution.ok:
+            continue
+        for gap in ((execution.summary or {}).get("not_covered") or {}).values():
+            spec = DATASETS[gap["dataset"]]
+            names = {spec.key, *spec.aliases, spec.stat_label or spec.key}
+            words = "|".join(
+                sorted(
+                    (re.escape(name.lower().replace("_", " ")) for name in names),
+                    key=len,
+                    reverse=True,
+                )
+            )
+            number = r"\d[\d,]*(?:\.\d+)?"
+            pattern = (
+                rf"\b{number}\s+(?:[a-z&-]+\s+){{0,2}}?(?:{words})\b"
+                rf"|\b(?:{words})\s*(?:[:=]|was|were|is|of|at|totaled|totalled|numbered)\s*{number}"
+            )
+            hits.extend(match.group(0) for match in re.finditer(pattern, lower))
+    return hits
+
+
 def _quantity_mismatches(
     answer: str,
     executions: list[ToolExecution],
@@ -2858,12 +3013,32 @@ def _ensure_readable_answer(answer: str, executions: list[ToolExecution]) -> str
     text = (answer or "").strip()
     if not text:
         rendered = _render_deterministic(executions)
-        return rendered or text
+        return _with_not_covered_notes(rendered or text, executions)
     if re.fullmatch(r"[\d,]+(?:\.\d+)?", text):
         rendered = _render_deterministic(executions)
         if rendered:
-            return rendered
-    return _strip_ungrounded_example_clause(text, executions)
+            return _with_not_covered_notes(rendered, executions)
+    return _with_not_covered_notes(
+        _strip_ungrounded_example_clause(text, executions), executions
+    )
+
+
+def _with_not_covered_notes(text: str, executions: list[ToolExecution]) -> str:
+    """Every answer path states each uncovered count once, whoever wrote the text.
+
+    A count for a dataset that does not cover the named utility was replaced
+    with None by the executor; the answer names it as not covered rather than
+    leaving the reader to take its absence, or a model's zero, as a count.
+    """
+    notes = [note for note in not_covered_notes(executions) if note not in text]
+    return " ".join([text, *notes]).strip() if notes else text
+
+
+def _count_text(value: Any, reason: Any = None) -> str:
+    """A count for answer text, or "not available" with the reason. Never 0."""
+    if value is None:
+        return f"not available ({reason})" if reason else "not available"
+    return f"{value:,}" if isinstance(value, (int, float)) else str(value)
 
 
 def _scope_phrase(arguments: dict[str, Any], summary: dict[str, Any]) -> str:
@@ -3019,8 +3194,8 @@ def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> s
     dataset = summary.get("dataset") or arguments.get("dataset") or "records"
     group_by = summary.get("group_by") or arguments.get("group_by") or "groups"
     metric = summary.get("metric") or "count"
-    total = summary.get("total") or 0
-    returned = summary.get("returned") or 0
+    total = summary.get("total")
+    returned = summary.get("returned")
     limit = summary.get("limit") or arguments.get("limit") or 10
     noun = {
         "county": "counties",
@@ -3032,9 +3207,14 @@ def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> s
         "acres_burned": "acres burned",
     }.get(str(metric), str(metric))
     scope = _scope_phrase(arguments, summary)
-    headline = f"The top {limit} of {total:,} {noun}"
+    # A missing group total is not zero groups.
+    headline = (
+        f"The top {limit} of {total:,} {noun}"
+        if total is not None
+        else f"The top {limit} {noun} (the number of {noun} is not available)"
+    )
     notes = []
-    if returned > limit:
+    if returned is not None and returned > limit:
         notes.append(f"{returned} shown because of ties at the cutoff")
     if summary.get("ties_cut"):
         notes.append(f"additional {noun} tied at the cutoff were not listed")
@@ -3161,14 +3341,18 @@ def _render_deterministic(
             scope = _scope_phrase(item.arguments or {}, summary)
             if summary.get("result_mode") == "count":
                 parts.append(
-                    f"{summary.get('dataset')} count: {summary.get('total'):,} "
+                    f"{summary.get('dataset')} count: "
+                    f"{_count_text(summary.get('total'), summary.get('empty_reason'))} "
                     f"({scope})."
                 )
             else:
                 total = summary.get("total")
                 returned = summary.get("returned")
                 noun = "record" if total == 1 else "records"
-                line = f"{summary.get('dataset')}: {total:,} matching {noun} ({scope})"
+                line = (
+                    f"{summary.get('dataset')}: "
+                    f"{_count_text(total, summary.get('empty_reason'))} matching {noun} ({scope})"
+                )
                 if (
                     returned is not None
                     and total is not None
@@ -3185,9 +3369,17 @@ def _render_deterministic(
                 )
             else:
                 counts = summary.get("counts") or {}
+                uncovered = summary.get("not_covered") or {}
+                # An uncovered count is None, not zero; its reason is appended
+                # to the answer once by _with_not_covered_notes.
                 parts.append(
                     f"Spatial counts for {_format_region(summary.get('region'))}: "
-                    + ", ".join(f"{key}={value}" for key, value in counts.items())
+                    + ", ".join(
+                        f"{key}=not covered"
+                        if key in uncovered
+                        else f"{key}={_count_text(value)}"
+                        for key, value in counts.items()
+                    )
                     + "."
                 )
         elif item.tool == "visualization_create":
@@ -3217,23 +3409,7 @@ def _render_deterministic(
         elif item.tool == "data_query_rank":
             parts.append(_render_rank_answer(item.arguments or {}, summary))
         elif item.tool == "comparison_run":
-            if summary.get("kind") in {"utilities", "regions"}:
-                rendered = ", ".join(
-                    (
-                        f"{row.get('label') or row.get('key')}={row.get('value')}"
-                        if row.get("value") is not None
-                        else f"{row.get('label') or row.get('key')}=unavailable ({row.get('reason')})"
-                    )
-                    for row in summary.get("results") or []
-                )
-                parts.append(f"{summary.get('metric')} comparison: {rendered}.")
-            else:
-                parts.append(
-                    f"{summary.get('metric')} for {summary.get('scope')}: "
-                    f"period A={summary.get('period_a', {}).get('value')}, "
-                    f"period B={summary.get('period_b', {}).get('value')}, "
-                    f"delta={summary.get('delta', {}).get('value')}."
-                )
+            parts.append(_render_comparison_answer(item.arguments or {}, summary))
     # The same evidence rendered twice reads as two findings. One line each.
     unique = list(dict.fromkeys(part for part in parts if part))
     return " ".join(unique) or "The service returned no usable evidence."
@@ -3251,6 +3427,142 @@ def _turn_windows(tool_calls: list[dict[str, Any]]) -> list[tuple[str, str] | No
             continue
         windows.append(call_window(args) if isinstance(args, dict) else None)
     return windows
+
+
+_COMPARISON_METRIC_LABELS = {
+    "ignition_count": "CPUC ignition count",
+    "epss_outage_count": "EPSS outage count",
+    "epss_to_ignition_ratio": "EPSS-to-ignition ratio",
+    "calfire_incident_count": "CAL FIRE incident count",
+    "acres_burned": "acres burned",
+    "psps_event_count": "PSPS event count",
+    "customers_deenergized": "customers de-energized",
+}
+
+
+def _comparison_number(value: Any) -> str:
+    """Integral values with thousands separators; other floats as the service gave them."""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    if isinstance(value, int):
+        return f"{value:,}"
+    return _num_token(value) or str(value)
+
+
+def _comparison_entity(key: Any, *, scope_type: Any = None) -> str:
+    key = str(key)
+    if scope_type in (None, "utility") and key in UTILITY_DISPLAY_LABELS:
+        return UTILITY_DISPLAY_LABELS[key]
+    return key
+
+
+def _comparison_period(period: dict[str, Any], fallback: str) -> str:
+    start, end = period.get("start_date"), period.get("end_date")
+    if not (isinstance(start, str) and isinstance(end, str)):
+        return fallback
+    if start[:4] == end[:4] and start[5:] == "01-01" and end[5:] == "12-31":
+        return start[:4]
+    return f"{start} to {end}"
+
+
+def _comparison_reason(reason: Any) -> str:
+    text = str(reason or "the comparison service returned no value").strip().rstrip(".")
+    first = text.split(" ", 1)[0]
+    # Keep acronyms ("EPSS", "CPUC") as written; lowercase an ordinary first word.
+    if any(char.isupper() for char in first[1:]):
+        return text
+    return text[:1].lower() + text[1:]
+
+
+def _comparison_alternative(row: dict[str, Any], entity: str) -> str | None:
+    """What the warehouse does hold when a comparison value is null.
+
+    For a value outside measured coverage, only the alternatives with measured
+    records for that utility in that period (``row["not_covered"]``) are
+    offered, so no offer leads to another absent count.
+    """
+    reason = row.get("reason")
+    gap = row.get("not_covered")
+    if isinstance(gap, dict):
+        records = alternatives_records(gap)
+        return f"{records} and can be compared instead." if records else None
+    if reason == REASON_CIRCUITS_SCOPE:
+        return f"The unnormalized count for {entity} does exist; ask without per circuit."
+    if reason == REASON_NO_COUNTY:
+        return (
+            "CPUC ignitions, CAL FIRE incidents, and EPSS outages do carry a "
+            "county and can be compared by county instead."
+        )
+    if reason == REASON_NO_COUNTY_AREA:
+        return f"The unnormalized count for {entity} does exist; ask without per square kilometer."
+    return None
+
+
+def _render_comparison_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> str:
+    """Plain sentences for a comparison. A null value names its reason, never None."""
+    metric = str(summary.get("metric") or arguments.get("metric") or "metric")
+    label = _COMPARISON_METRIC_LABELS.get(metric, metric.replace("_", " "))
+    if summary.get("kind") in {"utilities", "regions"}:
+        scope_type = "utility" if summary.get("kind") == "utilities" else "region"
+        present: list[str] = []
+        missing: list[str] = []
+        for row in summary.get("results") or []:
+            # The service row carries its registry label (PG&E); the key is the code.
+            entity = row.get("label") or _comparison_entity(row.get("key"), scope_type=scope_type)
+            if row.get("value") is not None:
+                present.append(f"{entity} {_comparison_number(row['value'])}")
+                continue
+            sentence = f"{entity} has no {label}: {_comparison_reason(row.get('reason'))}."
+            alternative = _comparison_alternative(row, entity)
+            missing.append(f"{sentence} {alternative}" if alternative else sentence)
+        lines = []
+        if present:
+            lines.append(f"{label[:1].upper()}{label[1:]} comparison: {', '.join(present)}.")
+        else:
+            lines.append(f"No compared {scope_type} has a {label} value.")
+        lines.extend(missing)
+        return " ".join(lines)
+
+    entity = _comparison_entity(summary.get("scope"), scope_type=summary.get("scope_type"))
+    period_a = summary.get("period_a") or {}
+    period_b = summary.get("period_b") or {}
+    name_a = _comparison_period(period_a, "period A")
+    name_b = _comparison_period(period_b, "period B")
+    value_a, value_b = period_a.get("value"), period_b.get("value")
+    delta = (summary.get("delta") or {}).get("value")
+    if value_a is not None and value_b is not None:
+        line = (
+            f"{entity} {label}: {_comparison_number(value_a)} in {name_a} and "
+            f"{_comparison_number(value_b)} in {name_b}"
+        )
+        if delta is not None:
+            line += f", a change of {_comparison_number(delta)}"
+        return line + "."
+    if value_a is None and value_b is None:
+        reasons = {period_a.get("reason"), period_b.get("reason")}
+        reason = period_a.get("reason") if len(reasons) == 1 else None
+        if reason is not None:
+            line = (
+                f"{entity} has no {label} for {name_a} or {name_b}: "
+                f"{_comparison_reason(reason)}, so no change can be computed."
+            )
+        else:
+            line = (
+                f"{entity} has no {label} for {name_a} "
+                f"({_comparison_reason(period_a.get('reason'))}) or {name_b} "
+                f"({_comparison_reason(period_b.get('reason'))}), so no change can be computed."
+            )
+        alternative = _comparison_alternative(period_a, entity) if reason else None
+        return f"{line} {alternative}" if alternative else line
+    known_name, known_value = (name_a, value_a) if value_a is not None else (name_b, value_b)
+    missing_name, missing = (name_b, period_b) if value_a is not None else (name_a, period_a)
+    line = (
+        f"{entity} {label}: {_comparison_number(known_value)} in {known_name}. "
+        f"There is no value for {missing_name}: {_comparison_reason(missing.get('reason'))}, "
+        "so no change can be computed."
+    )
+    alternative = _comparison_alternative(missing, entity)
+    return f"{line} {alternative}" if alternative else line
 
 
 def _execution_event(execution: ToolExecution) -> dict[str, Any]:

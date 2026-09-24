@@ -7,6 +7,7 @@ import sys
 import psycopg
 
 from db.loaders import (
+    coverage,
     load_boundaries,
     load_calfire,
     load_circuits,
@@ -77,6 +78,8 @@ def main() -> int:
             print(f"  SKIP us_ignitions: {exc}")
 
         run_validation(conn)
+        # Coverage is measured from what was just loaded, never declared.
+        coverage.write(conn)
 
         print_step("LOAD COMPLETE — row counts")
         for name, n in counts.items():

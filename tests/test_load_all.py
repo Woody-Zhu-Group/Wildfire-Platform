@@ -52,6 +52,7 @@ def harness(monkeypatch, tmp_path):
     monkeypatch.setattr(load_all, "connect", fake_connect)
     monkeypatch.setattr(load_all, "apply_schema", lambda conn, path: None)
     monkeypatch.setattr(load_all, "run_validation", lambda conn: calls.append(("validate", conn.name)))
+    monkeypatch.setattr(load_all.coverage, "write", lambda conn: calls.append(("coverage", conn.name)))
     for module, attr, table in OTHER_LOADERS:
         def stub(conn, _settings, _table=table):
             calls.append((_table, conn.name))
@@ -82,7 +83,7 @@ def test_a_boundary_failure_still_loads_every_other_table_and_exits_non_zero(har
     _fail_boundaries(harness, exc)
     assert load_all.main() == 1
     loaded = [table for table, _ in harness.calls]
-    assert loaded == [table for _, _, table in OTHER_LOADERS] + ["validate"]
+    assert loaded == [table for _, _, table in OTHER_LOADERS] + ["validate", "coverage"]
     assert len(harness.conns) == 1  # the connection was still usable
 
 
@@ -106,4 +107,4 @@ def test_a_clean_boundary_load_exits_zero(harness):
         lambda conn, _settings: {"iou_territories": 6, "hftd_tiers": 2},
     )
     assert load_all.main() == 0
-    assert [table for table, _ in harness.calls][-1] == "validate"
+    assert [table for table, _ in harness.calls][-2:] == ["validate", "coverage"]

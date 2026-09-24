@@ -190,7 +190,10 @@ class RecordTableViewParams(StrictModel):
 
 class StatCardViewParams(StrictModel):
     kind: Literal["count", "risk", "spatial_metric", "model_metrics"]
-    value: float
+    # None only with unavailable_reason: the count is missing from the cited
+    # result, or its dataset holds no rows for the named utility. The card
+    # shows "not available" and the reason, never a zero.
+    value: float | None
     label: str
     scope: str
     period: str
@@ -206,9 +209,14 @@ class StatCardViewParams(StrictModel):
     # model_metrics only: the evaluation the card must show.
     eval_year: int | None = Field(None, ge=1900, le=2100)
     params_sha256: str | None = None
+    unavailable_reason: str | None = None
 
     @model_validator(mode="after")
     def validate_model_metrics(self) -> "StatCardViewParams":
+        if (self.value is None) != bool(self.unavailable_reason):
+            raise ValueError("a stat card has a value or an unavailable_reason, not both")
+        if self.value is None and self.kind not in {"count", "spatial_metric"}:
+            raise ValueError("only a count card can be unavailable")
         metrics = self.kind == "model_metrics"
         if metrics != (self.stat_mode == "model_metrics"):
             raise ValueError("kind model_metrics pairs with stat_mode model_metrics")
@@ -302,7 +310,7 @@ def _medical_exposure_views(primary: list[ToolExecution]) -> list[ComponentSpec]
         ref = (item.artifact or {}).get("ref")
         params = StatCardViewParams(
             kind="count",
-            value=float(summary.get("total") or 0),
+            value=float(summary["total"]),
             label="EPSS outages",
             scope=_scope_label(args, summary),
             period=_period_label(args, summary, year=year),
@@ -345,7 +353,7 @@ def _summary_stat_views(primary: list[ToolExecution]) -> list[ComponentSpec]:
         ref = (item.artifact or {}).get("ref")
         params = StatCardViewParams(
             kind="count",
-            value=float(summary.get("total") or 0),
+            value=float(summary["total"]),
             label="Summary",
             scope=_scope_label(args, summary),
             period=_period_label(args, summary, year=year),
@@ -741,6 +749,22 @@ def _ground_stat(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
     summary = item.summary or {}
     kind = params.get("kind")
     value = params.get("value")
+    if value is None:
+        # A card without a value cites a result that has no value for that
+        # count either: a missing total, or a count the executor marked not
+        # covered. A card can never hide a number the evidence holds.
+        source = params.get("source_dataset")
+        if kind == "count":
+            missing = "total" in summary and summary.get("total") is None
+        else:
+            counts = summary.get("counts") or {}
+            key = source if source in counts else _DQ_TO_VIZ.get(source or "", source)
+            missing = key in counts and counts[key] is None
+        if not missing:
+            raise GroundingError(
+                f"stat_card {source!r} has no value, but the cited result has one"
+            )
+        return
     if kind == "count":
         expected = summary.get("total")
         if not _numbers_equal(value, expected):
@@ -1138,20 +1162,29 @@ def _specs_for_execution(item: ToolExecution) -> list[ComponentSpec]:
         period = _period_label(args, summary)
         scope = _spatial_scope_label(args, summary)
         specs: list[ComponentSpec] = []
+        uncovered = summary.get("not_covered") or {}
         for key, label in _SPATIAL_COUNT_LABELS.items():
             if key not in counts:
                 continue
+            gap = uncovered.get(key)
+            value, reason = _count_or_reason(
+                counts[key],
+                gap.get("message")
+                if gap
+                else f"The service returned no {label} count for {scope}.",
+            )
             specs.append(
                 ComponentSpec(
                     type="stat_card",
                     params=StatCardViewParams(
                         kind="spatial_metric",
-                        value=float(counts[key]),
+                        value=value,
                         label=label,
                         scope=scope,
                         period=period,
                         source_dataset=key,
                         unit="events",
+                        unavailable_reason=reason,
                     ).model_dump(mode="json"),
                     evidence_ids=evidence,
                     artifact_refs=refs,
@@ -1222,13 +1255,19 @@ def _specs_for_execution(item: ToolExecution) -> list[ComponentSpec]:
     if tool == "data_query_records" and summary.get("result_mode") == "count":
         dataset = str(summary.get("dataset") or args.get("dataset"))
         year = _year_from_args(args, summary)
+        label = _STAT_LABELS.get(dataset, dataset)
+        value, reason = _count_or_reason(
+            summary.get("total"),
+            summary.get("empty_reason") or f"The service returned no {label} total.",
+        )
         specs: list[ComponentSpec] = [
             ComponentSpec(
                 type="stat_card",
                 params=StatCardViewParams(
                     kind="count",
-                    value=float(summary.get("total") or 0),
-                    label=_STAT_LABELS.get(dataset, dataset),
+                    value=value,
+                    unavailable_reason=reason,
+                    label=label,
                     scope=_scope_label(args, summary),
                     period=_period_label(args, summary, year=year),
                     source_dataset=dataset,
@@ -1535,6 +1574,13 @@ def _spatial_scope_label(args: dict[str, Any], summary: dict[str, Any]) -> str:
     if tier:
         return str(tier)
     return "region"
+
+
+def _count_or_reason(value: Any, reason: str) -> tuple[float | None, str | None]:
+    """A count as a card value, or None with why it is not available. Never 0."""
+    if value is None:
+        return None, reason
+    return float(value), None
 
 
 def _period_label(

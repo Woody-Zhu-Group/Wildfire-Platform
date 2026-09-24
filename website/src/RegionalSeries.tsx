@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getRegionalSeries } from './workspaceAggregates.ts';
 import { filterError, unavailableReason, type Interval } from './data.ts';
+import { soleUtilityLabel } from './coverage.ts';
 import { ChartFilters, LoadState } from './Controls';
 import { ExportActions } from './ExportActions';
 import { regionalSvg } from './exports.ts';
@@ -27,10 +28,11 @@ export function RegionalSeries() {
   const ready=!error&&!remote.loading&&series.length>0;
   const active=inspected?series.find(region=>region.name===inspected.name):null;
   const bucket=active&&inspected?active.buckets[inspected.index]:null;
-  const caption=`PG&E EPSS; ${filters.start} – ${filters.end}; ${filters.county||'All counties'}; ${interval} outage counts by division. Shared vertical scale.`;
+  const whose=soleUtilityLabel('epss_outages')??'';
+  const caption=`${whose} EPSS; ${filters.start} – ${filters.end}; ${filters.county||'All counties'}; ${interval} outage counts by division. Shared vertical scale.`;
   return <div className="analysis-chart regional-panel">
-    <ExportActions datasets={['epss']} disabled={!ready} rows={()=>series.flatMap(region=>region.buckets.map(bucket=>({dataset:'EPSS',division:region.name,period_start:bucket.start,period_end:bucket.end,outages:bucket.count,utility:'PG&E',county:filters.county})))} svg={()=>regionalSvg(title,caption,series)}/>
-    <div className="regional-toolbar"><span>PG&amp;E · EPSS</span><label>Interval<select aria-label="Regional time interval" value={interval} onChange={event=>update({interval:event.target.value as Interval})}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select></label></div>
+    <ExportActions datasets={['epss']} disabled={!ready} rows={()=>series.flatMap(region=>region.buckets.map(bucket=>({dataset:'EPSS',division:region.name,period_start:bucket.start,period_end:bucket.end,outages:bucket.count,utility:whose,county:filters.county})))} svg={()=>regionalSvg(title,caption,series)}/>
+    <div className="regional-toolbar"><span>{whose} · EPSS</span><label>Interval<select aria-label="Regional time interval" value={interval} onChange={event=>update({interval:event.target.value as Interval})}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option></select></label></div>
     <ChartFilters filters={filters} dataset="epss" onChange={filters=>update({filters})}/>
     <div className="regional-meta"><span>{ready?`${series.length} divisions`:''}</span><span>Same scale · Outages</span></div>
     <div ref={grid} className="regional-grid" style={{gridTemplateColumns:`repeat(${columns},minmax(0,1fr))`}}>

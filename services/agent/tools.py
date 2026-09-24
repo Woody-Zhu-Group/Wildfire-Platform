@@ -30,7 +30,23 @@ from services.agent.schemas import (
 )
 from services.agent.time_resolve import CallWindows, apply_harness_years
 from services.shared.counties import UnknownCountyError, normalize_county
-from services.shared.dataset_registry import data_query_path, group_code_and_label
+from services.agent.coverage import (
+    call_coverage_gap,
+    call_dataset,
+    call_periods,
+    count_coverage_gap,
+    dataset_known,
+    named_utilities,
+)
+from services.shared.dataset_registry import (
+    COMPARISON_METRIC_DATASETS,
+    call_definition,
+    data_query_path,
+    dataset_coverage_gap,
+    group_code_and_label,
+    not_covered_message,
+    partial_coverage_note,
+)
 
 
 @dataclass
@@ -288,6 +304,33 @@ class ToolExecutor:
                 field_errors=_json_safe_errors(exc.errors(include_url=False)),
             )
 
+        # Dataset coverage is enforced here, for every caller (router, model,
+        # Jev templates, slot planner): a read for a utility the dataset holds
+        # no rows for is a structured not-covered result, never a zero.
+        gap = coverage_gap(tool, parsed.model_dump(mode="json", exclude_none=True))
+        if gap is not None:
+            result = self._not_covered(
+                tool,
+                parsed.model_dump(mode="json", exclude_none=True),
+                gap,
+                started,
+                qualification_call,
+            )
+            print(
+                json.dumps(
+                    {
+                        "event": "tool_result",
+                        "request_id": request_id,
+                        "tool": tool,
+                        "ok": False,
+                        "error_code": "not_covered",
+                        "latency_ms": round(result.latency_ms, 2),
+                        "evidence_id": None,
+                    }
+                )
+            )
+            return result
+
         if self.fault_scenario == "validation_error_persistent" and not qualification_call:
             return self._error(
                 tool,
@@ -340,6 +383,9 @@ class ToolExecutor:
                 self.fault_scenario = None
                 raw = {"unexpected": "partial response with HTTP 200"}
             summary = self._validate_and_summarize(tool, parsed, raw)
+            mark_uncovered_counts(
+                tool, parsed.model_dump(mode="json", exclude_none=True), summary
+            )
             artifact = self.artifacts.put(tool, raw)
             result = ToolExecution(
                 tool=tool,
@@ -782,6 +828,30 @@ class ToolExecutor:
             }
         raise ValueError(f"No response validator for {tool}")
 
+    def _not_covered(
+        self,
+        tool: str,
+        arguments: dict[str, Any],
+        gap: dict[str, Any],
+        started: float,
+        qualification_call: bool,
+    ) -> ToolExecution:
+        result = self._error(
+            tool,
+            arguments,
+            "not_covered",
+            not_covered_message(gap),
+            False,
+            (
+                "Do not report a count or a zero. Tell the user the dataset does "
+                "not cover this utility and offer the alternatives listed."
+            ),
+            started,
+            qualification_call,
+        )
+        result.error["not_covered"] = gap
+        return result
+
     def _error(
         self,
         tool: str,
@@ -1110,3 +1180,127 @@ def _summarize_risk_surface(args: RiskSurfaceArgs, raw: dict[str, Any]) -> dict[
         "max_risk_cell_id": top["cell_id"],
         "includes_cell_461": 461 in ids,
     }
+
+
+def coverage_gap(tool: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """The measured coverage gap a call would hit, or None when some of it is covered."""
+    return call_coverage_gap(tool, arguments)
+
+
+def mark_uncovered_counts(
+    tool: str, arguments: dict[str, Any], summary: dict[str, Any]
+) -> None:
+    """Replace each count that falls outside measured coverage with None.
+
+    A result can hold counts for several datasets at once (a spatial summary
+    counts ignitions, EPSS outages, and CAL FIRE incidents inside one
+    territory). Each count key is resolved to its dataset through the
+    registry; where that dataset has no rows for the named utility in the
+    call's period, the count becomes None and ``summary["not_covered"][key]``
+    records why, so no answer, view, or grounding check can read it as a zero.
+    An unknown count key raises: a count that cannot be traced to a dataset is
+    not rendered. A comparison's rows are checked side by side the same way.
+    """
+    if tool == "comparison_run":
+        _mark_uncovered_comparison(arguments, summary)
+        return
+    counts = summary.get("counts")
+    datasets = list(counts) if isinstance(counts, dict) else []
+    for key in datasets:
+        gap = count_coverage_gap(key, tool, arguments)
+        if gap is None:
+            continue
+        counts[key] = None
+        summary.setdefault("not_covered", {})[key] = {
+            **gap,
+            "message": not_covered_message(gap, subject="count"),
+        }
+    # A covered count whose period runs past measured coverage counts only the
+    # covered part; the answer says which part.
+    dataset = call_dataset(tool, arguments)
+    if dataset and not datasets and dataset_known(dataset):
+        datasets = [dataset]
+    (start, end), *_ = call_periods(tool, arguments)
+    notes = [
+        note
+        for key in datasets
+        if key not in (summary.get("not_covered") or {})
+        for utility in named_utilities(tool, arguments) or [None]
+        if (
+            note := partial_coverage_note(
+                key, utility, start, end, definition=call_definition(key, arguments)
+            )
+        )
+    ]
+    if notes:
+        summary["coverage_notes"] = list(dict.fromkeys(notes))
+
+
+def _mark_uncovered_comparison(arguments: dict[str, Any], summary: dict[str, Any]) -> None:
+    """Null every comparison value outside measured coverage, and note partial periods.
+
+    The comparison service applies the same measured coverage; this holds the
+    invariant even if a service response disagrees, so a value outside
+    coverage is never shown as a number.
+    """
+    dataset = COMPARISON_METRIC_DATASETS.get(str(summary.get("metric") or arguments.get("metric")))
+    if not dataset:
+        return
+    notes: list[str] = []
+
+    def check(row: dict[str, Any], utility: str | None, start: Any, end: Any) -> None:
+        gap = dataset_coverage_gap(dataset, [utility] if utility else [], start, end)
+        if gap is not None:
+            row["value"] = None
+            row["raw_value"] = None
+            row["reason"] = gap["reason"]
+            row["not_covered"] = gap
+            return
+        note = partial_coverage_note(dataset, utility, start, end)
+        if note:
+            row["coverage_note"] = note
+            if note not in notes:
+                notes.append(note)
+
+    # Rows are copied: the summary must not rewrite the raw service response.
+    kind = summary.get("kind") or arguments.get("kind")
+    if kind in {"utilities", "regions"}:
+        start, end = arguments.get("start_date"), arguments.get("end_date")
+        summary["results"] = [dict(row) for row in summary.get("results") or []]
+        for row in summary["results"]:
+            utility = str(row.get("key")) if kind == "utilities" else None
+            check(row, utility, start, end)
+    else:
+        utility = named_utilities("comparison_run", arguments)
+        for name in ("period_a", "period_b"):
+            if isinstance(summary.get(name), dict):
+                row = summary[name] = dict(summary[name])
+                check(
+                    row,
+                    utility[0] if utility else None,
+                    row.get("start_date") or arguments.get(f"{name}_start"),
+                    row.get("end_date") or arguments.get(f"{name}_end"),
+                )
+        if isinstance(summary.get("delta"), dict) and any(
+            (summary.get(name) or {}).get("value") is None for name in ("period_a", "period_b")
+        ):
+            delta = summary["delta"] = dict(summary["delta"])
+            delta["value"] = None
+            delta["reason"] = delta.get("reason") or "Cannot compute delta when either period value is null"
+    if notes:
+        summary["coverage_notes"] = notes
+
+
+def not_covered_notes(executions: list[Any]) -> list[str]:
+    """One sentence per uncovered count or partly covered period, in order."""
+    notes: list[str] = []
+    for execution in executions:
+        if not getattr(execution, "ok", False):
+            continue
+        summary = execution.summary or {}
+        messages = [gap.get("message") for gap in (summary.get("not_covered") or {}).values()]
+        messages.extend(summary.get("coverage_notes") or [])
+        for message in messages:
+            if message and message not in notes:
+                notes.append(message)
+    return notes

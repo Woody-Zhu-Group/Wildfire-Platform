@@ -87,7 +87,7 @@ def test_rank_us_ignitions_aliases_get_the_us_ignitions_refusal(client, alias):
 def test_rank_epss_alias_gets_the_epss_utility_refusal(client):
     response = client.get("/rank", params={"dataset": "epss", "group_by": "utility"})
     assert response.status_code == 400
-    assert "PG&E-only" in response.json()["detail"]
+    assert "rows only for PG&E" in response.json()["detail"]
 
 
 @pytest.mark.parametrize("path, query", [

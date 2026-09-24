@@ -197,12 +197,18 @@ export function panelsFromAnswer(answer: AgentAnswer): AnswerPanel[] {
       });
       continue;
     }
-    if (view.type === 'stat_card' && typeof p.value === 'number' && Number.isFinite(p.value)
+    // A card with no value is a count that is missing or that its dataset does
+    // not cover for the named utility; it opens as "not available" with the
+    // reason, never as a zero.
+    const unavailable = view.type === 'stat_card' && p.value === null
+      && typeof p.unavailable_reason === 'string' && p.unavailable_reason !== '';
+    if (view.type === 'stat_card' && (unavailable || (typeof p.value === 'number' && Number.isFinite(p.value)))
       && ['label', 'scope', 'period'].every(key => typeof p[key] === 'string')) {
       panels.push({type: 'stat_card', name: String(p.label), settings: {answerStat: {
-        value: p.value, label: String(p.label), scope: String(p.scope), period: String(p.period),
+        value: unavailable ? null : p.value as number, label: String(p.label), scope: String(p.scope), period: String(p.period),
         unit: typeof p.unit === 'string' ? p.unit : '',
         sourceDataset: typeof p.source_dataset === 'string' ? p.source_dataset : '',
+        ...(unavailable ? {unavailableReason: String(p.unavailable_reason)} : {}),
       }}});
       continue;
     }

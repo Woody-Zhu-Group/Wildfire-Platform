@@ -8,8 +8,14 @@ from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Any
 
-# Warehouse coverage used for out-of-range guards (inclusive).
-DATA_YEAR_MIN = 2014
+from services.shared.dataset_registry import warehouse_year_range
+
+# The first calendar year in which any dataset has rows, from the measured
+# coverage (shared/dataset_coverage.json); never declared here. A year before
+# it is outside the warehouse for every dataset. A year from it on resolves,
+# and the asked dataset's own measured coverage decides whether it is covered
+# (dataset_not_covered, with that dataset's dates).
+DATA_YEAR_MIN = warehouse_year_range()[0]
 
 WORD_NUMBERS = {
     "one": 1,
@@ -95,29 +101,36 @@ def _parse_count(token: str) -> int | None:
     return WORD_NUMBERS.get(token)
 
 
+# A month word is a month only where a date can stand. "may" and "march" are
+# also verbs ("which may be higher", "so I can march this to my boss"), so a
+# month word counts next to a year or a day ("August 2023", "June 15", "15
+# June"), after in, during, or for ("in March", "during the month of May",
+# "for early June"), or where it ends the question or a sentence ("... cpuc
+# august"). Anywhere else, before a comma included ("you may, if needed"), it
+# is an ordinary word.
+_DAY_NUMBER = r"\d{1,2}(?:st|nd|rd|th)?"
+_MONTH_IN_CONTEXT = re.compile(
+    rf"\b(?:in|during|for)\s+(?:the\s+month\s+of\s+|(?:early|mid|late)[\s-]+)?(?P<after>{_MONTH_ALT})\b"
+    rf"|\b(?P<before>{_MONTH_ALT})\.?,?\s+(?:of\s+)?(?:20\d{{2}}|{_DAY_NUMBER})\b"
+    rf"|\b(?:20\d{{2}}|{_DAY_NUMBER})\s+(?:of\s+)?(?P<following>{_MONTH_ALT})\b"
+    rf"|\b(?P<ending>{_MONTH_ALT})\s*(?:[?!]|\.(?:\s|$)|$)"
+)
+
+
+def months_from_text(text: str) -> list[tuple[int, str]]:
+    """Every (month_number, word) named as a month, in the order written."""
+    lower = " ".join(text.lower().split())
+    found: list[tuple[int, str]] = []
+    for match in _MONTH_IN_CONTEXT.finditer(lower):
+        name = next(group for group in match.groups() if group)
+        found.append((MONTHS[name], name))
+    return found
+
+
 def month_from_text(text: str) -> tuple[int, str] | None:
-    """Return (month_number, phrase) when a calendar month is named."""
-    lower = " ".join(text.lower().split())
-    for name, number in sorted(MONTHS.items(), key=lambda item: -len(item[0])):
-        if re.search(rf"\b{re.escape(name)}\b", lower):
-            return number, name
-    return None
-
-
-def named_months(text: str) -> list[tuple[int, str]]:
-    """Every distinct calendar month named, as (month_number, phrase), in text order.
-
-    "July 2024 and August 2024" names two months; a resolver that kept only
-    one would silently drop the other, and a harness that held the model's
-    July call to that one month would rewrite it to August.
-    """
-    lower = " ".join(text.lower().split())
-    found: dict[int, tuple[int, int, str]] = {}
-    for name, number in sorted(MONTHS.items(), key=lambda item: -len(item[0])):
-        for match in re.finditer(rf"\b{re.escape(name)}\b", lower):
-            if number not in found or match.start() < found[number][0]:
-                found[number] = (match.start(), number, name)
-    return [(number, name) for _pos, number, name in sorted(found.values())]
+    """The first (month_number, word) named as a month, or None."""
+    found = months_from_text(text)
+    return found[0] if found else None
 
 
 _MONTH_LIST_SEP = r"(?:\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+|\s*&\s*)(?:in\s+)?"
@@ -125,6 +138,32 @@ _MONTH_LIST = re.compile(
     rf"\b((?:{_MONTH_ALT})(?:\s+(?:20\d{{2}}))?(?:{_MONTH_LIST_SEP}(?:{_MONTH_ALT})(?:\s+(?:20\d{{2}}))?)*)"
     rf"\s*,?\s+(?:of\s+|in\s+)?(20\d{{2}})\b"
 )
+
+
+def named_months(text: str) -> list[tuple[int, str]]:
+    """Every distinct calendar month named, as (month_number, phrase), in text order.
+
+    "July 2024 and August 2024" names two months; a resolver that kept only
+    one would silently drop the other, and a harness that held the model's
+    July call to that one month would rewrite it to August. A month word
+    counts only where it is a date: where ``months_from_text`` reads it as a
+    month, or inside a list of months that ends in a year ("July and August
+    2023"). "may" and "march" as verbs are never months.
+    """
+    lower = " ".join(text.lower().split())
+    found: dict[int, tuple[int, int, str]] = {}
+
+    def add(number: int, position: int, name: str) -> None:
+        if number not in found or position < found[number][0]:
+            found[number] = (position, number, name)
+
+    for match in _MONTH_IN_CONTEXT.finditer(lower):
+        group = next(name for name in ("after", "before", "following", "ending") if match.group(name))
+        add(MONTHS[match.group(group)], match.start(group), match.group(group))
+    for match in _MONTH_LIST.finditer(lower):
+        for item in re.finditer(rf"\b({_MONTH_ALT})\b", match.group(1)):
+            add(MONTHS[item.group(1)], match.start(1) + item.start(1), item.group(1))
+    return [(number, name) for _pos, number, name in sorted(found.values())]
 
 
 def named_month_periods(text: str) -> list[str]:

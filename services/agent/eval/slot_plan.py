@@ -10,13 +10,14 @@ so the plan never answers a narrower question than the one asked.
 
 from __future__ import annotations
 
-import calendar
 import itertools
 import re
 from datetime import date
 from typing import Any
 
+from services.agent.coverage import call_coverage_gap, not_covered_rule
 from services.agent.routing import RouteDecision, route_question
+from services.agent.time_resolve import months_from_text
 from services.shared.dataset_registry import DATASETS, LAYER_VIZ_KEYS
 
 MAX_ENTITY_CALLS = 10
@@ -79,22 +80,6 @@ _UNRESOLVED_WINDOW = re.compile(
     r"spring|summer|fall|autumn|winter)\b",
     re.I,
 )
-_MONTH_NAMES = {
-    name.lower(): number for number, name in enumerate(calendar.month_name) if name
-}
-_MONTH_NAMES.update(
-    {
-        name.lower(): number
-        for number, name in enumerate(calendar.month_abbr)
-        if name and name.lower() != "may"
-    }
-)
-_MONTH_NAMES["sept"] = 9
-_MONTH_WORD = re.compile(
-    r"\b(" + "|".join(sorted(_MONTH_NAMES, key=len, reverse=True)) + r")\b", re.I
-)
-
-
 def _dataset_filters(dataset: str) -> set[str]:
     spec = DATASETS.get(dataset) or next(
         (item for item in DATASETS.values() if item.agent_key == dataset), None
@@ -103,11 +88,8 @@ def _dataset_filters(dataset: str) -> set[str]:
 
 
 def _months_named(lower: str) -> set[int]:
-    """Calendar months the question names. 'may' counts only next to a number."""
-    months = {_MONTH_NAMES[m.group(1).lower()] for m in _MONTH_WORD.finditer(lower)}
-    if re.search(r"\bmay\s+\d|\d\s+may\b", lower):
-        months.add(5)
-    return months
+    """Calendar months the question names, by the shared date parser's rule."""
+    return {number for number, _word in months_from_text(lower)}
 
 
 def _resolved_window(slots: dict[str, Any]) -> tuple[str, str] | None:
@@ -161,6 +143,13 @@ def _unrepresented(
     # Dataset: every call reads the resolved dataset.
     if any(_call_dataset(name, args) != dataset for name, args in calls):
         return "dataset"
+    # A count outside measured coverage (a utility or a period the dataset
+    # has no rows for) would read as zero when the data is absent. The plan is
+    # refused and the deferral stands.
+    for name, args in calls:
+        gap = call_coverage_gap(name, args)
+        if gap is not None:
+            return not_covered_rule(gap)
 
     # Output form and measure.
     if _MAP_ASK.search(lower) and not any(

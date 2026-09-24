@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import { getBoundaries, getLayer, getRecords } from './api.ts';
 import { configFor, filterError, unavailableReason, recordsFromFeatures, asText, type EventRecord } from './data.ts';
+import { soleUtilityLabel } from './coverage.ts';
 import { ChartFilters, DatasetSelect, LoadState } from './Controls';
 import { useRemote } from './useRemote';
 import { SelectionContext, usePanel } from './state';
@@ -103,7 +104,7 @@ function EventDataMap() {
       if (!feature.geometry) continue;
       const props = feature.properties;
       const record: EventRecord = dataset === 'epss' ? {
-        id: String(props.circuit_id), dataset, name: asText(props.circuit_name) ?? 'Circuit', date: asText(props.first_event) ?? '', county: null, utility: 'PG&E', cause: null, acres: null,
+        id: String(props.circuit_id), dataset, name: asText(props.circuit_name) ?? 'Circuit', date: asText(props.first_event) ?? '', county: null, utility: soleUtilityLabel('circuits'), cause: null, acres: null,
         geometry: feature.geometry, properties: { ...props, circuit_detail: true, scope_start: scopeDate ?? filters.start, scope_end: scopeDate ?? filters.end },
       } : recordsFromFeatures(dataset, [feature])[0];
       const show = (location: L.LatLng, pinned = false, hover = false) => {

@@ -10,7 +10,10 @@ and lazy-imports the strings so the catalog is not duplicated.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from datetime import date
+from pathlib import Path
 from typing import Any, Mapping
 
 # Naming conventions (utilities, counties, tiers, causes, incident types, and
@@ -45,17 +48,12 @@ STATEWIDE_CENTER = [37.6, -120.8]
 HDW_YEARS = frozenset(range(2020, 2026))
 
 # comparison/metrics.py
-REASON_EPSS_PGE_ONLY = "EPSS is PG&E-only in this warehouse"
 REASON_NO_COUNTY = "No county attribute/polygon for this metric in the warehouse"
 REASON_NO_COUNTY_AREA = "No county polygon layer; per_km2 unavailable for county regions"
-REASON_CIRCUITS_PGE = (
-    "per_circuit uses the PGE EPSS circuits inventory; not meaningful for this scope"
-)
 REASON_ZERO_IGNITIONS = "Ignition count is zero; ratio undefined"
 REASON_COMPONENT_NULL = "One or more component metrics are null"
+REASON_US_NO_UTILITY = "The US ignitions sample has no utility column"
 
-# Discrepancy: services.agent.caveats epss_pge_only text is longer and is not
-# this REASON_EPSS_PGE_ONLY string. Do not collapse them.
 
 
 def _us_ignitions_meta(*, notes: str) -> dict[str, Any]:
@@ -121,6 +119,23 @@ class DatasetSpec:
     caveat_ids: tuple[str, ...]
     stat_label: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    # Which utilities and dates the dataset covers is measured by the loaders
+    # (shared/dataset_coverage.json, read by dataset_coverage below), never
+    # declared here. These two fields are wording only.
+    # Why a dataset with no utility dimension cannot answer for a utility.
+    no_utility_reason: str | None = None
+    # Datasets to offer when a read is not covered, in order. Each is offered
+    # only where its measured coverage includes the utilities and the period.
+    not_covered_alternatives: tuple[str, ...] = ()
+    # The rows each count reads, by definition name: a WHERE predicate on the
+    # table (None: every row); the first is the default query. Coverage is
+    # measured once per definition, so it holds exactly the rows a count
+    # reads. Empty: one definition, every row.
+    query_definitions: Mapping[str, str | None] = field(default_factory=dict)
+    # Words naming each definition's rows in a coverage reason.
+    definition_words: Mapping[str, str] = field(default_factory=dict)
+    # The tool argument that picks a non-default definition.
+    definition_argument: str | None = None
 
 
 def _spec(**kwargs: Any) -> DatasetSpec:
@@ -234,6 +249,7 @@ DATASETS: dict[str, DatasetSpec] = {
         },
         caveat_ids=("cpuc_utility_caused",),
         stat_label="CPUC ignitions",
+        not_covered_alternatives=("calfire_incidents",),
     ),
     "calfire_incidents": _spec(
         key="calfire_incidents",
@@ -273,6 +289,10 @@ DATASETS: dict[str, DatasetSpec] = {
         # counts; it is not in CAVEAT_TEXT and is omitted from the static JSON.
         caveat_ids=("calfire_missingness", "calfire_map_feed_counts"),
         stat_label="CAL FIRE incidents",
+        not_covered_alternatives=("cpuc_ignitions",),
+        query_definitions=CALFIRE_INCIDENT_TYPE_MODE_SQL,
+        definition_words=CALFIRE_INCIDENT_TYPE_MODE_WORDS,
+        definition_argument="incident_type_mode",
     ),
     "epss_outages": _spec(
         key="epss_outages",
@@ -301,7 +321,7 @@ DATASETS: dict[str, DatasetSpec] = {
         },
         caveat_ids=("epss_pge_only",),
         stat_label="EPSS outages",
-        extra={"empty_reason_non_pge": REASON_EPSS_PGE_ONLY},
+        not_covered_alternatives=("psps_events", "cpuc_ignitions"),
     ),
     "psps_events": _spec(
         key="psps_events",
@@ -323,6 +343,7 @@ DATASETS: dict[str, DatasetSpec] = {
         },
         caveat_ids=(),
         stat_label="PSPS events",
+        not_covered_alternatives=("epss_outages", "cpuc_ignitions", "calfire_incidents"),
     ),
     "us_ignitions": _spec(
         key="us_ignitions",
@@ -354,6 +375,8 @@ DATASETS: dict[str, DatasetSpec] = {
             "meta_data_query": US_IGNITIONS_META_DATA_QUERY,
             "meta_visualization": US_IGNITIONS_META_VISUALIZATION,
         },
+        no_utility_reason=REASON_US_NO_UTILITY,
+        not_covered_alternatives=("cpuc_ignitions", "calfire_incidents"),
     ),
     "circuits": _spec(
         key="circuits",
@@ -513,11 +536,18 @@ MEASURE_DATASETS: dict[str, str] = {
     "epss_outage_count": "epss_outages",
     "epss_to_ignition_ratio": "epss_outages",
 }
-# Measures that exist for some utilities only (EPSS is PG&E only).
-MEASURE_UTILITIES: dict[str, frozenset[str]] = {
-    "epss_outage_count": frozenset({"PGE"}),
-    "epss_to_ignition_ratio": frozenset({"PGE"}),
-}
+
+
+def measure_utilities(measure: str) -> frozenset[str] | None:
+    """The utilities a measure exists for, when its dataset has rows for one only.
+
+    Measured, never declared (EPSS: the one utility whose file was loaded);
+    None when the measure's dataset is not a single-utility dataset.
+    """
+    dataset = MEASURE_DATASETS[measure]
+    if not single_utility_dataset(dataset):
+        return None
+    return frozenset(covered_utilities(dataset))
 # A data_query_rank (dataset, metric) pair as its measure.
 _RANK_PAIR_MEASURES = {
     ("cpuc_ignitions", "count"): "ignition_count",
@@ -736,3 +766,600 @@ def caveat_texts(dataset: str) -> list[str]:
 
     entry = DATASETS[to_canonical(dataset)]
     return [CAVEAT_TEXT[cid] for cid in entry.caveat_ids if cid in CAVEAT_TEXT]
+
+
+def __getattr__(name: str) -> Any:
+    """COMPARISON_METRIC_DATASETS: comparison metric -> the dataset it reads.
+
+    The comparison service owns its metrics, so the map is its own
+    (``services.comparison.metrics.METRIC_DATASETS``), read on first use because
+    that module imports this one.
+
+    REASON_CIRCUITS_SCOPE is built from measured coverage on first use, so
+    importing the registry never reads coverage (the coverage loader imports
+    it to regenerate a missing or stale file).
+    """
+    if name == "REASON_CIRCUITS_SCOPE":
+        return _reason_circuits_scope()
+    if name == "COMPARISON_METRIC_DATASETS":
+        from services.comparison.metrics import METRIC_DATASETS
+
+        return METRIC_DATASETS
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+
+
+# ---------------------------------------------------------------------------
+# Measured coverage (label rules I and J, and every count by utility or period)
+# ---------------------------------------------------------------------------
+
+# Written by db/loaders/coverage.py from the loaded warehouse; the website
+# imports the same file. Coverage is measured, never declared: a dataset
+# covers a utility only if it has rows for it, from that utility's first row
+# date to the dataset's last row date. The window closes on the dataset's last
+# date, not the utility's: in a sparse series (five SDG&E PSPS events) a
+# utility's last event is not the end of the source's reporting.
+COVERAGE_PATH = Path(__file__).resolve().parents[2] / "shared" / "dataset_coverage.json"
+
+
+class _CoverageUnavailable(dict):
+    """Stands in for the measured coverage when it cannot be used.
+
+    Importing the registry must still work (the coverage loader imports it to
+    read each dataset's query definitions and write the file), but any read
+    of coverage fails loudly: a coverage check that cannot read measured rows
+    must not pass.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__()
+        self.message = message
+
+    def _fail(self, *_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError(self.message)
+
+    __getitem__ = __contains__ = __iter__ = __len__ = get = items = keys = values = _fail
+
+
+def default_definition(dataset: str) -> str | None:
+    """The name of the dataset's default query definition, or None when it has one only."""
+    return next(iter(DATASETS[to_canonical(dataset)].query_definitions), None)
+
+
+def call_definition(dataset: str, arguments: Mapping[str, Any]) -> str | None:
+    """The query definition a call's arguments pick for the dataset, or None for the default."""
+    spec = DATASETS[to_canonical(dataset)]
+    value = arguments.get(spec.definition_argument) if spec.definition_argument else None
+    value = getattr(value, "value", value)
+    return str(value) if value else None
+
+
+def definition_for_filter(dataset: str, value: str | None) -> str | None:
+    """The query definition a service filter value reads (CAL FIRE ``incident_type``).
+
+    None or empty is the default definition; a definition name ("all",
+    "untyped") is itself; any other value (one stored incident type) reads
+    rows no definition measures, so it raises: its coverage is unknown.
+    """
+    spec = DATASETS[to_canonical(dataset)]
+    text = (value or "").strip()
+    default = default_definition(spec.key)
+    if not text or text.lower() == default:
+        return default
+    if text.lower() in spec.query_definitions:
+        return text.lower()
+    raise ValueError(f"coverage: {spec.key} has no measured definition for {value!r}")
+
+
+def _stale_definitions(datasets: dict[str, Any]) -> str | None:
+    """Why the measured file no longer matches the registry's query definitions, if it does not."""
+    for key, spec in DATASETS.items():
+        entry = datasets.get(key)
+        if entry is None:
+            continue
+        measured = {entry.get("definition"): entry.get("where")} if "definition" in entry else {}
+        measured.update(
+            {name: other.get("where") for name, other in (entry.get("definitions") or {}).items()}
+        )
+        expected = dict(spec.query_definitions)
+        if measured != expected or (expected and entry.get("definition") != default_definition(key)):
+            return (
+                f"{COVERAGE_PATH} was measured for {key} query definitions {measured}, but "
+                f"the registry defines {expected}. Regenerate it from the warehouse: "
+                "python -m db.loaders.coverage"
+            )
+    return None
+
+
+def _load_coverage() -> dict[str, Any]:
+    try:
+        payload = json.loads(COVERAGE_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return _CoverageUnavailable(
+            f"{COVERAGE_PATH} is missing. Load the warehouse (python -m db.loaders) "
+            "or regenerate it with: python -m db.loaders.coverage"
+        )
+    stale = _stale_definitions(payload["datasets"])
+    return _CoverageUnavailable(stale) if stale else payload["datasets"]
+
+
+# dataset key -> the default definition's measurement: {"first", "last",
+# "rows", "years", "utility_dimension", "utilities": {code: {"first", "last",
+# "rows", "years"}}, "untagged"}, where "years" maps a calendar year to its row
+# count (a year with no rows is absent). A dataset with query definitions also
+# has "definition" and "where" (the default's name and predicate) and
+# "definitions": {name: the same measurement, with its "where"} for the
+# others. Tests may swap entries (monkeypatch).
+DATASET_COVERAGE: dict[str, dict[str, Any]] = _load_coverage()
+
+
+def _day(value: Any) -> date | None:
+    if value is None or isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def _measured(dataset: str, definition: str | None = None) -> dict[str, Any] | None:
+    """The measurement of the rows a count with this definition reads (None: the default)."""
+    try:
+        key = to_canonical(dataset)
+    except (KeyError, ValueError) as exc:
+        raise ValueError(f"coverage: unknown dataset {dataset!r}") from exc
+    entry = DATASET_COVERAGE.get(key)
+    if entry is None or definition is None or definition == entry.get("definition"):
+        return entry
+    other = (entry.get("definitions") or {}).get(definition)
+    if other is None:
+        raise ValueError(f"coverage: {key} has no measured definition {definition!r}")
+    return other
+
+
+def _label(dataset: str, definition: str | None = None) -> str:
+    """The dataset's label, naming the definition's rows when it has several."""
+    spec = DATASETS[to_canonical(dataset)]
+    label = STAT_LABELS.get(spec.key, spec.key)
+    words = spec.definition_words.get(definition or default_definition(spec.key) or "")
+    return f"{label} {words}" if words else label
+
+
+def coverage_window(
+    dataset: str, utility: str | None = None, *, definition: str | None = None
+) -> tuple[date, date] | None:
+    """The measured dates a count can fall in, or None when there are none.
+
+    With a utility: from its first row to the dataset's last row, or None when
+    the dataset has no rows for it. Without one: the dataset's own span. A
+    dataset with rows but no date column (circuits) has no window. Both are
+    measured on the rows the definition reads (None: the default query).
+    """
+    entry = _measured(dataset, definition)
+    if entry is None:
+        return None
+    last = _day(entry.get("last"))
+    if utility is None:
+        first = _day(entry.get("first"))
+    elif utility == UNTAGGED_UTILITY:
+        first = _day((entry.get("untagged") or {}).get("first"))
+    else:
+        span = (entry.get("utilities") or {}).get(utility)
+        first = _day(span.get("first")) if span else None
+    return (first, last) if first and last else None
+
+
+def _utility_span(entry: dict[str, Any], utility: str | None) -> dict[str, Any] | None:
+    """The measured span (first, last, rows, years) for one utility, or the dataset's."""
+    if utility is None:
+        return entry
+    if utility == UNTAGGED_UTILITY:
+        return entry.get("untagged")
+    return (entry.get("utilities") or {}).get(utility)
+
+
+def dataset_years(
+    dataset: str, utility: str | None = None, *, definition: str | None = None
+) -> list[int]:
+    """Calendar years in which the dataset (or one utility in it) has rows, as measured."""
+    entry = _measured(dataset, definition)
+    span = _utility_span(entry, utility) if entry else None
+    return sorted(int(year) for year, rows in ((span or {}).get("years") or {}).items() if rows)
+
+
+def warehouse_year_range() -> tuple[int, int]:
+    """The first and last calendar year in which any count can read rows, as measured.
+
+    Time resolution refuses a year outside this range for every dataset; a year
+    inside it is checked against the asked dataset's own coverage for the
+    call's definition. Every definition counts: a year that only another
+    definition has rows in can still be answered for.
+    """
+    years = [
+        int(year)
+        for entry in DATASET_COVERAGE.values()
+        for measured in (entry, *(entry.get("definitions") or {}).values())
+        for year, rows in (measured.get("years") or {}).items()
+        if rows
+    ]
+    return min(years), max(years)
+
+
+def rows_in_period(
+    dataset: str, utility: str | None, start: Any, end: Any, *, definition: str | None = None
+) -> bool:
+    """True only when measured rows are known to exist for the utility in the period.
+
+    Rows exist when the period holds a whole calendar year with rows, or holds
+    the utility's first or last row date. A period that only touches part of a
+    year with rows is not known to hold any, so this returns False: an offer
+    must never lead to a count that may be zero. Rows are those the definition
+    reads (None: the default query).
+    """
+    entry = _measured(dataset, definition)
+    span = _utility_span(entry, utility) if entry else None
+    if not span or not span.get("rows"):
+        return False
+    start, end = _day(start), _day(end)
+    if start is None and end is None:
+        return True
+    years = {int(year): rows for year, rows in (span.get("years") or {}).items() if rows}
+    if not years:
+        return False
+    low = start or date(min(years), 1, 1)
+    high = end or date(max(years), 12, 31)
+    known = [_day(span.get("first")), _day(span.get("last"))]
+    if any(day is not None and low <= day <= high for day in known):
+        return True
+    return any(
+        years.get(year) and low <= date(year, 1, 1) and high >= date(year, 12, 31)
+        for year in range(low.year, high.year + 1)
+    )
+
+
+def _empty_years_reason(
+    dataset: str,
+    window: tuple[date, date],
+    start: date | None,
+    end: date | None,
+    definition: str | None = None,
+) -> str | None:
+    """Why a period inside the window is still not covered: the rows the
+    definition reads include none in any year the period touches (CAL FIRE
+    between its one 2009 row and its next year with rows).
+
+    A utility with no rows in a year the dataset reported is a real zero; a
+    year in which the dataset itself has no rows is a gap in the source.
+    """
+    years = dataset_years(dataset, definition=definition)
+    if not years:
+        return None
+    first = max(start or window[0], window[0]).year
+    last = min(end or window[1], window[1]).year
+    if any(first <= year <= last for year in years):
+        return None
+    label = _label(dataset, definition)
+    before = max((year for year in years if year < first), default=None)
+    after = min((year for year in years if year > last), default=None)
+    if before is not None and after is not None:
+        return f"{label} have no rows between {before} and {after}"
+    return f"{label} have no rows from {first} to {last}"
+
+
+def covered_utilities(dataset: str, *, definition: str | None = None) -> list[str]:
+    """Utilities the dataset has rows for, as measured."""
+    entry = _measured(dataset, definition)
+    return list((entry or {}).get("utilities") or {})
+
+
+def single_utility_dataset(dataset: str | None) -> bool:
+    """True when the dataset has rows for exactly one utility (EPSS: PG&E).
+
+    Such a dataset has no utility dimension to rank or group by.
+    """
+    if not dataset:
+        return False
+    entry = _measured(dataset)
+    return bool(
+        entry and entry.get("utility_dimension") and len(entry.get("utilities") or {}) == 1
+    )
+
+
+def _utility_name(code: str) -> str:
+    if code == UNTAGGED_UTILITY:
+        return "untagged"
+    return UTILITY_CLARIFY_LABELS.get(code) or UTILITY_DISPLAY_LABELS.get(code) or code
+
+
+def _series(items: list[str]) -> str:
+    if len(items) <= 2:
+        return " and ".join(items)
+    return ", ".join(items[:-1]) + ", and " + items[-1]
+
+
+def _utility_names(codes: list[str]) -> str:
+    return _series([_utility_name(code) for code in codes])
+
+
+def _possessive(names: str) -> str:
+    return f"{names}'" if names.endswith("s") else f"{names}'s"
+
+
+def period_phrase(start: Any, end: Any) -> str:
+    """' in 2019' for a calendar year, ' from A to B' otherwise, '' for no period."""
+    start, end = _day(start), _day(end)
+    if start is None and end is None:
+        return ""
+    if (
+        start
+        and end
+        and start.year == end.year
+        and (start.month, start.day, end.month, end.day) == (1, 1, 12, 31)
+    ):
+        return f" in {start.year}"
+    if start and end:
+        return f" from {start.isoformat()} to {end.isoformat()}"
+    return f" from {start.isoformat()} on" if start else f" through {end.isoformat()}"
+
+
+def coverage_summary(dataset: str, *, definition: str | None = None) -> str:
+    """Which utilities the dataset has rows for, as measured, in one clause."""
+    key = to_canonical(dataset)
+    utilities = _utility_names(covered_utilities(key, definition=definition))
+    return f"{_label(key, definition)} have rows only for {utilities}"
+
+
+def _overlaps(window: tuple[date, date], start: date | None, end: date | None) -> bool:
+    first, last = window
+    return (end is None or end >= first) and (start is None or start <= last)
+
+
+def _uncovered_reason(
+    dataset: str,
+    utility: str | None,
+    start: date | None,
+    end: date | None,
+    definition: str | None = None,
+) -> str | None:
+    """Why the definition's rows hold none for this utility and period, or None if they do."""
+    entry = _measured(dataset, definition)
+    if entry is None:
+        return None
+    spec = DATASETS[to_canonical(dataset)]
+    label = _label(spec.key, definition)
+    if utility is not None and not entry.get("utility_dimension"):
+        return spec.no_utility_reason or f"{label} have no utility column"
+    if utility == UNTAGGED_UTILITY and not entry.get("untagged"):
+        return f"{label} have no rows without a utility"
+    if utility not in (None, UNTAGGED_UTILITY) and utility not in (entry.get("utilities") or {}):
+        return coverage_summary(spec.key, definition=definition)
+    window = coverage_window(spec.key, utility, definition=definition)
+    if window is None:
+        return None
+    if _overlaps(window, start, end):
+        return _empty_years_reason(spec.key, window, start, end, definition)
+    who = f" for {_utility_name(utility)}" if utility else ""
+    if end is not None and end < window[0]:
+        return f"{label}{who} start on {window[0].isoformat()}"
+    return f"{label} end on {window[1].isoformat()}"
+
+
+def partial_coverage_note(
+    dataset: str, utility: str | None, start: Any, end: Any, *, definition: str | None = None
+) -> str | None:
+    """A note when a covered period runs past the measured window on either side.
+
+    The count is real for the covered part only; it must not be read as the
+    whole period's.
+    """
+    start, end = _day(start), _day(end)
+    window = coverage_window(dataset, utility, definition=definition)
+    if window is None or start is None or end is None or not _overlaps(window, start, end):
+        return None
+    first, last = window
+    if start >= first and end <= last:
+        return None
+    label = _label(dataset, definition)
+    who = f" for {_utility_name(utility)}" if utility else ""
+    return (
+        f"{label}{who} cover {first.isoformat()} to {last.isoformat()}, so the count"
+        f"{period_phrase(start, end)} covers only {max(start, first).isoformat()} to "
+        f"{min(end, last).isoformat()}."
+    )
+
+
+Period = tuple[Any, Any]
+
+
+def _has_rows_all(
+    dataset: str,
+    utilities: list[str],
+    periods: list[tuple[date | None, date | None]],
+    definition: str | None = None,
+) -> bool:
+    """True when the dataset has measured rows for every utility in every period.
+
+    What an offer is held to: a window that merely overlaps the period is not
+    enough (SDG&E's PSPS window spans 2022, but it has no 2022 rows).
+    """
+    return all(
+        _uncovered_reason(dataset, utility, start, end, definition) is None
+        and rows_in_period(dataset, utility, start, end, definition=definition)
+        for utility in (utilities or [None])
+        for start, end in periods
+    )
+
+
+def dataset_coverage_gap(
+    dataset: str | None,
+    utilities: list[str],
+    start: Any = None,
+    end: Any = None,
+    *,
+    periods: list[Period] | None = None,
+    definition: str | None = None,
+) -> dict[str, Any] | None:
+    """The coverage gap a read would hit, or None when it is covered.
+
+    Coverage is that of the rows the read counts: ``definition`` names the
+    dataset's query definition the read uses (None: its default query).
+
+    A read is covered when the dataset has rows for at least one named utility
+    in at least one period (``periods``, or the one period ``start`` to
+    ``end``); the service returns an uncovered side as null with its reason, so
+    only a read with nothing covered is refused. A read with no utility is
+    checked against the dataset's own dates. What the gap offers instead is
+    held to more: an alternative dataset, or another utility, is offered only
+    where the dataset has measured rows for every named utility in every
+    period (``rows_in_period``), never where its window merely overlaps. An
+    unknown dataset raises: a coverage check that cannot find its dataset must
+    not pass.
+    """
+    if not dataset:
+        return None
+    windows_asked = [(_day(a), _day(b)) for a, b in (periods or [(start, end)])]
+    entry = _measured(dataset, definition)
+    no_period = all(a is None and b is None for a, b in windows_asked)
+    if entry is None or (not utilities and no_period):
+        return None
+    spec = DATASETS[to_canonical(dataset)]
+    named = list(utilities)
+    reasons = [
+        _uncovered_reason(spec.key, utility, a, b, definition)
+        for utility in named or [None]
+        for a, b in windows_asked
+    ]
+    if any(reason is None for reason in reasons):
+        return None
+    others = [
+        utility
+        for utility in covered_utilities(spec.key, definition=definition)
+        if utility not in named
+        and _has_rows_all(spec.key, [utility], windows_asked, definition)
+    ]
+    # A named utility with rows in the dataset at other dates: its own window.
+    own = {
+        utility: coverage_window(spec.key, utility, definition=definition) for utility in named
+    }
+    # An alternative dataset is offered for its own default query, the count
+    # the offer leads to.
+    return {
+        "dataset": spec.key,
+        "definition": definition or default_definition(spec.key),
+        "utilities": named,
+        "periods": [
+            [a.isoformat() if a else None, b.isoformat() if b else None]
+            for a, b in windows_asked
+        ],
+        "reason": "; ".join(dict.fromkeys(str(reason) for reason in reasons)),
+        "covered_utilities": others,
+        "utility_windows": {
+            utility: [window[0].isoformat(), window[1].isoformat()]
+            for utility, window in own.items()
+            if window is not None
+        },
+        "alternatives": [
+            other
+            for other in spec.not_covered_alternatives
+            if _has_rows_all(other, named, windows_asked)
+        ],
+    }
+
+
+def _gap_parts(gap: dict[str, Any]) -> tuple[str, str, str, str]:
+    label = _label(gap["dataset"], gap.get("definition"))
+    named = _utility_names(list(gap.get("utilities") or []))
+    phrases = [period_phrase(a, b) for a, b in gap.get("periods") or []]
+    phrases = [phrase for phrase in dict.fromkeys(phrases) if phrase]
+    # " in 2020" and " in 2021" read as " in 2020 and 2021"; three or more
+    # years as " in 2018, 2019, and 2020".
+    if len(phrases) > 1 and all(phrase.startswith(" in ") for phrase in phrases):
+        period = " in " + _series([phrase[4:] for phrase in phrases])
+    else:
+        period = " and".join(phrases)
+    head = (
+        f"{gap.get('reason') or label + ' do not cover this read'}, so there are "
+        f"{'no ' + named + ' rows' if named else 'no rows'} in {label}{period}"
+    )
+    return label, named, period, head
+
+
+def records_sentence(labels: list[str], named: str, period: str) -> str:
+    """'PSPS events and CPUC ignitions have records for SCE in 2020', no final stop."""
+    if not labels:
+        return ""
+    who = f" for {named}" if named else ""
+    return f"{_series(labels)} have records{who}{period}"
+
+
+def alternatives_records(gap: dict[str, Any]) -> str:
+    """The alternatives a gap offers, as the records they hold for its utilities and period."""
+    _label, named, period, _head = _gap_parts(gap)
+    labels = [STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []]
+    return records_sentence(labels, named, period)
+
+
+def dropped_filters_sentence(gap: dict[str, Any]) -> str:
+    """Says that an offer keeps the utilities and period but not the other filters.
+
+    Coverage is measured per dataset, utility, and year, so an offer cannot
+    promise rows inside a county, tier, or area; it drops those filters.
+    """
+    dropped = list(gap.get("unmeasured_filters") or [])
+    if not dropped:
+        return ""
+    noun = "filter" if len(dropped) == 1 else "filters"
+    return f" That offer drops the {_series(dropped)} {noun}."
+
+
+def not_covered_message(gap: dict[str, Any], *, subject: str = "result") -> str:
+    """The reason, that the result is absent rather than zero, and what has records."""
+    head = _gap_parts(gap)[3]
+    text = f"{head}: that {subject} would be absent, not zero."
+    records = alternatives_records(gap)
+    if records:
+        text += f" {records}.{dropped_filters_sentence(gap)}"
+    return text
+
+
+def not_covered_question(gap: dict[str, Any], *, comparison: bool = False) -> str:
+    """Clarification for an uncovered read: the reason, then only offers the data covers."""
+    label, named, period, head = _gap_parts(gap)
+    head += f": that {'comparison' if comparison else 'result'} would be absent, not zero."
+    alternatives = " or ".join(
+        STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []
+    )
+    # Another utility's rows are offered only when the dataset covers exactly
+    # one in the period (EPSS: PG&E); a list of several is not an answer to a
+    # question about the named utility.
+    others = list(gap.get("covered_utilities") or [])
+    covered = _utility_names(others) if named and len(others) == 1 else ""
+    # Each offer is first stated as the records the data holds, in the order
+    # the question then offers them.
+    facts = [alternatives_records(gap)]
+    if covered:
+        other = records_sentence([label], covered, period)
+        facts = facts + [other] if comparison else [other] + facts
+    whose = f"{_possessive(named)} " if named else ""
+    offers: list[str] = []
+    if comparison and alternatives:
+        offers.append(f"compare {whose}{alternatives}{period} instead")
+    if covered:
+        offers.append(f"{_possessive(covered)} {label}{period}")
+    if not comparison and alternatives:
+        offers.append(f"{whose}{alternatives}{period} instead")
+    # A named utility the dataset covers at other dates: offer those dates.
+    for utility, (first, _last) in (gap.get("utility_windows") or {}).items():
+        offers.append(f"{_possessive(_utility_name(utility))} {label} from {first} on")
+    if not offers:
+        return head
+    stated = "".join(f" {fact}." for fact in facts if fact) + dropped_filters_sentence(gap)
+    verb = "Do you want to " if offers[0].startswith("compare ") else "Do you want "
+    return f"{head}{stated} {verb}{', or '.join(offers)}?"
+
+
+def _reason_circuits_scope() -> str:
+    # comparison/metrics.py: the per-circuit denominator exists only for the
+    # utilities the circuits inventory has rows for, as measured.
+    return (
+        f"per_circuit uses the {_utility_names(covered_utilities('circuits'))} EPSS circuits "
+        "inventory; not meaningful for this scope"
+    )

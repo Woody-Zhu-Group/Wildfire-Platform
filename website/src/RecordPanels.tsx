@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { getDetail, getRecords } from './api.ts';
 import { getSummary } from './workspaceAggregates.ts';
 import { configFor, filterError, unavailableReason, type EventRecord } from './data.ts';
+import { soleUtilityLabel } from './coverage.ts';
 import { ChartFilters, DatasetSelect, LoadState } from './Controls';
 import { SelectionContext, usePanel } from './state';
 import { useRemote } from './useRemote';
@@ -45,7 +46,10 @@ export function StatCard() {
   const validation = filterError(filters) || unavailableReason(dataset, filters);
   const remote = useRemote(validation || answerStat ? null : JSON.stringify(['summary', dataset, filters]), () => getSummary(dataset, filters));
   const metrics = remote.data ?? [];
-  if (answerStat) return <div className="stat-content"><p className="panel-note">{answerStat.scope} · {answerStat.period}</p><div className="stat-value">{(answerStat.unit === 'risk' ? answerStat.value * 100 : answerStat.value).toLocaleString(undefined, { maximumFractionDigits: 2 })}{answerStat.unit === 'risk' ? '%' : ''}<span>{answerStat.label}{answerStat.unit === 'percentile' ? ' · percentile' : ''}</span></div><p className="panel-note">From the agent's cited result.</p></div>;
+  const statValue = answerStat?.value ?? null;
+  // A missing or not-covered count shows "Not available" and why, never 0.
+  if (answerStat && statValue === null) return <div className="stat-content"><p className="panel-note">{answerStat.scope} · {answerStat.period}</p><div className="stat-value stat-unavailable">Not available<span>{answerStat.label}</span></div><p className="panel-note">{answerStat.unavailableReason}</p></div>;
+  if (answerStat && statValue !== null) return <div className="stat-content"><p className="panel-note">{answerStat.scope} · {answerStat.period}</p><div className="stat-value">{(answerStat.unit === 'risk' ? statValue * 100 : statValue).toLocaleString(undefined, { maximumFractionDigits: 2 })}{answerStat.unit === 'risk' ? '%' : ''}<span>{answerStat.label}{answerStat.unit === 'percentile' ? ' · percentile' : ''}</span></div><p className="panel-note">From the agent's cited result.</p></div>;
   return <div className="analysis-chart stat-panel"><div className="stat-toolbar"><DatasetSelect hideLabel value={dataset} onChange={dataset => update({ dataset })} /><ChartFilters filters={filters} onChange={filters => update({ filters })} dataset={dataset} /></div>
     <ExportActions datasets={[dataset]} disabled={Boolean(validation||remote.error||remote.loading)} rows={()=>metrics.map(metric=>({dataset:configFor(dataset).name,metric:metric.id,value:metric.value,missing_records:metric.missing,unit:metric.unit,...filters}))} />
     {validation || remote.error || remote.loading ? <LoadState loading={remote.loading} error={validation || remote.error} retry={remote.error ? remote.retry : undefined} /> : <dl className="stat-metrics" aria-label={`${configFor(dataset).name} summary`}>
@@ -63,9 +67,9 @@ function MedicalExposureCard() {
     <div className="stat-toolbar"><ChartFilters filters={filters} onChange={filters => update({ filters })} dataset="epss" /></div>
     <ExportActions datasets={['epss']} disabled={Boolean(validation||remote.error||remote.loading)} rows={()=>metrics.map(metric=>({dataset:'EPSS',metric:metric.id,value:metric.value,missing_records:metric.missing,unit:metric.unit,...filters}))} />
     {validation || remote.error || remote.loading ? <LoadState loading={remote.loading} error={validation || remote.error} retry={remote.error ? remote.retry : undefined} /> : <>
-      <p className="panel-note">Exposure during PG&amp;E EPSS outages; totals are customer-events, not deduplicated customers.</p>
+      <p className="panel-note">Exposure during {soleUtilityLabel('epss_outages')} EPSS outages; totals are customer-events, not deduplicated customers.</p>
       <dl className="stat-metrics" aria-label="EPSS medical baseline and life support exposure">
-        {metrics.map(metric => <div key={metric.id} className="stat-metric"><dt>{metric.label}{metric.missing > 0 && <span className="stat-missing" title={`${metric.missing} records have no value for this metric`}> · {metric.missing} missing</span>}</dt><dd>{metric.value.toLocaleString()}</dd></div>)}
+        {metrics.map(metric => <div key={metric.id} className="stat-metric"><dt>{metric.label}{metric.missing > 0 && <span className="stat-missing" title={`${metric.missing} records have no value for this metric`}> · {metric.missing} missing</span>}</dt><dd>{metric.value === null ? <span title={`None of the ${metric.missing} outages has a value for this metric`}>Not available</span> : metric.value.toLocaleString()}</dd></div>)}
       </dl>
     </>}
   </div>;

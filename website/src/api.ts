@@ -70,7 +70,8 @@ function aggregateParams(dataset: DatasetId, filters: Filters) {
 }
 // key is the service's group value; code and label come from the naming registry
 // (issue #89). Display the label.
-export interface GroupedRow {key: string; code: string; label: string; value: number | null}
+// A null value is outside measured coverage; reason says why (never a zero).
+export interface GroupedRow {key: string; code: string; label: string; value: number | null; reason?: string}
 export interface GroupedCounts {rows: GroupedRow[]; total: number; multi_county_incidents?: number; note?: string}
 // A CAL FIRE incident that lists several counties ("Shasta, Tehama") counts in each
 // county it lists, so CAL FIRE county rows may sum above the incident total, and only

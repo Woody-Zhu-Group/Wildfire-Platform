@@ -28,17 +28,21 @@ from services.agent.time_resolve import (
 )
 from services.shared.dataset_registry import (
     SERIES_DATASETS,
+    ALLOWED_RANK_PAIRS,
     ALL_CAUSES_AFTER_IGNITIONS_PATTERN,
     ALL_CAUSES_BEFORE_IGNITIONS_PATTERN,
     BARE_IGNITIONS_PATTERN,
     BARE_OUTAGES_PATTERN,
     CALIFORNIA_COUNTIES,
+    COMPARISON_METRIC_DATASETS,
     COUNTIES_NEEDING_QUALIFIER,
     COUNT_MAP_DATASETS,
     CPUC_OR_UTILITY_BEFORE_IGNITIONS_PATTERN,
     DATASET_QUESTION_PATTERNS,
     EVENT_DATASET_WORDS,
+    DATASETS,
     HDW_YEARS,
+    HFTD_TIER_BY_NUMBER,
     HFTD_TIER_NAMES,
     IGNITION_QUALIFIER_PATTERN,
     LAYER_VIZ_KEYS,
@@ -49,6 +53,17 @@ from services.shared.dataset_registry import (
     UTILITY_ADVICE_SUBJECT_WORDS,
     UTILITY_CLARIFY_LABELS,
     UTILITY_PATTERNS,
+    coverage_summary,
+    covered_utilities,
+    dataset_coverage_gap,
+    not_covered_question,
+    single_utility_dataset,
+)
+from services.agent.coverage import (
+    call_coverage_gap,
+    carry_question_definition,
+    not_covered_rule,
+    question_definitions,
 )
 
 
@@ -1217,6 +1232,161 @@ def _county_expressed(args: dict[str, Any], county: str) -> bool:
     return isinstance(value, str) and value.lower() == county.lower()
 
 
+def _not_covered_clarification(
+    gap: dict[str, Any],
+    slots: dict[str, Any],
+    *,
+    comparison: bool = False,
+) -> RouteDecision:
+    """A read outside measured coverage is absent, not zero (label rules I, J).
+
+    The reason, the covered utilities, and the alternatives all come from the
+    measured coverage, so the text follows the data rather than a fixed
+    sentence, and only data that exists for those utilities and that period
+    is offered.
+    """
+    named = " and ".join(gap["utilities"]) or "the period"
+    return RouteDecision(
+        "clarification",
+        not_covered_rule(gap),
+        f"{gap.get('reason')}; {named} has no {gap['dataset']} rows",
+        answer=not_covered_question(gap, comparison=comparison),
+        slots=slots,
+    )
+
+
+def _never_covered(slots: dict[str, Any], question: str) -> dict[str, Any] | None:
+    """The gap when the slot dataset has no rows for any named utility at any date.
+
+    Measured on the rows the question's count would read: the query
+    definition it asks for, or the default. A question that asks for two
+    definitions at once is left to its own clarification.
+    """
+    dataset = slots.get("dataset")
+    utilities = list(slots.get("utilities") or [])
+    if not isinstance(dataset, str) or not utilities:
+        return None
+    try:
+        asked = question_definitions(dataset, question)
+        if len(asked) > 1:
+            return None
+        definition = next(iter(asked), None)
+        return dataset_coverage_gap(dataset, utilities, definition=definition)
+    except (KeyError, ValueError):
+        return None
+
+
+def _comparison_metric(lower: str) -> str | None:
+    """Metric a comparison question names. None if unnamed.
+
+    "Outage" means EPSS unless the question names PSPS: a PSPS outage is a
+    de-energization event, not an EPSS fast-trip outage.
+    """
+    if "epss-to-ignition" in lower or "epss to ignition" in lower:
+        return "epss_to_ignition_ratio"
+    if "epss" in lower or (
+        "outage" in lower and not re.search(r"\bpsps\b", lower)
+    ):
+        return "epss_outage_count"
+    if "cal fire" in lower or "calfire" in lower:
+        return "calfire_incident_count"
+    if (
+        "ignition" in lower
+        or "wildfire activity" in lower
+        or re.search(r"\bwildfire(?:s)?\b", lower)
+    ):
+        return "ignition_count"
+    return None
+
+
+def comparison_uncarried_constraints(
+    question: str, args: dict[str, Any], slots: dict[str, Any]
+) -> list[str]:
+    """Named utilities, counties, tiers, or a month a comparison call cannot carry.
+
+    One comparison_run compares one dimension (utilities, regions, or two
+    periods of one scope) over whole-year windows, so anything else the
+    question names would be dropped. A utility is carried implicitly when the
+    metric's dataset covers only that utility (EPSS and PG&E).
+    """
+    lower = " ".join(question.lower().split())
+    kind = args.get("kind")
+    scope_type = args.get("scope_type") if kind == "periods" else None
+    carried_utilities = (
+        list(args.get("utilities") or [])
+        if kind == "utilities"
+        else [args.get("scope")] if scope_type == "utility" else []
+    )
+    carried_counties = (
+        list(args.get("regions") or [])
+        if kind == "regions" and args.get("region_type") == "county"
+        else [args.get("scope")] if scope_type == "county" else []
+    )
+    carried_tiers = (
+        list(args.get("regions") or [])
+        if kind == "regions" and args.get("region_type") == "hftd"
+        else [args.get("scope")] if scope_type == "hftd" else []
+    )
+    dataset = COMPARISON_METRIC_DATASETS.get(str(args.get("metric")))
+    only = covered_utilities(dataset) if dataset else []
+    dropped: list[str] = []
+    for utility in slots.get("utilities") or []:
+        if utility not in carried_utilities and only != [utility]:
+            dropped.append("utility")
+            break
+    counties = list(slots.get("counties") or []) or (
+        [slots["county"]] if slots.get("county") else []
+    )
+    carried_lower = {str(item).lower() for item in carried_counties}
+    if any(county.lower() not in carried_lower for county in counties):
+        dropped.append("county")
+    for digit in re.findall(r"tier\s*([23])", lower):
+        if HFTD_TIER_BY_NUMBER[digit] not in carried_tiers:
+            dropped.append("HFTD tier")
+            break
+    windows = [
+        (args.get("start_date"), args.get("end_date")),
+        (args.get("period_a_start"), args.get("period_a_end")),
+        (args.get("period_b_start"), args.get("period_b_end")),
+    ]
+    whole_years = all(
+        str(start)[5:] == "01-01" and str(end)[5:] == "12-31"
+        for start, end in windows
+        if start and end
+    )
+    if month_from_text(question) is not None and whole_years:
+        dropped.append("month")
+    # A comparison reads its dataset's default query only, so an asked
+    # non-default definition (CAL FIRE all or untyped incident types) is dropped.
+    if not carry_question_definition("comparison_run", dict(args), question):
+        dropped.append("incident type")
+    return dropped
+
+
+def _block_uncarried_comparison_constraints(
+    *, question: str, args: dict[str, Any], slots: dict[str, Any]
+) -> RouteDecision | None:
+    """Clarify a comparison that would drop a named constraint, for every metric."""
+    dropped = comparison_uncarried_constraints(question, args, slots)
+    if not dropped:
+        return None
+    labels = " and ".join(dropped)
+    return RouteDecision(
+        "clarification",
+        "unexpressed_filter_constraints",
+        f"Comparison cannot carry the asked {labels} constraints",
+        answer=(
+            f"I can see {labels} in your question, but one comparison can only "
+            "compare utilities, HFTD tiers, or two whole years for one scope, so "
+            f"it would drop the {labels}. Should I drop "
+            f"{'those constraints' if len(dropped) > 1 else 'that constraint'}, "
+            "or give separate counts for each part instead? I will not answer "
+            "with a broader comparison."
+        ),
+        slots=slots,
+    )
+
+
 def _block_unexpressed_constraints(
     *,
     question: str,
@@ -1226,32 +1396,21 @@ def _block_unexpressed_constraints(
     reason: str,
 ) -> RouteDecision | None:
     """Refuse a deterministic answer that would silently drop asked filters."""
-    epss_utility = next(
-        (
-            str(args.get("utility"))
-            for _tool, args in tool_calls
-            if args.get("dataset") in {"epss_outages", "epss"}
-            and args.get("utility")
-            and str(args.get("utility")) != "PGE"
-        ),
-        None,
-    )
-    if epss_utility:
-        # EPSS rows exist only for PG&E. Another utility's EPSS read would come
-        # back as 0 or an empty series, which is absent data, not zero events.
-        return RouteDecision(
-            "clarification",
-            "epss_non_pge_utility",
-            f"EPSS is PG&E-only; {epss_utility} has no EPSS rows",
-            answer=(
-                f"EPSS outages in this warehouse are PG&E-only, so there are no "
-                f"{epss_utility} EPSS rows: that result would be absent, not zero. "
-                f"Do you want PG&E's EPSS outages for that period, or "
-                f"{epss_utility}'s PSPS events or CPUC ignitions instead?"
-            ),
-            slots=slots,
-        )
     dropped: list[str] = []
+    for tool, args in tool_calls:
+        # The rows a count reads: a call gets the dataset's query definition
+        # the question asks for (CAL FIRE all or untyped incident types), so
+        # its coverage below is that definition's. One that cannot carry it
+        # would answer for other rows.
+        if not carry_question_definition(tool, args, question) and "incident type" not in dropped:
+            dropped.append("incident type")
+    for tool, args in tool_calls:
+        # A read outside measured coverage (a utility or a period the dataset
+        # has no rows for) would come back as 0 or an empty series: absent,
+        # not zero.
+        gap = call_coverage_gap(tool, args)
+        if gap is not None:
+            return _not_covered_clarification(gap, slots, comparison=tool == "comparison_run")
     county = slots.get("county")
     if county and not any(
         _county_expressed(args, county) for _tool, args in tool_calls
@@ -2100,15 +2259,21 @@ def _route_ranking(
             slots=slots,
         )
 
-    if group_by == "utility" and dataset == "epss_outages":
+    if group_by == "utility" and single_utility_dataset(dataset):
+        # A dataset with rows for one utility (EPSS: PG&E) has no utility
+        # dimension; offer the groupings the registry does rank it by.
+        spec = DATASETS[dataset]
+        label = STAT_LABELS.get(spec.key, spec.key)
+        groupings = sorted({group for key, group, _m in ALLOWED_RANK_PAIRS if key == spec.key})
+        by = f"rank {label} by {' or '.join(groupings)}, or " if groupings else ""
         return RouteDecision(
             "unsupported",
             "unsupported_rank_epss_utility",
-            "EPSS is PG&E-only; no utility dimension to rank",
+            f"{coverage_summary(spec.key)}; no utility dimension to rank",
             answer=(
-                "EPSS outages in this warehouse are PG&E-only; there is no "
-                "utility dimension to rank. I can rank EPSS circuits, or "
-                "compare named utilities on a metric that exists for them."
+                f"{coverage_summary(spec.key)}; there is no utility dimension to "
+                f"rank. I can {by}compare named utilities on a metric that "
+                "exists for them."
             ),
             slots=slots,
         )
@@ -2354,6 +2519,21 @@ def _predict_word_is_model_skill(text: str, lower: str) -> bool:
 
 
 def _route_question(
+    question: str, *, force_model: bool = False, skip_topic_judgments: bool = False
+) -> RouteDecision:
+    decision = _route_rules(
+        question, force_model=force_model, skip_topic_judgments=skip_topic_judgments
+    )
+    if decision.path == "clarification" and decision.rule.endswith("_missing_year"):
+        # Asking for a year cannot help when the dataset has no rows for the
+        # named utility at any date (measured coverage): say so instead.
+        gap = _never_covered(decision.slots, question)
+        if gap is not None:
+            return _not_covered_clarification(gap, decision.slots)
+    return decision
+
+
+def _route_rules(
     question: str, *, force_model: bool = False, skip_topic_judgments: bool = False
 ) -> RouteDecision:
     text = " ".join(question.strip().split())
@@ -3078,98 +3258,96 @@ def _route_question(
 
     # Explicit comparisons.
     if re.search(r"\bcompare|versus|\bvs\.?\b", lower):
-        metric: str | None = None
-        if "epss-to-ignition" in lower or "epss to ignition" in lower:
-            metric = "epss_to_ignition_ratio"
-        elif "epss" in lower or "outage" in lower:
-            metric = "epss_outage_count"
-        elif "cal fire" in lower or "calfire" in lower:
-            metric = "calfire_incident_count"
-        elif (
-            "ignition" in lower
-            or "wildfire activity" in lower
-            or re.search(r"\bwildfire(?:s)?\b", lower)
-        ):
-            metric = "ignition_count"
+        metric = _comparison_metric(lower)
+
+        # A comparison whose metric's dataset has rows for none of the named
+        # utilities (label rule I: EPSS without PG&E) would be all nulls, so
+        # clarify. With a covered utility named it runs, and the uncovered side
+        # comes back null with its reason. The named years are the periods;
+        # a built call is checked again below with its exact windows.
+        gap = (
+            dataset_coverage_gap(
+                COMPARISON_METRIC_DATASETS[metric],
+                list(utilities),
+                periods=[_range_for_year(int(item)) for item in years] or None,
+            )
+            if metric
+            else None
+        )
+        if gap is not None:
+            return _not_covered_clarification(gap, slots, comparison=True)
 
         # Two calendar years + one utility → periods. Two utilities + one year
         # → utilities. Never infer periods from a single relative year.
+        candidate: tuple[str, str, dict[str, Any]] | None = None
+        tiers = re.findall(r"tier\s*([23])", lower)
         if metric and len(years) == 2 and len(utilities) == 1:
             a_start, a_end = _range_for_year(years[0])
             b_start, b_end = _range_for_year(years[1])
-            return RouteDecision(
-                "deterministic",
+            candidate = (
                 "period_comparison",
                 "Metric, scope, and both periods are explicit",
-                tool_calls=[
-                    (
-                        "comparison_run",
-                        {
-                            "kind": "periods",
-                            "scope_type": "utility",
-                            "scope": utilities[0],
-                            "metric": metric,
-                            "period_a_start": a_start,
-                            "period_a_end": a_end,
-                            "period_b_start": b_start,
-                            "period_b_end": b_end,
-                            "ignition_definition": _ignition_definition(lower),
-                        },
-                    )
-                ],
-                slots=slots,
+                {
+                    "kind": "periods",
+                    "scope_type": "utility",
+                    "scope": utilities[0],
+                    "metric": metric,
+                    "period_a_start": a_start,
+                    "period_a_end": a_end,
+                    "period_b_start": b_start,
+                    "period_b_end": b_end,
+                    "ignition_definition": _ignition_definition(lower),
+                },
             )
-
-        if (
+        elif (
             metric
             and len(utilities) >= 2
             and year is not None
             and "us ignition" not in lower
         ):
             start, end = _range_for_year(year)
-            return RouteDecision(
-                "deterministic",
+            candidate = (
                 "utility_comparison",
                 "Metric, utilities, and year are explicit",
-                tool_calls=[
-                    (
-                        "comparison_run",
-                        {
-                            "kind": "utilities",
-                            "utilities": utilities,
-                            "metric": metric,
-                            "start_date": start,
-                            "end_date": end,
-                            "normalize": (
-                                "per_circuit" if "per circuit" in lower else "none"
-                            ),
-                            "ignition_definition": _ignition_definition(lower),
-                        },
-                    )
-                ],
-                slots=slots,
+                {
+                    "kind": "utilities",
+                    "utilities": utilities,
+                    "metric": metric,
+                    "start_date": start,
+                    "end_date": end,
+                    "normalize": "per_circuit" if "per circuit" in lower else "none",
+                    "ignition_definition": _ignition_definition(lower),
+                },
             )
-
-        tiers = re.findall(r"tier\s*([23])", lower)
-        if metric and len(set(tiers)) == 2 and year is not None:
+        elif metric and len(set(tiers)) == 2 and year is not None:
             start, end = _range_for_year(year)
-            return RouteDecision(
-                "deterministic",
+            candidate = (
                 "hftd_comparison",
                 "Metric, HFTD tiers, and year are explicit",
-                tool_calls=[
-                    (
-                        "comparison_run",
-                        {
-                            "kind": "regions",
-                            "region_type": "hftd",
-                            "regions": list(HFTD_TIER_NAMES),
-                            "metric": metric,
-                            "start_date": start,
-                            "end_date": end,
-                        },
-                    )
-                ],
+                {
+                    "kind": "regions",
+                    "region_type": "hftd",
+                    "regions": list(HFTD_TIER_NAMES),
+                    "metric": metric,
+                    "start_date": start,
+                    "end_date": end,
+                },
+            )
+        if candidate is not None:
+            rule, reason, args = candidate
+            gap = call_coverage_gap("comparison_run", args)
+            if gap is not None:
+                return _not_covered_clarification(gap, slots, comparison=True)
+            blocked = _block_uncarried_comparison_constraints(
+                question=text, args=args, slots=slots
+            )
+            if blocked:
+                return blocked
+            return RouteDecision(
+                "deterministic",
+                rule,
+                reason,
+                tool_calls=[("comparison_run", args)],
                 slots=slots,
             )
         return RouteDecision(

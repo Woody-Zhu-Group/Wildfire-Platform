@@ -24,7 +24,21 @@ dataset/metric, scope, and required time/location slots are explicit:
   map alone
 - an EPSS read for a utility other than PG&E (count, series, map, or pair) →
   clarification `epss_non_pge_utility`: EPSS rows exist only for PG&E, so the
-  result would be absent, not zero
+  result would be absent, not zero. The same rule covers every comparison on an
+  EPSS metric (`epss_outage_count`, `epss_to_ignition_ratio`: period, utility,
+  HFTD, or an open comparison) where no named utility is PG&E; that
+  clarification offers the utility's PSPS events or CPUC ignitions. A
+  comparison that names PG&E still runs, and the non-PG&E side is null with
+  its reason. "Outage" in a comparison means EPSS unless the question names PSPS
+- a comparison that would drop a named utility, county, HFTD tier, or month
+  (one `comparison_run` compares utilities, tiers, or two whole years of one
+  scope) → clarification `unexpressed_filter_constraints`, for every metric.
+  "Compare SCE ignitions tier 2 vs tier 3 in 2023" used to return statewide
+  tier counts. A utility counts as carried when the metric's dataset covers
+  only that utility (a PG&E EPSS tier comparison runs). The Jev comparison
+  template applies the same check (`comparison_uncarried_constraints`), and on
+  the model path any run that includes a comparison must cover every named
+  utility, county, year, and tier or it stops with a clarification
 - a US-sample question restricted to a utility (map, count, series, rank, or a
   comparison with CPUC) → clarification `us_sample_utility_filter` (label rule
   J): the sample has no utility column, so the router offers the national
@@ -188,6 +202,120 @@ Jev off) they stay out of the evidence, so neither synthesis nor the fallback
 text can show them, and the trajectory records `derived_evidence_withheld`.
 With Jev off, a change question over two model reads therefore gets both
 counts and no computed change.
+
+## Dataset coverage in the executor
+
+`ToolExecutor.execute` is the one guarantee that a read never reports a zero
+for a utility or period its dataset does not cover, on every path (router,
+model, Jev templates, slot planner). Coverage is measured, never declared: the
+loaders write `shared/dataset_coverage.json` (which utilities each dataset has
+rows for, each one's first and last date, and rows per calendar year; see
+`db/README.md`), and the registry reads it (`dataset_coverage_gap`). A utility
+is covered from its first row to the dataset's last row; a read with no utility
+is checked against the dataset's own dates. A period whose every year has no
+rows in the dataset at all is not covered either (CAL FIRE's default count has
+one 2009 row and none from 2010 to 2013: "CAL FIRE incidents of the default
+incident types (...) have no rows between 2009 and 2014"). Coverage is that of
+the rows the call counts: a CAL FIRE call's `incident_type_mode` picks the
+measured definition (`call_definition`), so a 2013 count answers for `all` or
+`untyped` and is not covered for the default. The router and the Jev templates
+give a call the definition its question asks for, in the registry's wording
+(`carry_question_definition` in `services/agent/coverage.py`), and a call that
+cannot carry it (a comparison) is `unexpressed_filter_constraints`. For example, CPUC has rows for PacifiCorp (from
+2025-04-24), PG&E, SCE, and SDG&E only; PSPS for PG&E, SCE, SDG&E, and Liberty
+from 2021-10-11; EPSS for PG&E from 2021-11-01.
+
+`services/agent/coverage.py` applies that to one call (`call_coverage_gap`:
+the call's dataset, named utilities, and periods, a year becoming that
+calendar year). A `data_query_records`, `data_query_rank`,
+`data_query_spatial`, `visualization_create`, or `comparison_run` call with
+nothing covered returns `ok: false` with code `not_covered` (not recoverable),
+the reason, and `not_covered` details (dataset, utilities, periods, covered
+utilities, alternatives), and no service is called. A comparison with one
+covered side (a utility, or one of two periods) runs, and the uncovered side
+comes back null with its reason. The orchestrator turns a `not_covered` result
+into a clarification on the deterministic path, the Jev template path, and the
+model loop (which stops at the first one). The router checks the same call
+before it answers (`dataset_not_covered`, label rule K, or `epss_non_pge_utility` and
+`us_sample_utility_filter` when a named utility has no rows in EPSS or the US
+sample at all: label rules I and J), and a `*_missing_year` clarification
+becomes the not-covered one when the dataset has no rows for the named utility
+at any date, since a year cannot help. The Jev templates and the slot planner
+read the same check (`not_covered_rule` gives the rule id); none of them names
+a utility.
+
+A clarification offers only data with measured rows: an alternative dataset
+(the spec's `not_covered_alternatives`, in order) only where it has rows for
+every named utility in every asked period (`rows_in_period`); another
+utility's rows only when the dataset covers exactly one and has its rows in
+that period (EPSS: PG&E); and a named utility's own later dates ("PG&E's PSPS
+events from 2021-10-11 on"). A window that merely overlaps the period is not
+enough. Rows are known to exist in a period that holds a whole calendar year
+with rows, or holds the utility's first or last row date; a period that only
+touches part of a year with rows is not offered. Each offer is first stated as
+the records it holds ("CPUC ignitions have records for SDG&E in 2022."), then
+asked. So "SDG&E EPSS outages in 2023" offers PG&E's EPSS outages and SDG&E's
+CPUC ignitions but not PSPS (SDG&E has no PSPS rows in 2022 or 2023),
+"Liberty CPUC ignitions in 2023" offers nothing (Liberty has no CAL FIRE rows
+in 2023 and its PSPS rows start 2024-11-11), and "PacifiCorp vs PG&E PSPS in
+2019" offers CAL FIRE only.
+
+Coverage is measured per dataset, utility, and year, so an offer cannot keep a
+county, HFTD tier, circuit, map area, location, minimum acreage, or region
+filter. `unmeasured_filters` in `coverage.py` names those on the gap, and the
+clarification says so ("That offer drops the Los Angeles County filter."). The
+model-path clarification is the same registry question (`not_covered_question`),
+so no offer is asked when there is none.
+
+The time resolver's first year (`DATA_YEAR_MIN` in `time_resolve.py`) is the
+first year any dataset has rows, from the same file (2009). A year before it is
+`time_out_of_coverage`; a year from it on resolves, and the asked dataset's own
+coverage decides: "How many CAL FIRE incidents were there in 2013?" answers,
+and "How many ignitions did SDG&E report in 2009?" is `dataset_not_covered`
+("CPUC ignitions for SDG&E start on 2020-01-29").
+
+Coverage also applies per number. One result can hold counts for several
+datasets (a spatial summary for SCE territory counts CPUC ignitions, EPSS
+outages, and CAL FIRE incidents inside it, and EPSS comes back 0 because it
+holds PG&E circuits only). After any tool returns, `mark_uncovered_counts`
+resolves each key of the result's `counts` to its dataset through the registry;
+a count whose dataset does not cover the named utility in the call's period
+becomes `None`, with the reason under `summary.not_covered`. An unknown count
+key raises. A comparison's values are checked side by side the same way (a
+service value outside coverage is nulled even if a service returns a number),
+and a covered count whose period runs past measured coverage gets a note
+saying which part it counts (`summary.coverage_notes`: "the count in 2021
+covers only 2021-11-01 to 2021-12-31"). Then:
+
+- the answer text says the count is not covered, once, on every path
+  (`_with_not_covered_notes`, the last step of `_ensure_readable_answer`); the
+  deterministic line reads `epss_outages=not covered`;
+- the stat card for that count has `value: null` and `unavailable_reason`
+  (`StatCardViewParams` allows no value only with a reason, and grounding
+  accepts it only when the cited evidence has no value for that count either),
+  and the website shows "Not available" with the reason instead of a number;
+- a synthesized answer that states a number beside that dataset's registry
+  names ("0 EPSS outages") fails grounding (`_uncovered_count_claims`), even
+  when the same number appears elsewhere in the evidence, and falls back to
+  the evidence.
+
+A missing count is never a zero either. Where a count used to default to 0
+(`or 0` in the count, spatial, and rank renders), a missing total or count now
+renders as not available with its reason: the stat card has no value and an
+`unavailable_reason` (the service's `empty_reason`, or that the service returned
+no total), the fallback text reads `count: not available`, and a rank headline
+without a group total says the number of groups is not available. On the
+website, a medical-exposure total whose every outage lacks the value, and the
+cumulative-acres count of incidents without acreage before the records load,
+also read "not available" instead of 0.
+
+A comparison answer (`_render_comparison_answer` in `orchestrator.py`) is
+plain sentences on every comparison route. A null value is never shown as
+`None`: the sentence names the service's reason, says no change can be
+computed when either period is null, and names the data with records for
+that utility in that period (for EPSS in 2022, "PSPS events and CPUC ignitions
+have records for SCE in 2022"; for a county PSPS comparison, the datasets that
+carry a county).
 
 ## Views
 

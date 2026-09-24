@@ -29,3 +29,12 @@ export function cumulativeAcres(
   }
   return {points, total, missing};
 }
+
+// The panel caption. The count of incidents without acreage is known only once
+// the records load; before that it is not available, never 0.
+export function cumulativeCaption(start: string, end: string, missing: number | null | undefined): string {
+  const acreage = typeof missing === 'number'
+    ? `${missing.toLocaleString()} incidents have no acreage.`
+    : 'The number of incidents without acreage is not available until the records load.';
+  return `CAL FIRE incident-map feed; ${start} – ${end}; cumulative reported acres. ${acreage}`;
+}

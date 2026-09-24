@@ -45,8 +45,9 @@ test('EPSS uses nested outages and keeps unknown, missing and unavailable values
   assert.equal(causes.total, 3);
   assert.deepEqual(causes.rows.map(row => row.key).sort(), ['Not recorded', 'Unknown', 'Weather']);
   assert.deepEqual((await getGroupedCounts('epss', DEFAULT_FILTERS, 'utility')).rows, [
-    {key: 'PG&E', code: 'PGE', label: 'PG&E', value: 3}, {key: 'SCE', code: 'SCE', label: 'SCE', value: null},
-    {key: 'SDG&E', code: 'SDGE', label: 'SDG&E', value: null},
+    {key: 'PG&E', code: 'PGE', label: 'PG&E', value: 3},
+    {key: 'SCE', code: 'SCE', label: 'SCE', value: null, reason: 'EPSS has rows only for PG&E. This utility has no EPSS data.'},
+    {key: 'SDG&E', code: 'SDGE', label: 'SDG&E', value: null, reason: 'EPSS has rows only for PG&E. This utility has no EPSS data.'},
   ]);
   const metrics = await getSummary('epss', DEFAULT_FILTERS);
   assert.equal(metrics.find(metric => metric.id === 'circuits')?.value, 2);
@@ -109,7 +110,7 @@ test('default aggregation refuses incomplete records and invalid filters', async
   await assert.rejects(getGroupedCounts('cpuc', DEFAULT_FILTERS, 'county'), /pagination stopped/);
   assert.equal(fetch.mock.callCount(), 2);
   await assert.rejects(getSummary('psps', {...DEFAULT_FILTERS, county: 'Marin'}), /not available/);
-  await assert.rejects(getRegionalSeries({...DEFAULT_FILTERS, utility: 'SCE'}, 'monthly'), /PG&E only/);
+  await assert.rejects(getRegionalSeries({...DEFAULT_FILTERS, utility: 'SCE'}, 'monthly'), /rows only for PG&E/);
   assert.equal(fetch.mock.callCount(), 2);
 });
 
@@ -139,7 +140,7 @@ test('both client modes block unsupported EPSS summaries before upstream can ret
   const fetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Unsupported scope must not reach the backend'); });
   for (const useDataQuery of [false, true]) {
     const client = createWorkspaceAggregates(useDataQuery);
-    await assert.rejects(client.getSummary('epss', {...DEFAULT_FILTERS, utility: 'SCE'}), /PG&E only/);
+    await assert.rejects(client.getSummary('epss', {...DEFAULT_FILTERS, utility: 'SCE'}), /rows only for PG&E/);
   }
   assert.equal(fetch.mock.callCount(), 0);
 });

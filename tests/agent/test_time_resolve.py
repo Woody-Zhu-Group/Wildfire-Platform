@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from services.agent.time_resolve import resolve_time, year_guard_error
+from services.agent.time_resolve import DATA_YEAR_MIN, resolve_time, year_guard_error
 
 
 TODAY = date(2026, 8, 10)
@@ -205,9 +205,11 @@ def test_open_range_end_is_capped_at_coverage():
 
 
 def test_open_range_outside_coverage_clarifies():
-    before = resolve_time("ignitions since 2010", today=TODAY)
+    # The year before the first measured row of any dataset.
+    early = DATA_YEAR_MIN - 1
+    before = resolve_time(f"ignitions since {early}", today=TODAY)
     assert before.status == "out_of_coverage"
-    assert "2010" in before.reason
+    assert str(early) in before.reason
     after = resolve_time("ignitions since December 2026", today=TODAY)
     assert after.status == "out_of_coverage"
     assert after.start_date is None
@@ -334,7 +336,8 @@ def test_a_month_range_across_a_year_boundary_is_ambiguous():
 
 
 def test_a_month_range_outside_coverage_clarifies():
-    assert resolve_time("PGE ignitions from March to June 2010", today=TODAY).status == (
+    early = DATA_YEAR_MIN - 1
+    assert resolve_time(f"PGE ignitions from March to June {early}", today=TODAY).status == (
         "out_of_coverage"
     )
 

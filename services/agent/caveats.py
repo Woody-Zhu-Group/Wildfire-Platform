@@ -14,7 +14,7 @@ from services.agent.places import (
 )
 from services.agent.routing import city_point_for_question
 from services.agent.tools import ToolExecution, ToolExecutor
-from services.shared.dataset_registry import DATASETS
+from services.shared.dataset_registry import DATASETS, coverage_summary, coverage_window
 
 # Static catalog text. Dynamic caveats (CAL FIRE missingness counts,
 # US sample notes from service meta, ignition definition pairs) format
@@ -29,9 +29,11 @@ CAVEAT_TEXT = {
         "US ignitions are an all-cause FireCastRL classification sample, "
         "not a complete census and not comparable to CPUC utility ignitions."
     ),
+    # From measured coverage (shared/dataset_coverage.json), not written by hand.
     "epss_pge_only": (
-        "EPSS data in this warehouse is PG&E-only. Other utilities are "
-        "not zero; comparison results must be null with a reason."
+        f"{coverage_summary('epss_outages')} in this warehouse, starting "
+        f"{coverage_window('epss_outages')[0].isoformat()}. Other utilities and "
+        "earlier dates are not zero; comparison results must be null with a reason."
     ),
     "calfire_map_feed_counts": (
         "CAL FIRE rows in this warehouse are the fire.ca.gov incident-map "

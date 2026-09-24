@@ -39,7 +39,7 @@ test('unsupported geographic filters are rejected before any fetch', async t => 
   clearDataCache();
   t.after(clearDataCache);
   const fetch = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Unexpected fetch'); });
-  await assert.rejects(getLayer('epss', {...DEFAULT_FILTERS, utility: 'SCE'}), /PG&E only/);
+  await assert.rejects(getLayer('epss', {...DEFAULT_FILTERS, utility: 'SCE'}), /rows only for PG&E/);
   await assert.rejects(getLayer('us_ignitions', {...DEFAULT_FILTERS, county: 'Marin'}), /do not support/);
   await assert.rejects(getLayer('us_ignitions', {...DEFAULT_FILTERS, utility: 'PG&E'}), /do not support/);
   await assert.rejects(getLayer('psps', {...DEFAULT_FILTERS, county: 'Marin'}), /not available/);

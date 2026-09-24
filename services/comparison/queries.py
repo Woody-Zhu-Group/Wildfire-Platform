@@ -13,7 +13,11 @@ from services.shared.calfire_county import (
     county_overlap_sql,
     multi_county_sql,
 )
-from services.shared.dataset_registry import calfire_default_type_sql
+from services.shared.dataset_registry import (
+    calfire_default_type_sql,
+    covered_utilities,
+    dataset_coverage_gap,
+)
 
 ScopeKind = Literal["utility", "county", "hftd"]
 
@@ -49,8 +53,8 @@ def hftd_km2(conn: psycopg.Connection, tier: str) -> float | None:
 
 
 def circuit_count_utility_attribute(conn: psycopg.Connection, utility: str) -> int | None:
-    """EPSS circuits inventory is PGE-only; only PGE gets a denominator."""
-    if utility != "PGE":
+    """The circuits inventory gives a denominator only for the utilities it has rows for."""
+    if utility not in covered_utilities("circuits"):
         return None
     with conn.cursor() as cur:
         cur.execute("SELECT count(*) FROM wildfire.circuits")
@@ -132,10 +136,6 @@ def epss_outage_count(
     start: date,
     end: date,
 ) -> tuple[int | None, str | None]:
-    from services.comparison.metrics import REASON_EPSS_PGE_ONLY
-
-    if scope == "utility" and scope_id != "PGE":
-        return None, REASON_EPSS_PGE_ONLY
     with conn.cursor() as cur:
         if scope == "utility":
             cur.execute(
@@ -374,9 +374,23 @@ def raw_metric(
     ignition_definition: str,
 ) -> tuple[float | int | None, str | None]:
     from services.comparison.metrics import (
+        METRIC_DATASETS,
         REASON_COMPONENT_NULL,
         REASON_ZERO_IGNITIONS,
     )
+
+    # A value outside measured coverage (a utility or a period the dataset
+    # has no rows for) is null with its reason, never a zero. A ratio needs
+    # both of its datasets covered.
+    datasets = (
+        ("epss_outages", "cpuc_ignitions")
+        if metric == "epss_to_ignition_ratio"
+        else (METRIC_DATASETS[metric],)
+    )
+    for dataset in datasets:
+        gap = coverage_gap(dataset, scope=scope, scope_id=scope_id, start=start, end=end)
+        if gap is not None:
+            return None, gap["reason"]
 
     if metric == "ignition_count":
         return ignition_count(
@@ -439,6 +453,19 @@ def raw_metric(
     raise ValueError(metric)
 
 
+def coverage_gap(
+    dataset: str,
+    *,
+    scope: ScopeKind,
+    scope_id: str,
+    start: date,
+    end: date,
+) -> dict[str, Any] | None:
+    """The measured coverage gap for one comparison value, or None when covered."""
+    utilities = [scope_id] if scope == "utility" else []
+    return dataset_coverage_gap(dataset, utilities, start, end)
+
+
 def normalization_denominator(
     conn: psycopg.Connection,
     *,
@@ -447,7 +474,7 @@ def normalization_denominator(
     normalize: str,
 ) -> tuple[float | int | None, str | None]:
     from services.comparison.metrics import (
-        REASON_CIRCUITS_PGE,
+        REASON_CIRCUITS_SCOPE,
         REASON_NO_COUNTY_AREA,
     )
 
@@ -463,11 +490,11 @@ def normalization_denominator(
         return km2, None if km2 is not None else "HFTD tier not found"
     # per_circuit
     if scope == "county":
-        return None, REASON_CIRCUITS_PGE
+        return None, REASON_CIRCUITS_SCOPE
     if scope == "utility":
         n = circuit_count_utility_attribute(conn, scope_id)
         if n is None:
-            return None, REASON_CIRCUITS_PGE
+            return None, REASON_CIRCUITS_SCOPE
         return n, None
     n = circuit_count_spatial(conn, kind="hftd", region_id=scope_id)
     return n, None
