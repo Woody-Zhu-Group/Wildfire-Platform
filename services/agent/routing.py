@@ -2126,7 +2126,7 @@ def _route_ranking(
             answer=(
                 "Which dataset and grouping should I rank? I can rank counties "
                 "or utilities in CPUC ignitions, counties in CAL FIRE incidents, "
-                "or circuits in EPSS outages — for one year or date range."
+                "or circuits in EPSS outages, for one year or date range."
             ),
             slots=slots,
         )
