@@ -14,8 +14,10 @@ Only model-proposed arguments pass through here; deterministic router calls do n
 from __future__ import annotations
 
 import re
+from datetime import date
 from typing import Any
 
+from services.agent.time_resolve import call_window
 from services.shared.dataset_registry import (
     ALL_INCIDENT_TYPES_PATTERN,
     CALIFORNIA_COUNTIES,
@@ -297,14 +299,21 @@ def named_entities(
     utilities: list[str] | None,
     county: str | None,
     years: list[int] | None,
+    months: list[str] | None = None,
 ) -> dict[str, list[Any]]:
-    """Entities a multi-part question names, each of which must be covered by a call."""
+    """Entities a multi-part question names, each of which must be covered by a call.
+
+    ``months`` are calendar months named as separate periods (``YYYY-MM``,
+    ``named_month_periods``): "July 2023 and August 2023" names two, and a
+    July read alone does not answer it.
+    """
     tiers = sorted(named_tiers(question))
     return {
         "utility": list(utilities or []),
         "county": named_counties(question, county),
         "year": sorted(set(years or [])),
         "tier": tiers if len(tiers) > 1 else [],
+        "month": list(dict.fromkeys(months or [])),
     }
 
 
@@ -314,6 +323,35 @@ def _years_in_range(start: Any, end: Any) -> set[int]:
     except (TypeError, ValueError):
         return set()
     return set(range(first, last + 1)) if first <= last else set()
+
+
+def _month_of(day: date) -> str:
+    return f"{day.year}-{day.month:02d}"
+
+
+def _months_covered(arguments: dict[str, Any], named: list[str]) -> set[str]:
+    """Named months (``YYYY-MM``) a call reads, when it reads nothing else.
+
+    A call covers a named month when its window overlaps that month and lies
+    wholly inside the named months. A July call covers July only, so a July
+    and August question is not answered from July alone. One call over July
+    and August covers both, as a written span covers each of its years. A
+    call over all of 2023, or over October 2022 to October 2023 for "October
+    2022 and October 2023", reads months the question never named and covers
+    none of them.
+    """
+    window = call_window(arguments)
+    if window is None or not named:
+        return set()
+    start, end = date.fromisoformat(window[0]), date.fromisoformat(window[1])
+    months: list[str] = []
+    day = date(start.year, start.month, 1)
+    while day <= end:
+        months.append(_month_of(day))
+        day = date(day.year + 1, 1, 1) if day.month == 12 else date(day.year, day.month + 1, 1)
+    if any(month not in named for month in months):
+        return set()
+    return set(months)
 
 
 def _covered(arguments: dict[str, Any], tool: str) -> dict[str, set[Any]]:
@@ -358,10 +396,17 @@ def uncovered_entities(
     calls: list[tuple[str, dict[str, Any]]],
 ) -> list[str]:
     """Named entities no successful primary call covered, as "kind:value" labels."""
-    covered: dict[str, set[Any]] = {"utility": set(), "county": set(), "year": set(), "tier": set()}
+    covered: dict[str, set[Any]] = {
+        "utility": set(),
+        "county": set(),
+        "year": set(),
+        "tier": set(),
+        "month": set(),
+    }
     for tool, arguments in calls:
         for kind, values in _covered(arguments, tool).items():
             covered[kind] |= values
+        covered["month"] |= _months_covered(arguments, list(entities.get("month") or []))
     missing: list[str] = []
     for kind, values in entities.items():
         if not values:

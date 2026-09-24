@@ -43,7 +43,7 @@ from services.agent.schemas import (
     openai_tools,
 )
 from services.agent.streaming import ProgressCallback
-from services.agent.time_resolve import call_window
+from services.agent.time_resolve import CallWindows, call_window, named_month_periods
 from services.agent.tools import ToolExecution, ToolExecutor
 from services.agent.views import dump_planned, empty_views_payload, plan_views
 from services.shared.dataset_registry import EVENT_DATASET_WORDS, UTILITY_POSSESSIVE_NAMES
@@ -339,16 +339,21 @@ class AgentOrchestrator:
         }
         return final
 
-    def _range_endpoints_cover(self, decision: RouteDecision) -> bool:
-        """Whether two endpoint reads cover a written range for this question.
+    def _jev_reads_change(self, decision: RouteDecision) -> bool:
+        """Whether Jev reads the question as a comparison or trend, at the gate.
 
-        Which years a written range names takes meaning: "how did X change
-        from 2020 to 2023" wants the two endpoints, "how many from 2020 to
-        2023" wants every year. That is Jev's existing intent fact. Only when
-        decide mode has Jev's facts and Jev reads compare or trend at or above
-        the decline gate do the endpoints satisfy coverage; a count or records
-        intent, a reading below the gate, a Jev error, or Jev off keep the
-        full-range rule, as on main.
+        Two policies turn on what a question asks for, and that takes meaning,
+        so both read Jev's existing intent fact and no wording:
+        - Coverage of a written range: "how did X change from 2020 to 2023"
+          wants the two endpoints, "how many from 2020 to 2023" wants every
+          year.
+        - Derived change figures: a difference, percent change, or ratio
+          belongs in the answer only when the question asks how things
+          changed or compare; "list PG&E ignitions in 2019 and in 2023" has
+          two periods but asks for neither.
+        Only when decide mode has Jev's facts and Jev reads compare or trend
+        at or above the decline gate is this true; a count or records intent,
+        a reading below the gate, a Jev error, or Jev off make it false.
         """
         jev = decision.slots.get("jev_decide") or {}
         intent = jev.get("jev_intent")
@@ -516,9 +521,9 @@ class AgentOrchestrator:
                             response=response, raw_log=raw_log
                         )
                 city = decision.slots.get("city_point") or {}
-                # A deterministic period comparison answers a change question
-                # only with the harness-derived difference and percentage.
-                self._attach_derived(question, executions, trajectory)
+                # Counts over two periods get the harness-derived change
+                # figures only when Jev reads the question as a change.
+                self._attach_derived(question, decision, executions, trajectory)
                 answer = _render_deterministic(
                     executions,
                     place_label=(
@@ -575,7 +580,7 @@ class AgentOrchestrator:
                         time_resolution=decision.slots.get("time_resolution"),
                         on_event=on_event,
                         cancel_event=cancel_event,
-                        range_endpoints_cover=self._range_endpoints_cover(decision),
+                        range_endpoints_cover=self._jev_reads_change(decision),
                     )
                 else:
                     (
@@ -708,7 +713,7 @@ class AgentOrchestrator:
             elif need_synthesis:
                 # Changes, differences, percents, and ratios come from the
                 # harness, never from the model; synthesis cites this evidence.
-                self._attach_derived(question, executions, trajectory)
+                self._attach_derived(question, decision, executions, trajectory)
                 await self._emit(
                     on_event,
                     "synthesizing",
@@ -831,17 +836,40 @@ class AgentOrchestrator:
             return fallback
         return primary
 
-    @staticmethod
     def _attach_derived(
+        self,
         question: str,
+        decision: RouteDecision,
         executions: list[ToolExecution],
         trajectory: list[dict[str, Any]],
     ) -> None:
-        """Append the harness arithmetic evidence once, when the question asks for it."""
+        """Append the harness arithmetic evidence once, when Jev reads a change.
+
+        ``derive_arithmetic`` pairs counts by call structure alone, so any two
+        periods of one measure pair up, including a listing of two years that
+        asked for no change. Whether the question wants a difference, percent
+        change, or ratio is meaning, so the figures are attached only when
+        Jev's intent fact is compare or trend at or above the decline gate
+        (``_jev_reads_change``). Otherwise they stay out of the evidence, so
+        neither synthesis nor the deterministic fallback text can show them,
+        and the trajectory records that they were withheld.
+        """
         if any(item.tool == DERIVED_TOOL for item in executions):
             return
         derived = derive_arithmetic(question, executions)
         if derived is None:
+            return
+        if not self._jev_reads_change(decision):
+            jev = decision.slots.get("jev_decide") or {}
+            trajectory.append(
+                {
+                    "type": "derived_evidence_withheld",
+                    "reason": "jev intent is not compare or trend at the decline gate",
+                    "jev_intent": jev.get("jev_intent"),
+                    "jev_intent_confidence": jev.get("jev_intent_confidence"),
+                    "derivation_count": len(derived.summary["derivations"]),
+                }
+            )
             return
         executions.append(derived)
         trajectory.append(
@@ -865,7 +893,7 @@ class AgentOrchestrator:
         utilities: list[str] | None,
         allow_untagged: bool,
         time_resolution: dict[str, Any] | None,
-        turn_windows: list[tuple[str, str] | None] | None = None,
+        call_windows: CallWindows | None = None,
     ) -> dict[str, Any]:
         """The arguments a model call will run with after harness correction.
 
@@ -886,7 +914,7 @@ class AgentOrchestrator:
                 allow_untagged=allow_untagged,
                 time_resolution=time_resolution,
                 harness_call=False,
-                turn_windows=turn_windows,
+                call_windows=call_windows,
             )
         except Exception:  # noqa: BLE001
             return args
@@ -908,7 +936,7 @@ class AgentOrchestrator:
         qualification_call: bool = False,
         harness_call: bool = False,
         allow_untagged: bool = False,
-        turn_windows: list[tuple[str, str] | None] | None = None,
+        call_windows: CallWindows | None = None,
     ) -> ToolExecution:
         self._raise_if_cancelled(cancel_event)
         if tool in HARNESS_TOOL_MODELS and not harness_call:
@@ -943,7 +971,7 @@ class AgentOrchestrator:
                 allow_untagged=allow_untagged,
                 time_resolution=time_resolution,
                 harness_call=harness_call,
-                turn_windows=turn_windows,
+                call_windows=call_windows,
             )
             if callable(preview)
             else args
@@ -970,7 +998,7 @@ class AgentOrchestrator:
             time_resolution=time_resolution,
             qualification_call=qualification_call,
             harness_call=harness_call,
-            turn_windows=turn_windows,
+            call_windows=call_windows,
         )
         if not result.ok and _should_harness_retry(result):
             # Keep the failed attempt visible for recovery scoring, then retry
@@ -1035,7 +1063,7 @@ class AgentOrchestrator:
                 time_resolution=time_resolution,
                 qualification_call=qualification_call,
                 harness_call=harness_call,
-                turn_windows=turn_windows,
+                call_windows=call_windows,
             )
         await self._emit(
             on_event,
@@ -1214,6 +1242,9 @@ class AgentOrchestrator:
         # covered yet.
         entity_years = list(years or []) or ([year] if year else [])
         resolution = time_resolution or {}
+        # The window of every successful model call for this question, across
+        # all model turns, so the hold rule never judges a call by its turn.
+        call_windows = CallWindows()
         if (
             range_endpoints_cover
             and resolution.get("start_date")
@@ -1225,12 +1256,23 @@ class AgentOrchestrator:
             # reading (a total, Jev below the gate, a Jev error, or Jev off)
             # every year in the range must be covered, as on main.
             written = {int(value) for value in re.findall(r"\b(20\d{2})\b", question)}
-            entity_years = [item for item in entity_years if item in written] or entity_years
+            endpoint_years = [item for item in entity_years if item in written]
+            if len(endpoint_years) > 1:
+                entity_years = endpoint_years
+                # Coverage asks for each endpoint on its own, so a lone call
+                # on one of them is a planned read the hold rule keeps, even
+                # when the model sends one call per turn.
+                call_windows = CallWindows(
+                    endpoints=frozenset(
+                        (f"{item}-01-01", f"{item}-12-31") for item in endpoint_years
+                    )
+                )
         entities = named_entities(
             question,
             utilities=utilities,
             county=county,
             years=entity_years,
+            months=named_month_periods(question),
         )
         check_coverage = any(len(values) > 1 for values in entities.values())
         trajectory.append(
@@ -1373,9 +1415,10 @@ class AgentOrchestrator:
             turn_results: dict[tuple[str, str], ToolExecution] = {}
             turn_had_success = False
             turn_had_failure = False
-            # The windows of every call in this turn, so the hold rule can see
-            # when the model split a range into distinct periods on purpose.
-            turn_windows = _turn_windows(reply.tool_calls)
+            # The hold rule sees this turn's calls beside every earlier
+            # successful call for the question: a model that sends one period
+            # per turn splits the range as surely as one that sends both at once.
+            turn_windows = call_windows.with_calls(_turn_windows(reply.tool_calls))
             for call in reply.tool_calls:
                 function = call.get("function") or {}
                 tool = str(function.get("name") or "")
@@ -1437,7 +1480,7 @@ class AgentOrchestrator:
                     utilities=utilities,
                     allow_untagged=allow_untagged,
                     time_resolution=time_resolution,
-                    turn_windows=turn_windows,
+                    call_windows=turn_windows,
                 )
                 cache_key = (
                     tool,
@@ -1509,13 +1552,14 @@ class AgentOrchestrator:
                         trajectory=trajectory,
                         on_event=on_event,
                         cancel_event=cancel_event,
-                        turn_windows=turn_windows,
+                        call_windows=turn_windows,
                     )
                     turn_results[cache_key] = execution
                     executions.append(execution)
                     trajectory.append(_execution_event(execution))
                     if execution.ok:
                         successful_cache[cache_key] = execution
+                        call_windows = call_windows.with_calls([call_window(args)])
                     else:
                         fingerprint = _failure_fingerprint(execution)
                         if fingerprint is not None:

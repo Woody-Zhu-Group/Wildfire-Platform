@@ -114,13 +114,26 @@ class ScriptedProvider:
         )
 
 
-def _ask(provider: ScriptedProvider) -> dict:
+def _ask(provider: ScriptedProvider, *, jev_intent: tuple[str, float] | None = ("compare", 0.95)) -> dict:
+    """Decide mode with Jev's intent fact; ``jev_intent=None`` runs with Jev off.
+
+    Change figures attach only when Jev reads compare or trend at the gate.
+    """
+    from dataclasses import replace
+
+    from tests.agent.test_jev_decide import FakeBackend, _answer_facts, _choice
+
     settings = AgentSettings(max_tool_steps=3)
+    backend = None
+    if jev_intent is not None:
+        settings = replace(settings, jev_mode="decide", jev_backend="typesafe", jev_decide_min_confidence=0.8)
+        backend = FakeBackend(_answer_facts(intent=_choice(*jev_intent)))
     executor = ToolExecutor(settings, ArtifactStore(60), transport=httpx.MockTransport(_handler))
 
     async def run():
         try:
-            return (await AgentOrchestrator(settings, provider, executor).ask(QUESTION)).response
+            orchestrator = AgentOrchestrator(settings, provider, executor, decide_backend=backend)
+            return (await orchestrator.ask(QUESTION)).response
         finally:
             await executor.close()
 
@@ -160,6 +173,18 @@ def test_synthesis_states_the_harness_computed_changes_and_cites_them():
     # The model saw the derived evidence in its synthesis payload.
     kinds = [item["summary"].get("kind") for item in provider.synthesis_payloads[0]["evidence"]]
     assert "derived_arithmetic" in kinds
+
+
+def test_without_jev_s_change_reading_no_change_is_derived_or_shown():
+    # Jev off, a count reading, or compare below the gate: the four counts are
+    # answered, and the harness withholds the difference and percent change.
+    for intent in (None, ("count", 0.95), ("compare", 0.6)):
+        provider = ScriptedProvider()
+        response = _ask(provider, jev_intent=intent)
+        assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL], intent
+        assert [e for e in response["trajectory"] if e.get("type") == "derived_evidence_withheld"], intent
+        kinds = [item["summary"].get("kind") for item in provider.synthesis_payloads[0]["evidence"]]
+        assert "derived_arithmetic" not in kinds, intent
 
 
 def test_a_change_the_harness_did_not_compute_is_rejected():

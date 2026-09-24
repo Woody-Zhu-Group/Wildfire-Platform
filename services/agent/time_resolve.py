@@ -120,6 +120,37 @@ def named_months(text: str) -> list[tuple[int, str]]:
     return [(number, name) for _pos, number, name in sorted(found.values())]
 
 
+_MONTH_LIST_SEP = r"(?:\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+|\s*&\s*)(?:in\s+)?"
+_MONTH_LIST = re.compile(
+    rf"\b((?:{_MONTH_ALT})(?:\s+(?:20\d{{2}}))?(?:{_MONTH_LIST_SEP}(?:{_MONTH_ALT})(?:\s+(?:20\d{{2}}))?)*)"
+    rf"\s*,?\s+(?:of\s+|in\s+)?(20\d{{2}})\b"
+)
+
+
+def named_month_periods(text: str) -> list[str]:
+    """Calendar months the question names as separate periods, as ``YYYY-MM``.
+
+    "July 2023 and August 2023" and "July and August 2023" name two periods;
+    "October 2023 than in October 2022" names two. A month counts only when a
+    year follows it (directly or at the end of a list of months), so "may"
+    the verb is never a month. A written month range ("from March to June
+    2023", "August 2023 to September 2024") is one span, not separate
+    periods, and returns an empty list. Fewer than two periods also returns
+    an empty list: one month is covered by the year check.
+    """
+    lower = " ".join(text.lower().split())
+    if explicit_month_range_in_year(lower) is not None or explicit_month_year_range(lower) is not None:
+        return []
+    periods: list[str] = []
+    for match in _MONTH_LIST.finditer(lower):
+        list_year = int(match.group(2))
+        for item in re.finditer(rf"\b({_MONTH_ALT})\b(?:\s+(20\d{{2}}))?", match.group(1)):
+            year = int(item.group(2)) if item.group(2) else list_year
+            periods.append(f"{year}-{MONTHS[item.group(1)]:02d}")
+    distinct = list(dict.fromkeys(periods))
+    return distinct if len(distinct) > 1 else []
+
+
 def explicit_calendar_day(text: str) -> date | None:
     """A specific calendar day, or None when only a month/year is named.
 
@@ -817,8 +848,8 @@ def _argument_window(
 def call_window(arguments: dict[str, Any]) -> tuple[str, str] | None:
     """The window a tool call filters on, as ISO dates, from start/end or a year.
 
-    Used to collect the windows of every call in one model turn so the hold
-    rule can see whether the model split a range into distinct periods.
+    Used to collect the windows of every model call for one question so the
+    hold rule can see whether the model split a range into distinct periods.
     """
     year = arguments.get("year")
     start = _as_day(arguments.get("start_date"))
@@ -836,24 +867,43 @@ def call_window(arguments: dict[str, Any]) -> tuple[str, str] | None:
     return start.isoformat(), end.isoformat()
 
 
-def _distinct_periods_in_turn(
-    turn_windows: list[tuple[str, str] | None] | None,
-) -> bool:
-    """True when the turn's calls name two or more different windows.
+@dataclass(frozen=True)
+class CallWindows:
+    """What the hold rule knows about the model's calls for one question.
 
-    Years or months alike: a July call beside an August call, or a 2019 count
-    beside a 2022 count, is the model splitting the question into periods on
-    purpose. Years the question never named still fall to the rejection rules.
+    ``seen`` holds the window of every successful model call in earlier
+    turns of the question and of every call in the current turn, as the
+    model wrote them. Hosted models often send one call per turn, so a turn
+    alone cannot show that the model is splitting a range into periods.
+
+    ``endpoints`` holds the periods the coverage check will ask for one by
+    one (the two ends of a written range when Jev reads the question as a
+    comparison or trend). A call on one of them is a planned read, not a
+    narrowing: if the model does not fetch the others, coverage asks for them
+    or declines.
     """
-    distinct: set[tuple[str, str]] = set()
-    for window in turn_windows or []:
-        if window is None:
-            continue
-        start, end = _as_day(window[0]), _as_day(window[1])
-        if start is None or end is None:
-            continue
-        distinct.add((start.isoformat(), end.isoformat()))
-    return len(distinct) >= 2
+
+    seen: tuple[tuple[str, str], ...] = ()
+    endpoints: frozenset[tuple[str, str]] = frozenset()
+
+    def with_calls(self, windows: list[tuple[str, str] | None]) -> "CallWindows":
+        added = tuple(window for window in windows if window is not None)
+        return replace(self, seen=self.seen + added)
+
+    def distinct_periods(self) -> bool:
+        """True when the question's calls name two or more different windows.
+
+        Years or months alike: a July call beside an August call, or a 2019
+        count beside a 2022 count, in one turn or across turns, is the model
+        splitting the question into periods on purpose. Years the question
+        never named still fall to the rejection rules.
+        """
+        distinct: set[tuple[str, str]] = set()
+        for window in self.seen:
+            start, end = _as_day(window[0]), _as_day(window[1])
+            if start is not None and end is not None:
+                distinct.add((start.isoformat(), end.isoformat()))
+        return len(distinct) >= 2
 
 
 def _hold_resolved_window(
@@ -861,7 +911,7 @@ def _hold_resolved_window(
     time_resolution: dict[str, Any],
     corrections: list[dict[str, Any]] | None,
     *,
-    turn_windows: list[tuple[str, str] | None] | None = None,
+    windows: CallWindows | None = None,
 ) -> dict[str, Any]:
     """Replace a tool window that differs from the resolved span with the span.
 
@@ -870,11 +920,14 @@ def _hold_resolved_window(
     written as ``year=`` so a single-year question stays single-year.
 
     Widening applies only when a single call narrows the range with no other
-    call covering the rest. When the same turn holds calls for distinct
-    periods (a 2019 count and a 2022 count for "from 2019 to 2022", or a July
-    count and an August count), the model is splitting the question into
-    periods on purpose and every call is kept as written; this does not
-    depend on how the question is worded. A
+    call covering the rest. When the question's calls, in this turn or an
+    earlier one, name distinct periods (a 2019 count and a 2022 count for
+    "from 2019 to 2022", or a July count and an August count), the model is
+    splitting the question into periods on purpose and every call is kept as
+    written; this does not depend on how the question is worded. A call whose
+    window is one of ``windows.endpoints`` is kept as written too, even when
+    it comes alone in the first turn: coverage will ask for the other
+    endpoint in a later turn, or decline. A
     question that names separate years or asks for a per-year breakdown
     (``per_year``) keeps its per-year calls too; years outside the span still
     fall to the override and rejection rules.
@@ -887,8 +940,11 @@ def _hold_resolved_window(
     window = _argument_window(filled, resolved)
     if window is None or window == resolved:
         return filled
-    if _distinct_periods_in_turn(turn_windows):
-        return filled
+    if windows is not None:
+        if windows.distinct_periods():
+            return filled
+        if (window[0].isoformat(), window[1].isoformat()) in windows.endpoints:
+            return filled
     start, end = resolved
     before = {
         key: filled.get(key)
@@ -937,7 +993,7 @@ def apply_harness_years(
     today: date | None = None,
     hold_window: bool = False,
     corrections: list[dict[str, Any]] | None = None,
-    turn_windows: list[tuple[str, str] | None] | None = None,
+    windows: CallWindows | None = None,
 ) -> tuple[dict[str, Any], str | None]:
     """Override wrong model years with harness years; reject only invented years.
 
@@ -948,10 +1004,11 @@ def apply_harness_years(
     - When ``time_resolution`` is omitted, only coverage bounds apply.
     - With ``hold_window`` (model tool calls), years inside the resolved span
       may not narrow or reshape it: the call gets the resolved start and end,
-      and each correction is appended to ``corrections``. ``turn_windows``
-      lists the windows of every call in the same model turn (``call_window``);
-      when they name distinct periods inside the span, the model is splitting
-      the range on purpose and no call is widened.
+      and each correction is appended to ``corrections``. ``windows``
+      (``CallWindows``) lists the window of every model call for the question
+      so far, across turns; when they name distinct periods inside the span,
+      the model is splitting the range on purpose and no call is widened, and
+      a call on one of its ``endpoints`` is never widened.
     """
     filled = dict(arguments)
     found = years_in_arguments(filled)
@@ -984,7 +1041,7 @@ def apply_harness_years(
     if found and found.issubset(allowed):
         if hold_window:
             filled = _hold_resolved_window(
-                filled, time_resolution, corrections, turn_windows=turn_windows
+                filled, time_resolution, corrections, windows=windows
             )
         # Prefer harness month/window when present and model used a bare year.
         start = time_resolution.get("start_date")

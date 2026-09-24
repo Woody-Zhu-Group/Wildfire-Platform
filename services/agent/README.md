@@ -120,13 +120,17 @@ suppressed rather than returned without its qualification.
 ### Time windows the model chose
 
 Widening a model call to the resolved range applies only when a single call
-narrows the range with no other call covering the rest. When one model turn
-holds calls for distinct periods (a 2019 count and a 2022 count for "from
+narrows the range with no other call covering the rest. The harness collects
+the window of every model call for one question across all model turns
+(`CallWindows`), because hosted models often send one call per turn. When
+those calls name distinct periods (a 2019 count and a 2022 count for "from
 2019 to 2022", or a July count and an August count for "July 2024 and August
-2024"), the model is splitting the question into periods on purpose and every
-call is kept as written (`_hold_resolved_window` with the turn's
-`call_window`s). Nothing here reads the question's wording: there is no list
-of change words. A written range ("between 2020 and 2023") is always one span
+2024"), in one turn or across turns, the model is splitting the question into
+periods on purpose and every call is kept as written (`_hold_resolved_window`).
+When Jev reads the question as a comparison or trend (below), a lone call on
+one endpoint year is kept as written too, even in the first turn: coverage
+asks for the other endpoint in a later turn, or declines. Nothing here reads
+the question's wording: there is no list of change words. A written range ("between 2020 and 2023") is always one span
 in the time resolution; years or months listed separately ("2020 vs 2023",
 "July 2024 and August 2024", `named_months`) are separate periods, and a count
 over listed months defers to the model rather than counting one month. Years
@@ -140,8 +144,20 @@ and Jev reads the intent as compare or trend at or above the decline gate
 (`AGENT_JEV_DECIDE_MIN_CONFIDENCE`), the range names its endpoints for the
 uncovered-entities check. Otherwise (count or records intent, below the gate,
 a Jev error, or Jev off) every year in the range must be covered, as on main,
-so a total answered from two endpoint reads still declines. The reading is
-recorded on the `jev_decide` slot as `jev_intent` and `jev_intent_confidence`.
+so a total answered from two endpoint reads still declines, and a lone
+endpoint call is widened to the span, as on main. The reading is recorded on
+the `jev_decide` slot as `jev_intent` and `jev_intent_confidence`.
+
+Calendar months named as separate periods ("July 2023 and August 2023",
+"July and August 2023", "October 2023 than October 2022";
+`named_month_periods`, which needs a year after the month, so "may" the verb
+never counts) are coverage entities like years (`month:YYYY-MM`). A call
+covers a named month when its window overlaps that month and reads no month
+the question did not name: a July call covers July only, so a July and August
+question fetched one month per turn continues until August is read, or
+declines; one call over July through August covers both; a call over all of
+2023 covers neither. A written month range ("from March to June 2023") is one
+span, not separate months.
 
 ## Derived arithmetic
 
@@ -149,8 +165,7 @@ Synthesis may state only numbers found in evidence or caveats, and the model
 never does arithmetic. `derived.py` computes the difference, percent change,
 and ratio
 values from the successful primary counts before synthesis (and on the
-deterministic path before the answer is rendered), whatever the question's
-wording, and adds them as
+deterministic path before the answer is rendered) and adds them as
 one `harness_arithmetic` evidence item (`evidence_derived_...`). Each
 derivation carries its `source_evidence_ids`. Which pairs to form comes from
 the structure of the calls, not from the question's words: an entity read in
@@ -162,6 +177,17 @@ not ask for. A zero base gives a null percent or ratio with a reason, not a
 number. Companion reads are never used. The trajectory records a
 `derived_evidence` event, and the deterministic fallback renders the same
 values.
+
+Whether the question wants those figures is meaning, not call structure:
+"List PG&E ignitions in 2019 and in 2023" reads two periods and asks for no
+change. So the figures are attached only when decide mode has Jev's facts and
+Jev's intent fact reads compare or trend at or above the decline gate
+(`AgentOrchestrator._jev_reads_change`, the same reading the coverage rule
+uses). Otherwise (count or records intent, below the gate, a Jev error, or
+Jev off) they stay out of the evidence, so neither synthesis nor the fallback
+text can show them, and the trajectory records `derived_evidence_withheld`.
+With Jev off, a change question over two model reads therefore gets both
+counts and no computed change.
 
 ## Views
 

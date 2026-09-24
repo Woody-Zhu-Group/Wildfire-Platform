@@ -32,7 +32,13 @@ from services.agent.derived import DERIVED_TOOL
 from services.agent.orchestrator import AgentOrchestrator, _render_deterministic
 from services.agent.provider import ModelReply
 from services.agent.routing import route_question
-from services.agent.time_resolve import apply_harness_years, call_window, resolve_time
+from services.agent.time_resolve import (
+    CallWindows,
+    apply_harness_years,
+    call_window,
+    named_month_periods,
+    resolve_time,
+)
 from services.agent.tools import ToolExecution, ToolExecutor
 
 TODAY = date(2026, 9, 24)
@@ -57,6 +63,8 @@ WRITTEN_RANGES = [
 SCE = {"2020": 75, "2023": 90}
 COUNTY_COUNTS = {("Butte", 2019): 40, ("Butte", 2022): 30, ("Shasta", 2019): 12, ("Shasta", 2022): 18}
 MONTH_COUNTS = {"07": 61, "08": 98}
+PGE = {"2016": 110, "2019": 185, "2020": 58, "2023": 42}
+PGE_SPAN = 777
 
 
 def _years_in(question: str) -> list[int]:
@@ -107,15 +115,23 @@ def test_two_named_months_keep_both_months():
 # --- harness window rules --------------------------------------------------
 
 
-def _hold(arguments: dict, question: str, turn_windows: list | None = None):
+def _hold(
+    arguments: dict,
+    question: str,
+    seen: list | None = None,
+    endpoints: list[int] | None = None,
+):
     corrections: list[dict] = []
+    windows = CallWindows(
+        endpoints=frozenset((f"{item}-01-01", f"{item}-12-31") for item in endpoints or [])
+    ).with_calls(list(seen or []))
     filled, error = apply_harness_years(
         arguments,
         time_resolution=resolve_time(question, today=TODAY).as_slot(),
         today=TODAY,
         hold_window=True,
         corrections=corrections,
-        turn_windows=turn_windows,
+        windows=windows,
     )
     return filled, error, corrections
 
@@ -165,6 +181,41 @@ def test_distinct_months_in_one_turn_are_never_rewritten():
     filled, error, _ = _hold(july, "How many PG&E ignitions in August 2024?", [call_window(july)])
     assert error is None
     assert (filled["start_date"], filled["end_date"]) == ("2024-08-01", "2024-08-31")
+
+
+def test_windows_from_an_earlier_turn_count_like_windows_in_this_turn():
+    # One call per turn: turn 1 read 2016, turn 2 reads 2020. The hold rule
+    # sees both, so the second call is a split, not a narrowing.
+    question = "Show the shift in PG&E ignitions from 2016 to 2020."
+    earlier = [call_window(_count_args(year=2016))]
+    filled, error, corrections = _hold(
+        _count_args(year=2020), question, earlier + [call_window(_count_args(year=2020))]
+    )
+    assert error is None
+    assert filled["year"] == 2020 and "start_date" not in filled
+    assert corrections == []
+
+
+def test_a_lone_endpoint_call_is_kept_when_coverage_asks_for_the_endpoints():
+    # Jev's compare or trend reading makes the endpoints the coverage
+    # entities, so a first-turn call on one of them is a planned read.
+    question = "Show the shift in PG&E ignitions from 2016 to 2020."
+    for year in (2016, 2020):
+        filled, error, corrections = _hold(
+            _count_args(year=year), question, [call_window(_count_args(year=year))], endpoints=[2016, 2020]
+        )
+        assert error is None
+        assert filled["year"] == year and "start_date" not in filled
+        assert corrections == []
+    # A lone call on a year that is not an endpoint is still widened.
+    filled, _error, corrections = _hold(
+        _count_args(year=2018), question, [call_window(_count_args(year=2018))], endpoints=[2016, 2020]
+    )
+    assert (filled["start_date"], filled["end_date"]) == ("2016-01-01", "2020-12-31")
+    assert corrections and corrections[0]["rule"] == "hold_resolved_window"
+    # Without endpoints (a total, Jev off, below the gate) it is widened, as on main.
+    filled, _error, _ = _hold(_count_args(year=2016), question, [call_window(_count_args(year=2016))])
+    assert (filled["start_date"], filled["end_date"]) == ("2016-01-01", "2020-12-31")
 
 
 def test_the_span_control_is_still_held_to_the_whole_range():
@@ -222,7 +273,11 @@ def _handler(request: httpx.Request) -> httpx.Response:
     if county:
         total = COUNTY_COUNTS[(county, year)]
     elif start[:4] == "2024":
-        total = MONTH_COUNTS[start[5:7]]
+        total = MONTH_COUNTS.get(start[5:7], 500)
+    elif params.get("utility") == "PGE":
+        end = str(params.get("end_date") or "")
+        # A window across several years is the span total.
+        total = PGE_SPAN if end and end[:4] != str(year) else PGE.get(str(year), 0)
     else:
         total = SCE.get(str(year), 0)
     if "spatial" in request.url.path:
@@ -294,9 +349,9 @@ def _primary_counts(response: dict) -> list[dict]:
 
 
 def test_the_production_question_with_jev_off_keeps_both_calls_and_declines_as_on_main():
-    # Both endpoint calls run unwidened and the change is derived, but with
-    # Jev off nothing says the range names only its endpoints, so the
-    # full-range coverage rule declines, as main did.
+    # Both endpoint calls run unwidened, but with Jev off nothing says the
+    # range names only its endpoints, so the full-range coverage rule
+    # declines, as main did, and no change figure is derived.
     assert route_question(QUESTION).path == "model"
     calls = [_count_call(1, utility="SCE", year=2020), _count_call(2, utility="SCE", year=2023)]
     response = _ask(ScriptedProvider([calls]), QUESTION)
@@ -305,6 +360,7 @@ def test_the_production_question_with_jev_off_keeps_both_calls_and_declines_as_o
     assert counts == {2020: 75, 2023: 90}
     assert not [e for e in response["trajectory"] if e.get("type") == "duplicate_tool_call_suppressed"]
     assert not [e for e in response["trajectory"] if e.get("type") == "harness_time_correction"]
+    assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
 
 
 def test_the_production_question_with_jev_compare_intent_derives_the_percent_change():
@@ -403,13 +459,22 @@ def test_two_model_calls_corrected_to_the_same_window_run_once_and_render_once()
 # --- coverage of a written range needs Jev's intent -------------------------
 
 
-def _ask_with_jev(question: str, calls: list[dict], jev_answers: dict | None) -> dict:
-    """Decide mode with a scripted Jev backend; None means Jev off."""
+def _ask_with_jev(
+    question: str,
+    calls: list[dict],
+    jev_answers: dict | None,
+    *,
+    turns: list[list[dict]] | None = None,
+) -> dict:
+    """Decide mode with a scripted Jev backend; None means Jev off.
+
+    ``calls`` are one model turn; ``turns`` gives one list of calls per turn.
+    """
     from dataclasses import replace
 
     from tests.agent.test_jev_decide import FakeBackend
 
-    settings = AgentSettings(max_tool_steps=3)
+    settings = AgentSettings(max_tool_steps=4)
     if jev_answers is not None:
         settings = replace(settings, jev_mode="decide", jev_backend="typesafe", jev_decide_min_confidence=0.8)
     executor = ToolExecutor(settings, ArtifactStore(60), transport=httpx.MockTransport(_handler))
@@ -418,7 +483,7 @@ def _ask_with_jev(question: str, calls: list[dict], jev_answers: dict | None) ->
     async def run():
         try:
             orchestrator = AgentOrchestrator(
-                settings, ScriptedProvider([calls]), executor, decide_backend=backend
+                settings, ScriptedProvider(turns or [calls]), executor, decide_backend=backend
             )
             return (await orchestrator.ask(question)).response
         finally:
@@ -479,3 +544,149 @@ def test_identical_evidence_renders_one_fallback_line():
     twin = ToolExecution(**{**execution.__dict__, "evidence_id": "evidence_b"})
     rendered = _render_deterministic([execution, twin])
     assert rendered.count("529") == 1
+
+
+# --- one call per turn -------------------------------------------------------
+
+C8 = "Show the shift in PG&E ignitions from 2016 to 2020."
+
+
+def _c8_turns() -> list[list[dict]]:
+    return [[_count_call(1, utility="PGE", year=2016)], [_count_call(2, utility="PGE", year=2020)]]
+
+
+def test_c8_one_call_per_turn_with_jev_compare_keeps_both_years_and_derives_the_change():
+    # Hosted models often send one call per turn. The lone 2016 call is an
+    # endpoint coverage will ask for, so it is not widened to 2016-2020, and
+    # the 2020 call in the next turn is kept beside it.
+    response = _ask_with_jev(C8, [], _jev_facts("compare", 0.95), turns=_c8_turns())
+    assert response["status"] == "answer"
+    windows = [call_window(e["arguments"]) for e in _primary_counts(response)]
+    assert windows == [("2016-01-01", "2016-12-31"), ("2020-01-01", "2020-12-31")]
+    assert not [e for e in response["trajectory"] if e.get("type") == "harness_time_correction"]
+    continued = [e for e in response["trajectory"] if e.get("type") == "uncovered_entities_continue"]
+    assert continued and continued[0]["missing"] == ["year:2020"]
+    derived = [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
+    assert len(derived) == 1
+    row = derived[0]["summary"]["derivations"][0]
+    assert (row["from"]["period"], row["to"]["period"]) == ("2016", "2020")
+    assert (row["from"]["value"], row["to"]["value"], row["difference"]) == (110, 58, -52)
+
+
+def test_c8_one_call_per_turn_with_trend_intent_behaves_the_same():
+    response = _ask_with_jev(C8, [], _jev_facts("trend", 0.9), turns=_c8_turns())
+    assert response["status"] == "answer"
+    windows = [call_window(e["arguments"]) for e in _primary_counts(response)]
+    assert windows == [("2016-01-01", "2016-12-31"), ("2020-01-01", "2020-12-31")]
+
+
+def test_c8_one_call_per_turn_without_a_change_reading_is_held_to_the_span_as_on_main():
+    # Jev off, a count reading, or compare below the gate: nothing says the
+    # range names its endpoints, so the lone first call is widened to the
+    # span, which covers every year, and no change figure is derived.
+    for jev in (None, _jev_facts("count", 0.95), _jev_facts("compare", 0.6)):
+        response = _ask_with_jev(C8, [], jev, turns=_c8_turns())
+        windows = [call_window(e["arguments"]) for e in _primary_counts(response)]
+        assert windows == [("2016-01-01", "2020-12-31")], jev
+        assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL], jev
+
+
+def test_a_lone_endpoint_the_model_never_follows_up_declines():
+    response = _ask_with_jev(
+        C8, [], _jev_facts("compare", 0.95), turns=[[_count_call(1, utility="PGE", year=2016)]]
+    )
+    assert response["status"] == "error"
+    assert "2020" in response["answer_text"]
+    assert [e for e in response["trajectory"] if e.get("type") == "uncovered_entities_stop"]
+
+
+# --- named months are coverage entities ---------------------------------------
+
+N5 = "Which circuits had EPSS outages in July 2023 and August 2023?"
+
+
+def test_named_months_are_separate_periods_only_when_a_year_names_them():
+    assert named_month_periods(N5) == ["2023-07", "2023-08"]
+    assert named_month_periods(MONTHS_QUESTION) == ["2024-07", "2024-08"]
+    assert named_month_periods("How many outages in July and August 2023?") == ["2023-07", "2023-08"]
+    assert named_month_periods(
+        "Were there fewer EPSS outages in October 2023 than in October 2022, and by how many?"
+    ) == ["2023-10", "2022-10"]
+    # A month range is one span; one month, or "may" the verb, is no list.
+    assert named_month_periods("How many EPSS outages from March to June 2023?") == []
+    assert named_month_periods("EPSS outages from August 2023 to September 2024") == []
+    assert named_month_periods("How many outages in July 2023?") == []
+    assert named_month_periods("Which circuits may have had outages in 2023?") == []
+
+
+def _july(index: int = 1) -> dict:
+    return _count_call(index, utility="PGE", start_date="2024-07-01", end_date="2024-07-31")
+
+
+def _august(index: int = 2) -> dict:
+    return _count_call(index, utility="PGE", start_date="2024-08-01", end_date="2024-08-31")
+
+
+def test_july_then_august_in_separate_turns_answers_both_months():
+    response = _ask_with_jev(MONTHS_QUESTION, [], None, turns=[[_july()], [_august()]])
+    assert response["status"] == "answer"
+    counts = {e["arguments"]["start_date"][5:7]: e["summary"]["total"] for e in _primary_counts(response)}
+    assert counts == {"07": 61, "08": 98}
+    continued = [e for e in response["trajectory"] if e.get("type") == "uncovered_entities_continue"]
+    assert continued and continued[0]["missing"] == ["month:2024-08"]
+
+
+def test_july_alone_never_answers_a_july_and_august_question():
+    # The regression the review found: July fetched, the loop stopped, and
+    # the answer gave July only. August is now a coverage entity.
+    response = _ask_with_jev(MONTHS_QUESTION, [], None, turns=[[_july()]])
+    assert response["status"] == "error"
+    assert "2024-08" in response["answer_text"]
+    assert [e for e in response["trajectory"] if e.get("type") == "uncovered_entities_stop"]
+    assert "61" not in response["answer_text"]
+
+
+def test_a_call_that_reads_months_the_question_never_named_covers_none():
+    # Named months are separate periods, so the per-year flag keeps a
+    # whole-year window as written; it reads ten months nobody asked about.
+    # (A bare year=2024 is rewritten to the named months by the harness.)
+    whole_year = _count_call(1, utility="PGE", start_date="2024-01-01", end_date="2024-12-31")
+    response = _ask_with_jev(MONTHS_QUESTION, [], None, turns=[[whole_year]])
+    assert response["status"] == "error"
+    stop = [e for e in response["trajectory"] if e.get("type") == "uncovered_entities_stop"]
+    assert stop and stop[0]["missing"] == ["month:2024-07", "month:2024-08"]
+
+
+def test_one_call_over_exactly_the_named_months_covers_both():
+    # "Which circuits had outages in July and August" is answered by one read
+    # of July through August, as a written span covers each of its years.
+    both = _count_call(1, utility="PGE", start_date="2024-07-01", end_date="2024-08-31")
+    response = _ask_with_jev(MONTHS_QUESTION, [], None, turns=[[both]])
+    assert not [e for e in response["trajectory"] if e.get("type", "").startswith("uncovered_entities")]
+
+
+# --- derived figures need Jev's change reading ---------------------------------
+
+N1 = "List PG&E ignitions in 2019 and in 2023."
+N1_CALLS = [_count_call(1, utility="PGE", year=2019), _count_call(2, utility="PGE", year=2023)]
+
+
+def test_a_listing_of_two_years_carries_no_change_figures():
+    for jev in (None, _jev_facts("records", 0.95), _jev_facts("compare", 0.6)):
+        response = _ask_with_jev(N1, N1_CALLS, jev)
+        assert response["status"] == "answer", jev
+        assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL], jev
+        text = response["answer_text"]
+        assert "count: 185 " in text and "count: 42 " in text, jev
+        for word in ("difference", "percent change", "ratio"):
+            assert word not in text, (jev, word)
+        withheld = [e for e in response["trajectory"] if e.get("type") == "derived_evidence_withheld"]
+        assert len(withheld) == 1, jev
+
+
+def test_the_same_calls_with_jev_compare_carry_the_change():
+    response = _ask_with_jev(N1, N1_CALLS, _jev_facts("compare", 0.95))
+    derived = [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
+    assert len(derived) == 1
+    assert derived[0]["summary"]["derivations"][0]["difference"] == -143
+    assert "percent change" in response["answer_text"]
