@@ -77,7 +77,9 @@ companion calls:
   (`cpuc_utility_caused`).
 - Every utility-scoped CPUC ignition count is paired with the same-period
   spatial containment count, for any utility (not only PG&E); a spatial
-  utility count gets the attribute count in the same way.
+  utility count gets the attribute count in the same way. One caveat per
+  utility lists the pair for every period checked ("510 in 2020, 374 in
+  2023"); a single period keeps the one-pair wording.
 - CAL FIRE answers report missing incident-type and utility-tag counts. The
   incident-map-feed caveat (`calfire_map_feed_counts`; listed 133→611 is
   posting, not occurrence) attaches when a CAL FIRE answer spans 2023 and 2024
@@ -92,6 +94,27 @@ companion calls:
 
 If a required companion call or metadata field fails, the primary result is
 suppressed rather than returned without its qualification.
+
+## Derived arithmetic
+
+Synthesis may state only numbers found in evidence or caveats, and the model
+never does arithmetic. When a question asks for a change, difference,
+increase, decrease, percent change, or ratio, `derived.py` computes those
+values from the successful primary counts before synthesis and adds them as
+one `harness_arithmetic` evidence item (`evidence_derived_...`). Each
+derivation carries its `source_evidence_ids`. Pairs are the same entity across
+periods (earliest first, with `direction`) and two entities in one period
+(with `larger`). A zero base gives a null percent or ratio with a reason, not a
+number. Companion reads are never used. The trajectory records a
+`derived_evidence` event, and the deterministic fallback renders the same
+values.
+
+## Views
+
+Every count gets its own stat card; only non-count stat cards (risk and
+spatial metrics) are capped at three. The website renders ranking comparisons
+only, so a multi-entity count answer (two utilities in two years) shows one
+card per count rather than a utility-by-year comparison.
 
 ## Model provider and Jev
 

@@ -284,6 +284,30 @@ it cannot place Bear Valley rather than inventing a number. Shasta's 4 is exact-
 Since the `filter-followups` change (issue #78) a county filter includes them, so Shasta 2020 is
 6 and the answer carries the multi-county caveat; this run predates that change.
 
+### Derived arithmetic, every count card, every period in the caveat (2026-09-24)
+
+Branch `answer-arithmetic`. The production question "Were there more CPUC ignitions in PG&E
+or SCE territory in 2020 compared to 2023, and by how much did each change?" plus the same 8
+multi-part holdouts, one pass, `AGENT_JEV_MODE=off`, Luna, run file
+`services/agent/eval/runs/hosted_holdout_20260924T041008Z.jsonl`, $0.0087 (one more live
+ask of the production question to read its views: $0.0007). v1 and v2 are development data;
+v3 is partly tuned; the production question is not in any eval set.
+
+- Production question: the answer now states both changes (PG&E 510 to 374, a decrease of
+  136; SCE 145 to 90, a decrease of 55), cited to the `harness_arithmetic` evidence, with no
+  grounding error. SQL on the local warehouse gives the same four counts. Four stat cards (was
+  three), and both `ignition_definition` caveats list 2020 and 2023 (PG&E spatial 509 and 377,
+  SCE 145 and 87).
+- The 8 holdouts: the same numbers as the 2026-09-23 run, except `hv2_028` Tier 2 is 105, not
+  113, which is the HFTD polygon reload in `docs/DATA_CHANGE_HFTD_IOU.md`, not this branch.
+  `ho_022` now lists Bear Valley at 0 (Luna called `utility=BVES`, which the filter check
+  accepts; the warehouse has no BVES or Liberty rows, so 0 matches SQL). The strict scorer passes 0 of 8 (1 of 8 before): `hv2_020` used two
+  `data_query_records` calls this time where the label names `comparison_run`, with the same
+  numbers (Fresno 0 and 4). That is tool-choice variance on a routing prompt this branch does
+  not change, not a wrong answer. No invented or missing filters.
+- Routes: `routing.py` is unchanged, and path, rule, tool calls, and slots are identical to
+  main for all 398 questions in cases.json, jev_paraphrases.json, and holdouts v1, v2, and v3.
+
 LLM, the 14 force_model cases in cases.json, with the data services and PostGIS running (the
 `--thinking` and `--modes` flags from the original command were removed with the Ollama path):
 

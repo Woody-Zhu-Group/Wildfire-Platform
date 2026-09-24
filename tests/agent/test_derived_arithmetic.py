@@ -1,0 +1,258 @@
+"""Harness-computed changes, every count card, and caveats for every period checked.
+
+The question is the production one that stated no changes, showed 3 of 4
+stat cards, and listed only the 2020 ignition-definition companions. Counts
+here are fixture values, not warehouse figures.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+
+import httpx
+
+from services.agent.artifacts import ArtifactStore
+from services.agent.config import AgentSettings
+from services.agent.derived import DERIVED_TOOL, derive_arithmetic, requested_operations
+from services.agent.orchestrator import AgentOrchestrator
+from services.agent.provider import ModelReply
+from services.agent.tools import ToolExecution, ToolExecutor
+from services.agent.views import plan_views
+
+QUESTION = (
+    "Were there more CPUC ignitions in PG&E or SCE territory in 2020 compared to 2023, "
+    "and by how much did each change?"
+)
+ATTRIBUTED = {("PGE", "2020"): 402, ("PGE", "2023"): 374, ("SCE", "2020"): 75, ("SCE", "2023"): 90}
+SPATIAL = {("PGE", "2020"): 410, ("PGE", "2023"): 381, ("SCE", "2020"): 79, ("SCE", "2023"): 93}
+
+
+def _year(params: httpx.QueryParams) -> str:
+    return str(params.get("year") or params.get("start_date") or "")[:4]
+
+
+def _handler(request: httpx.Request) -> httpx.Response:
+    params = request.url.params
+    utility = params.get("utility")
+    year = _year(params)
+    if "spatial" in request.url.path:
+        return httpx.Response(
+            200,
+            json={
+                "region": {"kind": "utility", "id": utility},
+                "start_date": params.get("start_date"),
+                "end_date": params.get("end_date"),
+                "counts": {"ignitions": SPATIAL[(utility, year)]},
+                "meta": {},
+            },
+        )
+    return httpx.Response(
+        200,
+        json={
+            "data": [],
+            "meta": {"total": ATTRIBUTED[(utility, year)], "returned": 0, "filters": {"utility": utility}},
+        },
+    )
+
+
+def _call(index: int, utility: str, year: int) -> dict:
+    return {
+        "id": f"call_{index}",
+        "type": "function",
+        "function": {
+            "name": "data_query_records",
+            "arguments": json.dumps(
+                {"dataset": "cpuc_ignitions", "result_mode": "count", "utility": utility, "year": year}
+            ),
+        },
+    }
+
+
+class ScriptedProvider:
+    """Routes with four counts, then writes a brief that states the derived changes."""
+
+    def __init__(self, brief: str | None = None) -> None:
+        self.brief = brief
+        self.synthesis_payloads: list[dict] = []
+
+    async def complete(self, **kwargs):
+        if kwargs.get("tools"):
+            return ModelReply(
+                content="",
+                tool_calls=[
+                    _call(1, "PGE", 2020),
+                    _call(2, "PGE", 2023),
+                    _call(3, "SCE", 2020),
+                    _call(4, "SCE", 2023),
+                ],
+                raw={"choices": [{"finish_reason": "tool_calls"}]},
+                latency_ms=1.0,
+                usage={},
+            )
+        content = kwargs["messages"][-1]["content"]
+        payload = json.loads(content.split("Evidence and caveats (JSON):\n", 1)[1])
+        self.synthesis_payloads.append(payload)
+        derived = next(item for item in payload["evidence"] if item["summary"].get("kind") == "derived_arithmetic")
+        brief = self.brief or (
+            "PG&E had more utility-attributed CPUC ignitions than SCE in both 2020 and 2023. "
+            "PG&E went from 402 in 2020 to 374 in 2023, a decrease of 28, and SCE went "
+            "from 75 to 90, an increase of 15."
+        )
+        return ModelReply(
+            content=json.dumps(
+                {
+                    "status": "answer",
+                    "answer": brief,
+                    "claims": [{"text": brief, "evidence_ids": [derived["evidence_id"]]}],
+                }
+            ),
+            tool_calls=[],
+            raw={"choices": [{"finish_reason": "stop"}]},
+            latency_ms=1.0,
+            usage={},
+        )
+
+
+def _ask(provider: ScriptedProvider) -> dict:
+    settings = AgentSettings(max_tool_steps=3)
+    executor = ToolExecutor(settings, ArtifactStore(60), transport=httpx.MockTransport(_handler))
+
+    async def run():
+        try:
+            return (await AgentOrchestrator(settings, provider, executor).ask(QUESTION)).response
+        finally:
+            await executor.close()
+
+    return asyncio.run(run())
+
+
+def test_the_question_asks_for_a_difference():
+    assert requested_operations(QUESTION) == {"difference"}
+    assert requested_operations("What was the percent change in SCE ignitions?") == {
+        "difference",
+        "percent_change",
+    }
+    assert "ratio" in requested_operations("What is the ratio of PG&E to SCE ignitions in 2023?")
+    assert requested_operations("How many PG&E ignitions were there in 2023?") == set()
+
+
+def test_synthesis_states_the_harness_computed_changes_and_cites_them():
+    provider = ScriptedProvider()
+    response = _ask(provider)
+    assert response["status"] == "answer"
+    assert response["route"]["answer_origin"] == "model"
+    assert "decrease of 28" in response["answer_text"]
+    assert "increase of 15" in response["answer_text"]
+    assert not [e for e in response["trajectory"] if e.get("type") == "grounding_error"]
+
+    derived = [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
+    assert len(derived) == 1
+    counts = {
+        (e["arguments"]["utility"], e["arguments"]["year"]): e["id"]
+        for e in response["evidence"]
+        if e["tool"] == "data_query_records"
+    }
+    rows = derived[0]["summary"]["derivations"]
+    changes = {row["to"]["entity"]: row for row in rows if row["basis"] == "change_over_time"}
+    assert changes["utility=PGE"]["difference"] == -28
+    assert changes["utility=PGE"]["absolute_difference"] == 28
+    assert changes["utility=PGE"]["direction"] == "decrease"
+    assert changes["utility=PGE"]["source_evidence_ids"] == sorted(
+        [counts[("PGE", 2020)], counts[("PGE", 2023)]]
+    )
+    assert changes["utility=SCE"]["difference"] == 15
+    between = {row["from"]["period"]: row for row in rows if row["basis"] == "difference_between_entities"}
+    assert between["2020"]["difference"] == 75 - 402
+    assert between["2023"]["difference"] == 90 - 374
+    assert between["2023"]["larger"] == "utility=PGE"
+    assert "direction" not in between["2023"]
+    assert set(derived[0]["arguments"]["source_evidence_ids"]) == set(counts.values())
+
+    # The model saw the derived evidence in its synthesis payload.
+    kinds = [item["summary"].get("kind") for item in provider.synthesis_payloads[0]["evidence"]]
+    assert "derived_arithmetic" in kinds
+
+
+def test_a_change_the_harness_did_not_compute_is_rejected():
+    # 49 is not a derived value (PG&E fell by 28); the model must not do arithmetic.
+    provider = ScriptedProvider(brief="PG&E ignitions fell by 49 between 2020 and 2023.")
+    response = _ask(provider)
+    errors = [e for e in response["trajectory"] if e.get("type") == "grounding_error"]
+    assert errors and "49" in errors[0]["unsupported_numbers"]
+    assert "49" not in response["answer_text"]
+
+
+def test_every_count_gets_a_stat_card():
+    response = _ask(ScriptedProvider())
+    cards = [view for view in response["views"] if view["type"] == "stat_card"]
+    assert len(cards) == 4
+    shown = sorted((card["params"]["period"], card["params"]["value"]) for card in cards)
+    assert shown == sorted((period, float(value)) for (_utility, period), value in ATTRIBUTED.items())
+
+
+def test_the_ignition_definition_caveat_covers_every_period_and_utility():
+    response = _ask(ScriptedProvider())
+    by_id = {item["id"]: item["text"] for item in response["qualifications"]}
+    for utility in ("PGE", "SCE"):
+        text = by_id[f"ignition_definition_{utility.lower()}"]
+        for year in ("2020", "2023"):
+            assert f"{ATTRIBUTED[(utility, year)]:,} in {year}" in text
+            assert f"{SPATIAL[(utility, year)]:,} in {year}" in text
+    companions = [e for e in response["evidence"] if e["qualification_call"] and e["tool"] == "data_query_spatial"]
+    assert len(companions) == 4
+
+
+def _count(evidence_id: str, utility: str, year: int, total: int, *, qualification: bool = False) -> ToolExecution:
+    return ToolExecution(
+        tool="data_query_records",
+        arguments={"dataset": "cpuc_ignitions", "result_mode": "count", "utility": utility, "year": year},
+        ok=True,
+        summary={"dataset": "cpuc_ignitions", "result_mode": "count", "total": total},
+        raw={},
+        error=None,
+        artifact=None,
+        latency_ms=1,
+        evidence_id=evidence_id,
+        qualification_call=qualification,
+    )
+
+
+def test_percent_change_and_ratio_with_a_zero_base_are_undefined_not_numbers():
+    derived = derive_arithmetic(
+        "What was the percent change and ratio of SCE ignitions from 2020 to 2023?",
+        [_count("evidence_a", "SCE", 2020, 0), _count("evidence_b", "SCE", 2023, 12)],
+    )
+    row = derived.summary["derivations"][0]
+    assert row["difference"] == 12
+    assert row["percent_change"] is None and "0" in row["percent_change_reason"]
+    assert row["ratio"] is None
+
+
+def test_percent_change_is_rounded_and_signed():
+    derived = derive_arithmetic(
+        "What was the percent change in PG&E ignitions from 2020 to 2023?",
+        [_count("evidence_b", "PGE", 2023, 374), _count("evidence_a", "PGE", 2020, 402)],
+    )
+    row = derived.summary["derivations"][0]
+    assert row["from"]["period"] == "2020" and row["to"]["period"] == "2023"
+    assert row["percent_change"] == -7.0
+    assert row["absolute_percent_change"] == 7
+
+
+def test_nothing_is_derived_from_companions_or_when_not_asked():
+    executions = [
+        _count("evidence_a", "PGE", 2020, 402),
+        _count("evidence_b", "PGE", 2023, 374, qualification=True),
+    ]
+    assert derive_arithmetic("By how much did PG&E ignitions change?", executions) is None
+    assert derive_arithmetic(
+        "How many PG&E ignitions in 2020 and 2023?",
+        [_count("evidence_a", "PGE", 2020, 402), _count("evidence_b", "PGE", 2023, 374)],
+    ) is None
+
+
+def test_count_cards_are_not_capped_but_other_stats_are():
+    executions = [_count(f"evidence_{i}", "PGE", 2016 + i, i) for i in range(5)]
+    planned = plan_views(executions, status="answer", slots={})
+    assert len([v for v in planned.views if v.type == "stat_card"]) == 5
