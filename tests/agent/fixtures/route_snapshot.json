@@ -672,8 +672,8 @@
   "risk_future_date"
  ],
  "jev_holdout.json:ho_062": [
-  "model",
-  "open_ended"
+  "clarification",
+  "ambiguous_risk_metric"
  ],
  "jev_holdout.json:ho_063": [
   "clarification",
@@ -681,7 +681,7 @@
  ],
  "jev_holdout.json:ho_064": [
   "unsupported",
-  "unsupported_cost"
+  "unsupported_damage"
  ],
  "jev_holdout.json:ho_065": [
   "unsupported",
@@ -1048,8 +1048,8 @@
   "unsupported_cost"
  ],
  "jev_holdout_v2.json:hv2_059": [
-  "model",
-  "open_ended"
+  "clarification",
+  "ambiguous_risk_metric"
  ],
  "jev_holdout_v2.json:hv2_060": [
   "unsupported",
@@ -1248,8 +1248,8 @@
   "ambiguous_risk_metric"
  ],
  "jev_holdout_v3_questions.json:hv3_044": [
-  "unsupported",
-  "unsupported_ranking"
+  "clarification",
+  "ambiguous_risk_metric"
  ],
  "jev_holdout_v3_questions.json:hv3_045": [
   "model",

@@ -413,8 +413,11 @@ MEASURE_TERMS = frozenset(
         "shutoff", "shutoffs", "deenergization", "deenergizations",
         "energization", "energizations", "number", "count", "counts",
         "total", "totals", "frequency", "frequently", "often", "times",
+        "report", "reports", "trips", "value", "values",
+        # the router's comparison block reads "wildfire activity" as ignition counts
+        "activity",
         # acres
-        "acre", "acres", "acreage", "area",
+        "acre", "acres", "acreage", "area", "areas",
         # customers affected
         "customer", "customers", "deenergized", "energized",
         # ratio
@@ -432,9 +435,11 @@ MEASURE_QUALIFIER_WORDS = frozenset(
         "sample", "sampled", "reported", "recorded", "burned", "affected",
         "fast", "trip", "power", "public", "safety", "de", "distribution",
         "circuit", "circuits", "county", "counties", "hftd", "tier", "tiers",
-        "high", "threat", "wildland", "forest", "iou", "territory", "record",
+        "high", "threat", "wildland", "forest", "iou", "ious", "territory",
+        "territories", "service", "record",
         "records", "year", "years", "yearly", "annual", "month", "months",
-        "monthly", "season", "seasons", "day", "days", "recent", "single",
+        "monthly", "season", "seasons", "day", "days", "recent", "ago", "past",
+        "previous", "prior", "single",
         "individual", "one", "overall", "combined", "cumulative", "state",
         "states", "division", "divisions", "cell", "cells", "grid",
         # risk and change measures, which other routes answer or refuse

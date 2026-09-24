@@ -14,7 +14,7 @@ from services.agent.places import (
     city_point,
     county_word_places,
 )
-from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
+from services.agent.time_resolve import DATA_YEAR_MIN, MONTHS, month_from_text, resolve_time
 from services.shared.dataset_registry import (
     ALL_CAUSES_AFTER_IGNITIONS_PATTERN,
     ALL_CAUSES_BEFORE_IGNITIONS_PATTERN,
@@ -743,7 +743,7 @@ _TIME_SERIES_VIZ = frozenset(
 
 UNSUPPORTED = {
     "cpz": r"\b(?:cpzs?|circuit protection zones?)\b",
-    "cost": r"\b(?:costs?|prices?|budgets?|dollars?|economics?|premiums?)\b",
+    "cost": r"\b(?:cost|price|budget|dollars?|economic|premiums?)\b",
     "air_quality": r"\bair quality\b",
     "evacuation": r"\bevacuat",
     # Translate to a grid cell, incidents that involved firefighters, and a
@@ -764,17 +764,14 @@ UNSUPPORTED = {
         r"\bsatellite\s+(?:\w+\s+)?(?:images?|imagery|infrared|photos?|pictures?|"
         r"views?|data|feeds?|detections?)\b|\b(?:infrared|thermal)\s+satellite\b"
     ),
-    "leadership": r"\b(?:ceos?|chief executives?)\b",
-    "optimization": (
-        r"\b(?:optimi[sz](?:e|es|ed|ing|ation|ations)|optimal|schedules?|scheduling|"
-        r"allocat(?:e|es|ed|ing|ion|ions))\b"
-    ),
+    "leadership": r"\b(?:ceo|chief executive)\b",
+    "optimization": r"\b(?:optimi[sz]e|optimal|schedule|allocate)\b",
     "damage": (
         r"\b(?:property damages?|expected loss(?:es)?|insured loss(?:es)?|fatalit(?:y|ies))\b"
     ),
     "live_web": (
         r"\b(?:current active fires?|active fires?.*right now|live fires?|"
-        r"web search(?:es)?|according to the web|today'?s fires?)\b"
+        r"web search|according to the web|today'?s fires?)\b"
     ),
 }
 
@@ -1340,12 +1337,12 @@ def _wants_risk(lower: str) -> bool:
     )
 
 
-# A ranking or comparison orders by a measure. The words after its operator
-# ("most ...", "more ... than", "compare the ... of", "rank ... by ...") and any
-# superlative or comparative word ("scariest", "worse than") must name one of
-# the registry's measures (MEASURE_TERMS) or narrow one with data vocabulary
-# (MEASURE_QUALIFIER_WORDS). A word that does neither names no measure, so the
-# router asks which measure instead of guessing one.
+# A ranking or comparison orders by a measure. Every word of its measure phrase
+# ("most ...", "more ... than", "rank ... by ...", what is being compared in any
+# word order) must name one of the registry's measures (MEASURE_TERMS) or narrow
+# one with data vocabulary (MEASURE_QUALIFIER_WORDS). Any other word, and any
+# superlative or comparative word ("scariest", "worse than"), names no measure,
+# so the router asks which measure instead of guessing one.
 _MAGNITUDE_SUPERLATIVES = frozenset(
     {"most", "highest", "largest", "greatest", "biggest", "fewest", "least", "lowest", "smallest", "top"}
 )
@@ -1371,7 +1368,8 @@ _PHRASE_STOPS = frozenset(
     }
 )
 _MEASURE_RANK_CONTEXT = re.compile(
-    r"\b(?:which|what)\s+(?:\w+\s+){0,2}?(?:circuit|count(?:y|ies)|utilit(?:y|ies))s?\b"
+    r"\b(?:which|what)\s+(?:\w+\s+){0,2}?(?:circuit|count(?:y|ies)|utilit(?:y|ies)|ious?)s?\b"
+    r"|\bamong\s+(?:the\s+|all\s+)?(?:circuits|counties|utilities|ious)\b"
     r"|\brank(?:s|ed|ing)?\b"
 )
 _MEASURE_COMPARE_CONTEXT = re.compile(r"\b(?:compar\w*|versus|vs\.?|than)\b")
@@ -1384,6 +1382,20 @@ _MEASURE_PLACE_WORDS = (
     ),
 )
 _GROUP_PLURALS = {"utility": "utilities", "county": "counties", "circuit": "circuits"}
+# Words for the things a ranking or comparison sets side by side. An unknown
+# word right before one ("the big utilities") describes the entities, not the
+# measure.
+_GROUPING_WORDS = frozenset(
+    {"utility", "utilities", "county", "counties", "circuit", "circuits", "iou", "ious", "tier", "tiers"}
+)
+# Pronouns stand for the compared entities ("compare them with ..."), not a measure.
+_ENTITY_PRONOUNS = frozenset({"them", "they", "it", "those", "these", "both", "either", "ones"})
+# A conjunction joining two compared entities: "PG&E and SCE ignitions" names
+# its measure after the second entity.
+_ENTITY = r"(?:utility|county|tier\s*[23]|\d{4})"
+_ENTITY_CONJUNCTION = re.compile(rf"\b{_ENTITY}\s+(?:and|or|vs\.?|versus)\s+(?={_ENTITY}\b)")
+# Month and season names end in "er" but name periods, not comparatives.
+_PERIOD_WORDS = frozenset(MONTHS) | {"summer", "winter", "spring", "fall", "autumn"}
 
 
 def _phrase_tokens(rest: str) -> list[str]:
@@ -1398,59 +1410,90 @@ def _phrase_tokens(rest: str) -> list[str]:
     return tokens
 
 
+def _phrase_tokens_before(head: str) -> list[str]:
+    """The words before a verb, back to the first stop word or punctuation."""
+    tokens = re.findall(r"[a-z0-9]+|[^\sa-z0-9'&-]", head)
+    return list(reversed(_phrase_tokens(" ".join(reversed(tokens)))))
+
+
 def _unknown_words(tokens: list[str]) -> list[str] | None:
     """Words that are neither measure terms nor data vocabulary.
 
     None when the phrase names a measure no dataset stores: that is left to the
-    unsupported-topic and other-measure refusals.
+    unsupported-topic and other-measure refusals. A word right before a
+    grouping word describes the compared entities and is not counted.
     """
     if any(NOT_IN_DATA_MEASURE_PATTERN.match(token) for token in tokens):
         return None
-    return [token for token in tokens if token not in MEASURE_TERMS | MEASURE_QUALIFIER_WORDS]
+    return [
+        token
+        for index, token in enumerate(tokens)
+        if token not in MEASURE_TERMS | MEASURE_QUALIFIER_WORDS | _ENTITY_PRONOUNS
+        and not (index + 1 < len(tokens) and tokens[index + 1] in _GROUPING_WORDS)
+    ]
+
+
+def _quoted_span(tokens: list[str], unknown: list[str], op: str | None = None) -> str:
+    """The user's words from the operator (or first unknown word) to the last unknown word."""
+    last = max(index for index, token in enumerate(tokens) if token in unknown)
+    first = 0 if op else min(index for index, token in enumerate(tokens) if token in unknown)
+    # "how bad", "how well": the question word is part of what the user said.
+    if first > 0 and tokens[first - 1] == "how":
+        first -= 1
+    words = tokens[first : last + 1]
+    return " ".join([op, *words] if op else words)
 
 
 def _unresolved_measure(lower: str, *, rank: bool, compare: bool) -> str | None:
     """The user's wording for a ranking or comparison measure that resolves to none.
 
-    An operator phrase ("most dangerous fires", "biggest problem") fires when
-    its one unknown word modifies a measure term or stands alone. A superlative
-    or comparative word ("scariest", "worse") fires when nothing unknown
-    follows it. Two unknown words ("most equipment failures", "safest
-    distribution system") name a thing outside the data, which other routes
-    refuse. A comparison names its measure as "compare the X of".
+    The measure phrase of a ranking ("most ...", "rank ... by ...") or a
+    comparison ("more ... than", the words after "compare", the subject before
+    it, and the words after two joined entities) must be made of measure terms
+    and data vocabulary. Any other word names no measure, so the router asks
+    which measure; clarifying is the safe failure. A superlative or comparative
+    word ("scariest", "worse") is itself such a word. A phrase naming a measure
+    no dataset stores (damage, rate, cost) is left to the refusals.
     """
     for pattern, word in _MEASURE_PLACE_WORDS:
         lower = pattern.sub(word, lower)
     magnitude = _MAGNITUDE_SUPERLATIVES | _MAGNITUDE_COMPARATIVES
     hits: list[tuple[int, str]] = []
+
+    def check(position: int, tokens: list[str], op: str | None) -> None:
+        unknown = _unknown_words(tokens)
+        if unknown:
+            hits.append((position, _quoted_span(tokens, unknown, op)))
+
     for match in _MEASURE_OPERATOR.finditer(lower):
         op = match.group(0)
-        rest = lower[match.end():]
+        if op.startswith("compar"):
+            if compare:
+                check(match.end(), _phrase_tokens(lower[match.end():]), None)
+                check(match.start(), _phrase_tokens_before(lower[: match.start()]), None)
+            continue
         if op == "by":
             applies = rank
         elif op in _MAGNITUDE_SUPERLATIVES:
             applies = rank or compare
-        elif op.startswith("compar"):
-            of_phrase = re.match(r"\s+(?:the\s+)?((?:[a-z]+\s+){1,2}?)of\b", rest)
-            applies = compare and of_phrase is not None
-            rest = of_phrase.group(1) if of_phrase else rest
         else:
             applies = compare
-        if not applies:
-            continue
-        tokens = _phrase_tokens(rest)
-        unknown = _unknown_words(tokens)
-        if unknown and len(unknown) == 1 and tokens.index(unknown[0]) == min(
-            index for index, token in enumerate(tokens) if token not in MEASURE_QUALIFIER_WORDS
-        ):
-            word = unknown[0]
-            hits.append((match.start(), f"{op} {word}" if op in magnitude else word))
+        if applies:
+            check(match.start(), _phrase_tokens(lower[match.end():]), op if op in magnitude else None)
+    if compare:
+        for match in _ENTITY_CONJUNCTION.finditer(lower):
+            check(match.end(), _phrase_tokens(lower[match.end():]), None)
     if rank or compare:
         for match in _DEGREE_WORD.finditer(lower):
             word = match.group(1) or match.group(2)
-            if word in magnitude or word in NOT_A_MEASURE_SUPERLATIVE:
+            if (
+                word in magnitude
+                or word in NOT_A_MEASURE_SUPERLATIVE
+                or word in _PERIOD_WORDS
+                or word in MEASURE_TERMS | MEASURE_QUALIFIER_WORDS
+            ):
                 continue
-            if _unknown_words(_phrase_tokens(lower[match.end():])) == []:
+            if _unknown_words(_phrase_tokens(lower[match.end():])) is not None:
                 hits.append((match.start(), word))
     return min(hits)[1] if hits else None
 

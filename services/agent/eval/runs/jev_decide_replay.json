@@ -50,17 +50,17 @@
   },
   "v3": {
    "n": 65,
-   "router": 48,
+   "router": 47,
    "jev": 48,
-   "decide": 53,
+   "decide": 52,
    "jev_errors": 0,
    "exempt": 15,
    "jev_won": 8,
    "overrides_right": 5,
    "overrides_wrong": 0,
-   "router_acc": 0.738,
+   "router_acc": 0.723,
    "jev_acc": 0.738,
-   "decide_acc": 0.815,
+   "decide_acc": 0.8,
    "status": "tuned (router fixes written from its disagreements)"
   },
   "smoke": {
@@ -3827,7 +3827,7 @@
    ],
    "router": [
     "unsupported",
-    "unsupported_cost"
+    "unsupported_damage"
    ],
    "jev": [
     "unsupported",
@@ -3836,7 +3836,7 @@
    ],
    "decide": [
     "unsupported",
-    "unsupported_cost",
+    "unsupported_damage",
     "router",
     "backstop"
    ]
@@ -5905,8 +5905,8 @@
     "unsupported"
    ],
    "router": [
-    "unsupported",
-    "unsupported_ranking"
+    "clarification",
+    "ambiguous_risk_metric"
    ],
    "jev": [
     "unsupported",
@@ -5914,10 +5914,10 @@
     0.63
    ],
    "decide": [
-    "unsupported",
-    "unsupported_ranking",
+    "clarification",
+    "ambiguous_risk_metric",
     "router",
-    "agree"
+    "below_gate"
    ]
   },
   "v3|hv3_045": {

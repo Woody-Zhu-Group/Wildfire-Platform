@@ -890,10 +890,24 @@ def test_review_82_the_tier_clarification_names_the_resolved_dataset(question, l
         ("What utility had the most alarming wildfire record in 2023?", "Most alarming", "rank utilities for 2023"),
         ("Which utility was the biggest problem for wildfires in 2023?", "Biggest problem", "rank utilities for 2023"),
         ("Which county was hit hardest by wildfires in 2020?", "Hardest", "rank counties for 2020"),
-        ("Rank the counties by how bad their fire seasons were in 2021.", "Bad", "rank counties for 2021"),
+        ("Rank the counties by how bad their fire seasons were in 2021.", "How bad", "rank counties for 2021"),
         ("Were SCE's fires more troubling than PG&E's in 2022?", "More troubling", "compare PG&E and SCE for 2022"),
         ("Which is worse for fires, SCE or PacifiCorp?", "Worse", "compare SCE and PacifiCorp"),
         ("Compare the severity of PSPS events in 2019 and 2020 for all utilities.", "Severity", "compare utilities for 2019 and 2020"),
+        # Review of PR 94: more than one unknown word still names no measure.
+        ("Which utility had the most dangerous large fires in 2023?", "Most dangerous large", "rank utilities for 2023"),
+        ("Which county had the most severe situation in 2020?", "Most severe situation", "rank counties for 2020"),
+        ("Which utility has the biggest wildfire problem in 2023?", "Biggest wildfire problem", "rank utilities for 2023"),
+        ("Rank the utilities by how well they performed in 2021.", "How well they performed", "rank utilities for 2021"),
+        ("Who was the top performer among utilities in 2022?", "Top performer", "rank utilities for 2022"),
+        ("Rank counties from best to worst for 2023.", "Best", "rank counties for 2023"),
+        # Review of PR 94: what is compared is checked in any word order.
+        ("Compare PSPS event severity in 2019 and 2020.", "Severity", "compare for 2019 and 2020"),
+        ("Compare how severe PSPS events were in 2019 and 2020.", "How severe", "compare for 2019 and 2020"),
+        ("How did the severity of PSPS events compare between 2019 and 2020?", "Severity", "compare for 2019 through 2020"),
+        ("Compare the relative overall severity of PSPS events in 2019 and 2020.", "Relative overall severity", "compare for 2019 and 2020"),
+        ("Compare PG&E and SCE wildfire impact in 2021.", "Impact", "compare PG&E and SCE for 2021"),
+        ("Compare PG&E and SCE, which one is better?", "Better", "compare PG&E and SCE"),
     ],
 )
 def test_an_unresolved_measure_asks_which_measure_and_keeps_what_was_named(question, quote, target):
@@ -972,8 +986,18 @@ def test_the_registry_measures_match_the_tools():
         ("Chart EPSS events for the worst months.", "model", "open_ended"),
         ("Was 2024 better or worse?", "model", "open_ended"),
         ("Compare the big utilities.", "model", "open_comparison"),
-        ("Which utility has the safest wildfire mitigation program?", "model", "open_ended"),
-        ("Which circuits had the most equipment failures before an ignition in 2022?", "unsupported", "unsupported_ranking"),
+        # Unknown words in the measure phrase ask which measure (clarifying is
+        # the safe failure), even when they name a thing outside the data.
+        ("Which utility has the safest wildfire mitigation program?", "clarification", "ambiguous_risk_metric"),
+        ("Which circuits had the most equipment failures before an ignition in 2022?", "clarification", "ambiguous_risk_metric"),
+        # A measure named in any word order keeps its route.
+        ("Compare the number of PSPS events in 2019 and 2020.", "model", "open_comparison"),
+        ("Compare the ignition counts of PG&E and SDG&E in 2020.", "deterministic", "utility_comparison"),
+        ("Compare PG&E and SCE ignitions in 2021.", "deterministic", "utility_comparison"),
+        ("Compare Tier 2 and Tier 3 ignitions in 2021.", "deterministic", "hftd_comparison"),
+        ("Compare wildfire activity between PG&E and SCE territories in 2022", "deterministic", "utility_comparison"),
+        ("Did PG&E have more EPSS outages than SCE in 2023?", "model", "open_ended"),
+        ("Were there more ignitions in October than in September 2022?", "model", "open_ended"),
         ("How many fatalities did PG&E fires cause in 2018?", "unsupported", "unsupported_damage"),
     ],
 )
