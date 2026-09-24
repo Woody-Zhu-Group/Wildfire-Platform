@@ -208,7 +208,9 @@ def test_daily_cap_blocks_further_calls(tmp_path):
             return _result(request_id, question_hash)
 
     backend = Counter()
-    settings = _settings(tmp_path, jev_daily_call_cap=1, jev_max_concurrency=2)
+    # The cap counts API calls. One v3_hybrid question makes three, so a cap of
+    # three admits exactly one question and the second is blocked whole.
+    settings = _settings(tmp_path, jev_daily_call_cap=3, jev_max_concurrency=2)
     runner = _runner(settings, backend)
     decision = route_question("How many PG&E ignitions in 2024?")
     runner.submit_routing("a", "one", decision, "2026-09-21", forced=False)
@@ -217,10 +219,31 @@ def test_daily_cap_blocks_further_calls(tmp_path):
     deadline = time.time() + 2
     while backend.calls < 3 and time.time() < deadline:
         time.sleep(0.02)
-    # The cap counts questions. The admitted question makes three v3 calls.
     assert backend.calls == 3
-    assert runner._calls_today == 1
+    assert runner.calls_today == 3
     assert runner.cap_blocked == 1
+    blocked = [row for row in rows if row.get("reason") == "daily_cap"]
+    assert len(blocked) == 1 and blocked[0]["calls"] == 3
+
+
+def test_daily_cap_of_one_admits_no_v3_question(tmp_path):
+    """A cap smaller than one question's calls admits nothing and spends nothing."""
+
+    class Counter:
+        name = "counter"
+        calls = 0
+
+        def evaluate(self, state, questions, *, request_id, question_hash):
+            self.calls += 1
+            return _result(request_id, question_hash)
+
+    backend = Counter()
+    runner = _runner(_settings(tmp_path, jev_daily_call_cap=1), backend)
+    decision = route_question("How many PG&E ignitions in 2024?")
+    runner.submit_routing("a", "one", decision, "2026-09-21", forced=False)
+    rows = _wait(runner.log, lambda found: any(row.get("reason") == "daily_cap" for row in found))
+    assert backend.calls == 0
+    assert runner.calls_today == 0
     assert any(row.get("reason") == "daily_cap" for row in rows)
 
 

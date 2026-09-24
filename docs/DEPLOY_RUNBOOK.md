@@ -270,11 +270,18 @@ AGENT_JEV_LOG_PATH=/home/ubuntu/wildfire-logs/jev_shadow.jsonl
 AGENT_JEV_DAILY_CALL_CAP=500
 ```
 
-- `AGENT_JEV_DAILY_CALL_CAP` counts user questions per UTC day, not API
-  calls. Past the cap, questions are logged as `dropped` with reason
-  `daily_cap` and Jev is not called. The code default is 5000; start at 500
-  and raise it once the cost report (5.3) shows real per-question spend.
-- `TYPESAFE_API_KEY` must already be set. Check without printing it:
+- `AGENT_JEV_DAILY_CALL_CAP` counts Jev API calls per process per UTC day,
+  not questions. A shadow question makes three calls (v3_hybrid) plus one
+  tool pick on the model path, and a decide question makes three, so 500
+  calls is roughly 125 to 165 questions. A question whose calls do not all
+  fit sends none of them: shadow logs it as `dropped` with reason `daily_cap`,
+  decide falls back to the router with `decision_source.why` `jev_daily_cap`.
+  The code default is 5000; start at 500 and raise it once the cost report
+  (5.3) shows real per-question spend.
+- `AGENT_ALLOW_REMOTE_PROVIDER=true` must be set (it already is for
+  OpenRouter). Any Jev mode other than `off` refuses to start without it.
+- `TYPESAFE_API_KEY` must already be set; startup now fails with a clear
+  message if it is missing or blank while Jev is on. Check without printing it:
 
 ```bash
 grep -c '^TYPESAFE_API_KEY=.\+' /home/ubuntu/Wildfire-Services/.env   # expect 1

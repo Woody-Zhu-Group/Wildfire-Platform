@@ -97,7 +97,7 @@ the router path and rule, Jev's disposition, rule, and confidence, the winner, w
 `decision_source` (`services/agent/decisions/provenance.py`, documented in
 `services/agent/README.md`): `backstop` with the rule id, `jev` with the disposition and
 confidence when the winner is Jev, or `router` with why (`jev_below_gate`, `jev_error`,
-`jev_timeout`, `verified_fact` for `code_verified` and `contradicts_slot`,
+`jev_timeout`, `jev_daily_cap`, `verified_fact` for `code_verified` and `contradicts_slot`,
 `router_only_route` for `regex_only` and `router_only_tool`, `jev_agreed`). When Jev and the
 router agree, the router is recorded as the decider, as in the log, with Jev's confidence
 (for an agreed answer, the answer confidence above). The website shows it as
@@ -108,6 +108,18 @@ threads). A question waits at most `AGENT_JEV_TIMEOUT_SECONDS` for its three cal
 that have not started are cancelled, and a call already running keeps its worker only until
 the backend's own timeout ends it. Timed-out requests therefore cannot pile up threads
 (`test_timed_out_jev_calls_do_not_leak_threads`).
+
+**Daily cap.** `AGENT_JEV_DAILY_CALL_CAP` counts Jev API calls per process per UTC day.
+A decide question makes three calls, and all three are reserved before any is sent; when
+they do not fit under the cap, Jev is not asked, the router's decision stands, and the
+response carries `decision_source` `router` with `why` `jev_daily_cap`
+(`test_orchestrator_decide_mode_records_the_cap_and_keeps_the_router_route`). Exempt
+routes (backstops, regex-only rules, router-only tools) never spend the budget.
+
+**Startup.** Decide mode, like every Jev mode other than `off`, requires
+`AGENT_ALLOW_REMOTE_PROVIDER=true` and the active backend's key (`OPENROUTER_API_KEY` for
+`AGENT_JEV_BACKEND=openrouter`, `TYPESAFE_API_KEY` for `typesafe`) when settings load. A
+missing key or gate fails startup with a message that names the variable and never its value.
 
 ## Choosing the gates
 

@@ -6,6 +6,7 @@ import logging
 import random
 import threading
 import weakref
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from concurrent.futures.thread import _threads_queues, _worker
 from datetime import datetime, timezone
@@ -13,6 +14,7 @@ from typing import Any
 
 from services.agent.config import AgentSettings
 from services.agent.decisions.backend import DecisionBackend, DecisionResult, QuestionSpec
+from services.agent.decisions.call_budget import DailyCallBudget
 from services.agent.decisions.integrity import answer_to_json, question_hash
 from services.agent.decisions.mapping import agreement, model_tool_labels, regex_labels
 from services.agent.decisions.schemas import (
@@ -28,6 +30,13 @@ logger = logging.getLogger("services.agent.decisions")
 
 _RUNNER: "ShadowRunner | None" = None
 _RUNNER_LOCK = threading.Lock()
+
+# Bounds on the admitted-request map. An entry normally leaves when the outcome
+# is written; a request that errors before that, or a streaming client that
+# disconnects, would otherwise stay forever. Entries older than the TTL are
+# evicted on the next submit, and the map never holds more than the size cap.
+ADMITTED_TTL_SECONDS = 900.0
+ADMITTED_MAX_SIZE = 10_000
 
 
 class _DaemonExecutor(ThreadPoolExecutor):
@@ -69,6 +78,7 @@ class ShadowRunner:
         *,
         log: ShadowLog | None = None,
         clock: Any = None,
+        budget: DailyCallBudget | None = None,
     ) -> None:
         self.settings = settings
         self.backend = backend
@@ -84,11 +94,36 @@ class ShadowRunner:
         )
         self._lock = threading.Lock()
         self.dropped = 0
-        self.cap_blocked = 0
-        self._calls_today = 0
-        self._day = self._clock().date()
+        # AGENT_JEV_DAILY_CALL_CAP counts API calls; see call_budget.py.
+        self.budget = budget or DailyCallBudget(
+            settings.jev_daily_call_cap, clock=self._clock
+        )
         self._rng = random.Random()
-        self._admitted: dict[str, bool] = {}
+        # request_id -> (admitted, admitted_at), insertion ordered for eviction.
+        self._admitted: OrderedDict[str, tuple[bool, datetime]] = OrderedDict()
+
+    @property
+    def cap_blocked(self) -> int:
+        return self.budget.blocked
+
+    @property
+    def calls_today(self) -> int:
+        return self.budget.calls_today
+
+    def admitted_size(self) -> int:
+        with self._lock:
+            return len(self._admitted)
+
+    def _evict_admitted(self, now: datetime) -> None:
+        """Caller holds self._lock. Drop stale entries, then the oldest past the size cap."""
+        while self._admitted:
+            oldest_id, (_flag, seen) = next(iter(self._admitted.items()))
+            if (now - seen).total_seconds() > ADMITTED_TTL_SECONDS:
+                self._admitted.popitem(last=False)
+                continue
+            break
+        while len(self._admitted) > ADMITTED_MAX_SIZE:
+            self._admitted.popitem(last=False)
 
     def shutdown(self, timeout: float = 2.0) -> None:
         self._executor.shutdown(wait=False, cancel_futures=True)
@@ -108,11 +143,13 @@ class ShadowRunner:
         candidate_tools: list[str] | None = None,
     ) -> None:
         admitted = self._sampled()
+        now = self._clock()
         with self._lock:
-            self._admitted[request_id] = admitted
+            self._admitted[request_id] = (admitted, now)
+            self._evict_admitted(now)
         if not admitted:
             return
-        if not self._reserve():
+        if not self._reserve(self._calls_per_question(question, today, candidate_tools)):
             return
         state = state_for(question, today)
         questions = routing_questions()
@@ -139,7 +176,19 @@ class ShadowRunner:
 
     def was_admitted(self, request_id: str) -> bool:
         with self._lock:
-            return bool(self._admitted.get(request_id))
+            entry = self._admitted.get(request_id)
+            return bool(entry and entry[0])
+
+    def _calls_per_question(
+        self, question: str, today: str, candidate_tools: list[str] | None
+    ) -> int:
+        """How many API calls submit_routing will make for this question."""
+        if not self.bundles_tool_pick:
+            return 1
+        from services.agent.decisions.v3 import calls_for_config
+
+        config = getattr(self.settings, "jev_ablation", "v3_split")
+        return max(1, len(calls_for_config(question, today, candidate_tools or None, config)))
 
     def submit_tool_pick(
         self,
@@ -151,7 +200,7 @@ class ShadowRunner:
     ) -> None:
         if not self.was_admitted(request_id) or not candidate_tools:
             return
-        if not self._reserve():
+        if not self._reserve(1):
             return
         today = self._clock().date().isoformat()
         state = state_for(question, today)
@@ -185,7 +234,8 @@ class ShadowRunner:
             return False
         return self._rng.random() < rate
 
-    def _reserve(self) -> bool:
+    def _reserve(self, calls: int) -> bool:
+        """Take a concurrency slot and `calls` of today's API call budget, or neither."""
         if not self._slots.acquire(blocking=False):
             with self._lock:
                 self.dropped += 1
@@ -198,32 +248,19 @@ class ShadowRunner:
                 }
             )
             return False
-        if not self._consume_cap():
+        if not self.budget.reserve(calls):
             self._slots.release()
-            with self._lock:
-                self.cap_blocked += 1
             self._write_now(
                 {
                     "type": "dropped",
                     "schema_version": SCHEMA_VERSION,
                     "ts": self._clock().isoformat(),
                     "reason": "daily_cap",
+                    "calls": calls,
                 }
             )
             return False
         return True
-
-    def _consume_cap(self) -> bool:
-        """Count user questions. One question may make several API calls."""
-        today = self._clock().date()
-        with self._lock:
-            if today != self._day:
-                self._day = today
-                self._calls_today = 0
-            if self._calls_today >= int(self.settings.jev_daily_call_cap):
-                return False
-            self._calls_today += 1
-            return True
 
     def _run_routing(
         self,

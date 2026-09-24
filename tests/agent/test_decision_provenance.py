@@ -96,6 +96,7 @@ def test_a_jev_answer_over_a_router_decline_is_a_jev_answer():
         ("below_gate", "jev_below_gate"),
         ("error", "jev_error"),
         ("timeout", "jev_timeout"),
+        ("daily_cap", "jev_daily_cap"),
         ("code_verified", "verified_fact"),
         ("contradicts_slot", "verified_fact"),
         ("regex_only", "router_only_route"),

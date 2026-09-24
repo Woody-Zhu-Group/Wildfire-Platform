@@ -125,6 +125,13 @@ class AgentOrchestrator:
         self.shadow = shadow
         # decide mode only; tests inject a fake backend here.
         self.decide_backend = decide_backend
+        # decide mode: today's Jev API call budget (AGENT_JEV_DAILY_CALL_CAP,
+        # counted per call). Shadow mode keeps its own inside the runner.
+        self.jev_budget = None
+        if settings.jev_mode == "decide":
+            from services.agent.decisions.call_budget import DailyCallBudget
+
+            self.jev_budget = DailyCallBudget(settings.jev_daily_call_cap)
         if shadow is None and settings.jev_mode == "shadow":
             from services.agent.decisions.shadow import get_runner
 
@@ -270,6 +277,7 @@ class AgentOrchestrator:
                         answer_gate=answer_gate,
                         # ask_jev gives up here and returns; the pool stays bounded.
                         timeout=self.settings.jev_timeout_seconds,
+                        budget=self.jev_budget,
                     ),
                     timeout=self.settings.jev_timeout_seconds + 1.0,
                 )

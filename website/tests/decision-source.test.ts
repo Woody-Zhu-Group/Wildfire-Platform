@@ -19,6 +19,7 @@ test('a router decision says why Jev did not decide', () => {
     ['jev_below_gate', 'Router (Jev below confidence gate)'],
     ['jev_error', 'Router (Jev error)'],
     ['jev_timeout', 'Router (Jev timed out)'],
+    ['jev_daily_cap', 'Router (Jev daily call cap reached)'],
     ['verified_fact', 'Router (verified fact)'],
     ['router_only_route', 'Router (router-only route)'],
     ['jev_agreed', 'Router (Jev agreed)'],
