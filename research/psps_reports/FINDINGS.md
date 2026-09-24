@@ -127,6 +127,38 @@ A further 28 automatic candidates (workbook versus PDF time conflicts, and repor
   - 17 events have partial correction letters instead of restated reports.
 - **Format drift.** Reports from 2017 to 2020 are letters answering numbered ESRB-8 questions. The standard template starts in late 2021, so older events are less likely to state MBL, complaint, or cancellation facts explicitly.
 
+## Cross-check against the warehouse PSPS table
+
+We compared the round 3 dataset with the warehouse table `wildfire.psps_events`, which is loaded from `psps_events.geojson` in the `dataset_demo` project. That table holds 56 PG&E, SCE, and SDG&E events from October 2021 to November 2025, with dates but no times. We matched events by utility and overlapping dates, using read-only queries. The script is `round3/warehouse_crosscheck.py` and the row-level output is `round3/warehouse_crosscheck.csv`.
+
+- **Coverage.** All 56 warehouse events match a report, one to one.
+  - Inside the warehouse's date range, the dataset has 22 more events, all of them events where customers were notified but nobody was shut off. The warehouse records only shutoffs, so this is expected.
+  - Outside that range, the dataset adds 58 shutoff events (2017 to early 2021, and 2026) and 19 more no-shutoff events.
+  - No shutoff event appears in the warehouse without a report, or the other way round, within the overlap.
+- **Customers de-energized: 37 of 56 match exactly.** 15 differ by under 2 percent, usually by 1 to 40 customers, and the dataset is higher in 11 of them. The largest of these is SCE, Nov 24, 2021: 78,514 in the report (p8, p22) against 79,697 in the warehouse. Four differ a lot, and in each the report explains the gap:
+  - **SDG&E, Jan 7 to 16, 2025:** 21,508 (dataset) vs 15,103 (warehouse). The report gives both: "21,508 total customers (15,103 unique customers)" (p7). It also shows the amended total replacing an earlier 21,605.
+  - **SDG&E, Jan 20 to 24, 2025:** 29,980 vs 27,015. Same pattern: total vs unique, both stated on p6. The warehouse uses unique customers for SDG&E and the dataset uses totals.
+  - **SCE, Oct 15, 2021:** 67 vs 104. The report says 67 three times (p8, p9, p38), and its footnote says this is the unique count although one circuit was shut off twice. The number 104 appears nowhere in the report text.
+  - **SCE, Oct 1, 2024:** 15 vs 1. The report says "1 SCE customer and 14 PG&E customers were de-energized" (p8). The warehouse counts SCE's own customer only, and the dataset adds the PG&E customers. This page's text layer is also scrambled, another broken-font case; we read it from the rendered page.
+- **First shutoff date: 51 of 53 match.** For three events the report states no first time and the dataset has none; those are not compared. The two misses are one day apart, and in both the report supports the dataset:
+  - PG&E, Oct 14 to 16, 2021: "On October 15, 2021 at 01:00 PDT, PG&E began de-energizing" (p7), and the circuit table starts 10/15 01:00. The warehouse has 10/14.
+  - PG&E, June 2025: "On June 19 at 04:47 PDT, PG&E began de-energization" (p4). The warehouse has 6/18.
+- **Last restoration date: 50 of 55 match.** Three of the five misses trace to a small number of late customers that the warehouse leaves out:
+  - PG&E, Oct 11, 2021: the Calpine 1144 line, which PG&E does not own, was restored 10/14 (Appendix B, p102), two days after everyone else (warehouse 10/12).
+  - SCE, Nov 24, 2022: one commercial customer was left off until 11/27 because an isolation device was left open (p40), while "service was restored to all" by 11/25 (p21). The warehouse has 11/25.
+  - SDG&E, Nov 6 to 8, 2024: the report's restoration table and text both end 11/8 at 08:18 (p41, p139), against 11/7 in the warehouse.
+
+  The other two, SCE Sept 7, 2024 and SCE Oct 28, 2025, differ by one day in the other direction and were not checked against the reports.
+- **Counties: 42 of 56 match, but this comparison is weak.** The warehouse has no county field. We counted counties covering at least 1 percent of each event polygon, and the polygons clip slivers of neighboring counties. For example, Orange, Riverside, and Imperial together make up under 0.4 percent of the SDG&E polygons, while the reports' own tables list 3 or 4 counties. Treat county disagreements as a definitional difference, not an error in either source.
+
+**The pattern.** The two sources agree on which events happened and on almost all dates. They disagree mainly on definitions:
+
+- total vs unique customers,
+- whether one utility's report counts another utility's customers,
+- whether a handful of late or third-party customers set the restoration date.
+
+In every large disagreement we checked, the report pages support the dataset's value as the report's own number. The warehouse value is usually also a defensible reading. A combined panel should carry both a total and a unique customer count, and should state whose customers are counted.
+
 ## What the dataset could support after review
 
 Once the 286 flagged items are resolved, the table would be a consistent, sourced event record of PSPS use by the three utilities from 2017 to 2026. It could support:
