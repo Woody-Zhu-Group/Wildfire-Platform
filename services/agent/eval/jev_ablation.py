@@ -183,6 +183,7 @@ def run_ablation(
         tokens: list[int] = []
         walls: list[float] = []
         tool_trace: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        case_votes: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for repeat_index in range(repeats):
             actuals: dict[str, list[Any]] = defaultdict(list)
             para_actuals: dict[str, list[Any]] = defaultdict(list)
@@ -191,6 +192,16 @@ def run_ablation(
                 judged = _values(unit, config, shot["answers"])
                 tokens.append(shot["tokens"])
                 walls.append(shot["wall_ms"])
+                case_votes[str(unit["case"].get("id"))].append(
+                    {
+                        "disposition": judged.get("disposition"),
+                        "intent": judged.get("intent"),
+                        "dataset": judged.get("dataset"),
+                        "tool_pick": judged.get("tool_pick"),
+                        "clarify_reason": judged.get("clarify_reason"),
+                        "tokens": shot["tokens"],
+                    }
+                )
                 if unit["tools"] and judged.get("tool_pick") is not None:
                     tool_trace[str(unit["case"].get("id"))].append(
                         {
@@ -251,6 +262,9 @@ def run_ablation(
                 + f" original_confidence={original['confidence']}"
             )
         report["configs"][config]["tool_flips"] = flips
+        report["configs"][config]["case_votes"] = {
+            case_id: votes for case_id, votes in case_votes.items()
+        }
         _print_config(config, report["configs"][config])
         partial = RUNS / "jev_ablation_partial.json"
         partial.write_text(json.dumps(report, default=str), encoding="utf-8")

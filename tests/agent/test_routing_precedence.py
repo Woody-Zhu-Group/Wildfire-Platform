@@ -297,6 +297,36 @@ def test_single_dataset_monthly_trend_still_builds_a_monthly_series():
     assert args["year"] == 2024
 
 
+def test_clarification_keeps_a_detected_dataset():
+    near = route_question("How many CAL FIRE incidents happened near San Jose?")
+    assert near.path == "clarification"
+    assert near.slots["dataset"] == "calfire_incidents"
+    around_year = route_question("Around 2023, how many CPUC ignitions were there?")
+    assert around_year.rule != "undefined_spatial_scope"
+    assert around_year.slots["dataset"] == "cpuc_ignitions"
+
+
+def test_several_counties_are_a_slot_list():
+    decision = route_question(
+        "How many CAL FIRE incidents were there in Butte County and Napa County in 2018?"
+    )
+    assert decision.slots["counties"] == ["Butte", "Napa"] or set(decision.slots["counties"]) == {
+        "Butte",
+        "Napa",
+    }
+    assert len(decision.slots["counties"]) == 2
+    assert decision.path == "model"
+    assert decision.slots["county"] is None
+
+
+def test_damage_plus_a_future_year_stays_unsupported():
+    decision = route_question(
+        "What property damage should we expect from ignitions next year?"
+    )
+    assert decision.path == "unsupported"
+    assert decision.rule == "unsupported_damage"
+
+
 def test_list_records_uses_preview_limit_25():
     decision = route_question(
         "Show me CAL FIRE incidents in Sacramento County in 2024"

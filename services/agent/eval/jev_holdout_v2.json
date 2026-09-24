@@ -1,0 +1,1067 @@
+[
+  {
+    "id": "hv2_001",
+    "question": "Give me a county-by-county breakdown of CAL FIRE wildfire incidents across California for 2019.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "rank",
+    "expected_dataset": "calfire_incidents",
+    "expected_tool_pick": "data_query_rank",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_rank"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "One year, one dataset, grouped by county is a CAL FIRE ranking."
+  },
+  {
+    "id": "hv2_002",
+    "question": "For SCE, chart monthly EPSS fast-trip outage events during 2022 and include the annual total.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "multi_intent",
+    "expected_dataset": "epss_outages",
+    "expected_tool_pick": [
+      "visualization_create",
+      "data_query_records"
+    ],
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "visualization_create",
+      "data_query_records"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "A monthly chart plus an annual total is two results. EPSS is PG&E only, so SCE may be empty."
+  },
+  {
+    "id": "hv2_003",
+    "question": "Where did PG&E PSPS events occur in 2020, and how many events affected each county?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "multi_intent",
+    "expected_dataset": "psps_events",
+    "expected_tool_pick": [
+      "visualization_create",
+      "data_query_rank"
+    ],
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "visualization_create"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "A map plus a per-county count. Ranking PSPS by county is not an allowed rank."
+  },
+  {
+    "id": "hv2_004",
+    "question": "Compare SDG&E and SCE ignition-report counts for every year from 2018 through 2022.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "compare",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "comparison_run",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "comparison_run"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "Two utilities across every year in a span. One periods call cannot hold five years."
+  },
+  {
+    "id": "hv2_005",
+    "question": "Map the 2021 PacifiCorp utility-caused ignition reports together with Tier 2 and Tier 3 HFTD boundaries.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "map",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "visualization_create",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "visualization_create"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "Ignition points and HFTD polygons are two layers. One map call may not draw both."
+  },
+  {
+    "id": "hv2_006",
+    "question": "What was the historical ignition-risk value for the grid location at 39.2300, -121.0100 on September 5, 2020?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "risk",
+    "expected_dataset": null,
+    "expected_tool_pick": "risk_forecast",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_spatial",
+      "risk_forecast"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Coordinates and one historical day are a fitted risk score."
+  },
+  {
+    "id": "hv2_007",
+    "question": "List all PSPS events associated with PG&E during 2019, including the event dates.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "records_list",
+    "expected_dataset": "psps_events",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "A named utility and year is a PSPS list."
+  },
+  {
+    "id": "hv2_008",
+    "question": "How many CAL FIRE incidents were recorded in Butte, Napa, Sonoma, and Lake counties in 2018?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "count",
+    "expected_dataset": "calfire_incidents",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Four named counties need one count each."
+  },
+  {
+    "id": "hv2_009",
+    "question": "Show the yearly trend in PSPS event counts for SCE from 2018 through 2023.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "trend",
+    "expected_dataset": "psps_events",
+    "expected_tool_pick": "visualization_create",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "A yearly trend has no yearly interval, so the plan is one count per year."
+  },
+  {
+    "id": "hv2_010",
+    "question": "Which distribution circuits had the most EPSS fast-trip events in PG&E territory during 2022?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "rank",
+    "expected_dataset": "epss_outages",
+    "expected_tool_pick": "data_query_rank",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_rank"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Most EPSS events by circuit in one year is an allowed ranking."
+  },
+  {
+    "id": "hv2_011",
+    "question": "Take 2021 and 2022 separately: how many sampled wildfire ignitions of all causes occurred in California in each year?",
+    "intended_category": "answerable",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "us_ignitions",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "unexpressable_county_filter",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Two years of the national set. A California filter may not exist.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "count",
+      "expected_tool_pick": "data_query_records",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null,
+      "gold_plan": [
+        "data_query_records",
+        "data_query_records"
+      ],
+      "needs_human_review": true
+    },
+    "rule": "H",
+    "rule_text": "Rule H, written by Michael on 2026-09-23: a US-sample (us_ignitions) question restricted to a state is clarify / unexpressable_county_filter, matching rule F's label for hv3_005 and hv3_036, because the US ignitions endpoint cannot filter by state. Applied to hv2_011, ho_030, and ho_021. needs_human_review cleared on the rows rule H decided."
+  },
+  {
+    "id": "hv2_012",
+    "question": "Could you map Liberty's utility-caused ignition reports from 2017 to 2021 and show the county names?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "multi_intent",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "visualization_create",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "visualization_create"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "A map plus county names. The map may not list county names as a second result."
+  },
+  {
+    "id": "hv2_013",
+    "question": "Within Kern County, what were SCE's ignition-report totals in 2019, 2020, and 2021?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "count",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Three named years for one utility and county are three counts."
+  },
+  {
+    "id": "hv2_014",
+    "question": "Calculate the share of 2023 PG&E EPSS events that took place on circuits in Tier 2 or Tier 3 HFTD.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "spatial_context",
+    "expected_dataset": "epss_outages",
+    "expected_tool_pick": "data_query_spatial",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_spatial"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "A share of EPSS events on tiered circuits may not be one spatial summary."
+  },
+  {
+    "id": "hv2_015",
+    "question": "What counties had the largest number of CAL FIRE incidents from 2016 through 2020, with one total per county?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "rank",
+    "expected_dataset": "calfire_incidents",
+    "expected_tool_pick": "data_query_rank",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_rank"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "One total per county over a named span is a county ranking."
+  },
+  {
+    "id": "hv2_016",
+    "question": "How many CPUC-reported utility ignitions did Bear Valley have in 2018, 2019, 2020, and 2021?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "count",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Four named years are four counts."
+  },
+  {
+    "id": "hv2_017",
+    "question": "Identify the Tier 3 distribution circuits in SDG&E territory and count the utility-caused ignitions on them in 2022.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "multi_intent",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "Circuits in a tier plus ignitions on them may not be one read."
+  },
+  {
+    "id": "hv2_018",
+    "question": "Between 2017 and 2023, which year produced the highest statewide count of utility-caused ignition reports?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "rank",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "data_query_rank",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "Which year was highest needs one statewide count per year, not a utility ranking."
+  },
+  {
+    "id": "hv2_019",
+    "question": "pge epss events by month for 2023 + yearly total",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "multi_intent",
+    "expected_dataset": "epss_outages",
+    "expected_tool_pick": [
+      "visualization_create",
+      "data_query_records"
+    ],
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "visualization_create",
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Monthly series plus the year total."
+  },
+  {
+    "id": "hv2_020",
+    "question": "calfire incidents in Fresno County, 2017 vs 2021",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "compare",
+    "expected_dataset": "calfire_incidents",
+    "expected_tool_pick": "comparison_run",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "comparison_run"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "One county and two named years is a period comparison."
+  },
+  {
+    "id": "hv2_021",
+    "question": "map sdge psps events in 2022 and break them out by county",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "multi_intent",
+    "expected_dataset": "psps_events",
+    "expected_tool_pick": [
+      "visualization_create",
+      "data_query_rank"
+    ],
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "visualization_create"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "A map plus a county breakdown. PSPS by county is not an allowed ranking."
+  },
+  {
+    "id": "hv2_022",
+    "question": "how many utility-caused ignitions did pacificorp report in 2019, 2020, and 2021?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "count",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Three named years are three counts."
+  },
+  {
+    "id": "hv2_023",
+    "question": "hftd tier 2 circuits serving Mendocino County in 2020, plus the number of pge ignitions on those circuits",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "multi_intent",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "Tier 2 circuits in a county plus ignitions on them may not be one read."
+  },
+  {
+    "id": "hv2_024",
+    "question": "which year had more psps events for sce, 2019 or 2021? also show the counts",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "compare",
+    "expected_dataset": "psps_events",
+    "expected_tool_pick": "comparison_run",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "comparison_run"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Two named years for one utility, with the counts, is a period comparison."
+  },
+  {
+    "id": "hv2_025",
+    "question": "calfire wildfire totals for Riverside, San Bernardino, and Los Angeles counties in 2022",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "compare",
+    "expected_dataset": "calfire_incidents",
+    "expected_tool_pick": "comparison_run",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "comparison_run"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Three named counties and one year is a regional comparison."
+  },
+  {
+    "id": "hv2_026",
+    "question": "Show me the historical ignition-risk level at Chico, California for July 20, 2019.",
+    "intended_category": "answerable",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "risk_missing_place",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": true,
+    "label_rationale": "A city is not a cell, county, utility, or coordinate pair."
+  },
+  {
+    "id": "hv2_027",
+    "question": "pge utility ignitions 2018-2022, county breakdown + trend chart",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "multi_intent",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": [
+      "data_query_rank",
+      "visualization_create"
+    ],
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_rank",
+      "visualization_create"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "A county breakdown plus a trend chart is two results over a span."
+  },
+  {
+    "id": "hv2_028",
+    "question": "Among 2020 CAL FIRE incidents, how many occurred inside Tier 2 HFTD and how many were in Tier 3?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "count",
+    "expected_dataset": "calfire_incidents",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "Tier 2 versus Tier 3 counts need an HFTD filter CAL FIRE records may not have."
+  },
+  {
+    "id": "hv2_029",
+    "question": "list all epss events on pge distribution circuits in Napa County during 2021",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "records_list",
+    "expected_dataset": "epss_outages",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "One utility, one county, and one year is an EPSS list."
+  },
+  {
+    "id": "hv2_030",
+    "question": "liberty vs bear valley ignition reports from 2018 through 2022 by year",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "compare",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": "comparison_run",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "comparison_run"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "Two utilities by year across five years does not fit one periods call."
+  },
+  {
+    "id": "hv2_031",
+    "question": "Map Tier 2 and Tier 3 HFTD areas overlapping PG&E distribution circuits in Sonoma County.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "map",
+    "expected_dataset": "hftd",
+    "expected_tool_pick": "visualization_create",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "visualization_create"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "HFTD polygons overlapping circuits in one county may be two layers."
+  },
+  {
+    "id": "hv2_032",
+    "question": "Did the number of PG&E PSPS events increase between 2018 and 2022, and what were the counts in each year?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "count",
+    "expected_dataset": "psps_events",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Counts in each year from 2018 to 2022 are five counts."
+  },
+  {
+    "id": "hv2_033",
+    "question": "What are the annual CAL FIRE incident totals for Marin County from 2015 to 2020?",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "count",
+    "expected_dataset": "calfire_incidents",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records",
+      "data_query_records"
+    ],
+    "needs_human_review": false,
+    "label_rationale": "Annual totals from 2015 to 2020 are one count per year."
+  },
+  {
+    "id": "hv2_034",
+    "question": "Give me utility-caused ignition counts by utility for 2022, then chart 2019-2022 trends for each utility.",
+    "intended_category": "answerable",
+    "expected_disposition": "answer",
+    "expected_intent": "multi_intent",
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": [
+      "data_query_records",
+      "visualization_create"
+    ],
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records",
+      "visualization_create"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "A count per utility plus a chart per utility exceeds a six-call plan."
+  },
+  {
+    "id": "hv2_035",
+    "question": "How many sampled all-cause wildfire ignitions were recorded in California's Central Valley in 2020?",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "us_ignitions",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "undefined_region",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "The Central Valley is not a warehouse county or utility."
+  },
+  {
+    "id": "hv2_036",
+    "question": "What was the modeled ignition risk near Auburn?",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "undefined_spatial_scope",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Near a city has no radius, and no historical day."
+  },
+  {
+    "id": "hv2_037",
+    "question": "Show PSPS events around Santa Rosa and tell me which circuits were affected.",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "psps_events",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "undefined_spatial_scope",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Around a city has no radius or polygon."
+  },
+  {
+    "id": "hv2_038",
+    "question": "pge epss outages in 2021",
+    "intended_category": "missing_info",
+    "expected_disposition": "answer",
+    "expected_intent": "count",
+    "expected_dataset": "epss_outages",
+    "expected_tool_pick": "data_query_records",
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": [
+      "data_query_records"
+    ],
+    "needs_human_review": true,
+    "label_rationale": "A utility, EPSS, and a year is a count. The generator called it missing information."
+  },
+  {
+    "id": "hv2_039",
+    "question": "how many calfire fires near Sacramento?",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "calfire_incidents",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "undefined_spatial_scope",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Near a city has no radius, and no year."
+  },
+  {
+    "id": "hv2_040",
+    "question": "Map the circuits in Tier 3 near Fresno.",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "circuits",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "undefined_spatial_scope",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Near a city has no radius."
+  },
+  {
+    "id": "hv2_041",
+    "question": "SDGE vs PG&E PSPS counts",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "psps_events",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "records_missing_year",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Two utilities are named and no year is given."
+  },
+  {
+    "id": "hv2_042",
+    "question": "What years had the highest utility-caused ignition activity for Liberty?",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "ranking_missing_year",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Highest years for one utility with no window must be clarified."
+  },
+  {
+    "id": "hv2_043",
+    "question": "Show the HFTD status for the distribution circuit serving a home in Placerville.",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "circuits",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "undefined_spatial_scope",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "A home in a city is not a circuit id or a county polygon."
+  },
+  {
+    "id": "hv2_044",
+    "question": "List CAL FIRE incidents in Lake County during the fire season.",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "calfire_incidents",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "ambiguous_relative_time",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Fire season is not a year or a simple relative year."
+  },
+  {
+    "id": "hv2_045",
+    "question": "how many psps events impacted Sonoma County and Napa County?",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "psps_events",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "records_missing_year",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Two counties are named and no year is given."
+  },
+  {
+    "id": "hv2_046",
+    "question": "Which utility territory had more wildfire incidents?",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "records_missing_year",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Which territory had more, with no year, must be clarified."
+  },
+  {
+    "id": "hv2_047",
+    "question": "Give me the ignition risk for Bakersfield on a past date.",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "forecast_missing_date",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "A past date is not one historical day."
+  },
+  {
+    "id": "hv2_048",
+    "question": "pacificorp ignition reports by county",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "cpuc_ignitions",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "ranking_missing_year",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "By county with no year must be clarified."
+  },
+  {
+    "id": "hv2_049",
+    "question": "Find the distribution circuits overlapping HFTD around Grass Valley and compare them with circuits near Auburn.",
+    "intended_category": "missing_info",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": "circuits",
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "undefined_spatial_scope",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Around two cities has no radius."
+  },
+  {
+    "id": "hv2_050",
+    "question": "Can you tell me whether PG&E will have more ignitions next year than SCE?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_future_prediction",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Next year is outside stored years, so policy clarifies rather than refuses.",
+    "previous": {
+      "expected_disposition": "clarify",
+      "expected_clarify_reason": "time_out_of_coverage",
+      "expected_unsupported_topic": null
+    },
+    "rule": "F",
+    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
+  },
+  {
+    "id": "hv2_051",
+    "question": "What is the current wildfire risk score for a Tier 3 circuit near San Jose?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_live_web",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Current risk is live status."
+  },
+  {
+    "id": "hv2_052",
+    "question": "How much did the 2021 Dixie Fire cost California utilities?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_cost",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "What a fire cost is cost."
+  },
+  {
+    "id": "hv2_053",
+    "question": "Estimate wildfire ignition risk for this grid cell tomorrow.",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "risk_future_date",
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": true,
+    "label_rationale": "Tomorrow is after risk coverage, which policy clarifies."
+  },
+  {
+    "id": "hv2_054",
+    "question": "Which California utility is doing the most to prevent wildfires?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": true,
+    "label_rationale": "Which utility is doing the most to prevent fires is not a warehouse metric."
+  },
+  {
+    "id": "hv2_055",
+    "question": "What were the wind speeds and humidity during the Kincade Fire?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": true,
+    "label_rationale": "Wind and humidity during a named fire are not in this warehouse."
+  },
+  {
+    "id": "hv2_056",
+    "question": "How much money did PG&E spend on EPSS equipment in 2023?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_cost",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Money spent on equipment is cost."
+  },
+  {
+    "id": "hv2_057",
+    "question": "Can you predict which HFTD area will have the next ignition?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_future_prediction",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Predicting the next ignition is a forecast, not a stored read.",
+    "previous": {
+      "expected_disposition": "unsupported",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": null
+    },
+    "rule": "F",
+    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
+  },
+  {
+    "id": "hv2_058",
+    "question": "What is the average homeowners insurance premium in Tier 3?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_cost",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "An insurance premium is cost."
+  },
+  {
+    "id": "hv2_059",
+    "question": "who has the safest distribution system, pge or sce",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": true,
+    "label_rationale": "Safest distribution system is not a warehouse comparison."
+  },
+  {
+    "id": "hv2_060",
+    "question": "Give me live outage information for SDGE and PGE, plus any active PSPS notices.",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_live_web",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Live outages and active notices are live status."
+  },
+  {
+    "id": "hv2_061",
+    "question": "How many firefighters are currently assigned to wildfires in Northern California?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": null,
+    "gold_plan": null,
+    "needs_human_review": true,
+    "label_rationale": "Firefighters currently assigned are personnel and a live status."
+  },
+  {
+    "id": "hv2_062",
+    "question": "Will a property in Tier 2 HFTD be harder to insure in 2027?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_future_prediction",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Harder to insure is cost.",
+    "previous": {
+      "expected_disposition": "unsupported",
+      "expected_clarify_reason": null,
+      "expected_unsupported_topic": "unsupported_cost"
+    },
+    "rule": "F",
+    "rule_text": "Rule F, written by Michael on 2026-09-23: a prediction of future events or counts is unsupported / unsupported_future_prediction. ho_061 stays clarify / risk_future_date because hotspot is a risk word under the same decision set. Rule F, written by Michael on 2026-09-23: needs_human_review cleared on the rows rule F decided."
+  },
+  {
+    "id": "hv2_063",
+    "question": "Can the dataset estimate the economic damages associated with CAL FIRE incidents by county?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_damage",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Economic damages are out of scope."
+  },
+  {
+    "id": "hv2_064",
+    "question": "what caused the utility ignitions in pge territory and how much did each incident cost?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_cost",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "How much each incident cost is cost."
+  },
+  {
+    "id": "hv2_065",
+    "question": "Is wildfire risk currently increasing around Lake Tahoe based on today's weather?",
+    "intended_category": "out_of_scope",
+    "expected_disposition": "unsupported",
+    "expected_intent": null,
+    "expected_dataset": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": null,
+    "expected_unsupported_topic": "unsupported_live_web",
+    "gold_plan": null,
+    "needs_human_review": false,
+    "label_rationale": "Currently, around, and today's weather is live status."
+  }
+]

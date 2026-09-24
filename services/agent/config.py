@@ -78,6 +78,7 @@ class AgentSettings:
     jev_log_max_mb: float = 50.0
     jev_ablation: str = "v3_hybrid"
     jev_tool_pick_min_confidence: float = 0.8
+    slot_plan: bool = False
 
     @classmethod
     def from_env(cls) -> "AgentSettings":
@@ -165,6 +166,7 @@ class AgentSettings:
                 os.getenv("AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE", "0.8")
             ),
             llm_provider=llm_provider,
+            slot_plan=_bool("AGENT_SLOT_PLAN", False),
         )
         if hosted:
             value = replace(value, **hosted)

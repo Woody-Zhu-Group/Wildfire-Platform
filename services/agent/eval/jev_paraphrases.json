@@ -2651,6 +2651,10 @@
       "data_query_records",
       "visualization_create"
     ],
+    "gold_plan": [
+      "data_query_records",
+      "visualization_create"
+    ],
     "expected_status": "answer",
     "expected_disposition": "answer",
     "expected_intent": "multi_intent",
