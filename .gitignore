@@ -68,6 +68,9 @@ services/agent/logs/
 .cursor/
 *.swp
 
+# Jev shadow logs written by the agent (keep the deploy clean-tree check honest)
+services/agent/logs/
+
 # Hillclimb hook files
 /.claude/settings.local.json
 /.claude/settings.local.json.malformed-*
