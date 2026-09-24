@@ -2761,8 +2761,8 @@
     "answer"
    ],
    "router": [
-    "model",
-    "open_ended"
+    "deterministic",
+    "utility_territory"
    ],
    "jev": [
     "answer",
@@ -2770,8 +2770,8 @@
     null
    ],
    "decide": [
-    "model",
-    "open_ended",
+    "deterministic",
+    "utility_territory",
     "router",
     "agree"
    ]
