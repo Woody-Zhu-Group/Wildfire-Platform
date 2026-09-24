@@ -159,5 +159,7 @@ def test_comparison_answer_names_utilities_by_label_not_code():
         ]
     )
     text = _render_deterministic([result])
-    assert "PG&E=532, SDG&E=unavailable (EPSS is PG&E-only)" in text
-    assert "PGE=" not in text and "SDGE=" not in text
+    # Comparison answers are sentences (PR #93); both sides use the row label.
+    assert "comparison: PG&E 532." in text
+    assert "SDG&E has no CPUC ignition count: EPSS is PG&E-only." in text
+    assert "PGE" not in text.replace("PG&E", "") and "SDGE" not in text
