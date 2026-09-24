@@ -2881,7 +2881,7 @@ def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> s
         line += f" ({scope})"
     rendered = []
     for row in summary.get("results") or []:
-        key = row.get("key")
+        key = row.get("label") or row.get("key")
         value = row.get("value")
         extra = []
         if row.get("circuit_name"):

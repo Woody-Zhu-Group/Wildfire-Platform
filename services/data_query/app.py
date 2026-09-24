@@ -215,6 +215,8 @@ def rank(
     envelope["results"] = [
         {
             "key": row["group_value"],
+            "code": row["code"],
+            "label": row["label"],
             "value": row["metric_value"],
             "reason": extra.get("empty_reason"),
         }

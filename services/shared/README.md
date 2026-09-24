@@ -40,6 +40,7 @@ Where two callers used different spellings of the same thing, both were kept und
 | Utility codes | `naming.py` | `UTILITY_CODES`, `KNOWN_UTILITIES`, `UNTAGGED_UTILITY`, `RISK_MODEL_UTILITIES` | filters, agent schemas, risk `place.py`, PSPS loader, generator |
 | Utility spellings accepted | `naming.py` | `UTILITY_FILTER_KEYS`, `UTILITY_FILTER_SUFFIXES` (service filters); `UTILITY_ARGUMENT_ALIASES` (harness); `IOU_PUBLISHER_UTILITY_CODES` (IOU loader) | `data_query/filters.py`, `agent/argument_normalize.py`, `db/loaders` |
 | Utility labels and names | `naming.py` | `UTILITY_DISPLAY_LABELS`, `WORKSPACE_UTILITIES`, `UTILITY_CLARIFY_LABELS`, `UTILITY_FULL_NAMES`, `UTILITY_POSSESSIVE_NAMES` | grouped counts, website, clarifications, Jev questions, point answers |
+| Row code and label | `naming.py` | `group_code_and_label` | `/rank` and `/grouped-counts` rows, agent ranking summary and answer; website `groupNames` mirrors it |
 | Utility wording in questions | `naming.py` | `UTILITY_PATTERNS`, `UTILITY_ADVICE_SUBJECT_WORDS`, `UNTAGGED_UTILITY_PATTERN` | router, grounding, Jev |
 | County names and aliases | `naming.py` | `CALIFORNIA_COUNTIES`, `COUNTY_ALIASES`, `COUNTY_SUFFIX_PATTERN`, `COUNTIES_NEEDING_QUALIFIER` | `counties.py`, router, grounding, clarifications, Jev, website |
 | HFTD tiers | `naming.py` | `HFTD_TIER_BY_NUMBER`, `HFTD_TIER_NAMES`, `HFTD_TIERS`, `TIER_MENTION_PATTERN`, `TIER_LIST_PATTERN`, `TIER_WORD_PATTERN`, `TIER_DIGIT_PATTERN` | filters, comparison, agent schemas, router, grounding, HFTD loader |
@@ -58,9 +59,9 @@ What stays separate, and why:
 - **`frontend/assets/js`**: the legacy static map page keeps its own layer labels and utility seed list. It loads no module, so it cannot import the registry; it is out of scope until it is retired or reads `shared/naming.json`.
 - **`analysis/`** and **`services/risk_forecasting/legacy/`**: one-off research scripts and superseded reference code, left as written.
 
-Open inconsistency recorded and not changed (it would change behavior):
+Resolved in `rank-code-labels` (issue #89):
 
-- `/rank` with `group_by=utility` returns codes (`PGE`); `/grouped-counts` returns display labels (`PG&E`). Issue #89 proposes adding a `code` and a `label` field to each row rather than changing the existing values.
+- `/rank` with `group_by=utility` keys rows by code (`PGE`) and `/grouped-counts` by display label (`PG&E`). The keys are unchanged; every row of both responses also carries `code` and `label` from `group_code_and_label` (`naming.py`). Utility rows get the registry code and display label whichever form the key is in; a utility the registry does not list, a missing-value row, and every county, circuit, or cause row use the key as both. The agent's ranking answer and the website Comparison panel show `label`. The website mirrors the rule as `groupNames` in `website/src/data.ts`, built from the generated `shared/naming.json`, and uses it only when a service older than this change sends no `code` or `label`.
 
 Resolved in `naming-followups` (2026-09-24):
 

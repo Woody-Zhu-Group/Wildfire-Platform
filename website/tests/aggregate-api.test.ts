@@ -42,6 +42,34 @@ test('grouped counts retain unknown causes, missing causes and unavailable utili
   assert.equal((await getGroupedCounts('epss', DEFAULT_FILTERS, 'utility')).rows.find(row => row.key === 'SCE')?.value, null);
 });
 
+test('grouped counts keep the service key and carry the registry code and label (issue #89)', async t => {
+  clearDataCache(); t.after(clearDataCache);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({total: 6, rows: [
+    {key: 'PG&E', code: 'PGE', label: 'PG&E', value: 4}, {key: 'SDG&E', code: 'SDGE', label: 'SDG&E', value: 2}, {key: 'SCE', code: 'SCE', label: 'SCE', value: 0},
+  ]}));
+  const result = await getGroupedCounts('cpuc', DEFAULT_FILTERS, 'utility');
+  assert.deepEqual(result.rows.map(row => [row.key, row.code, row.label]), [['PG&E', 'PGE', 'PG&E'], ['SDG&E', 'SDGE', 'SDG&E'], ['SCE', 'SCE', 'SCE']]);
+});
+
+test('grouped counts from a service without code and label get them from the naming registry', async t => {
+  clearDataCache(); t.after(clearDataCache);
+  t.mock.method(globalThis, 'fetch', async (input: string) => Response.json(new URL(input).searchParams.get('group_by') === 'utility'
+    ? {total: 3, rows: [{key: 'PG&E', value: 2}, {key: 'Not recorded', value: 1}, {key: 'SDG&E', value: 0}, {key: 'SCE', value: 0}]}
+    : {total: 3, rows: [{key: 'Butte', value: 3}]}));
+  const utilities = await getGroupedCounts('cpuc', DEFAULT_FILTERS, 'utility');
+  assert.deepEqual(utilities.rows.map(row => [row.key, row.code, row.label]), [
+    ['PG&E', 'PGE', 'PG&E'], ['Not recorded', 'Not recorded', 'Not recorded'], ['SCE', 'SCE', 'SCE'], ['SDG&E', 'SDGE', 'SDG&E'],
+  ]);
+  const counties = await getGroupedCounts('cpuc', DEFAULT_FILTERS, 'county');
+  assert.deepEqual(counties.rows.map(row => [row.key, row.code, row.label]), [['Butte', 'Butte', 'Butte']]);
+});
+
+test('grouped counts reject a code or label that is not text', async t => {
+  clearDataCache(); t.after(clearDataCache);
+  t.mock.method(globalThis, 'fetch', async () => Response.json({total: 1, rows: [{key: 'Butte', code: 'Butte', label: null, value: 1}]}));
+  await assert.rejects(getGroupedCounts('cpuc', DEFAULT_FILTERS, 'county'), /complete dataset/);
+});
+
 test('summary downloads totals without any map-layer request', async t => {
   clearDataCache(); t.after(clearDataCache);
   const urls: URL[] = [];

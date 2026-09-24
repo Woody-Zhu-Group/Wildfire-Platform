@@ -30,7 +30,7 @@ from services.agent.schemas import (
 )
 from services.agent.time_resolve import apply_harness_years
 from services.shared.counties import UnknownCountyError, normalize_county
-from services.shared.dataset_registry import data_query_path
+from services.shared.dataset_registry import data_query_path, group_code_and_label
 
 
 @dataclass
@@ -588,9 +588,19 @@ class ToolExecutor:
             for row in data:
                 if not isinstance(row, dict):
                     raise ValueError("rank row must be an object")
+                key = row.get("group_value")
+                # A data query service older than issue #89 sends no code or
+                # label; the registry gives the same fields it would have sent.
+                names = (
+                    group_code_and_label(args.group_by, str(key))
+                    if key is not None
+                    else {"code": None, "label": None}
+                )
                 results.append(
                     {
-                        "key": row.get("group_value"),
+                        "key": key,
+                        "code": row.get("code", names["code"]),
+                        "label": row.get("label", names["label"]),
                         "value": row.get("metric_value"),
                         "division": row.get("division"),
                         "circuit_name": row.get("circuit_name"),

@@ -27,6 +27,7 @@ from services.shared.dataset_registry import (
     UTILITY_DISPLAY_LABELS,
     WORKSPACE_UTILITIES,
     calfire_default_type_sql,
+    group_code_and_label,
 )
 
 _CALFIRE_DEFAULT_TYPE_SQL = calfire_default_type_sql("c.incident_type")
@@ -858,6 +859,7 @@ def query_rank(
         item = {
             "group_value": row["group_value"],
             "metric_value": _json_number(row["metric_value"]),
+            **group_code_and_label(group_by, str(row["group_value"])),
         }
         if dataset == "epss_outages":
             item["division"] = row.get("division")
@@ -1389,6 +1391,7 @@ def query_grouped_counts(
             [{"key": key, "value": value} for key, value in grouped]
         )
 
+    rows = [{**row, **group_code_and_label(group_by, row["key"])} for row in rows]
     if dataset == "calfire_incidents" and (county is not None or calfire_by_county):
         extra = _calfire_multi_county_meta(conn, where_sql, params)
         if calfire_by_county:

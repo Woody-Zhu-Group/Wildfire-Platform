@@ -57,6 +57,11 @@ export interface Bucket { start: string; end: string; count: number }
 export const configFor = (id: DatasetId) => DATASETS.find(d => d.id === id)!;
 export const utilityCode = (label: string) => UTILITY_CODES_BY_LABEL[label] ?? label;
 export const utilityLabel = (code: unknown) => typeof code === 'string' ? (UTILITY_LABELS[code] ?? code) : null;
+// The code and label of one grouped-count row, as services/shared/naming.py
+// group_code_and_label gives them: a utility's registry code and display label,
+// and any other group's value as both.
+export const groupNames = (groupBy: GroupBy, key: string) =>
+  groupBy === 'utility' ? {code: utilityCode(key), label: utilityLabel(utilityCode(key)) ?? key} : {code: key, label: key};
 export const asText = (value: unknown): string | null => value === null || value === undefined || value === '' ? null : String(value);
 export const asNumber = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null;
 

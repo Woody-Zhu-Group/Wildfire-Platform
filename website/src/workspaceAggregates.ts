@@ -1,5 +1,5 @@
 import * as service from './api.ts';
-import { aggregateDaily, asNumber, asText, UTILITIES, type Bucket, type DatasetId, type Filters, type GroupBy, type Interval } from './data.ts';
+import { aggregateDaily, asNumber, asText, groupNames, UTILITIES, type Bucket, type DatasetId, type Filters, type GroupBy, type Interval } from './data.ts';
 import { readSummary, type SummaryResponse } from './stats.ts';
 import type { RegionSeries } from './temporal.ts';
 
@@ -16,7 +16,7 @@ async function groupedFromRecords(dataset: DatasetId, filters: Filters, groupBy:
     for (const key of keys) counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   const keys = groupBy === 'utility' ? [...new Set([...(filters.utility ? [filters.utility] : UTILITIES), ...counts.keys()])] : [...counts.keys()];
-  const rows = keys.map(key => ({key, value: groupBy === 'utility' && dataset === 'epss' && key !== 'PG&E' ? null : counts.get(key) ?? 0}))
+  const rows = keys.map(key => ({key, ...groupNames(groupBy, key), value: groupBy === 'utility' && dataset === 'epss' && key !== 'PG&E' ? null : counts.get(key) ?? 0}))
     .sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || a.key.localeCompare(b.key));
   return multi ? {rows, total: events.length, multi_county_incidents: multi, note: MULTI_COUNTY_NOTE} : {rows, total: events.length};
 }
