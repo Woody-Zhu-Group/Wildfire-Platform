@@ -1,0 +1,117 @@
+{
+ "source_url": "fixture:https://services2.arcgis.com/VofPZYDe2pLxSP5G/ArcGIS/rest/services/CPUC_High_Fire_Threat_District/FeatureServer/0",
+ "fetched_at": "2026-09-24T00:00:00+00:00",
+ "layer_name": "fixture cpuc_hftd",
+ "native_wkid": 3310,
+ "data_last_edit": "2026-09-24T00:00:00+00:00",
+ "features": [
+  {
+   "attributes": {
+    "OBJECTID": 1,
+    "HFTD": "Tier 2",
+    "Shape__Length": 1.0,
+    "Shape__Area": 92257185.8074636
+   },
+   "geometry": {
+    "rings": [
+     [
+      [
+       -121.0,
+       39.0
+      ],
+      [
+       -121.0,
+       39.1
+      ],
+      [
+       -120.9,
+       39.1
+      ],
+      [
+       -120.9,
+       39.0
+      ],
+      [
+       -121.0,
+       39.0
+      ]
+     ],
+     [
+      [
+       -120.97,
+       39.03
+      ],
+      [
+       -120.95,
+       39.03
+      ],
+      [
+       -120.95,
+       39.05
+      ],
+      [
+       -120.97,
+       39.05
+      ],
+      [
+       -120.97,
+       39.03
+      ]
+     ],
+     [
+      [
+       -120.92,
+       39.08
+      ],
+      [
+       -120.9199,
+       39.08
+      ],
+      [
+       -120.92,
+       39.08000000418218
+      ],
+      [
+       -120.92,
+       39.08
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "attributes": {
+    "OBJECTID": 2,
+    "HFTD": "Tier 3",
+    "Shape__Length": 1.0,
+    "Shape__Area": 96101794.13022354
+   },
+   "geometry": {
+    "rings": [
+     [
+      [
+       -120.8,
+       39.0
+      ],
+      [
+       -120.8,
+       39.1
+      ],
+      [
+       -120.7,
+       39.1
+      ],
+      [
+       -120.7,
+       39.0
+      ],
+      [
+       -120.8,
+       39.0
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}
