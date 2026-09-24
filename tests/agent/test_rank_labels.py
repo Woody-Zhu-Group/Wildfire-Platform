@@ -93,3 +93,71 @@ def test_rank_answer_for_circuits_still_shows_the_circuit_id_name_and_division()
     }
     text = _render_rank_answer({"group_by": "circuit"}, summary)
     assert "043371102 (ALPHA 1102, division North Bay)=4" in text
+
+
+def _compare(rows: list[dict]):
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/compare-utilities")
+        return httpx.Response(
+            200,
+            json={"metric": "ignition_count", "normalize": "none", "results": rows, "meta": {"filters": {}}},
+        )
+
+    executor = ToolExecutor(AgentSettings(), ArtifactStore(60), transport=httpx.MockTransport(handler))
+    result = asyncio.run(
+        executor.execute(
+            "comparison_run",
+            {
+                "kind": "utilities",
+                "metric": "ignition_count",
+                "utilities": ["PGE", "SDGE"],
+                "start_date": "2024-01-01",
+                "end_date": "2024-12-31",
+            },
+            request_id="t",
+            attempt=1,
+            utilities=["PGE", "SDGE"],
+        )
+    )
+    assert result.ok, result.error
+    return result
+
+
+def test_comparison_utility_rows_pass_code_and_label_through():
+    result = _compare(
+        [
+            {"key": "PGE", "code": "PGE", "label": "PG&E", "value": 532, "reason": None},
+            {"key": "SDGE", "code": "SDGE", "label": "SDG&E", "value": 40, "reason": None},
+        ]
+    )
+    assert [(r["key"], r["code"], r["label"]) for r in result.summary["results"]] == [
+        ("PGE", "PGE", "PG&E"),
+        ("SDGE", "SDGE", "SDG&E"),
+    ]
+
+
+def test_comparison_utility_rows_get_code_and_label_before_the_service_is_updated():
+    result = _compare(
+        [
+            {"key": "PGE", "value": 532, "reason": None},
+            {"key": "SDGE", "value": None, "reason": "EPSS is PG&E-only"},
+        ]
+    )
+    assert [(r["key"], r["code"], r["label"]) for r in result.summary["results"]] == [
+        ("PGE", "PGE", "PG&E"),
+        ("SDGE", "SDGE", "SDG&E"),
+    ]
+
+
+def test_comparison_answer_names_utilities_by_label_not_code():
+    from services.agent.orchestrator import _render_deterministic
+
+    result = _compare(
+        [
+            {"key": "PGE", "code": "PGE", "label": "PG&E", "value": 532, "reason": None},
+            {"key": "SDGE", "code": "SDGE", "label": "SDG&E", "value": None, "reason": "EPSS is PG&E-only"},
+        ]
+    )
+    text = _render_deterministic([result])
+    assert "PG&E=532, SDG&E=unavailable (EPSS is PG&E-only)" in text
+    assert "PGE=" not in text and "SDGE=" not in text

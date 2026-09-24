@@ -110,7 +110,10 @@ def test_filters_apply_before_counting_and_preserve_attribute_definition(aggrega
         ])
     body = read(aggregate_client, "/summary", dataset="cpuc_ignitions", utility="PG&E", county="marin")
     assert metric_values(body) == {"events": (1, 0), "counties": (1, 0), "utilities": (1, 0)}
-    assert read(aggregate_client, "/summary", dataset="cpuc_ignitions", county="Marin' OR TRUE --")["total"] == 0
+    # PR #76: an unknown county is a 400 with close matches, never 0 rows and never a widened filter.
+    injected = aggregate_client.get("/summary", params={**SCOPE, "dataset": "cpuc_ignitions", "county": "Marin' OR TRUE --"})
+    assert injected.status_code == 400
+    assert "unknown county" in injected.json()["detail"] and "Did you mean Marin?" in injected.json()["detail"]
     groups = read(aggregate_client, "/grouped-counts", dataset="cpuc_ignitions", group_by="county", county="Marin")
     assert groups["rows"] == [{"key": "Marin", "code": "Marin", "label": "Marin", "value": 2}]
 
@@ -125,7 +128,12 @@ def test_calfire_default_types_missing_acres_and_distinct_split_counties(aggrega
     body = read(aggregate_client, "/summary", dataset="calfire_incidents")
     assert metric_values(body) == {"events": (3, 0), "acres": (7, 1), "counties": (2, 1)}
     groups = read(aggregate_client, "/grouped-counts", dataset="calfire_incidents", group_by="county")
-    assert {row["key"] for row in groups["rows"]} == {"Los Angeles, Ventura", "Los Angeles", "Not recorded"}
+    # PR #81: a multi-county incident counts in every county it lists, so the rows
+    # sum above the incident total and the response says how many such incidents there are.
+    assert {row["key"]: row["value"] for row in groups["rows"]} == {"Los Angeles": 2, "Ventura": 1, "Not recorded": 1}
+    assert groups["total"] == 3
+    assert groups["multi_county_incidents"] == 1
+    assert "every county it lists" in groups["note"]
 
 
 def test_empty_populations_stay_zero_and_all_missing_fields_stay_null(aggregate_db, aggregate_client):

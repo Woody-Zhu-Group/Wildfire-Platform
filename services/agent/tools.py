@@ -589,8 +589,9 @@ class ToolExecutor:
                 if not isinstance(row, dict):
                     raise ValueError("rank row must be an object")
                 key = row.get("group_value")
-                # A data query service older than issue #89 sends no code or
-                # label; the registry gives the same fields it would have sent.
+                # Deploy-order safeguard: if the agent is updated before the
+                # data query service, rank rows arrive without code or label,
+                # so fill them from the registry with the same rule.
                 names = (
                     group_code_and_label(args.group_by, str(key))
                     if key is not None
@@ -745,6 +746,16 @@ class ToolExecutor:
                 for row in results:
                     if row.get("value") is None and not row.get("reason"):
                         raise ValueError("null comparison result missing reason")
+                if args.kind == "utilities":
+                    # Deploy-order safeguard: if the agent is updated before the
+                    # comparison service, utility rows arrive without code or
+                    # label, so fill them from the registry with the same rule.
+                    results = [
+                        {**group_code_and_label("utility", str(row.get("key"))), **row}
+                        if row.get("key") is not None
+                        else row
+                        for row in results
+                    ]
                 return {
                     "kind": args.kind,
                     "metric": raw.get("metric"),

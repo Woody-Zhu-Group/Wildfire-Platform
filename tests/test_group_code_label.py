@@ -178,3 +178,32 @@ def test_rank_and_grouped_counts_agree_on_code_and_label_for_the_same_utility(cl
     row = next(row for row in grouped if row["code"] == "SDGE")
     assert rank["key"] != row["key"]
     assert (rank["code"], rank["label"]) == (row["code"], row["label"]) == ("SDGE", "SDG&E")
+
+
+def test_compare_utilities_keeps_code_keys_and_adds_code_and_label(monkeypatch):
+    from services.comparison import app as comparison
+
+    def metric_for_scope(conn, *, scope_id, **kwargs):
+        return {"key": scope_id, "value": 1, "raw_value": 1, "denominator": None, "reason": None}
+
+    monkeypatch.setattr(comparison, "_metric_for_scope", metric_for_scope)
+    comparison.app.dependency_overrides[comparison.get_conn] = lambda: None
+    try:
+        with TestClient(comparison.app) as client:
+            r = client.get(
+                "/compare-utilities",
+                params={
+                    "utilities": "PG&E,SCE,sdge",
+                    "metric": "ignition_count",
+                    "start_date": "2024-01-01",
+                    "end_date": "2024-12-31",
+                },
+            )
+    finally:
+        comparison.app.dependency_overrides.clear()
+    assert r.status_code == 200, r.text
+    assert [(row["key"], row["code"], row["label"]) for row in r.json()["results"]] == [
+        ("PGE", "PGE", "PG&E"),
+        ("SCE", "SCE", "SCE"),
+        ("SDGE", "SDGE", "SDG&E"),
+    ]

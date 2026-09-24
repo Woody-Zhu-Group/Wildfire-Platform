@@ -46,6 +46,9 @@ def test_compare_utilities_ignitions_pge_sce_2024(client: httpx.Client):
     assert body["meta"]["ignition_definition"] == "attribute"
     by_key = {row["key"]: row for row in body["results"]}
     assert by_key["PGE"]["value"] == 532
+    # Issue #89: key stays the code; code and label come from the naming registry.
+    assert (by_key["PGE"]["code"], by_key["PGE"]["label"]) == ("PGE", "PG&E")
+    assert (by_key["SCE"]["code"], by_key["SCE"]["label"]) == ("SCE", "SCE")
     assert by_key["SCE"]["value"] is not None
     assert by_key["SCE"]["reason"] is None
 

@@ -3056,9 +3056,9 @@ def _render_deterministic(
             if summary.get("kind") in {"utilities", "regions"}:
                 rendered = ", ".join(
                     (
-                        f"{row.get('key')}={row.get('value')}"
+                        f"{row.get('label') or row.get('key')}={row.get('value')}"
                         if row.get("value") is not None
-                        else f"{row.get('key')}=unavailable ({row.get('reason')})"
+                        else f"{row.get('label') or row.get('key')}=unavailable ({row.get('reason')})"
                     )
                     for row in summary.get("results") or []
                 )

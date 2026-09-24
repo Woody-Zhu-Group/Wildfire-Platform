@@ -89,7 +89,8 @@ export async function getGroupedCounts(dataset: DatasetId, filters: Filters, gro
       || (row.code !== undefined && typeof row.code !== 'string') || (row.label !== undefined && typeof row.label !== 'string'))
     || new Set(result.rows.map(row => row.key)).size !== result.rows.length
     || !groupedRowsMatchTotal(result, dataset, groupBy)) throw new Error('Grouped counts do not match the complete dataset.');
-  // A service older than issue #89 sends no code or label; the registry gives the same ones.
+  // Deploy-order safeguard: if docs/ ships before the data query service is updated, rows
+  // arrive without code or label, so fill them from the registry with the same rule.
   const rows = result.rows.map(row => ({...groupNames(groupBy, row.key), ...row}));
   return {...result, rows: rows.sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || a.key.localeCompare(b.key))};
 }
