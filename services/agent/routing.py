@@ -33,12 +33,15 @@ from services.shared.dataset_registry import (
     BARE_IGNITIONS_PATTERN,
     BARE_OUTAGES_PATTERN,
     CALIFORNIA_COUNTIES,
+    COMPARISON_METRIC_DATASETS,
     COUNTIES_NEEDING_QUALIFIER,
     COUNT_MAP_DATASETS,
     CPUC_OR_UTILITY_BEFORE_IGNITIONS_PATTERN,
     DATASET_QUESTION_PATTERNS,
     EVENT_DATASET_WORDS,
+    DATASETS,
     HDW_YEARS,
+    HFTD_TIER_BY_NUMBER,
     HFTD_TIER_NAMES,
     IGNITION_QUALIFIER_PATTERN,
     LAYER_VIZ_KEYS,
@@ -1274,6 +1277,90 @@ def _comparison_metric(lower: str) -> str | None:
     ):
         return "ignition_count"
     return None
+
+
+def comparison_uncarried_constraints(
+    question: str, args: dict[str, Any], slots: dict[str, Any]
+) -> list[str]:
+    """Named utilities, counties, tiers, or a month a comparison call cannot carry.
+
+    One comparison_run compares one dimension (utilities, regions, or two
+    periods of one scope) over whole-year windows, so anything else the
+    question names would be dropped. A utility is carried implicitly when the
+    metric's dataset covers only that utility (EPSS and PG&E).
+    """
+    lower = " ".join(question.lower().split())
+    kind = args.get("kind")
+    scope_type = args.get("scope_type") if kind == "periods" else None
+    carried_utilities = (
+        list(args.get("utilities") or [])
+        if kind == "utilities"
+        else [args.get("scope")] if scope_type == "utility" else []
+    )
+    carried_counties = (
+        list(args.get("regions") or [])
+        if kind == "regions" and args.get("region_type") == "county"
+        else [args.get("scope")] if scope_type == "county" else []
+    )
+    carried_tiers = (
+        list(args.get("regions") or [])
+        if kind == "regions" and args.get("region_type") == "hftd"
+        else [args.get("scope")] if scope_type == "hftd" else []
+    )
+    dataset = COMPARISON_METRIC_DATASETS.get(str(args.get("metric")))
+    only = DATASETS[dataset].covered_utilities if dataset else None
+    dropped: list[str] = []
+    for utility in slots.get("utilities") or []:
+        if utility not in carried_utilities and tuple(only or ()) != (utility,):
+            dropped.append("utility")
+            break
+    counties = list(slots.get("counties") or []) or (
+        [slots["county"]] if slots.get("county") else []
+    )
+    carried_lower = {str(item).lower() for item in carried_counties}
+    if any(county.lower() not in carried_lower for county in counties):
+        dropped.append("county")
+    for digit in re.findall(r"tier\s*([23])", lower):
+        if HFTD_TIER_BY_NUMBER[digit] not in carried_tiers:
+            dropped.append("HFTD tier")
+            break
+    windows = [
+        (args.get("start_date"), args.get("end_date")),
+        (args.get("period_a_start"), args.get("period_a_end")),
+        (args.get("period_b_start"), args.get("period_b_end")),
+    ]
+    whole_years = all(
+        str(start)[5:] == "01-01" and str(end)[5:] == "12-31"
+        for start, end in windows
+        if start and end
+    )
+    if month_from_text(question) is not None and whole_years:
+        dropped.append("month")
+    return dropped
+
+
+def _block_uncarried_comparison_constraints(
+    *, question: str, args: dict[str, Any], slots: dict[str, Any]
+) -> RouteDecision | None:
+    """Clarify a comparison that would drop a named constraint, for every metric."""
+    dropped = comparison_uncarried_constraints(question, args, slots)
+    if not dropped:
+        return None
+    labels = " and ".join(dropped)
+    return RouteDecision(
+        "clarification",
+        "unexpressed_filter_constraints",
+        f"Comparison cannot carry the asked {labels} constraints",
+        answer=(
+            f"I can see {labels} in your question, but one comparison can only "
+            "compare utilities, HFTD tiers, or two whole years for one scope, so "
+            f"it would drop the {labels}. Should I drop "
+            f"{'those constraints' if len(dropped) > 1 else 'that constraint'}, "
+            "or give separate counts for each part instead? I will not answer "
+            "with a broader comparison."
+        ),
+        slots=slots,
+    )
 
 
 def _block_unexpressed_constraints(
@@ -3136,82 +3223,72 @@ def _route_question(
 
         # Two calendar years + one utility → periods. Two utilities + one year
         # → utilities. Never infer periods from a single relative year.
+        candidate: tuple[str, str, dict[str, Any]] | None = None
+        tiers = re.findall(r"tier\s*([23])", lower)
         if metric and len(years) == 2 and len(utilities) == 1:
             a_start, a_end = _range_for_year(years[0])
             b_start, b_end = _range_for_year(years[1])
-            return RouteDecision(
-                "deterministic",
+            candidate = (
                 "period_comparison",
                 "Metric, scope, and both periods are explicit",
-                tool_calls=[
-                    (
-                        "comparison_run",
-                        {
-                            "kind": "periods",
-                            "scope_type": "utility",
-                            "scope": utilities[0],
-                            "metric": metric,
-                            "period_a_start": a_start,
-                            "period_a_end": a_end,
-                            "period_b_start": b_start,
-                            "period_b_end": b_end,
-                            "ignition_definition": _ignition_definition(lower),
-                        },
-                    )
-                ],
-                slots=slots,
+                {
+                    "kind": "periods",
+                    "scope_type": "utility",
+                    "scope": utilities[0],
+                    "metric": metric,
+                    "period_a_start": a_start,
+                    "period_a_end": a_end,
+                    "period_b_start": b_start,
+                    "period_b_end": b_end,
+                    "ignition_definition": _ignition_definition(lower),
+                },
             )
-
-        if (
+        elif (
             metric
             and len(utilities) >= 2
             and year is not None
             and "us ignition" not in lower
         ):
             start, end = _range_for_year(year)
-            return RouteDecision(
-                "deterministic",
+            candidate = (
                 "utility_comparison",
                 "Metric, utilities, and year are explicit",
-                tool_calls=[
-                    (
-                        "comparison_run",
-                        {
-                            "kind": "utilities",
-                            "utilities": utilities,
-                            "metric": metric,
-                            "start_date": start,
-                            "end_date": end,
-                            "normalize": (
-                                "per_circuit" if "per circuit" in lower else "none"
-                            ),
-                            "ignition_definition": _ignition_definition(lower),
-                        },
-                    )
-                ],
-                slots=slots,
+                {
+                    "kind": "utilities",
+                    "utilities": utilities,
+                    "metric": metric,
+                    "start_date": start,
+                    "end_date": end,
+                    "normalize": "per_circuit" if "per circuit" in lower else "none",
+                    "ignition_definition": _ignition_definition(lower),
+                },
             )
-
-        tiers = re.findall(r"tier\s*([23])", lower)
-        if metric and len(set(tiers)) == 2 and year is not None:
+        elif metric and len(set(tiers)) == 2 and year is not None:
             start, end = _range_for_year(year)
-            return RouteDecision(
-                "deterministic",
+            candidate = (
                 "hftd_comparison",
                 "Metric, HFTD tiers, and year are explicit",
-                tool_calls=[
-                    (
-                        "comparison_run",
-                        {
-                            "kind": "regions",
-                            "region_type": "hftd",
-                            "regions": list(HFTD_TIER_NAMES),
-                            "metric": metric,
-                            "start_date": start,
-                            "end_date": end,
-                        },
-                    )
-                ],
+                {
+                    "kind": "regions",
+                    "region_type": "hftd",
+                    "regions": list(HFTD_TIER_NAMES),
+                    "metric": metric,
+                    "start_date": start,
+                    "end_date": end,
+                },
+            )
+        if candidate is not None:
+            rule, reason, args = candidate
+            blocked = _block_uncarried_comparison_constraints(
+                question=text, args=args, slots=slots
+            )
+            if blocked:
+                return blocked
+            return RouteDecision(
+                "deterministic",
+                rule,
+                reason,
+                tool_calls=[("comparison_run", args)],
                 slots=slots,
             )
         return RouteDecision(

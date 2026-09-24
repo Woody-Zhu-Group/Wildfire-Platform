@@ -53,6 +53,7 @@ REASON_CIRCUITS_PGE = (
 )
 REASON_ZERO_IGNITIONS = "Ignition count is zero; ratio undefined"
 REASON_COMPONENT_NULL = "One or more component metrics are null"
+REASON_US_NO_UTILITY = "The US ignitions sample has no utility column"
 
 # Discrepancy: services.agent.caveats epss_pge_only text is longer and is not
 # this REASON_EPSS_PGE_ONLY string. Do not collapse them.
@@ -121,6 +122,13 @@ class DatasetSpec:
     caveat_ids: tuple[str, ...]
     stat_label: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    # Utilities the dataset holds rows for. None means every utility; an empty
+    # tuple means the dataset has no utility column. A read for any other
+    # utility is not covered: absent data, never a zero (label rules I and J).
+    covered_utilities: tuple[str, ...] | None = None
+    not_covered_reason: str | None = None
+    # Datasets that do hold rows for an uncovered utility, offered instead.
+    not_covered_alternatives: tuple[str, ...] = ()
 
 
 def _spec(**kwargs: Any) -> DatasetSpec:
@@ -302,6 +310,9 @@ DATASETS: dict[str, DatasetSpec] = {
         caveat_ids=("epss_pge_only",),
         stat_label="EPSS outages",
         extra={"empty_reason_non_pge": REASON_EPSS_PGE_ONLY},
+        covered_utilities=("PGE",),
+        not_covered_reason=REASON_EPSS_PGE_ONLY,
+        not_covered_alternatives=("psps_events", "cpuc_ignitions"),
     ),
     "psps_events": _spec(
         key="psps_events",
@@ -354,6 +365,9 @@ DATASETS: dict[str, DatasetSpec] = {
             "meta_data_query": US_IGNITIONS_META_DATA_QUERY,
             "meta_visualization": US_IGNITIONS_META_VISUALIZATION,
         },
+        covered_utilities=(),
+        not_covered_reason=REASON_US_NO_UTILITY,
+        not_covered_alternatives=("cpuc_ignitions",),
     ),
     "circuits": _spec(
         key="circuits",
@@ -736,3 +750,43 @@ def caveat_texts(dataset: str) -> list[str]:
 
     entry = DATASETS[to_canonical(dataset)]
     return [CAVEAT_TEXT[cid] for cid in entry.caveat_ids if cid in CAVEAT_TEXT]
+
+
+# Comparison metrics and the dataset each one reads.
+COMPARISON_METRIC_DATASETS: dict[str, str] = {
+    "ignition_count": "cpuc_ignitions",
+    "epss_outage_count": "epss_outages",
+    "epss_to_ignition_ratio": "epss_outages",
+    "calfire_incident_count": "calfire_incidents",
+    "acres_burned": "calfire_incidents",
+    "psps_event_count": "psps_events",
+    "customers_deenergized": "psps_events",
+}
+
+
+def utility_coverage_gap(dataset: str | None, utilities: list[str]) -> dict[str, Any] | None:
+    """The uncovered utilities when none of ``utilities`` is covered, else None.
+
+    A read that names at least one covered utility runs; the service returns
+    the uncovered side as null with its reason (a comparison), so only a read
+    with no covered utility at all is refused.
+    """
+    if not dataset or not utilities:
+        return None
+    try:
+        spec = DATASETS[to_canonical(dataset)]
+    except (KeyError, ValueError):
+        return None
+    covered = spec.covered_utilities
+    if covered is None:
+        return None
+    uncovered = [u for u in utilities if u not in covered]
+    if not uncovered or len(uncovered) < len(utilities):
+        return None
+    return {
+        "dataset": spec.key,
+        "utilities": uncovered,
+        "covered_utilities": list(covered),
+        "reason": spec.not_covered_reason,
+        "alternatives": list(spec.not_covered_alternatives),
+    }

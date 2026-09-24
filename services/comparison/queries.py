@@ -132,10 +132,11 @@ def epss_outage_count(
     start: date,
     end: date,
 ) -> tuple[int | None, str | None]:
-    from services.comparison.metrics import REASON_EPSS_PGE_ONLY
+    from services.shared.dataset_registry import DATASETS
 
-    if scope == "utility" and scope_id != "PGE":
-        return None, REASON_EPSS_PGE_ONLY
+    spec = DATASETS["epss_outages"]
+    if scope == "utility" and scope_id not in (spec.covered_utilities or ()):
+        return None, spec.not_covered_reason
     with conn.cursor() as cur:
         if scope == "utility":
             cur.execute(

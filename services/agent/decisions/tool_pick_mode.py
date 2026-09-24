@@ -21,6 +21,7 @@ from services.agent.routing import (
     _comparison_metric,
     _ignition_definition,
     _range_for_year,
+    comparison_uncarried_constraints,
 )
 from services.shared.dataset_registry import (
     HFTD_TIER_BY_NUMBER,
@@ -278,6 +279,14 @@ def _visualization_args(slots: dict[str, Any], question: str) -> dict[str, Any] 
 
 
 def _comparison_args(slots: dict[str, Any], question: str) -> dict[str, Any] | None:
+    """Comparison arguments from slots, or None when a named constraint would drop."""
+    args = _comparison_slot_args(slots, question)
+    if args is not None and comparison_uncarried_constraints(question, args, slots):
+        return None
+    return args
+
+
+def _comparison_slot_args(slots: dict[str, Any], question: str) -> dict[str, Any] | None:
     lower = " ".join(question.lower().split())
     metric = _comparison_metric(lower)
     if metric is None or "us ignition" in lower:

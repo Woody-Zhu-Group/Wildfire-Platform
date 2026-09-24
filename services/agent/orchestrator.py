@@ -490,11 +490,13 @@ class AgentOrchestrator:
                             answer = f"{answer} {detail}"
                         if execution.tool == "risk_metrics":
                             answer = _risk_metrics_failure(execution.error or {})
+                        not_covered = _not_covered_answer([execution])
+                        failed_status = "clarification" if not_covered else "error"
                         response = self._response(
                             request_id=request_id,
                             decision=decision,
-                            status="error",
-                            answer=answer,
+                            status=failed_status,
+                            answer=not_covered or answer,
                             executions=executions,
                             qualifications=[],
                             trajectory=trajectory,
@@ -504,7 +506,11 @@ class AgentOrchestrator:
                             model_turns=0,
                             synthesis_fallback=False,
                         )
-                        await self._emit(on_event, "error", response)
+                        await self._emit(
+                            on_event,
+                            "answer" if not_covered else "error",
+                            response,
+                        )
                         return OrchestrationResult(
                             response=response, raw_log=raw_log
                         )
@@ -1155,6 +1161,34 @@ class AgentOrchestrator:
             on_event=on_event,
             cancel_event=cancel_event,
         )
+        not_covered = _not_covered_answer([execution])
+        if not_covered:
+            # The dataset does not cover the utility: a clarification, not a
+            # model retry that could report a zero.
+            log_tool_pick(
+                self.settings,
+                question,
+                ToolPickDecision(
+                    picked.tool,
+                    picked.confidence,
+                    "jev",
+                    "not_covered",
+                    picked.latency_ms,
+                ),
+            )
+            trajectory.append(_execution_event(execution))
+            return (
+                "clarification",
+                not_covered,
+                [execution],
+                trajectory,
+                float(picked.latency_ms or 0.0),
+                0,
+                0,
+                [],
+                [],
+                None,
+            )
         if not execution.ok:
             log_tool_pick(
                 self.settings,
@@ -1607,6 +1641,28 @@ class AgentOrchestrator:
                     }
                 )
 
+            not_covered = _not_covered_answer(
+                [item for item in turn_results.values() if not item.ok]
+            )
+            if not_covered:
+                # The executor refused a read the dataset does not cover. Stop
+                # here so the model cannot answer that part with a zero.
+                trajectory.append(
+                    {"type": "not_covered_stop", "phase": "routing", "step": step}
+                )
+                return (
+                    "clarification",
+                    not_covered,
+                    executions,
+                    trajectory,
+                    model_latency,
+                    direct_without_tool,
+                    model_turns,
+                    raw_log,
+                    [],
+                    None,
+                )
+
             if not active_candidates and not any(
                 item.ok and not item.qualification_call for item in executions
             ):
@@ -1633,7 +1689,7 @@ class AgentOrchestrator:
 
             missing = (
                     uncovered_entities(entities, _primary_calls(executions))
-                    if check_coverage
+                    if check_coverage or _ran_comparison(executions)
                     else []
                 )
             if turn_had_success and not turn_had_failure and missing:
@@ -1732,7 +1788,7 @@ class AgentOrchestrator:
 
         still_missing = (
             uncovered_entities(entities, _primary_calls(executions))
-            if check_coverage
+            if check_coverage or _ran_comparison(executions)
             else []
         )
         if still_missing and _primary_calls(executions):
@@ -1745,6 +1801,26 @@ class AgentOrchestrator:
                 }
             )
             names = ", ".join(item.split(":", 1)[1] for item in still_missing)
+            if _ran_comparison(executions):
+                # A comparison that cannot carry a named utility, county, or
+                # tier is a question for the user, not a narrower answer.
+                return (
+                    "clarification",
+                    (
+                        f"The comparison I could run does not include {names}, "
+                        "which your question names. Should I drop "
+                        f"{names}, or give separate counts for each part instead? "
+                        "I will not answer with a broader comparison."
+                    ),
+                    executions,
+                    trajectory,
+                    model_latency,
+                    direct_without_tool,
+                    model_turns,
+                    raw_log,
+                    [],
+                    None,
+                )
             return (
                 "error",
                 (
@@ -2371,10 +2447,36 @@ def _harness_slot_hint(
     return hint
 
 
+def _ran_comparison(executions: list[ToolExecution]) -> bool:
+    """A comparison ran, so every named entity must be carried (never dropped)."""
+    return any(
+        item.ok and not item.qualification_call and item.tool == "comparison_run"
+        for item in executions
+    )
+
+
+def _not_covered_answer(executions: list[ToolExecution]) -> str | None:
+    """The clarification for executor not-covered results, or None when there are none."""
+    messages: list[str] = []
+    for item in executions:
+        error = item.error or {}
+        if item.ok or item.qualification_call or error.get("code") != "not_covered":
+            continue
+        message = str(error.get("message") or "")
+        if message and message not in messages:
+            messages.append(message)
+    if not messages:
+        return None
+    return " ".join(messages) + " Do you want one of those instead?"
+
+
 def _user_facing_tool_failure(
     executions: list[ToolExecution], blocked_tools: set[str]
 ) -> str:
     """Translate harness/tool failures into actionable user language."""
+    not_covered = _not_covered_answer(executions)
+    if not_covered:
+        return not_covered
     errors = [
         item.error
         for item in executions

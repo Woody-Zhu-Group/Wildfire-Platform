@@ -30,7 +30,14 @@ from services.agent.schemas import (
 )
 from services.agent.time_resolve import CallWindows, apply_harness_years
 from services.shared.counties import UnknownCountyError, normalize_county
-from services.shared.dataset_registry import data_query_path, group_code_and_label
+from services.shared.dataset_registry import (
+    COMPARISON_METRIC_DATASETS,
+    STAT_LABELS,
+    UTILITY_DISPLAY_LABELS,
+    data_query_path,
+    group_code_and_label,
+    utility_coverage_gap,
+)
 
 
 @dataclass
@@ -287,6 +294,33 @@ class ToolExecutor:
                 qualification_call,
                 field_errors=_json_safe_errors(exc.errors(include_url=False)),
             )
+
+        # Dataset coverage is enforced here, for every caller (router, model,
+        # Jev templates, slot planner): a read for a utility the dataset holds
+        # no rows for is a structured not-covered result, never a zero.
+        gap = coverage_gap(tool, parsed.model_dump(mode="json", exclude_none=True))
+        if gap is not None:
+            result = self._not_covered(
+                tool,
+                parsed.model_dump(mode="json", exclude_none=True),
+                gap,
+                started,
+                qualification_call,
+            )
+            print(
+                json.dumps(
+                    {
+                        "event": "tool_result",
+                        "request_id": request_id,
+                        "tool": tool,
+                        "ok": False,
+                        "error_code": "not_covered",
+                        "latency_ms": round(result.latency_ms, 2),
+                        "evidence_id": None,
+                    }
+                )
+            )
+            return result
 
         if self.fault_scenario == "validation_error_persistent" and not qualification_call:
             return self._error(
@@ -782,6 +816,30 @@ class ToolExecutor:
             }
         raise ValueError(f"No response validator for {tool}")
 
+    def _not_covered(
+        self,
+        tool: str,
+        arguments: dict[str, Any],
+        gap: dict[str, Any],
+        started: float,
+        qualification_call: bool,
+    ) -> ToolExecution:
+        result = self._error(
+            tool,
+            arguments,
+            "not_covered",
+            not_covered_message(gap),
+            False,
+            (
+                "Do not report a count or a zero. Tell the user the dataset does "
+                "not cover this utility and offer the alternatives listed."
+            ),
+            started,
+            qualification_call,
+        )
+        result.error["not_covered"] = gap
+        return result
+
     def _error(
         self,
         tool: str,
@@ -1110,3 +1168,37 @@ def _summarize_risk_surface(args: RiskSurfaceArgs, raw: dict[str, Any]) -> dict[
         "max_risk_cell_id": top["cell_id"],
         "includes_cell_461": 461 in ids,
     }
+
+
+def coverage_gap(tool: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """The registry coverage gap a call would hit, or None when every read is covered."""
+    if tool in {"data_query_records", "data_query_rank", "visualization_create"}:
+        utility = arguments.get("utility")
+        return utility_coverage_gap(
+            arguments.get("dataset"), [str(utility)] if utility else []
+        )
+    if tool == "comparison_run":
+        dataset = COMPARISON_METRIC_DATASETS.get(str(arguments.get("metric")))
+        kind = arguments.get("kind")
+        if kind == "utilities":
+            utilities = [str(item) for item in arguments.get("utilities") or []]
+        elif kind == "periods" and arguments.get("scope_type") == "utility":
+            utilities = [str(arguments["scope"])] if arguments.get("scope") else []
+        else:
+            utilities = []
+        return utility_coverage_gap(dataset, utilities)
+    return None
+
+
+def not_covered_message(gap: dict[str, Any]) -> str:
+    """The reason, that the result is absent rather than zero, and what data exists."""
+    label = STAT_LABELS.get(gap["dataset"], gap["dataset"])
+    named = " and ".join(UTILITY_DISPLAY_LABELS.get(u, u) for u in gap["utilities"])
+    text = (
+        f"{gap.get('reason') or label + ' do not cover this utility'}, so there are "
+        f"no {named} rows in {label}: that result would be absent, not zero."
+    )
+    alternatives = [STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []]
+    if alternatives:
+        text += f" {named} data that does exist: {' and '.join(alternatives)}."
+    return text
