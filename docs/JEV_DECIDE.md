@@ -54,10 +54,15 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
      composed with the router's slots through `complete_clarification` (`wording: "jev"`).
      Every other both-clarify case keeps the router's wording as above.
    - **Every shown clarification asks for every missing item, whichever rule's text is the
-     base.** `complete_clarification` reads the missing items (a year or date, a dataset, a
-     ranking grouping, a place) from the question and the router's slots only
-     (`clarify_missing.missing_items`); the rule contributes only the item its own text asks
-     for, and whether a text already asks for an item is read from its words. So when Jev's
+     base.** `complete_clarification` reads the missing items from what the question reads
+     (its dataset and intent) and the router's slots only (`clarify_missing.missing_items`):
+     a year or date and a dataset for event data, a grouping for a ranking, and a place and
+     a calendar day for a risk question. A place is not computed for counts, maps, lists,
+     or charts; it is asked only when the rule's own text asks for it (the router's place
+     backstops). The number of places named never makes a task: a territory or HFTD lookup
+     naming several cities (`hv3_013`) reads no event data and is never asked for a year.
+     The rule contributes only the item its own text asks for, and whether a text already
+     asks for an item is read from its words. So when Jev's
      `ranking_missing_year` replaces the router's `ranking_missing_slots` on "Which one had
      the most ignitions?", the grouping is still asked. The options come from the registry
      for the task: a ranking lists the datasets `RANK_MEASURES` has for the grouping (a county
@@ -67,6 +72,14 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
      `SERIES_DATASETS` (also the `series_mode_missing_dataset` question itself). `tests/agent/test_clarify_asks_every_missing_item.py`
      asserts this for every clarification rule on questions missing different combinations
      of year, dataset, grouping, and place, and on the stored `ho_094` and `hv3_077` answers.
+   - **A registry-grounded ranking refusal is a verified fact** (PR #94). When the router
+     refuses a ranking because the question names two datasets, or its one dataset and its
+     grouping are not a pair in `RANK_MEASURES` (CAL FIRE acres by utility, EPSS by
+     utility, any dataset by state), a Jev clarification or answer cannot replace it
+     (`decide_mode.registry_verified_refusal`, `why: "code_verified"`, like
+     `code_verified_missing`). A ranking refused on a pair the registry has (a change over
+     time) is not covered. In the replay this changes only `ho_041`'s reason from
+     `below_gate` to `code_verified`; the decision was already the router's refusal.
    - **A Jev decline never contradicts a slot the router resolved.** A Jev clarification
      about the time (`*_missing_year`, `ambiguous_relative_time`, `forecast_missing_date`)
      is ignored when the router resolved the time, and one about the place

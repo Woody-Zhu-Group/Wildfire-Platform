@@ -68,6 +68,7 @@ from services.agent.routing import (
     RouteDecision,
 )
 from services.agent.schemas import TOOL_MODELS
+from services.shared.dataset_registry import MEASURE_DATASETS, RANK_MEASURES
 
 logger = logging.getLogger("services.agent.decisions")
 
@@ -299,6 +300,33 @@ def code_verified_missing(decision: RouteDecision) -> bool:
     return decision.rule == "time_out_of_coverage"
 
 
+def registry_verified_refusal(decision: RouteDecision, question: str) -> bool:
+    """A router ranking refusal the registry proves: no ranking the tools run fits.
+
+    The question names two or more datasets, or its one dataset and its grouping
+    are not a pair in RANK_MEASURES (for example CAL FIRE acres by utility,
+    EPSS by utility, or any dataset by state). Like a missing time or place the
+    resolver proved in code, this is a verified fact, so a Jev clarification or
+    answer cannot replace it. A ranking refused for another reason (a change
+    over time) on a pair the registry has is not covered.
+    """
+    if decision.path != "unsupported" or not decision.rule.startswith("unsupported_rank"):
+        return False
+    from services.agent.clarify_missing import task_datasets
+    from services.agent.routing import _rank_dimension
+
+    datasets = task_datasets(question, "rank")
+    if len(datasets) >= 2:
+        return True
+    dataset = datasets[0] if datasets else decision.slots.get("dataset")
+    group = _rank_dimension(question.lower())
+    if dataset is None or group is None:
+        return False
+    return group not in RANK_MEASURES or all(
+        MEASURE_DATASETS[measure] != dataset for measure in RANK_MEASURES[group]
+    )
+
+
 @dataclass
 class DecideResult:
     winner: str  # "router" or "jev"
@@ -496,6 +524,9 @@ def decide_from_answers(
         if confidence is None and jev_rule not in _RULE_FACTS and "measure_is_judgment" not in outcome.trace:
             confidence = 1.0
         info["jev_confidence"] = confidence
+        if jev_disposition == "clarify" and registry_verified_refusal(decision, question):
+            # The registry proves no ranking fits; a clarification cannot replace that.
+            return DecideResult("router", "code_verified", decision, **info, **base)
         if router_disposition == jev_disposition and decision.rule == jev_rule:
             return DecideResult("router", "agree", decision, **info, **base)
         item = _item_for(jev_rule)
@@ -525,7 +556,7 @@ def decide_from_answers(
     # The router declined. A missing time or place its resolver proved in code stands.
     confidence = rule_confidence(decision.rule, answers)
     info["jev_confidence"] = confidence
-    if code_verified_missing(decision):
+    if code_verified_missing(decision) or registry_verified_refusal(decision, question):
         return DecideResult("router", "code_verified", decision, **info, **base)
     # Otherwise Jev must be sure the facts behind that rule do not hold.
     if confidence is not None and confidence >= answer_gate:

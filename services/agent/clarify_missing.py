@@ -211,11 +211,18 @@ def _named_datasets(text: str) -> list[str]:
 _CHART = re.compile(r"\b(?:charts?|trends?|timelines?|seasonal|monthly|yearly|cumulative|series)\b", re.I)
 
 
+# Comparison wording.
+_COMPARE = re.compile(r"\bcompar\w*|\bvs\b|\bversus\b", re.I)
+
+
 def task_of(text: str, slots: dict[str, Any]) -> str:
     """What the question asks for: risk, rank, compare, data, or other.
 
-    Read from the question and the slots only, never from the rule, so every
-    rule's text asks for the same items on the same question.
+    Read from what the question reads (its dataset) and its intent, never from
+    the rule, so every rule's text asks for the same items on the same
+    question. The places in the slots never make a task on their own: a
+    territory or HFTD lookup naming several cities reads no event data and is
+    "other", so it is never asked for a year or given a count example.
     """
     from services.agent.routing import _asks_ranking
 
@@ -224,13 +231,19 @@ def task_of(text: str, slots: dict[str, Any]) -> str:
         return "risk"
     if _asks_ranking(lower):
         return "rank"
-    if len(slots.get("utilities") or []) >= 2 or len(slots.get("counties") or []) >= 2:
-        return "compare"
     datasets = _named_datasets(text)
-    if _reads_events(text, datasets) or (not datasets and _CHART.search(lower)):
-        return "data"
-    # A place, tier, or inventory question: nothing beyond the rule's own item.
-    return "other"
+    if _COMPARE.search(lower) and not datasets:
+        # Comparing reads data even before the question names a dataset. A
+        # comparison of circuits or HFTD areas names what it reads and is
+        # decided below like any other question.
+        return "compare"
+    if not (_reads_events(text, datasets) or (not datasets and _CHART.search(lower))):
+        # A place, tier, or inventory question: nothing beyond the rule's own item.
+        return "other"
+    if len(slots.get("utilities") or []) >= 2 or len(slots.get("counties") or []) >= 2:
+        # Event data across two or more named places.
+        return "compare"
+    return "data"
 
 
 def task_group(text: str, slots: dict[str, Any]) -> str | None:

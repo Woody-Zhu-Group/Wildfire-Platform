@@ -49,8 +49,9 @@ dataset/metric, scope, and required time/location slots are explicit:
   When a question is missing more than one item (year, place, dataset, ranking
   grouping), one clarification asks for all of them and ends with an example
   rephrasing built from what the question already named (`clarify_missing.py`).
-  The missing items come from the question and the router's slots, not the
-  rule, so any rule's text (the router's or, in decide mode, Jev's) asks for
+  The missing items come from what the question reads and the router's slots,
+  not the rule (a place is computed only for risk questions; for counts, maps,
+  and charts only the router's place rules ask for one), so any rule's text (the router's or, in decide mode, Jev's) asks for
   all of them, with options from the registry (`RANK_MEASURES`,
   `COMPARE_MEASURES`, `SERIES_DATASETS`). The rule id does not change.
 

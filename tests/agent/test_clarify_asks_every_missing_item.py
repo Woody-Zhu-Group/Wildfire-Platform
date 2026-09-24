@@ -20,7 +20,9 @@ from datetime import date
 import pytest
 
 from services.agent.clarify_missing import RULE_ITEM, complete_clarification, missing_items
+from services.agent.decisions import decide_mode
 from services.agent.decisions.decide_mode import _REASON_TEXT, decide_from_answers
+from services.agent.decisions.jev_policy import DerivedOutcome
 from services.agent.eval.jev_decide_replay import STORE, _answers
 from services.agent.routing import route_question
 from services.shared.dataset_registry import (
@@ -63,6 +65,10 @@ QUESTIONS: dict[str, set[str]] = {
     "How risky was it?": {"place", "date"},
     "Compare Butte and Shasta counties.": {"year", "dataset"},
     "How many CPUC ignitions were there in 2023?": set(),
+    # hv3_013: a territory and HFTD lookup naming several cities reads no event data.
+    "For Sacramento, Stockton, and Fresno, identify the utility territory and HFTD tier, if any.": set(),
+    # hv2_049: a circuit and HFTD lookup in comparison wording reads no event data either.
+    "Find the distribution circuits overlapping HFTD around Grass Valley and compare them with circuits near Auburn.": set(),
 }
 
 _FALLBACK = "Could you clarify the question?"
@@ -202,3 +208,55 @@ def test_a_county_comparison_offers_the_compare_measures_datasets():
         assert label in shown, label
     # PSPS has no county.
     assert "PSPS" not in shown
+
+
+def test_hv3_013_a_lookup_naming_several_cities_is_not_asked_for_a_year():
+    rows = json.loads((STORE.parents[1] / "jev_holdout_v3_questions.json").read_text(encoding="utf-8"))
+    question = next(row["question"] for row in rows if row.get("id") == "hv3_013")
+    decision = route_question(question)
+    assert decision.rule == "city_needs_place"
+    assert "year" not in _asked(decision.answer) - _asked(_REASON_TEXT.get("city_needs_place", ""))
+    assert "I also need" not in decision.answer and "For example" not in decision.answer, decision.answer
+
+
+def _force_ranking_missing_year(monkeypatch):
+    forced = DerivedOutcome("clarify", "ranking_missing_year", None, ["ranking_missing_year"], 0.97, {})
+    monkeypatch.setattr(decide_mode, "derive_outcome", lambda *args, **kwargs: forced)
+    return _answer_facts(intent=_choice("rank"), has_time_scope=_noul(0.03))
+
+
+def test_a_registry_grounded_rank_refusal_stands_over_a_jev_clarification(monkeypatch):
+    # CAL FIRE acres by utility is not a pair in RANK_MEASURES: a verified fact.
+    question = "Which utility had the most CAL FIRE acres burned?"
+    decision = route_question(question)
+    assert (decision.path, decision.rule) == ("unsupported", "unsupported_ranking")
+    assert not any(MEASURE_DATASETS[m] == "calfire_incidents" for m in RANK_MEASURES["utility"])
+    result = decide_from_answers(question, decision, _force_ranking_missing_year(monkeypatch))
+    assert result.jev_rule == "ranking_missing_year"
+    assert (result.winner, result.why) == ("router", "code_verified")
+    assert result.decision is decision
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Which utility had the most EPSS outages in 2023?",
+        "Which state had the most US ignitions in 2020?",
+        "Rank counties by CPUC ignitions and CAL FIRE incidents in 2022.",
+    ],
+)
+def test_every_unsupported_rank_pair_stands(monkeypatch, question):
+    decision = route_question(question)
+    assert decision.path == "unsupported" and decision.rule.startswith("unsupported_rank"), decision.rule
+    result = decide_from_answers(question, decision, _force_ranking_missing_year(monkeypatch))
+    assert (result.winner, result.why) == ("router", "code_verified")
+
+
+def test_a_refusal_on_a_pair_the_registry_has_is_not_verified(monkeypatch):
+    # A change over time on CPUC ignitions by county: the pair exists, so the
+    # refusal is the router's reading, not a registry fact, and Jev may override it.
+    question = "Which county had the largest increase in CPUC ignitions?"
+    decision = route_question(question)
+    assert (decision.path, decision.rule) == ("unsupported", "unsupported_ranking")
+    result = decide_from_answers(question, decision, _force_ranking_missing_year(monkeypatch))
+    assert result.why != "code_verified"
