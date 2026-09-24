@@ -123,7 +123,7 @@ export function Comparison() {
   const max = Math.max(1, ...rows.map(row => row.value ?? 0));
   return <div className="analysis-chart comparison-panel">
     <ExportActions datasets={[dataset]} disabled={Boolean(error||remote.loading||!total)} rows={()=>rows.map(row=>({dataset:config.name,group_by:groupBy,category:row.key,count:row.value,share_percent:row.value===null?null:row.value/total*100,period_start:filters.start,period_end:filters.end,utility:filters.utility,county:filters.county,unavailable_reason:row.value===null?'EPSS is PG&E-only':''}))}
-      svg={()=>barSvg(title,`${config.name}; ${filters.start} – ${filters.end}; ${filters.utility||'All utilities'}; ${filters.county||'All counties'}; ${groupBy}; ${measure==='share'?'percent of selected records':'event count'}; ${total} records. ${datasetNote(dataset)}`,rows,total,config.color,measure==='share')} />
+      svg={()=>barSvg(title,`${config.name}; ${filters.start} – ${filters.end}; ${filters.utility||'All utilities'}; ${filters.county||'All counties'}; ${groupBy}; ${measure==='share'?'percent of selected records':'event count'}; ${total} records. ${datasetNote(dataset)}${remote.data?.note ? ` ${remote.data.note}` : ''}`,rows,total,config.color,measure==='share')} />
     <div className="comparison-toolbar">
     <div className="comparison-context">
       <label>Dataset<select aria-label="Comparison dataset" value={dataset} onChange={event => setDataset(event.target.value as DatasetId)}>{DATASETS.map(item => <option key={item.id} value={item.id} disabled={groupBy === 'cause' && !item.hasCause}>{item.name}</option>)}</select>
@@ -135,6 +135,7 @@ export function Comparison() {
     <ChartFilters filters={filters} onChange={setFilters} dataset={dataset} />
     {error || remote.loading || !total ? <LoadState loading={remote.loading} error={error} retry={remote.error ? remote.retry : undefined} /> : <>
       <div className="bar-summary"><span>{config.name} · {total} events</span><span>{measure === "count" ? "Event count" : "% of selected records"}</span></div>
+      {remote.data?.note && <small className="filter-reason">{remote.data.multi_county_incidents?.toLocaleString()} of these incidents list more than one county. {remote.data.note}</small>}
       <div ref={viewport} className="analysis-bars" role="list" aria-label="Grouped event counts">
         {visibleRows.map(row => {
           const share = (row.value ?? 0) / total * 100;

@@ -6,15 +6,22 @@ import type { RegionSeries } from './temporal.ts';
 async function groupedFromRecords(dataset: DatasetId, filters: Filters, groupBy: GroupBy): Promise<service.GroupedCounts> {
   const events = await service.getRecords(dataset, filters);
   const counts = new Map<string, number>();
+  // CAL FIRE by county counts a multi-county incident in every county it lists, as the data service does.
+  const splitCounties = dataset === 'calfire' && groupBy === 'county';
+  let multi = 0;
   for (const event of events) {
-    const key = event[groupBy] ?? 'Not recorded';
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const raw = event[groupBy] ?? 'Not recorded';
+    const keys = splitCounties ? [...new Set(raw.split(',').map(part => part.trim()).filter(Boolean))] : [raw];
+    if (keys.length > 1) multi += 1;
+    for (const key of keys) counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   const keys = groupBy === 'utility' ? [...new Set([...(filters.utility ? [filters.utility] : UTILITIES), ...counts.keys()])] : [...counts.keys()];
   const rows = keys.map(key => ({key, value: groupBy === 'utility' && dataset === 'epss' && key !== 'PG&E' ? null : counts.get(key) ?? 0}))
     .sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || a.key.localeCompare(b.key));
-  return {rows, total: events.length};
+  return multi ? {rows, total: events.length, multi_county_incidents: multi, note: MULTI_COUNTY_NOTE} : {rows, total: events.length};
 }
+
+export const MULTI_COUNTY_NOTE = 'A CAL FIRE incident that lists several counties (for example "Shasta, Tehama") is counted, with its full acreage, in every county it lists, so county totals can add up to more than the statewide total.';
 
 async function summaryFromRecords(dataset: DatasetId, filters: Filters) {
   const events = await service.getRecords(dataset, filters);

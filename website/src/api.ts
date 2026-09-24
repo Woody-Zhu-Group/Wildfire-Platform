@@ -67,14 +67,23 @@ function aggregateParams(dataset: DatasetId, filters: Filters) {
   params.set('dataset', configFor(dataset).query);
   return params;
 }
-export interface GroupedCounts {rows: {key: string; value: number | null}[]; total: number}
+export interface GroupedCounts {rows: {key: string; value: number | null}[]; total: number; multi_county_incidents?: number; note?: string}
+// A CAL FIRE incident that lists several counties ("Shasta, Tehama") counts in each
+// county it lists, so CAL FIRE county rows may sum above the incident total, and only
+// when the service reports such incidents.
+export function groupedRowsMatchTotal(result: GroupedCounts, dataset: DatasetId, groupBy: GroupBy) {
+  const sum = result.rows.reduce((total, row) => total + (row.value ?? 0), 0);
+  if (sum === result.total) return true;
+  const multi = result.multi_county_incidents;
+  return dataset === 'calfire' && groupBy === 'county' && Number.isSafeInteger(multi) && multi! > 0 && sum > result.total;
+}
 export async function getGroupedCounts(dataset: DatasetId, filters: Filters, groupBy: GroupBy): Promise<GroupedCounts> {
   const params = aggregateParams(dataset, filters); params.set('group_by', groupBy);
   const result = await getJSON<GroupedCounts>(`${DATA_QUERY_URL}/grouped-counts?${params}`);
   if (!Number.isSafeInteger(result.total) || result.total < 0 || !Array.isArray(result.rows)
     || result.rows.some(row => !row || typeof row.key !== 'string' || (row.value !== null && (!Number.isSafeInteger(row.value) || row.value < 0)))
     || new Set(result.rows.map(row => row.key)).size !== result.rows.length
-    || result.rows.reduce((sum, row) => sum + (row.value ?? 0), 0) !== result.total) throw new Error('Grouped counts do not match the complete dataset.');
+    || !groupedRowsMatchTotal(result, dataset, groupBy)) throw new Error('Grouped counts do not match the complete dataset.');
   return {...result, rows: [...result.rows].sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || a.key.localeCompare(b.key))};
 }
 export async function getSummary(dataset: DatasetId, filters: Filters) {

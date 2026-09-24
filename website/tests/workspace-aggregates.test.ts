@@ -142,3 +142,16 @@ test('both client modes block unsupported EPSS summaries before upstream can ret
   }
   assert.equal(fetch.mock.callCount(), 0);
 });
+
+test('browser aggregation counts a multi-county CAL FIRE incident in each county it lists', async t => {
+  clearDataCache(); t.after(clearDataCache);
+  t.mock.method(globalThis, 'fetch', async () => Response.json(layer([
+    {incident_id: 'a', date_only_created: '2024-07-01', county: 'Shasta, Tehama', incident_type: 'Wildfire'},
+    {incident_id: 'b', date_only_created: '2024-07-02', county: 'Shasta', incident_type: 'Wildfire'},
+  ])));
+  const result = await createWorkspaceAggregates(false).getGroupedCounts('calfire', DEFAULT_FILTERS, 'county');
+  assert.deepEqual(result.rows, [{key: 'Shasta', value: 2}, {key: 'Tehama', value: 1}]);
+  assert.equal(result.total, 2);
+  assert.equal(result.multi_county_incidents, 1);
+  assert.match(result.note ?? '', /more than the statewide total/);
+});
