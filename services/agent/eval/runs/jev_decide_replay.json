@@ -3827,7 +3827,7 @@
    ],
    "router": [
     "unsupported",
-    "unsupported_damage"
+    "unsupported_cost"
    ],
    "jev": [
     "unsupported",
@@ -3836,7 +3836,7 @@
    ],
    "decide": [
     "unsupported",
-    "unsupported_damage",
+    "unsupported_cost",
     "router",
     "backstop"
    ]

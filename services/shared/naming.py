@@ -384,6 +384,86 @@ IGNITION_QUALIFIER_PATTERN = re.compile(
     re.I,
 )
 
+# ---------------------------------------------------------------------------
+# Measures: what a ranking or comparison can order by
+# ---------------------------------------------------------------------------
+# Which measures each grouping supports is on the dataset registry
+# (RANK_MEASURES, COMPARE_MEASURES); the names and words for them are here.
+
+# One label per measure, keyed by the comparison metric name.
+MEASURE_LABELS: dict[str, str] = {
+    "ignition_count": "CPUC ignition counts",
+    "calfire_incident_count": "CAL FIRE incident counts",
+    "acres_burned": "CAL FIRE acres burned",
+    "psps_event_count": "PSPS event counts",
+    "customers_deenergized": "customers de-energized in PSPS events",
+    "epss_outage_count": "EPSS outage counts (PG&E only)",
+    "epss_to_ignition_ratio": "EPSS outages per CPUC ignition (PG&E only)",
+}
+# Measures people ask for that no dataset stores, in clarification wording.
+MEASURES_NOT_IN_DATA: tuple[str, ...] = ("damage", "fatalities", "destroyed structures")
+
+# Words that name a measure a tool returns: a count (its events or a count
+# word), acres, customers affected, or a ratio. One word each, lower case.
+MEASURE_TERMS = frozenset(
+    {
+        # counts
+        "ignition", "ignitions", "fire", "fires", "wildfire", "wildfires",
+        "incident", "incidents", "outage", "outages", "event", "events",
+        "shutoff", "shutoffs", "deenergization", "deenergizations",
+        "energization", "energizations", "number", "count", "counts",
+        "total", "totals", "frequency", "frequently", "often", "times",
+        # acres
+        "acre", "acres", "acreage", "area",
+        # customers affected
+        "customer", "customers", "deenergized", "energized",
+        # ratio
+        "ratio",
+    }
+)
+# Data vocabulary that narrows a measure without naming one: dataset, utility,
+# place, grouping, and period words, and the risk and change measures other
+# routes own. A ranking phrase made only of these and measure terms resolves.
+MEASURE_QUALIFIER_WORDS = frozenset(
+    {
+        "the", "a", "an", "of", "their", "its", "each", "all", "any", "how",
+        "many", "much", "utility", "utilities", "caused", "attributed",
+        "tagged", "cpuc", "cal", "calfire", "epss", "psps", "us", "national",
+        "sample", "sampled", "reported", "recorded", "burned", "affected",
+        "fast", "trip", "power", "public", "safety", "de", "distribution",
+        "circuit", "circuits", "county", "counties", "hftd", "tier", "tiers",
+        "high", "threat", "wildland", "forest", "iou", "territory", "record",
+        "records", "year", "years", "yearly", "annual", "month", "months",
+        "monthly", "season", "seasons", "day", "days", "recent", "single",
+        "individual", "one", "overall", "combined", "cumulative", "state",
+        "states", "division", "divisions", "cell", "cells", "grid",
+        # risk and change measures, which other routes answer or refuse
+        "risk", "risks", "fitted", "predicted", "modeled", "forecast",
+        "probability", "intensity", "increase", "increases", "decrease",
+        "decreases", "change", "changes", "growth", "rise", "drop", "decline",
+        "jump",
+    }
+)
+# Measures no dataset stores. A ranking phrase naming one is left to the
+# unsupported-topic and other-measure refusals.
+NOT_IN_DATA_MEASURE_PATTERN = re.compile(
+    r"^(?:damages?|damaged|fatalit\w*|deaths?|dead|injur\w*|structures?|buildings?|"
+    r"homes?|cost\w*|dollars?|loss|losses|rates?|per|response|durations?|hours?|"
+    r"minutes?|causes?|smoke|evacuat\w*|people|population|residents?|spend\w*|"
+    r"time|lengths?)$"
+)
+# Superlative-looking words that are not superlatives, or that order by time
+# or distance rather than by a measure.
+NOT_A_MEASURE_SUPERLATIVE = frozenset(
+    {
+        "latest", "earliest", "newest", "oldest", "nearest", "closest",
+        "farthest", "furthest", "forest", "interest", "request", "harvest",
+        "contest", "protest", "suggest", "honest", "modest", "southwest",
+        "northwest", "midwest", "digest", "arrest", "invest", "other",
+        "rather", "later", "earlier", "sooner",
+    }
+)
+
 
 __all__ = sorted(
     name

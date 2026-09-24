@@ -310,7 +310,7 @@ were made.
 Disposition accuracy with the default gates, decline 0.8 and answer 0.9, replayed from the
 store with no new Jev calls, router as of main after PR #90 (`runs/jev_decide_replay.json`,
 regenerated 2026-09-24; the v2 and v3 router numbers rose with the router fixes merged since
-the first replay, and no Jev or decide entry changed; updated for the judgment-word change
+the first replay, and no Jev or decide entry changed; updated for the unresolved-measure change
 below):
 
 | Set | n | Status | Router alone | Jev alone | Decide | Jev won (fixed / broke) |
@@ -330,19 +330,24 @@ after PR #28 geocoded the city; Jev asked for a place the router resolved, now
 
 None of these sets is clean; production shadow logs are the next clean test.
 
-**Judgment words (branch `judgment-words`).** Production answered "Which utility had the most
-dangerous fires in 2023?" with the generic `ranking_missing_slots` question. The router now
-sends a ranking or comparison by a judgment word (`routing._JUDGMENT_WORD`) to
-`ambiguous_risk_metric`, with text that names the word, keeps the grouping and period, and
-lists the measures for that grouping. `jev_policy`'s `measure_is_judgment` check uses the same
-list, so Jev's `other_measure` on "worse" clarifies instead of refusing. Rule
-`ambiguous_risk_metric` has no Jev fact, so a Jev answer never overrides it. The replay moved
-three rows, all to their labels: `amb_better_or_worse` (dev; Jev refused, now Jev clarifies
-and wins at 0.96), `hv3_039` (router `ranking_missing_slots` below the gate, now router and
-Jev agree), and `hv3_071` (Jev refused at 0.83 and won, now router and Jev agree on
-`ambiguous_risk_metric`). v3 is tuned, and `hv3_071` is the backlog row this list was missing,
-so the v3 gain is not clean evidence. No Jev call was made; stored answers and their
-confidences are unchanged.
+**Unresolved measures (PR #94).** Production answered "Which utility had the most dangerous
+fires in 2023?" with the generic `ranking_missing_slots` question. The registry now holds the
+finite set of measures each grouping can be ranked or compared by (`RANK_MEASURES` from
+`ALLOWED_RANK_PAIRS`, `COMPARE_MEASURES` from the comparison queries, `MEASURE_LABELS`,
+`MEASURE_TERMS`, `MEASURE_QUALIFIER_WORDS`). A ranking or comparison whose wording resolves to
+none of them (`routing._unresolved_measure`) goes to `ambiguous_risk_metric`, with text that
+names the user's word, keeps the grouping and period, and lists the registry's measures. There
+is no list of judgment words. `jev_policy`'s `measure_is_judgment` check calls the same function,
+so Jev's `other_measure` on "worse" clarifies instead of refusing, while a measure outside the
+data (a rate per customer) is still refused. Rule `ambiguous_risk_metric` has no Jev fact, so a
+Jev answer never overrides it. Against main, the replay moved four rows: `amb_better_or_worse`
+(dev; Jev refused, now Jev clarifies and wins at 0.96, matching the label), `hv3_039` (router
+`ranking_missing_slots` below the gate, now router and Jev agree, matching the label), `hv3_071`
+(Jev refused at 0.83 and won, now router and Jev agree on `ambiguous_risk_metric`, matching the
+label), and `ho_064` (still refused as a backstop, now `unsupported_cost` rather than
+`unsupported_damage`, since the plural cost pattern matches "damage costs" first). v3 is tuned,
+and `hv3_071` is a backlog row, so the v3 gain is not clean evidence. No Jev call was made;
+stored answers and their confidences are unchanged.
 
 Where Jev wins:
 - Fixed: prompt injection and off-topic questions the router sent to the model path

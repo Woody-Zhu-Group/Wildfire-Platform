@@ -21,6 +21,16 @@ from services.shared.dataset_registry import (
     BARE_IGNITIONS_PATTERN,
     BARE_OUTAGES_PATTERN,
     CALIFORNIA_COUNTIES,
+    COMPARE_MEASURES,
+    MEASURE_DATASETS,
+    MEASURE_LABELS,
+    MEASURE_QUALIFIER_WORDS,
+    MEASURE_TERMS,
+    MEASURE_UTILITIES,
+    MEASURES_NOT_IN_DATA,
+    NOT_A_MEASURE_SUPERLATIVE,
+    NOT_IN_DATA_MEASURE_PATTERN,
+    RANK_MEASURES,
     COUNTIES_NEEDING_QUALIFIER,
     COUNT_MAP_DATASETS,
     CPUC_OR_UTILITY_BEFORE_IGNITIONS_PATTERN,
@@ -732,8 +742,8 @@ _TIME_SERIES_VIZ = frozenset(
 )
 
 UNSUPPORTED = {
-    "cpz": r"\b(?:cpz|circuit protection zone)\b",
-    "cost": r"\b(?:cost|price|budget|dollars?|economic|premiums?)\b",
+    "cpz": r"\b(?:cpzs?|circuit protection zones?)\b",
+    "cost": r"\b(?:costs?|prices?|budgets?|dollars?|economics?|premiums?)\b",
     "air_quality": r"\bair quality\b",
     "evacuation": r"\bevacuat",
     # Translate to a grid cell, incidents that involved firefighters, and a
@@ -751,15 +761,20 @@ UNSUPPORTED = {
         r"dispatched|on scene)\b|\bpersonnel\b|\bhuman resources\b"
     ),
     "satellite": (
-        r"\bsatellite\s+(?:\w+\s+)?(?:image|imagery|infrared|photos?|pictures?|"
-        r"view|data|feed|detections?)\b|\b(?:infrared|thermal)\s+satellite\b"
+        r"\bsatellite\s+(?:\w+\s+)?(?:images?|imagery|infrared|photos?|pictures?|"
+        r"views?|data|feeds?|detections?)\b|\b(?:infrared|thermal)\s+satellite\b"
     ),
-    "leadership": r"\b(?:ceo|chief executive)\b",
-    "optimization": r"\b(?:optimi[sz]e|optimal|schedule|allocate)\b",
-    "damage": r"\b(?:property damage|expected loss|insured loss|fatalit)\b",
+    "leadership": r"\b(?:ceos?|chief executives?)\b",
+    "optimization": (
+        r"\b(?:optimi[sz](?:e|es|ed|ing|ation|ations)|optimal|schedules?|scheduling|"
+        r"allocat(?:e|es|ed|ing|ion|ions))\b"
+    ),
+    "damage": (
+        r"\b(?:property damages?|expected loss(?:es)?|insured loss(?:es)?|fatalit(?:y|ies))\b"
+    ),
     "live_web": (
         r"\b(?:current active fires?|active fires?.*right now|live fires?|"
-        r"web search|according to the web|today'?s fires?)\b"
+        r"web search(?:es)?|according to the web|today'?s fires?)\b"
     ),
 }
 
@@ -836,7 +851,7 @@ UNSUPPORTED_ANSWERS = {
     "ranking": (
         "Ranking is not supported for that grouping. I can rank counties or "
         "utilities in CPUC ignitions, counties in CAL FIRE incidents, or "
-        "circuits in EPSS outages — one dataset at a time. I cannot rank "
+        "circuits in EPSS outages, one dataset at a time. I cannot rank "
         "across datasets, rank EPSS by utility, or rank US ignitions by state."
     ),
 }
@@ -1325,54 +1340,132 @@ def _wants_risk(lower: str) -> bool:
     )
 
 
-# A judgment word names no warehouse measure: dangerous, worst, severe, and so on.
-# "Severe wind" or "bad weather" describes conditions, not the ranked events.
-_JUDGMENT_WORD = re.compile(
-    r"\b(dangerous|severe|severity|destructive|damaging|deadly|deadliest|deadlier|"
-    r"catastrophic|devastating|harmful|serious|worst|worse|bad|"
-    r"hardest[- ]hit|hit\s+(?:the\s+)?hardest)\b"
-    r"(?!\s+(?:winds?|weather|drought|heat(?:wave)?|conditions?|storms?)\b)"
+# A ranking or comparison orders by a measure. The words after its operator
+# ("most ...", "more ... than", "compare the ... of", "rank ... by ...") and any
+# superlative or comparative word ("scariest", "worse than") must name one of
+# the registry's measures (MEASURE_TERMS) or narrow one with data vocabulary
+# (MEASURE_QUALIFIER_WORDS). A word that does neither names no measure, so the
+# router asks which measure instead of guessing one.
+_MAGNITUDE_SUPERLATIVES = frozenset(
+    {"most", "highest", "largest", "greatest", "biggest", "fewest", "least", "lowest", "smallest", "top"}
 )
-_JUDGMENT_RANK_CONTEXT = re.compile(
-    r"\b(?:which|what)\s+(?:\w+\s+){0,2}?"
-    r"(?:circuit|count(?:y|ies)|utilit(?:y|ies))s?\b|\brank(?:s|ed|ing)?\b"
+_MAGNITUDE_COMPARATIVES = frozenset(
+    {"more", "fewer", "less", "higher", "lower", "greater", "larger", "bigger", "smaller"}
 )
-_JUDGMENT_COMPARE_CONTEXT = re.compile(r"\b(?:compar\w*|versus|vs\.?|than)\b")
-_JUDGMENT_GROUP_PLURALS = {"utility": "utilities", "county": "counties", "circuit": "circuits"}
-_JUDGMENT_MEASURES = {
-    ("rank", "utility"): "CPUC ignition counts",
-    ("rank", "county"): "CPUC ignition counts, CAL FIRE incident counts, or CAL FIRE acres burned",
-    ("rank", "circuit"): "EPSS outage counts (PG&E circuits only)",
-    ("compare", "utility"): (
-        "CPUC ignition counts, PSPS event counts, or customers de-energized in PSPS events"
+_MEASURE_OPERATOR = re.compile(
+    r"\b(?:"
+    + "|".join(sorted(_MAGNITUDE_SUPERLATIVES | _MAGNITUDE_COMPARATIVES))
+    + r"|by|compar(?:e|es|ed|ing))\b"
+)
+_DEGREE_WORD = re.compile(r"\b(worst|best|worse|better|\w+iest|\w{3,}est)\b|\b(\w+er)\s+than\b")
+# Words that end the phrase an operator applies to.
+_PHRASE_STOPS = frozenset(
+    {
+        "in", "for", "during", "from", "between", "since", "to", "on", "at", "within",
+        "inside", "outside", "across", "over", "under", "and", "or", "nor", "but",
+        "than", "with", "without", "among", "after", "before", "while", "that",
+        "which", "who", "whom", "whose", "when", "where", "compared", "versus", "vs",
+        "by", "is", "was", "were", "are", "be", "been", "being", "did", "do", "does",
+        "had", "has", "have", "as", "if", "near", "around", "along", "through", "into",
+        "per", "so", "far", "ever", "this", "last", "next",
+    }
+)
+_MEASURE_RANK_CONTEXT = re.compile(
+    r"\b(?:which|what)\s+(?:\w+\s+){0,2}?(?:circuit|count(?:y|ies)|utilit(?:y|ies))s?\b"
+    r"|\brank(?:s|ed|ing)?\b"
+)
+_MEASURE_COMPARE_CONTEXT = re.compile(r"\b(?:compar\w*|versus|vs\.?|than)\b")
+# Utility and county names read as the grouping words they stand for.
+_MEASURE_PLACE_WORDS = (
+    (re.compile("|".join(f"(?:{pattern})" for pattern in UTILITY_PATTERNS.values()), re.I), " utility "),
+    (
+        re.compile(r"\b(?:" + "|".join(re.escape(name.lower()) for name in CALIFORNIA_COUNTIES) + r")\b"),
+        " county ",
     ),
-    ("compare", "county"): (
-        "CPUC ignition counts, CAL FIRE incident counts, or CAL FIRE acres burned"
-    ),
-}
-_JUDGMENT_ANY_MEASURE = (
-    "CPUC ignition counts by county or utility, CAL FIRE incident counts or acres "
-    "burned by county, or EPSS outage counts by PG&E circuit"
 )
+_GROUP_PLURALS = {"utility": "utilities", "county": "counties", "circuit": "circuits"}
 
 
-def _judgment_word(
-    lower: str, utilities: list[str], counties: list[str], years: list[int]
-) -> tuple[str, str] | None:
-    """(word, "rank" or "compare") when a ranking or comparison turns on a judgment word."""
-    match = _JUDGMENT_WORD.search(lower)
-    if not match:
+def _phrase_tokens(rest: str) -> list[str]:
+    """The words after an operator, up to the first stop word or punctuation."""
+    tokens: list[str] = []
+    for token in re.findall(r"[a-z0-9]+|[^\sa-z0-9'&-]", rest):
+        if not token[0].isalnum() or token in _PHRASE_STOPS:
+            break
+        if token.isdigit() or token == "s":
+            continue
+        tokens.append(token)
+    return tokens
+
+
+def _unknown_words(tokens: list[str]) -> list[str] | None:
+    """Words that are neither measure terms nor data vocabulary.
+
+    None when the phrase names a measure no dataset stores: that is left to the
+    unsupported-topic and other-measure refusals.
+    """
+    if any(NOT_IN_DATA_MEASURE_PATTERN.match(token) for token in tokens):
         return None
-    word = re.sub(r"\s+", " ", match.group(1))
-    if word.startswith("hit"):
-        word = "hardest hit"
-    if _asks_ranking(lower) or _JUDGMENT_RANK_CONTEXT.search(lower):
-        return word, "rank"
+    return [token for token in tokens if token not in MEASURE_TERMS | MEASURE_QUALIFIER_WORDS]
+
+
+def _unresolved_measure(lower: str, *, rank: bool, compare: bool) -> str | None:
+    """The user's wording for a ranking or comparison measure that resolves to none.
+
+    An operator phrase ("most dangerous fires", "biggest problem") fires when
+    its one unknown word modifies a measure term or stands alone. A superlative
+    or comparative word ("scariest", "worse") fires when nothing unknown
+    follows it. Two unknown words ("most equipment failures", "safest
+    distribution system") name a thing outside the data, which other routes
+    refuse. A comparison names its measure as "compare the X of".
+    """
+    for pattern, word in _MEASURE_PLACE_WORDS:
+        lower = pattern.sub(word, lower)
+    magnitude = _MAGNITUDE_SUPERLATIVES | _MAGNITUDE_COMPARATIVES
+    hits: list[tuple[int, str]] = []
+    for match in _MEASURE_OPERATOR.finditer(lower):
+        op = match.group(0)
+        rest = lower[match.end():]
+        if op == "by":
+            applies = rank
+        elif op in _MAGNITUDE_SUPERLATIVES:
+            applies = rank or compare
+        elif op.startswith("compar"):
+            of_phrase = re.match(r"\s+(?:the\s+)?((?:[a-z]+\s+){1,2}?)of\b", rest)
+            applies = compare and of_phrase is not None
+            rest = of_phrase.group(1) if of_phrase else rest
+        else:
+            applies = compare
+        if not applies:
+            continue
+        tokens = _phrase_tokens(rest)
+        unknown = _unknown_words(tokens)
+        if unknown and len(unknown) == 1 and tokens.index(unknown[0]) == min(
+            index for index, token in enumerate(tokens) if token not in MEASURE_QUALIFIER_WORDS
+        ):
+            word = unknown[0]
+            hits.append((match.start(), f"{op} {word}" if op in magnitude else word))
+    if rank or compare:
+        for match in _DEGREE_WORD.finditer(lower):
+            word = match.group(1) or match.group(2)
+            if word in magnitude or word in NOT_A_MEASURE_SUPERLATIVE:
+                continue
+            if _unknown_words(_phrase_tokens(lower[match.end():])) == []:
+                hits.append((match.start(), word))
+    return min(hits)[1] if hits else None
+
+
+def _measure_context(
+    lower: str, utilities: list[str], counties: list[str], years: list[int]
+) -> tuple[bool, bool]:
+    """(is a ranking, is a comparison)."""
+    rank = bool(_asks_ranking(lower) or _MEASURE_RANK_CONTEXT.search(lower))
     # "SCE or PacifiCorp", "2019 and 2020": two named things set side by side.
     named = max(len(utilities), len(counties), len(years))
-    if _JUDGMENT_COMPARE_CONTEXT.search(lower) or (named >= 2 and re.search(r"\bor\b", lower)):
-        return word, "compare"
-    return None
+    compare = bool(
+        _MEASURE_COMPARE_CONTEXT.search(lower) or (named >= 2 and re.search(r"\bor\b", lower))
+    )
+    return rank, compare
 
 
 def _time_phrase(time_resolution) -> str | None:
@@ -1393,8 +1486,20 @@ def _time_phrase(time_resolution) -> str | None:
     return None
 
 
-def _judgment_clarification(
-    word: str,
+def _join(items: list[str], word: str) -> str:
+    if len(items) <= 2:
+        return f" {word} ".join(items)
+    return ", ".join(items[:-1]) + f", {word} {items[-1]}"
+
+
+def _measure_labels(measures, dataset: str | None) -> list[str]:
+    """Registry labels, narrowed to the named dataset when it has any of them."""
+    named = [item for item in measures if MEASURE_DATASETS.get(item) == dataset]
+    return [MEASURE_LABELS[item] for item in (named or measures)]
+
+
+def _measure_clarification(
+    quote: str,
     kind: str,
     lower: str,
     utilities: list[str],
@@ -1402,34 +1507,56 @@ def _judgment_clarification(
     dataset: str | None,
     time_resolution,
 ) -> str:
-    """Name the judgment word, keep the grouping and period, list the real measures."""
+    """Name the user's word, keep the grouping and period, list the registry's measures."""
     if len(utilities) >= 2:
         group = "utility"
     elif len(counties) >= 2:
         group = "county"
     else:
         group = _rank_dimension(lower)
-    if kind == "compare" and len(utilities) >= 2:
-        names = [UTILITY_CLARIFY_LABELS.get(item, item) for item in utilities]
-        subject = ", ".join(names[:-1]) + f" and {names[-1]}"
-    elif kind == "compare" and len(counties) >= 2:
-        subject = ", ".join(counties[:-1]) + f" and {counties[-1]}"
-    else:
-        subject = _JUDGMENT_GROUP_PLURALS.get(group or "", "")
-    verb = "rank" if kind == "rank" else "compare"
     period = _time_phrase(time_resolution)
-    target = " ".join(part for part in (verb, subject, f"for {period}" if period else "") if part)
-    if kind == "compare" and group == "utility" and dataset == "psps_events":
-        measures = "PSPS event counts or customers de-energized in PSPS events"
+    when = f" for {period}" if period else ""
+    plural = _GROUP_PLURALS.get(group or "")
+    parts = [f'"{quote[:1].upper()}{quote[1:]}" does not name a measure in the data.']
+    if kind == "rank" and group in RANK_MEASURES:
+        ranked = [item for item in RANK_MEASURES[group] if MEASURE_DATASETS[item] == dataset]
+        ranked = ranked or list(RANK_MEASURES[group])
+        parts.append(
+            f"To rank {plural}{when}, I can use "
+            f"{_join([MEASURE_LABELS[item] for item in ranked], 'or')}."
+        )
+        extra = [item for item in COMPARE_MEASURES.get(group, ()) if item not in ranked]
+        if extra:
+            parts.append(
+                f"To compare named {plural}, I can also use "
+                f"{_join(_measure_labels(extra, dataset), 'or')}."
+            )
+    elif kind == "compare" and group in COMPARE_MEASURES:
+        if len(utilities) >= 2:
+            subject = _join([UTILITY_CLARIFY_LABELS.get(item, item) for item in utilities], "and")
+        elif len(counties) >= 2:
+            subject = _join(list(counties), "and")
+        else:
+            subject = plural
+        measures = [
+            item
+            for item in COMPARE_MEASURES[group]
+            if len(utilities) < 2 or set(utilities) & MEASURE_UTILITIES.get(item, set(utilities))
+        ]
+        parts.append(
+            f"To compare {subject}{when}, I can use "
+            f"{_join(_measure_labels(measures, dataset), 'or')}."
+        )
     else:
-        measures = _JUDGMENT_MEASURES.get((kind, group or ""), _JUDGMENT_ANY_MEASURE)
-    parts = [
-        f'"{word.capitalize()}" is a judgment, not a measure in the data.',
-        f"To {target}, I can use {measures}.",
-    ]
-    if group == "utility" and dataset != "psps_events":
-        parts.append("Acres burned are available only by county, from CAL FIRE incidents.")
-    parts.append("Damage, fatalities, and destroyed structures are not in the data.")
+        by_group = [
+            f"{_GROUP_PLURALS[group_by]} by {_join([MEASURE_LABELS[item] for item in measures], 'or')}"
+            for group_by, measures in RANK_MEASURES.items()
+            if group_by in _GROUP_PLURALS
+        ]
+        verb = "rank" if kind == "rank" else "compare"
+        parts.append(f"To {verb}{when}, I can use {'; '.join(by_group)}.")
+    not_in_data = _join(list(MEASURES_NOT_IN_DATA), "and")
+    parts.append(f"{not_in_data[:1].upper()}{not_in_data[1:]} are not in the data.")
     parts.append(
         "Which measure should I use?"
         if period
@@ -2518,23 +2645,28 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             "Risk could mean fitted cell intensity, ignition count, incidents, or outages",
             slots=slots,
             answer=(
-                "Which risk measure and time period should I use—for example "
+                "Which risk measure and time period should I use, for example "
                 "ignition count, CAL FIRE incidents, EPSS outages, or fitted cell risk?"
             ),
         )
-    # A ranking or comparison by a judgment word (dangerous, worst, severe) names
-    # no measure. Ask which one, keeping the grouping and period already given,
-    # rather than the generic missing-slots question or a model answer.
-    judgment = _judgment_word(lower, utilities, counties, years)
-    if judgment is not None:
-        word, kind = judgment
+    # A ranking or comparison whose measure resolves to none in the registry
+    # ("most dangerous", "scariest", "worse") asks which measure, keeping the
+    # grouping and period already given, rather than the generic missing-slots
+    # question or a model answer.
+    rank_context, compare_context = _measure_context(lower, utilities, counties, years)
+    unresolved = None
+    # "Is the cNHPP better than the NHPP?" compares risk models, not data.
+    if not _asks_model_performance(lower):
+        unresolved = _unresolved_measure(lower, rank=rank_context, compare=compare_context)
+    if unresolved is not None:
+        kind = "rank" if rank_context else "compare"
         return RouteDecision(
             "clarification",
             "ambiguous_risk_metric",
-            f'"{word}" names no measure in the data',
+            f'"{unresolved}" names no measure in the registry',
             slots=slots,
-            answer=_judgment_clarification(
-                word, kind, lower, utilities, counties, dataset, time_resolution
+            answer=_measure_clarification(
+                unresolved, kind, lower, utilities, counties, dataset, time_resolution
             ),
         )
     city_plan = _city_point_plan(text, lower)

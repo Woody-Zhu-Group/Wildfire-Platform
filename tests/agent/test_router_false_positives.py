@@ -868,70 +868,94 @@ def test_review_82_the_tier_clarification_names_the_resolved_dataset(question, l
     assert decision.answer.startswith(f"I can rank {label} by {group} statewide"), decision.answer
 
 
+
 # ---------------------------------------------------------------------------
-# Judgment words. Production answered "Which utility had the most dangerous
-# fires in 2023?" with the generic ranking_missing_slots question, although the
-# user named the grouping and the year. A judgment word names no measure, so
-# the router asks which measure, keeping the grouping and the period.
+# Unresolved measures. Production answered "Which utility had the most
+# dangerous fires in 2023?" with the generic ranking_missing_slots question,
+# although the user named the grouping and the year. A ranking or comparison
+# whose measure resolves to none of the registry's measures asks which one,
+# naming the user's word, keeping the grouping and period, and listing the
+# registry's measures. There is no list of judgment words: the paraphrases
+# below were written before looking at the router's vocabulary.
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
-    "question,word,target",
+    "question,quote,target",
     [
-        ("Which utility had the most dangerous fires in 2023?", "Dangerous", "rank utilities for 2023"),
-        ("Which county had the worst fires in 2020?", "Worst", "rank counties for 2020"),
-        ("Which counties had the most severe CAL FIRE incidents in 2021?", "Severe", "rank counties for 2021"),
-        ("Which county had the deadliest fires in 2018?", "Deadliest", "rank counties for 2018"),
-        ("What utility had the most destructive ignitions in 2022?", "Destructive", "rank utilities for 2022"),
-        ("Rank circuits by the most damaging outages in 2024", "Damaging", "rank circuits for 2024"),
-        ("Which county had the most catastrophic fires in 2020?", "Catastrophic", "rank counties for 2020"),
-        ("Which utility had the most bad fires in 2021?", "Bad", "rank utilities for 2021"),
-        ("Which counties were hit hardest by fires from 2017 to 2021?", "Hardest hit", "rank counties for 2017 through 2021"),
+        ("Which utility had the most dangerous fires in 2023?", "Most dangerous", "rank utilities for 2023"),
+        ("Which utility had the scariest fires in 2023?", "Scariest", "rank utilities for 2023"),
+        ("In 2023, which utility's ignitions were the most concerning?", "Most concerning", "rank utilities for 2023"),
+        ("Which utility's fires were most harmful to customers in 2023?", "Most harmful", "rank utilities for 2023"),
+        ("What utility had the most alarming wildfire record in 2023?", "Most alarming", "rank utilities for 2023"),
+        ("Which utility was the biggest problem for wildfires in 2023?", "Biggest problem", "rank utilities for 2023"),
+        ("Which county was hit hardest by wildfires in 2020?", "Hardest", "rank counties for 2020"),
+        ("Rank the counties by how bad their fire seasons were in 2021.", "Bad", "rank counties for 2021"),
+        ("Were SCE's fires more troubling than PG&E's in 2022?", "More troubling", "compare PG&E and SCE for 2022"),
         ("Which is worse for fires, SCE or PacifiCorp?", "Worse", "compare SCE and PacifiCorp"),
-        ("Were PG&E fires more destructive than SCE fires in 2021?", "Destructive", "compare PG&E and SCE for 2021"),
         ("Compare the severity of PSPS events in 2019 and 2020 for all utilities.", "Severity", "compare utilities for 2019 and 2020"),
     ],
 )
-def test_a_judgment_word_asks_which_measure_and_keeps_what_was_named(question, word, target):
+def test_an_unresolved_measure_asks_which_measure_and_keeps_what_was_named(question, quote, target):
     decision = route_question(question)
     assert (decision.path, decision.rule) == ("clarification", "ambiguous_risk_metric"), (
         question,
+        decision.path,
         decision.rule,
     )
     assert decision.tool_calls == []
-    assert decision.answer.startswith(f'"{word}" is a judgment, not a measure in the data.'), decision.answer
+    assert decision.answer.startswith(f'"{quote}" does not name a measure in the data.'), decision.answer
     assert f"To {target}, I can use " in decision.answer, decision.answer
     assert "Damage, fatalities, and destroyed structures are not in the data." in decision.answer
     assert "Which dataset and grouping" not in decision.answer
 
 
-def test_a_judgment_ranking_lists_the_measures_for_its_grouping():
+def test_the_measures_offered_come_from_the_registry():
+    from services.shared.dataset_registry import COMPARE_MEASURES, MEASURE_LABELS, RANK_MEASURES
+
     utility = route_question("Which utility had the most dangerous fires in 2023?").answer
-    assert "I can use CPUC ignition counts." in utility
-    assert "Acres burned are available only by county, from CAL FIRE incidents." in utility
+    assert f"To rank utilities for 2023, I can use {MEASURE_LABELS['ignition_count']}." in utility
+    # Acres per utility, PSPS, and EPSS come through the comparison tool.
+    for measure in COMPARE_MEASURES["utility"]:
+        assert MEASURE_LABELS[measure] in utility, measure
+    assert "To compare named utilities, I can also use" in utility
     assert utility.endswith("Which measure should I use?")
 
-    county = route_question("Which county had the worst fires in 2020?").answer
-    assert "CPUC ignition counts, CAL FIRE incident counts, or CAL FIRE acres burned" in county
-    assert "only by county" not in county
+    county = route_question("Which county was hit hardest by wildfires in 2020?").answer
+    for measure in RANK_MEASURES["county"]:
+        assert MEASURE_LABELS[measure] in county, measure
+    assert "PSPS" not in county
 
-    circuit = route_question("Rank circuits by the most damaging outages in 2024").answer
-    assert "EPSS outage counts (PG&E circuits only)" in circuit
-
-    psps = route_question(
-        "Compare the severity of PSPS events in 2019 and 2020 for all utilities."
-    ).answer
+    psps = route_question("Compare the severity of PSPS events in 2019 and 2020 for all utilities.").answer
     assert "PSPS event counts or customers de-energized in PSPS events" in psps
-    assert "Acres burned" not in psps
+    assert "CPUC" not in psps
+
+    # EPSS is PG&E only, so it is offered only when PG&E is one of the utilities.
+    without_pge = route_question("Which is worse for fires, SCE or PacifiCorp?").answer
+    assert "EPSS" not in without_pge
+    assert without_pge.endswith("Which measure should I use, and for which year or date range?")
+    with_pge = route_question("Were SCE's fires more troubling than PG&E's in 2022?").answer
+    assert MEASURE_LABELS["epss_outage_count"] in with_pge
 
 
-def test_a_judgment_word_without_a_period_also_asks_for_one():
-    answer = route_question("Which is worse for fires, SCE or PacifiCorp?").answer
-    assert answer.endswith("Which measure should I use, and for which year or date range?")
-    last_year = route_question("Which utility had the most dangerous fires last year?").answer
-    assert f"rank utilities for {date.today().year - 1}," in last_year
-    assert last_year.endswith("Which measure should I use?")
+def test_the_registry_measures_match_the_tools():
+    from typing import get_args
+
+    from services.agent.schemas import Metric
+    from services.comparison.metrics import METRICS
+    from services.shared.dataset_registry import (
+        ALLOWED_RANK_PAIRS,
+        COMPARE_MEASURES,
+        MEASURE_DATASETS,
+        MEASURE_LABELS,
+        RANK_MEASURES,
+    )
+
+    assert set(MEASURE_LABELS) == set(MEASURE_DATASETS) == set(METRICS) == set(get_args(Metric))
+    for measures in COMPARE_MEASURES.values():
+        assert set(measures) <= set(METRICS)
+    assert {group for _dataset, group, _metric in ALLOWED_RANK_PAIRS} == set(RANK_MEASURES)
+    assert sum(len(measures) for measures in RANK_MEASURES.values()) == len(ALLOWED_RANK_PAIRS)
 
 
 @pytest.mark.parametrize(
@@ -941,34 +965,41 @@ def test_a_judgment_word_without_a_period_also_asks_for_one():
         ("Which county had the most CPUC ignitions in 2022?", "deterministic", "ranked_records"),
         ("Which counties had the most CAL FIRE acres burned in 2020?", "deterministic", "ranked_records"),
         ("Rank EPSS circuits by outages in 2023", "deterministic", "ranked_records"),
+        ("Top 5 counties by CPUC ignitions in 2021", "deterministic", "ranked_records"),
         ("Which county had the most ignitions during severe winds in 2020?", "deterministic", "ranked_records"),
-        ("Which utility had the most dangerous fires?", "clarification", "ambiguous_risk_metric"),
         ("Which utility is riskiest?", "clarification", "ambiguous_risk_metric"),
+        ("Is the cNHPP better than the NHPP?", "deterministic", "risk_model_metrics"),
         ("Chart EPSS events for the worst months.", "model", "open_ended"),
         ("Was 2024 better or worse?", "model", "open_ended"),
+        ("Compare the big utilities.", "model", "open_comparison"),
         ("Which utility has the safest wildfire mitigation program?", "model", "open_ended"),
-        ("What property damage should we expect from ignitions next year?", "unsupported", "unsupported_damage"),
-        ("What property damage costs were attributed to utility-caused fires by year?", "unsupported", "unsupported_damage"),
+        ("Which circuits had the most equipment failures before an ignition in 2022?", "unsupported", "unsupported_ranking"),
+        ("How many fatalities did PG&E fires cause in 2018?", "unsupported", "unsupported_damage"),
     ],
 )
-def test_plain_measures_and_other_judgment_routes_are_unchanged(question, path, rule):
+def test_plain_measures_and_things_outside_the_data_keep_their_routes(question, path, rule):
     decision = route_question(question)
     assert (decision.path, decision.rule) == (path, rule), (question, decision.path, decision.rule)
 
 
-def test_a_judgment_word_clarification_is_code_decided_so_jev_never_answers_over_it():
+def test_an_unresolved_measure_is_code_decided_so_jev_never_answers_over_it():
     from services.agent.decisions.decide_mode import _RULE_FACTS, exemption
     from services.agent.decisions.jev_policy import JevFacts, derive_outcome
 
     decision = route_question("Which utility had the most dangerous fires in 2023?")
     assert exemption(decision) is None
     assert "ambiguous_risk_metric" not in _RULE_FACTS
-    # Jev's other_measure answer on the same words reaches the same rule.
+    # Jev's other_measure answer on the same wording reaches the same rule
+    # through the same check; a measure outside the data is still refused.
     for question in (
         "Which is worse for fires, SCE or PacifiCorp?",
-        "Which utility had the most dangerous fires in 2023?",
+        "Which utility had the scariest fires in 2023?",
         "Compare the severity of PSPS events in 2019 and 2020 for all utilities.",
     ):
         outcome = derive_outcome(JevFacts(measure="other_measure", intent="rank"), question=question)
         assert outcome.clarify_reason == "ambiguous_risk_metric", question
-        assert "measure_is_judgment" in outcome.trace, question
+    refused = derive_outcome(
+        JevFacts(measure="other_measure", intent="rank"),
+        question="Which utility had the highest ignition rate per customer in 2022?",
+    )
+    assert refused.unsupported_topic == "unsupported_other_measure"

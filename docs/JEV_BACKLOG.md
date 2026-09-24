@@ -57,11 +57,11 @@ Measure when it lands: five repeats on the changed question, with the flip rate.
 
 ## 5. Four v3 rows where Jev misses a clarify
 
-What: hv3_050 (label `records_missing_year`, Jev answers), hv3_065 (label `records_missing_year`, Jev refuses through `other_measure`), hv3_071 (label `ambiguous_risk_metric`, Jev refused through `other_measure`; fixed on branch `judgment-words`, whose judgment-word list, driven by the production question "Which utility had the most dangerous fires in 2023?", now includes worse, so hv3_071 is no longer clean evidence), hv3_076 (label `trend_missing_year`, Jev answers).
+What: hv3_050 (label `records_missing_year`, Jev answers), hv3_065 (label `records_missing_year`, Jev refuses through `other_measure`), hv3_071 (label `ambiguous_risk_metric`, Jev refused through `other_measure`; fixed in PR #94, driven by the production question "Which utility had the most dangerous fires in 2023?": `measure_is_judgment` now uses the router's registry-based `_unresolved_measure` check, which reads "worse" as naming no measure, so hv3_071 is no longer clean evidence), hv3_076 (label `trend_missing_year`, Jev answers).
 
 Why deferred: fixing these from the rows themselves is tuning on v3, which is frozen. They stay listed so the same patterns are recognized when they appear in shadow logs.
 
-Measure when it lands: fix from shadow-log examples, then label accuracy on dev, v1, and v2, and the shadow-log rows themselves. If the judgment-word list changes in `jev_policy.py`, that is code, not a Jev question, and needs no repeats.
+Measure when it lands: fix from shadow-log examples, then label accuracy on dev, v1, and v2, and the shadow-log rows themselves. If the measure vocabulary in the registry changes, that is code, not a Jev question, and needs no repeats.
 
 ## 6. The prompt_injection false positive on an optimize question
 

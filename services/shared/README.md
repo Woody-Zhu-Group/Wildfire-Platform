@@ -48,6 +48,8 @@ Where two callers used different spellings of the same thing, both were kept und
 | EPSS outage types | none | No fixed list: filters resolve against stored values (`stored_values.py`) | filters |
 | CAL FIRE incident types | `naming.py` | `CALFIRE_DEFAULT_INCIDENT_TYPES`, `CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM`, `calfire_default_type_sql`, `CALFIRE_INCIDENT_TYPE_KEYWORDS`, `INCIDENT_TYPE_MODES`, `ALL_INCIDENT_TYPES_PATTERN`, `UNTYPED_INCIDENT_PATTERN` | data_query, visualization, comparison, agent schemas, grounding |
 | Missing-value labels | `dataset_registry.py` | `NOT_RECORDED`, `MISSING_LABEL_RANK` | data_query |
+| Measures a ranking or comparison can order by | `dataset_registry.py` | `RANK_MEASURES` (derived from `ALLOWED_RANK_PAIRS`), `COMPARE_MEASURES` (per comparison scope), `MEASURE_DATASETS`, `MEASURE_UTILITIES` | router measure clarification, Jev policy |
+| Measure names and wording | `naming.py` | `MEASURE_LABELS`, `MEASURES_NOT_IN_DATA`, `MEASURE_TERMS`, `MEASURE_QUALIFIER_WORDS`, `NOT_IN_DATA_MEASURE_PATTERN`, `NOT_A_MEASURE_SUPERLATIVE` | router `_unresolved_measure`, Jev policy |
 
 The website reads the names it needs from the generated `shared/naming.json` (counties, utility codes and display labels, workspace utilities, tiers) through `website/src/data.ts`.
 
