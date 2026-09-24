@@ -280,3 +280,81 @@ def test_numbers_that_are_not_1900s_years_are_ignored():
     assert resolve_time("fires over 1950 acres in 2024", today=TODAY).year == 2024
     assert resolve_time("fires larger than 1,950 acres", today=TODAY).status == "none"
     assert resolve_time("circuit 043371102 outages in 2024", today=TODAY).year == 2024
+
+
+def _window(question):
+    result = resolve_time(question, today=TODAY)
+    return result.status, result.start_date, result.end_date
+
+
+def test_month_to_month_in_one_year_covers_the_full_window():
+    assert _window("How many PGE ignitions were there from March to June 2023?") == (
+        "explicit",
+        "2023-03-01",
+        "2023-06-30",
+    )
+
+
+def test_month_through_month_covers_the_full_window():
+    assert _window("PGE ignitions March through June 2023") == (
+        "explicit",
+        "2023-03-01",
+        "2023-06-30",
+    )
+    assert _window("PGE ignitions Mar thru Jun 2023")[1:] == ("2023-03-01", "2023-06-30")
+
+
+def test_abbreviated_dashed_month_range_covers_the_full_window():
+    assert _window("PGE ignitions Mar-Jun 2023") == ("explicit", "2023-03-01", "2023-06-30")
+    assert _window("PGE ignitions Mar - Jun 2023")[1:] == ("2023-03-01", "2023-06-30")
+
+
+def test_between_month_and_month_covers_the_full_window():
+    assert _window("PGE ignitions between March and June 2023") == (
+        "explicit",
+        "2023-03-01",
+        "2023-06-30",
+    )
+
+
+def test_month_range_keeps_the_year_and_the_phrase():
+    result = resolve_time("CAL FIRE incidents from March to June of 2023", today=TODAY)
+    assert result.year == 2023
+    assert result.years == (2023,)
+    assert (result.start_date, result.end_date) == ("2023-03-01", "2023-06-30")
+    assert result.phrase == "from march to june of 2023"
+    february = resolve_time("ignitions from January to February 2024", today=TODAY)
+    assert february.end_date == "2024-02-29"
+
+
+def test_a_month_range_across_a_year_boundary_is_ambiguous():
+    result = resolve_time("PGE ignitions from November to February 2023", today=TODAY)
+    assert result.status == "ambiguous"
+    assert result.start_date is None
+
+
+def test_a_month_range_outside_coverage_clarifies():
+    assert resolve_time("PGE ignitions from March to June 2010", today=TODAY).status == (
+        "out_of_coverage"
+    )
+
+
+def test_single_months_and_two_year_month_spans_are_unchanged():
+    assert _window("PGE ignitions in March 2023") == ("explicit", "2023-03-01", "2023-03-31")
+    assert _window("from march 2023 to june 2024") == ("explicit", "2023-03-01", "2024-06-30")
+    assert _window("CAL FIRE incidents from March 2023 to June 2023") == (
+        "explicit",
+        "2023-03-01",
+        "2023-06-30",
+    )
+
+
+def test_router_counts_the_full_month_range():
+    from services.agent.routing import route_question
+
+    decision = route_question("How many PGE ignitions were there from March to June 2023?")
+    assert decision.path == "deterministic"
+    (tool, args), = decision.tool_calls
+    assert tool == "data_query_records"
+    assert (args["start_date"], args["end_date"]) == ("2023-03-01", "2023-06-30")
+    assert args["utility"] == "PGE"

@@ -174,6 +174,35 @@ def explicit_month_year_range(text: str) -> tuple[str, str, str] | None:
     return start, end, match.group(0)
 
 
+_MONTH_RANGE_SEP = r"(?:to|through|thru|until|till|\u2013|\u2014|-)"
+
+
+def explicit_month_range_in_year(text: str) -> tuple[int, int, int, str] | None:
+    """``from March to June 2023``, ``Mar-Jun 2023``, ``between March and June 2023``.
+
+    Two months that share one written year. Returns (year, first month, last
+    month, phrase); the caller decides what a backwards range means.
+    """
+    lower = " ".join(text.lower().split())
+    match = re.search(
+        rf"\b(?:from\s+)?({_MONTH_ALT})\s*{_MONTH_RANGE_SEP}\s*({_MONTH_ALT})"
+        rf",?\s+(?:of\s+|in\s+)?(20\d{{2}})\b",
+        lower,
+    ) or re.search(
+        rf"\bbetween\s+({_MONTH_ALT})\s+and\s+({_MONTH_ALT})"
+        rf",?\s+(?:of\s+|in\s+)?(20\d{{2}})\b",
+        lower,
+    )
+    if not match:
+        return None
+    return (
+        int(match.group(3)),
+        MONTHS[match.group(1)],
+        MONTHS[match.group(2)],
+        match.group(0),
+    )
+
+
 def explicit_year_range(text: str) -> tuple[str, str, str] | None:
     """``2021 to 2025`` / ``2021-2025`` → full inclusive calendar years."""
     lower = " ".join(text.lower().split())
@@ -433,6 +462,28 @@ def _resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     if month_span is not None:
         start, end, phrase = month_span
         return _span_resolution(start, end, phrase=phrase, data_max=data_max)
+
+    month_range = explicit_month_range_in_year(lower)
+    if month_range is not None:
+        year, first, last, phrase = month_range
+        if first > last:
+            # "November to February 2023" crosses a year boundary; which
+            # years it means is not written, so ask instead of guessing.
+            return TimeResolution(
+                status="ambiguous",
+                source="explicit",
+                phrase=phrase,
+                reason=(
+                    f"The month range '{phrase}' crosses a year boundary; "
+                    "give the year of each month"
+                ),
+            )
+        start, _ = _range_for_year_month(year, first)
+        _, end = _range_for_year_month(year, last)
+        resolution = _span_resolution(start, end, phrase=phrase, data_max=data_max)
+        if resolution.status == "explicit":
+            return replace(resolution, year=year)
+        return resolution
 
     year_span = explicit_year_range(lower)
     if year_span is not None:
