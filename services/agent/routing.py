@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.clarify_missing import _UTILITY_LABELS, complete_clarification
+from services.agent.clarify_missing import complete_clarification
 from services.agent.places import (
     GAZETTEER_VINTAGE,
     CityPoint,
@@ -35,6 +35,7 @@ from services.shared.dataset_registry import (
     TIER_MENTION_PATTERN,
     US_SAMPLE_NAMED_PATTERN,
     UTILITY_ADVICE_SUBJECT_WORDS,
+    UTILITY_CLARIFY_LABELS,
     UTILITY_PATTERNS,
 )
 
@@ -2663,7 +2664,7 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
     # series, rank) rather than passing the utility to a tool that cannot apply
     # it or dropping it and answering with the national count.
     if utilities and (dataset == "us_ignitions" or "us_ignitions" in _datasets(text)):
-        name = _UTILITY_LABELS.get(utilities[0], utilities[0])
+        name = UTILITY_CLARIFY_LABELS.get(utilities[0], utilities[0])
         return RouteDecision(
             "clarification",
             "us_sample_utility_filter",

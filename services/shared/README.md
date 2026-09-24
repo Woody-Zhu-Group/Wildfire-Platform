@@ -18,7 +18,15 @@ The registry also re-exports every name in `naming.py`, so a caller imports a na
 
 ## Where every naming convention lives
 
-Each convention is defined once. Datasets are defined on the registry's `DatasetSpec` entries in `dataset_registry.py`; everything else is in `naming.py`, which imports only the standard library so services, db loaders, and scripts can all use it. Callers import from `services.shared.dataset_registry`. `tests/test_naming_single_source.py` fails if another module defines its own list of utility, county, tier, or dataset names or aliases, or a regex naming several of them, and if the website hardcodes the county list or a utility list.
+Each convention is defined once. Datasets are defined on the registry's `DatasetSpec` entries in `dataset_registry.py`; everything else is in `naming.py`, which imports only the standard library so services, db loaders, and scripts can all use it. Callers import from `services.shared.dataset_registry`. `tests/test_naming_single_source.py` fails if another module defines its own copy of a convention:
+
+- a list, tuple, set, dict, or Enum class body (member names and values together) holding two or more utility spellings, two or more county names, both HFTD tier names, or two or more EPSS cause codes;
+- the CAL FIRE default pair (`"Wildfire"`, `"Fire"`) as a collection, as SQL (`'Wildfire', 'Fire'`), or as a parameter (`Wildfire,Fire`);
+- a dict mapping dataset aliases, dataset labels, or EPSS cause codes to their word forms;
+- any string with `|` alternation (f-strings checked with their literal parts joined) naming two or more utilities (each utility counted once however it is spelled), two or more counties, or three or more datasets;
+- a website source file that hardcodes the county list, a utility list, or both tier names anywhere in the file, not just on one line.
+
+Prose is skipped: a string with a sentence break, and the `description`, `detail`, `help`, or `summary` argument of a call (API parameter descriptions, error messages). Tests and `services/data_query/_smoke_test.py` are not scanned because they assert the values.
 
 Where two callers used different spellings of the same thing, both were kept under separate names with a comment (for example the harness model-argument aliases are narrower than the data query filter aliases). Merging them would change what a caller accepts or prints.
 
