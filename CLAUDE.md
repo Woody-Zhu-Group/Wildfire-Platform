@@ -22,7 +22,7 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 
 ## Architecture (target design: Jev first)
 
-On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is decide mode in open PR #49; the slot planner is in open PR #46.
+On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is `AGENT_JEV_MODE=decide` (off by default, `docs/JEV_DECIDE.md`); the slot planner is `AGENT_SLOT_PLAN` (off by default, `docs/JEV_MULTI_TOOL.md`). With both on, decide runs first and the slot planner acts only on questions decide leaves as answer.
 
 1. Router hard backstops fire first (`services/agent/routing.py`): live and current, future dates, city_needs_place, hftd_constraint_unavailable, explicit unsupported topics.
 2. Jev decides answer, clarify, or refuse (`services/agent/decisions/`, policy in `jev_policy.py`, schema in `v3.py`).
@@ -39,19 +39,20 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Env flags (all default off)
 
-- `AGENT_JEV_MODE`: main accepts off, shadow, tool_pick, tool_pick_template. `decide` arrives with PR #49 and `plan` with PR #46.
+- `AGENT_JEV_MODE`: off, shadow, tool_pick, tool_pick_template, decide; plan mode was archived on the `jev-plan-archive` branch and is not accepted (`docs/JEV_MULTI_TOOL.md`).
+- `AGENT_JEV_DECIDE_MIN_CONFIDENCE` (0.8) and `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE` (0.9): decide mode's decline and answer gates. The answer gate is a stated default, not chosen from any eval set; v3 was not used.
 - `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`: default 0.8
 - `AGENT_JEV_BACKEND`: typesafe (default) or openrouter
 - `AGENT_JEV_LOG_PATH`: shadow log location
 - `AGENT_LLM_PROVIDER`: ollama (default) or openrouter; openrouter also needs `AGENT_ALLOW_REMOTE_PROVIDER=true` and `OPENROUTER_API_KEY` (`docs/OPENROUTER.md`)
-- `AGENT_SLOT_PLAN`: deterministic multi-entity planner, arrives with PR #46 (not on main)
+- `AGENT_SLOT_PLAN`: deterministic multi-entity planner, default off (`docs/JEV_MULTI_TOOL.md`); with decide on, decide runs first
 
 ## Key paths
 
 - Agent: `services/agent/` (routing.py, orchestrator.py, views.py, caveats.py, schemas.py)
 - Jev: `services/agent/decisions/`
-- Evals: `services/agent/eval/` (cases.json, jev_paraphrases.json, jev_holdout.json, jev_holdout_v3_labels_chatgpt.json, runs/). `jev_holdout_v2.json` and the v3 questions (`jev_holdout_v3_questions.json` on that branch) arrive with PR #46; until then read them from `platform/jev-multi-tool`.
-- Docs: `docs/JEV_SHADOW.md`, `docs/JEV_DETERMINISM.md`, `docs/JEV_BACKLOG.md`, `docs/OPENROUTER.md`; `docs/JEV_MULTI_TOOL.md` arrives with PR #46. The root README has a documentation index.
+- Evals: `services/agent/eval/` (cases.json, jev_paraphrases.json, jev_holdout.json, jev_holdout_v2.json, jev_holdout_v3_questions.json, jev_holdout_v3_labels_chatgpt.json, runs/).
+- Docs: `docs/JEV_SHADOW.md`, `docs/JEV_DECIDE.md`, `docs/JEV_MULTI_TOOL.md`, `docs/JEV_DETERMINISM.md`, `docs/JEV_BACKLOG.md`, `docs/OPENROUTER.md`. The root README has a documentation index.
 - Website: `website/src/` (panelViews.ts, answerPanels.ts, agentContracts.ts, state.tsx)
 
 ## Tests
@@ -61,13 +62,10 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Branches and merge order
 
-Merged into main: `router-paraphrase-fixes` (#22), `openai-provider` (#25), `panel-summary-stats` (#26), `jev-shadow` (#43), `hftd-geometry-rebuild` (#45), `time-resolve-fixes` (#48), `model-date-range` (#50), `clarify-all-missing` (#51), `readme-refresh` (#57), `gitignore-hook-files` (#59).
+Merged into main: `router-paraphrase-fixes` (#22), `ops-shadow-tooling` (#24), `openai-provider` (#25), `panel-summary-stats` (#26), `risk-health-check` (#27), `geocode-cities` (#28), `jev-shadow` (#43), `hftd-geometry-rebuild` (#45), `jev-multi-tool` (#46, slot planner; plan mode archived on `jev-plan-archive`), `time-resolve-fixes` (#48), `jev-decider` (#49), `model-date-range` (#50), `clarify-all-missing` (#51), `readme-refresh` (#57), `router-followups` (#58), `gitignore-hook-files` (#59), `month-range-fix` (#66), `geometry-followups` (#69).
 
 Open:
-- `jev-multi-tool` (PR #46): plan mode, the slot planner, holdouts v2 and v3 with their raw files, and `docs/JEV_MULTI_TOOL.md`. Keep it separate from other Jev work; its `routing.py` changes need their own route report.
-- `jev-decider` (PR #49): `AGENT_JEV_MODE=decide`. When the README refresh (#57) merges, update the README decide-mode line in this PR.
-- `geocode-cities` (PR #28): rebase onto main now that #45 has merged.
-- `ops-shadow-tooling` (PR #24), `risk-health-check` (PR #27), `research-psps-reports` (PR #29), `router-followups` (PR #58).
+- `research-psps-reports` (PR #29), `us-sample-routing` (PR #68), `risk-and-cleanup-fixes` (PR #70).
 
 After each merge, rebase the next branch onto `platform/main`, rerun `pytest tests/agent`, and report route changes across all eval sets.
 

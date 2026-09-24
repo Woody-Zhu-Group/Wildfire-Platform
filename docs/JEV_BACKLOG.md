@@ -75,9 +75,9 @@ Measure when it lands: if the threshold changes, one pass on dev, v1, and v2: th
 
 ## 7. The Jev-first decider as a runtime mode
 
-What: the combined decider (router hard backstops first, then Jev's disposition, then the router's slots and tools) exists only as offline scoring in `services/agent/eval/_v3_gap_score.py` and the rescoring recorded in `jev_holdout_v3_independent_score.json`. On the 65 certain v3 rows, tuned, it scored 56 of 65 against 51 for Jev alone and 45 for the router alone. There is no `AGENT_JEV_MODE` value that runs it.
+Status: landed as `AGENT_JEV_MODE=decide` (PR #49, off by default). See `docs/JEV_DECIDE.md` for the order, the decline and answer gates, the slot-contradiction and code-verified rules, the timeout and error fallback, and the replay and live results. What remains from this item is the measurement below on production shadow logs.
 
-Why deferred: main accepts `off`, `shadow`, `tool_pick`, and `tool_pick_template` since PR 43 (`services/agent/config.py` `validate()`). None of those is the Jev-first decider. A `plan` mode (open PR #46) and a `decide` mode (open PR #49) are proposed on other branches; neither is on main. A runtime mode also needs decisions that offline scoring skips: the confidence gate on the disposition, the 3 second Jev timeout and what happens on a timeout or error, and the null backend fallback.
+What it replaced: the combined decider (router hard backstops first, then Jev's disposition, then the router's slots and tools) existed only as offline scoring in `services/agent/eval/_v3_gap_score.py` and the rescoring recorded in `jev_holdout_v3_independent_score.json`. On the 65 certain v3 rows, tuned, it scored 56 of 65 against 51 for Jev alone and 45 for the router alone.
 
 Motivating rows: the whole v3 rescoring, plus the dev rows where the intent-gated measure policy restored six answers.
 

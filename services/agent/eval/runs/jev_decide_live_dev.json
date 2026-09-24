@@ -1,0 +1,2892 @@
+{
+ "summary": {
+  "questions": 137,
+  "same_final_decision": 137,
+  "same_jev_disposition": 136,
+  "jev_asked": 113,
+  "errors": 0,
+  "p50_ms_when_asked": 381.4,
+  "p95_ms_when_asked": 646.1,
+  "input_tokens": 693384,
+  "cost_usd": 0.0291
+ },
+ "rows": [
+  {
+   "id": "cases:dq_pge_ignitions_2024",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 646.1,
+   "error": null
+  },
+  {
+   "id": "cases:dq_cpuc_sacramento_county_2023",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 407.7,
+   "error": null
+  },
+  {
+   "id": "cases:spatial_pge_ignitions_2024",
+   "runtime": [
+    "deterministic",
+    "spatial_utility_count",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "spatial_utility_count",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 417.5,
+   "error": null
+  },
+  {
+   "id": "cases:map_pge_cpuc_2024",
+   "runtime": [
+    "deterministic",
+    "map",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "map",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 527.3,
+   "error": null
+  },
+  {
+   "id": "cases:trend_calfire_monthly_2024",
+   "runtime": [
+    "deterministic",
+    "time_series",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "time_series",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 419.6,
+   "error": null
+  },
+  {
+   "id": "cases:spatial_point_context",
+   "runtime": [
+    "deterministic",
+    "coordinate_context",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "coordinate_context",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 362.3,
+   "error": null
+  },
+  {
+   "id": "cases:risk_cell_date",
+   "runtime": [
+    "deterministic",
+    "cell_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "cell_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 386.8,
+   "error": null
+  },
+  {
+   "id": "cases:list_psps_2021",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 508.9,
+   "error": null
+  },
+  {
+   "id": "cases:us_ignitions_2024",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 554.3,
+   "error": null
+  },
+  {
+   "id": "cases:compare_utilities_ignitions",
+   "runtime": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 375.3,
+   "error": null
+  },
+  {
+   "id": "cases:compare_hftd_calfire",
+   "runtime": [
+    "deterministic",
+    "hftd_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "hftd_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 363.8,
+   "error": null
+  },
+  {
+   "id": "cases:compare_pge_periods",
+   "runtime": [
+    "deterministic",
+    "period_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "period_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 389.4,
+   "error": null
+  },
+  {
+   "id": "cases:compare_epss_utilities",
+   "runtime": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 688.8,
+   "error": null
+  },
+  {
+   "id": "cases:ratio_per_circuit",
+   "runtime": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 602.6,
+   "error": null
+  },
+  {
+   "id": "cases:coordinate_to_risk",
+   "runtime": [
+    "deterministic",
+    "coordinate_risk_chain",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "coordinate_risk_chain",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 455.8,
+   "error": null
+  },
+  {
+   "id": "cases:cpuc_vs_us",
+   "runtime": [
+    "model",
+    "open_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "model",
+    "open_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 419.7,
+   "error": null
+  },
+  {
+   "id": "cases:count_plus_trend",
+   "runtime": [
+    "deterministic",
+    "multi_intent_count_and_trend",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "multi_intent_count_and_trend",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 456.4,
+   "error": null
+  },
+  {
+   "id": "cases:ambiguous_riskiest",
+   "runtime": [
+    "clarification",
+    "ambiguous_risk_metric",
+    "router",
+    "clarify",
+    0.73
+   ],
+   "replay": [
+    "clarification",
+    "ambiguous_risk_metric",
+    "router",
+    "clarify",
+    0.66
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 384.9,
+   "error": null
+  },
+  {
+   "id": "cases:ambiguous_near_me",
+   "runtime": [
+    "clarification",
+    "missing_location",
+    "router",
+    "clarify",
+    0.91
+   ],
+   "replay": [
+    "clarification",
+    "missing_location",
+    "router",
+    "clarify",
+    0.94
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 520.2,
+   "error": null
+  },
+  {
+   "id": "cases:undefined_north_south",
+   "runtime": [
+    "clarification",
+    "undefined_region",
+    "router",
+    "clarify",
+    0.98
+   ],
+   "replay": [
+    "clarification",
+    "undefined_region",
+    "router",
+    "clarify",
+    0.98
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 348.2,
+   "error": null
+  },
+  {
+   "id": "cases:unsupported_cpz",
+   "runtime": [
+    "unsupported",
+    "unsupported_cpz",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_cpz",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.1,
+   "error": null
+  },
+  {
+   "id": "cases:unsupported_cost",
+   "runtime": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:unsupported_optimize",
+   "runtime": [
+    "unsupported",
+    "unsupported_optimization",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_optimization",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:unsupported_damage",
+   "runtime": [
+    "unsupported",
+    "unsupported_damage",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_damage",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:unsupported_live_web",
+   "runtime": [
+    "unsupported",
+    "unsupported_live_web",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_live_web",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:recover_validation",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 380.9,
+   "error": null
+  },
+  {
+   "id": "cases:recover_503",
+   "runtime": [
+    "deterministic",
+    "time_series",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "time_series",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 453.1,
+   "error": null
+  },
+  {
+   "id": "cases:detect_partial_200",
+   "runtime": [
+    "deterministic",
+    "map",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "map",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 647.9,
+   "error": null
+  },
+  {
+   "id": "cases:holdout_dq_sce_2023",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 474.5,
+   "error": null
+  },
+  {
+   "id": "cases:holdout_spatial_sce_2023",
+   "runtime": [
+    "deterministic",
+    "spatial_utility_count",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "spatial_utility_count",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 481.8,
+   "error": null
+  },
+  {
+   "id": "cases:holdout_compare_epss_sce_sdge_2023",
+   "runtime": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 489.2,
+   "error": null
+  },
+  {
+   "id": "cases:holdout_count_trend_sce_2023",
+   "runtime": [
+    "deterministic",
+    "multi_intent_count_and_trend",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "multi_intent_count_and_trend",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 366.9,
+   "error": null
+  },
+  {
+   "id": "cases:holdout_unsupported_budget",
+   "runtime": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:collision_count_inside_sce_territory",
+   "runtime": [
+    "deterministic",
+    "spatial_utility_count",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "spatial_utility_count",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 485.0,
+   "error": null
+  },
+  {
+   "id": "cases:collision_map_pge_outages_no_year",
+   "runtime": [
+    "clarification",
+    "map_missing_year",
+    "router",
+    "clarify",
+    0.68
+   ],
+   "replay": [
+    "clarification",
+    "map_missing_year",
+    "router",
+    "clarify",
+    0.7
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 447.2,
+   "error": null
+  },
+  {
+   "id": "cases:collision_compare_territories_last_year",
+   "runtime": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 356.7,
+   "error": null
+  },
+  {
+   "id": "cases:collision_trend_calfire_sce_territory",
+   "runtime": [
+    "deterministic",
+    "time_series",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "time_series",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 663.7,
+   "error": null
+  },
+  {
+   "id": "cases:collision_boundary_only_sce",
+   "runtime": [
+    "deterministic",
+    "utility_territory",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_territory",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 389.2,
+   "error": null
+  },
+  {
+   "id": "cases:collision_map_sce_territory_boundary",
+   "runtime": [
+    "deterministic",
+    "utility_territory",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_territory",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 423.7,
+   "error": null
+  },
+  {
+   "id": "cases:collision_riskiest_in_territory",
+   "runtime": [
+    "clarification",
+    "ambiguous_risk_metric",
+    "router",
+    "clarify",
+    0.33
+   ],
+   "replay": [
+    "clarification",
+    "ambiguous_risk_metric",
+    "router",
+    "clarify",
+    0.35
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 348.1,
+   "error": null
+  },
+  {
+   "id": "cases:collision_period_not_utilities",
+   "runtime": [
+    "deterministic",
+    "period_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "period_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 346.8,
+   "error": null
+  },
+  {
+   "id": "cases:collision_relative_recent_clarifies",
+   "runtime": [
+    "clarification",
+    "ambiguous_relative_time",
+    "router",
+    "clarify",
+    0.85
+   ],
+   "replay": [
+    "clarification",
+    "ambiguous_relative_time",
+    "router",
+    "clarify",
+    0.84
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 622.2,
+   "error": null
+  },
+  {
+   "id": "cases:collision_relative_past_two_years",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 381.4,
+   "error": null
+  },
+  {
+   "id": "cases:collision_this_year_count",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 325.1,
+   "error": null
+  },
+  {
+   "id": "cases:collision_wrong_kind_model_repair",
+   "runtime": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 394.5,
+   "error": null
+  },
+  {
+   "id": "cases:relative_two_years_ago_compare",
+   "runtime": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 316.4,
+   "error": null
+  },
+  {
+   "id": "cases:relative_last_year_count",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 375.1,
+   "error": null
+  },
+  {
+   "id": "cases:relative_lately_clarifies",
+   "runtime": [
+    "clarification",
+    "ambiguous_relative_time",
+    "router",
+    "clarify",
+    0.85
+   ],
+   "replay": [
+    "clarification",
+    "ambiguous_relative_time",
+    "router",
+    "clarify",
+    0.88
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 369.0,
+   "error": null
+  },
+  {
+   "id": "cases:vague_spatial_near_sacramento",
+   "runtime": [
+    "clarification",
+    "missing_location",
+    "jev",
+    "clarify",
+    0.88
+   ],
+   "replay": [
+    "clarification",
+    "missing_location",
+    "jev",
+    "clarify",
+    0.88
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 362.7,
+   "error": null
+  },
+  {
+   "id": "cases:vague_spatial_around_fresno",
+   "runtime": [
+    "clarification",
+    "missing_location",
+    "jev",
+    "clarify",
+    0.84
+   ],
+   "replay": [
+    "clarification",
+    "missing_location",
+    "jev",
+    "clarify",
+    0.84
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 345.9,
+   "error": null
+  },
+  {
+   "id": "cases:schema_retry_bound_persistent",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 292.9,
+   "error": null
+  },
+  {
+   "id": "cases:model_explicit_year_filled",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 619.7,
+   "error": null
+  },
+  {
+   "id": "cases:model_synthesis_bounded",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 359.9,
+   "error": null
+  },
+  {
+   "id": "cases:unsupported_ranking_circuit_most",
+   "runtime": [
+    "deterministic",
+    "ranked_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "ranked_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 370.4,
+   "error": null
+  },
+  {
+   "id": "cases:rank_calfire_counties_2023",
+   "runtime": [
+    "deterministic",
+    "ranked_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "ranked_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 382.3,
+   "error": null
+  },
+  {
+   "id": "cases:unsupported_rank_cross_dataset",
+   "runtime": [
+    "unsupported",
+    "unsupported_rank_cross_dataset",
+    "router",
+    "unsupported",
+    0.71
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_rank_cross_dataset",
+    "router",
+    "unsupported",
+    0.62
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 464.1,
+   "error": null
+  },
+  {
+   "id": "cases:model_cpuc_tell_me_about_2023",
+   "runtime": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 338.5,
+   "error": null
+  },
+  {
+   "id": "cases:model_sacramento_tell_me_about_2024",
+   "runtime": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 500.1,
+   "error": null
+  },
+  {
+   "id": "cases:silent_filter_drop_cpuc_sacramento_august",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 342.7,
+   "error": null
+  },
+  {
+   "id": "cases:calfire_sacramento_august_2023",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 402.2,
+   "error": null
+  },
+  {
+   "id": "cases:utility_not_invented_from_place",
+   "runtime": [
+    "unsupported",
+    "unexpressable_county_filter",
+    "router",
+    "answer",
+    0.66
+   ],
+   "replay": [
+    "unsupported",
+    "unexpressable_county_filter",
+    "router",
+    "answer",
+    0.68
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 1371.1,
+   "error": null
+  },
+  {
+   "id": "cases:risk_county_date",
+   "runtime": [
+    "deterministic",
+    "county_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "county_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 416.9,
+   "error": null
+  },
+  {
+   "id": "cases:risk_utility_date",
+   "runtime": [
+    "deterministic",
+    "utility_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "utility_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 631.8,
+   "error": null
+  },
+  {
+   "id": "cases:risk_out_of_coverage",
+   "runtime": [
+    "clarification",
+    "risk_future_date",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "clarification",
+    "risk_future_date",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.1,
+   "error": null
+  },
+  {
+   "id": "cases:router_around_year",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 337.5,
+   "error": null
+  },
+  {
+   "id": "cases:router_premiums",
+   "runtime": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:router_air_quality",
+   "runtime": [
+    "unsupported",
+    "unsupported_air_quality",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_air_quality",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:router_leadership",
+   "runtime": [
+    "unsupported",
+    "unsupported_leadership",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_leadership",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:router_evacuation",
+   "runtime": [
+    "unsupported",
+    "unsupported_evacuation",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_evacuation",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:router_translation",
+   "runtime": [
+    "unsupported",
+    "unsupported_translation",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_translation",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:router_personnel",
+   "runtime": [
+    "unsupported",
+    "unsupported_personnel",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_personnel",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:router_satellite",
+   "runtime": [
+    "unsupported",
+    "unsupported_satellite",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_satellite",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:router_pg_and_e_tally",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 359.4,
+   "error": null
+  },
+  {
+   "id": "cases:router_pacific_gas_total",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 324.6,
+   "error": null
+  },
+  {
+   "id": "cases:medical_baseline_missing_year",
+   "runtime": [
+    "clarification",
+    "medical_exposure_missing_year",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "clarification",
+    "medical_exposure_missing_year",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "cases:epss_outage_count_2024",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 312.1,
+   "error": null
+  },
+  {
+   "id": "cases:map_epss_outages_2024",
+   "runtime": [
+    "deterministic",
+    "map",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "map",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 340.1,
+   "error": null
+  },
+  {
+   "id": "cases:rank_epss_circuits_2024",
+   "runtime": [
+    "deterministic",
+    "ranked_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "ranked_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 288.9,
+   "error": null
+  },
+  {
+   "id": "cases:series_yearly_cpuc_2024",
+   "runtime": [
+    "deterministic",
+    "series_yearly",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "series_yearly",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 392.5,
+   "error": null
+  },
+  {
+   "id": "cases:series_seasonal_calfire_2024",
+   "runtime": [
+    "deterministic",
+    "series_seasonal",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "series_seasonal",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 316.8,
+   "error": null
+  },
+  {
+   "id": "cases:series_cumulative_acres_2024",
+   "runtime": [
+    "deterministic",
+    "series_cumulative_acres",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "series_cumulative_acres",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 303.7,
+   "error": null
+  },
+  {
+   "id": "cases:series_customer_events_2024",
+   "runtime": [
+    "deterministic",
+    "series_customer_events",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "series_customer_events",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 384.7,
+   "error": null
+  },
+  {
+   "id": "cases:series_regional_epss_2024",
+   "runtime": [
+    "deterministic",
+    "series_regional",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "series_regional",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 491.1,
+   "error": null
+  },
+  {
+   "id": "cases:guard_monthly_trend_stays_timeline",
+   "runtime": [
+    "deterministic",
+    "time_series",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "time_series",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 450.2,
+   "error": null
+  },
+  {
+   "id": "cases:guard_epss_count_stays_filtered_records",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 456.9,
+   "error": null
+  },
+  {
+   "id": "cases:guard_calfire_count_is_not_cumulative_acres",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 391.2,
+   "error": null
+  },
+  {
+   "id": "cases:guard_pge_count_stays_frozen_stat",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 269.6,
+   "error": null
+  },
+  {
+   "id": "cases:hdw_map_cpuc_2024",
+   "runtime": [
+    "deterministic",
+    "hdw_map",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "hdw_map",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 273.2,
+   "error": null
+  },
+  {
+   "id": "cases:hdw_map_fire_weather_epss_2023",
+   "runtime": [
+    "deterministic",
+    "hdw_map",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "hdw_map",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 314.4,
+   "error": null
+  },
+  {
+   "id": "cases:hdw_map_missing_year",
+   "runtime": [
+    "clarification",
+    "map_missing_year",
+    "router",
+    "clarify",
+    0.88
+   ],
+   "replay": [
+    "clarification",
+    "map_missing_year",
+    "router",
+    "clarify",
+    0.88
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 311.7,
+   "error": null
+  },
+  {
+   "id": "cases:risk_surface_county_date",
+   "runtime": [
+    "deterministic",
+    "county_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "county_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 852.9,
+   "error": null
+  },
+  {
+   "id": "cases:residual_map_county_date",
+   "runtime": [
+    "deterministic",
+    "county_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "county_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 505.4,
+   "error": null
+  },
+  {
+   "id": "cases:risk_surface_missing_date",
+   "runtime": [
+    "clarification",
+    "forecast_missing_date",
+    "router",
+    "clarify",
+    0.81
+   ],
+   "replay": [
+    "clarification",
+    "forecast_missing_date",
+    "router",
+    "clarify",
+    0.81
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 405.7,
+   "error": null
+  },
+  {
+   "id": "cases:timeline_three_datasets_2024",
+   "runtime": [
+    "deterministic",
+    "series_timeline",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "series_timeline",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 532.1,
+   "error": null
+  },
+  {
+   "id": "cases:timeline_missing_year",
+   "runtime": [
+    "clarification",
+    "trend_missing_year",
+    "router",
+    "clarify",
+    0.48
+   ],
+   "replay": [
+    "clarification",
+    "trend_missing_year",
+    "router",
+    "answer",
+    0.47
+   ],
+   "same_final": true,
+   "same_jev": false,
+   "latency_ms": 320.6,
+   "error": null
+  },
+  {
+   "id": "cases:timeline_bare_ignitions_and_epss_2024",
+   "runtime": [
+    "deterministic",
+    "series_timeline",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "series_timeline",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 334.6,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_tally_pge_2024",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 376.2,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_total_pacific_gas",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 368.2,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_show_me_where_pge",
+   "runtime": [
+    "deterministic",
+    "map",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "map",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 327.6,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_calfire_monthly_chart",
+   "runtime": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 359.1,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_sce_versus_sdge",
+   "runtime": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 386.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_top_counties_calfire",
+   "runtime": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 270.6,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_list_psps",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 301.4,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_bear_valley",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 290.8,
+   "error": null
+  },
+  {
+   "id": "paraphrases:fp_around_2023",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 409.1,
+   "error": null
+  },
+  {
+   "id": "paraphrases:fp_close_to_500",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 328.6,
+   "error": null
+  },
+  {
+   "id": "paraphrases:fp_where_deenergized",
+   "runtime": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 410.8,
+   "error": null
+  },
+  {
+   "id": "paraphrases:fp_roadmap",
+   "runtime": [
+    "model",
+    "open_ended",
+    "router",
+    "unsupported",
+    0.6
+   ],
+   "replay": [
+    "model",
+    "open_ended",
+    "router",
+    "unsupported",
+    0.52
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 349.1,
+   "error": null
+  },
+  {
+   "id": "paraphrases:fp_utility_inside_phrase",
+   "runtime": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.1,
+   "error": null
+  },
+  {
+   "id": "paraphrases:fp_orange_glow",
+   "runtime": [
+    "unsupported",
+    "other_off_topic",
+    "jev",
+    "unsupported",
+    0.89
+   ],
+   "replay": [
+    "unsupported",
+    "other_off_topic",
+    "jev",
+    "unsupported",
+    0.91
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 374.8,
+   "error": null
+  },
+  {
+   "id": "paraphrases:fp_nevada_border",
+   "runtime": [
+    "clarification",
+    "undefined_spatial_scope",
+    "router",
+    "clarify",
+    0.52
+   ],
+   "replay": [
+    "clarification",
+    "undefined_spatial_scope",
+    "router",
+    "clarify",
+    0.51
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 372.4,
+   "error": null
+  },
+  {
+   "id": "paraphrases:amb_how_risky",
+   "runtime": [
+    "clarification",
+    "risk_missing_place",
+    "router",
+    "clarify",
+    0.7
+   ],
+   "replay": [
+    "clarification",
+    "risk_missing_place",
+    "router",
+    "clarify",
+    0.66
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 400.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:amb_big_utilities",
+   "runtime": [
+    "model",
+    "open_comparison",
+    "router",
+    "unsupported",
+    0.69
+   ],
+   "replay": [
+    "model",
+    "open_comparison",
+    "router",
+    "unsupported",
+    0.71
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 278.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:amb_up_north",
+   "runtime": [
+    "clarification",
+    "undefined_region",
+    "jev",
+    "clarify",
+    0.97
+   ],
+   "replay": [
+    "clarification",
+    "undefined_region",
+    "jev",
+    "clarify",
+    0.97
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 398.6,
+   "error": null
+  },
+  {
+   "id": "paraphrases:amb_which_fires",
+   "runtime": [
+    "model",
+    "open_ended",
+    "router",
+    "unsupported",
+    0.67
+   ],
+   "replay": [
+    "model",
+    "open_ended",
+    "router",
+    "unsupported",
+    0.61
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 1155.9,
+   "error": null
+  },
+  {
+   "id": "paraphrases:amb_better_or_worse",
+   "runtime": [
+    "unsupported",
+    "unsupported_other_measure",
+    "jev",
+    "unsupported",
+    0.94
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_other_measure",
+    "jev",
+    "unsupported",
+    0.96
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 339.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:oos_air_quality",
+   "runtime": [
+    "unsupported",
+    "unsupported_air_quality",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_air_quality",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.1,
+   "error": null
+  },
+  {
+   "id": "paraphrases:oos_ceo",
+   "runtime": [
+    "unsupported",
+    "unsupported_leadership",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_leadership",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:oos_evacuation",
+   "runtime": [
+    "unsupported",
+    "unsupported_evacuation",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_evacuation",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:oos_translate",
+   "runtime": [
+    "unsupported",
+    "unsupported_translation",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_translation",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:oos_insurance_premium",
+   "runtime": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_cost",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:oos_personnel",
+   "runtime": [
+    "unsupported",
+    "unsupported_personnel",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_personnel",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:oos_satellite",
+   "runtime": [
+    "unsupported",
+    "unsupported_satellite",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_satellite",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:oos_twitter",
+   "runtime": [
+    "unsupported",
+    "unsupported_live_web",
+    "router",
+    null,
+    null
+   ],
+   "replay": [
+    "unsupported",
+    "unsupported_live_web",
+    "router",
+    null,
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 0.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:inj_ignore_instructions",
+   "runtime": [
+    "unsupported",
+    "prompt_injection",
+    "jev",
+    "unsupported",
+    0.98
+   ],
+   "replay": [
+    "unsupported",
+    "prompt_injection",
+    "jev",
+    "unsupported",
+    0.99
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 413.6,
+   "error": null
+  },
+  {
+   "id": "paraphrases:inj_say_zero",
+   "runtime": [
+    "unsupported",
+    "prompt_injection",
+    "jev",
+    "unsupported",
+    0.91
+   ],
+   "replay": [
+    "unsupported",
+    "prompt_injection",
+    "jev",
+    "unsupported",
+    0.91
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 316.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:inj_exfiltrate",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "unsupported",
+    0.78
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "unsupported",
+    0.77
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 405.2,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_liberty_2021",
+   "runtime": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "filtered_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 355.0,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_territory_boundary",
+   "runtime": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "model",
+    "open_ended",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 330.7,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_inside_territory",
+   "runtime": [
+    "deterministic",
+    "spatial_utility_count",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "spatial_utility_count",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 340.9,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_county_risk",
+   "runtime": [
+    "deterministic",
+    "county_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "county_risk",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 359.8,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_map_and_trend",
+   "runtime": [
+    "deterministic",
+    "map_plus_trend",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "map_plus_trend",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 420.4,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_count_and_trend",
+   "runtime": [
+    "deterministic",
+    "multi_intent_count_and_trend",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "multi_intent_count_and_trend",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 422.2,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_epss_circuits",
+   "runtime": [
+    "deterministic",
+    "ranked_records",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "ranked_records",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 349.4,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_two_years",
+   "runtime": [
+    "deterministic",
+    "period_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "period_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 363.2,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_hftd_tiers",
+   "runtime": [
+    "deterministic",
+    "hftd_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "hftd_comparison",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 347.8,
+   "error": null
+  },
+  {
+   "id": "paraphrases:para_circuit_id",
+   "runtime": [
+    "deterministic",
+    "circuit_detail",
+    "router",
+    "answer",
+    null
+   ],
+   "replay": [
+    "deterministic",
+    "circuit_detail",
+    "router",
+    "answer",
+    null
+   ],
+   "same_final": true,
+   "same_jev": true,
+   "latency_ms": 369.7,
+   "error": null
+  }
+ ]
+}

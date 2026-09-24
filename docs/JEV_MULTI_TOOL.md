@@ -4,6 +4,8 @@ The router defers a question that names several utilities, several counties, sev
 
 Jev's own planner (`AGENT_JEV_MODE=plan`, the breakdown, output_form, and also_chart questions, `planner.py`) lost to the slot rule on the seen holdouts and had known paths that answered a narrower question. It is kept on the `jev-plan-archive` branch and is not on main.
 
+With `AGENT_JEV_MODE=decide` also on, decide runs first on the router's own decision, and the slot planner then acts only on a question decide left as an answer; a Jev clarification or refusal is never planned (`docs/JEV_DECIDE.md`).
+
 ## What the slot rule plans
 
 `services/agent/eval/slot_plan.py`, applied in the orchestrator only when `AGENT_SLOT_PLAN` is on and the model is not forced, and only to a `multi_entity_deferred` route. It builds candidate calls from router slots:

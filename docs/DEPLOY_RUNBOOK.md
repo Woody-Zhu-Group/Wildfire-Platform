@@ -285,7 +285,7 @@ and quote any value containing `#`. Check with the command in
 `deploy/systemd/SYSTEMD_SETUP.md` before restarting.
 
 Leave `AGENT_JEV_MODE` at `shadow`. Do not set `tool_pick`,
-`tool_pick_template`, or `plan` in production; those let Jev change answers.
+`tool_pick_template`, or `decide` in production; those let Jev change answers. (`plan` was archived and is rejected at startup.)
 
 ### 5.2 Restart and verify the log grows
 

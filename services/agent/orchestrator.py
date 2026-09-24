@@ -114,11 +114,14 @@ class AgentOrchestrator:
         provider: OpenAICompatibleProvider,
         executor: ToolExecutor,
         shadow: Any = None,
+        decide_backend: Any = None,
     ) -> None:
         self.settings = settings
         self.provider = provider
         self.executor = executor
         self.shadow = shadow
+        # decide mode only; tests inject a fake backend here.
+        self.decide_backend = decide_backend
         if shadow is None and settings.jev_mode == "shadow":
             from services.agent.decisions.shadow import get_runner
 
@@ -135,6 +138,11 @@ class AgentOrchestrator:
         started = time.perf_counter()
         request_id = uuid.uuid4().hex
         decision = route_question(question, force_model=force_model)
+        # decide runs first, on the router's own decision. The slot planner then
+        # acts only on a question decide left as an answer (apply_slot_plan skips
+        # clarifications and refusals, and rewrites only multi_entity_deferred).
+        if self.settings.jev_mode == "decide" and not force_model:
+            decision = await self._jev_decide(question, decision, request_id)
         if self.settings.slot_plan and not force_model:
             from services.agent.eval.slot_plan import apply_slot_plan
 
@@ -211,6 +219,88 @@ class AgentOrchestrator:
                         type(exc).__name__,
                         exc,
                     )
+
+    async def _jev_decide(
+        self, question: str, decision: RouteDecision, request_id: str
+    ) -> RouteDecision:
+        """AGENT_JEV_MODE=decide. Any Jev failure leaves the router decision standing."""
+        from services.agent.decisions.decide_mode import (
+            decide_from_answers,
+            decide_live,
+            exemption,
+        )
+
+        gate = self.settings.jev_decide_min_confidence
+        answer_gate = self.settings.jev_decide_answer_confidence
+        if exemption(decision):
+            result = decide_from_answers(
+                question, decision, None, gate=gate, answer_gate=answer_gate
+            )
+        else:
+            try:
+                backend = self.decide_backend
+                if backend is None:
+                    from services.agent.decisions.typesafe_backend import make_backend
+
+                    backend = make_backend(
+                        self.settings.jev_backend,
+                        model=self.settings.jev_model,
+                        timeout_seconds=self.settings.jev_timeout_seconds,
+                    )
+                    self.decide_backend = backend
+                result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        decide_live,
+                        question,
+                        decision,
+                        backend=backend,
+                        gate=gate,
+                        answer_gate=answer_gate,
+                        # ask_jev gives up here and returns; the pool stays bounded.
+                        timeout=self.settings.jev_timeout_seconds,
+                    ),
+                    timeout=self.settings.jev_timeout_seconds + 1.0,
+                )
+            except (TimeoutError, asyncio.TimeoutError):
+                result = decide_from_answers(
+                    question, decision, None, gate=gate, error="timeout"
+                )
+                result.why = "timeout"
+            except Exception as exc:  # noqa: BLE001
+                result = decide_from_answers(
+                    question,
+                    decision,
+                    None,
+                    gate=gate,
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+        record = result.log_record(question, request_id)
+        if result.disagrees or result.error:
+            print(json.dumps(record, default=str))
+            try:
+                from services.agent.decisions.shadow_log import ShadowLog, resolve_log_path
+
+                ShadowLog(
+                    str(resolve_log_path(self.settings.jev_log_path)),
+                    int(self.settings.jev_log_max_mb * 1024 * 1024),
+                ).write(record)
+            except Exception as exc:  # noqa: BLE001
+                _shadow_log.warning(
+                    "Jev decide log failed: %s: %s", type(exc).__name__, exc
+                )
+        final = result.decision
+        final.slots = {
+            **final.slots,
+            "jev_decide": {
+                "winner": result.winner,
+                "why": result.why,
+                "router_rule": result.router_rule,
+                "jev_disposition": result.jev_disposition,
+                "jev_rule": result.jev_rule,
+                "jev_confidence": result.jev_confidence,
+            },
+        }
+        return final
 
     async def _ask_routed(
         self,
