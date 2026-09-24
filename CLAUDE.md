@@ -22,7 +22,7 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 
 ## Architecture (target design: Jev first)
 
-On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is decide mode in open PR #49; the slot planner is in open PR #46.
+On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is `AGENT_JEV_MODE=decide` (off by default, `docs/JEV_DECIDE.md`); the slot planner is in open PR #46.
 
 1. Router hard backstops fire first (`services/agent/routing.py`): live and current, future dates, city_needs_place, hftd_constraint_unavailable, explicit unsupported topics.
 2. Jev decides answer, clarify, or refuse (`services/agent/decisions/`, policy in `jev_policy.py`, schema in `v3.py`).
@@ -39,7 +39,8 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Env flags (all default off)
 
-- `AGENT_JEV_MODE`: main accepts off, shadow, tool_pick, tool_pick_template. `decide` arrives with PR #49 and `plan` with PR #46.
+- `AGENT_JEV_MODE`: off, shadow, tool_pick, tool_pick_template, decide. `plan` arrives with PR #46.
+- `AGENT_JEV_DECIDE_MIN_CONFIDENCE` (0.8) and `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE` (0.9): decide mode's decline and answer gates. The answer gate is a stated default, not chosen from any eval set; v3 was not used.
 - `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`: default 0.8
 - `AGENT_JEV_BACKEND`: typesafe (default) or openrouter
 - `AGENT_JEV_LOG_PATH`: shadow log location
@@ -65,7 +66,7 @@ Merged into main: `router-paraphrase-fixes` (#22), `openai-provider` (#25), `pan
 
 Open:
 - `jev-multi-tool` (PR #46): plan mode, the slot planner, holdouts v2 and v3 with their raw files, and `docs/JEV_MULTI_TOOL.md`. Keep it separate from other Jev work; its `routing.py` changes need their own route report.
-- `jev-decider` (PR #49): `AGENT_JEV_MODE=decide`. When the README refresh (#57) merges, update the README decide-mode line in this PR.
+- `jev-decider` (PR #49): `AGENT_JEV_MODE=decide`, with its docs (README, `docs/JEV_DECIDE.md`, AGENTS.md, this file) updated in the same PR.
 - `geocode-cities` (PR #28): rebase onto main now that #45 has merged.
 - `ops-shadow-tooling` (PR #24), `risk-health-check` (PR #27), `research-psps-reports` (PR #29), `router-followups` (PR #58).
 

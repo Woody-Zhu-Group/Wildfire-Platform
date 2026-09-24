@@ -8,9 +8,10 @@ Qwen on the local Ollama host and Jev on api.typesafe.ai.
 Do not switch yet. The provider-level fixes are in: invented placeholder filters went from
 37 to 0 on the force_model cases, all 14 of those cases now pass, and the 8 multi-part holdout
 failures now cover every named entity with SQL-correct numbers. The remaining holdout failures
-are not provider problems. They need the Jev-first decider and the slot planner before the
-switch. Neither is on main: open PR #46 proposes plan mode and the slot planner, and open PR #49
-proposes a decide mode. See "What the switch still needs" below.
+are not provider problems. They need the Jev-first decider turned on and the slot planner
+before the switch. The decider is `AGENT_JEV_MODE=decide` (off by default,
+`docs/JEV_DECIDE.md`); the slot planner is in open PR #46. See "What the switch still needs"
+below.
 Keep this note until invented filters are zero and every wrong answer is explained.
 
 ### What the switch still needs
@@ -19,7 +20,7 @@ Failure categories from the 105-question holdout run, and what clears each:
 
 | Category | Count | Cleared by |
 |---|---|---|
-| Answered a question labeled clarify or refuse | 29 | Jev-first decider (not on main). On main nothing on the model path can clarify or refuse once the router sends a question there, because routing forces a tool call. Jev decides answer, clarify, or refuse before any tool runs. |
+| Answered a question labeled clarify or refuse | 29 | Jev-first decider (`AGENT_JEV_MODE=decide`, off by default). On main nothing on the model path can clarify or refuse once the router sends a question there, because routing forces a tool call. Jev decides answer, clarify, or refuse before any tool runs. |
 | Multi-part question answered with one call | 8 | Fixed here for hosted models by the coverage continuation (all 8 now cover every entity). The slot planner (open PR #46, not on main; its flag there is `AGENT_SLOT_PLAN`) would make it deterministic: one planned call per named entity, no dependence on the model choosing to call again. |
 | Ranking or breakdown answered with one statewide total | 3 | Jev-first decider tool pick (intent rank, tool `data_query_rank`), so the model is not left to pick `data_query_records`. |
 | Tool cannot answer the question (overlay, PSPS by tier, share by tier, California share of the US sample) | 4 | Jev-first decider: refuse or clarify when no tool can express the operation, instead of answering a neighbouring question. |

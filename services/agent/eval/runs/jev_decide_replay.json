@@ -2058,7 +2058,7 @@
     "clarification",
     "trend_missing_year",
     "router",
-    "below_gate"
+    "code_verified"
    ]
   },
   "dev|cases:timeline_bare_ignitions_and_epss_2024": {
@@ -6490,7 +6490,7 @@
     "clarification",
     "forecast_missing_date",
     "router",
-    "below_gate"
+    "contradicts_slot"
    ]
   },
   "v3|hv3_087": {

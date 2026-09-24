@@ -1,0 +1,95 @@
+{
+ "gate": 0.8,
+ "sets": [
+  "dev",
+  "v1"
+ ],
+ "v3_used": false,
+ "rows": [
+  {
+   "answer_gate": 0.8,
+   "dev": {
+    "n": 137,
+    "acc": 0.964,
+    "fixed": 4,
+    "broken": 0,
+    "answer_overrides": 0
+   },
+   "v1": {
+    "n": 63,
+    "acc": 0.952,
+    "fixed": 3,
+    "broken": 0,
+    "answer_overrides": 0
+   }
+  },
+  {
+   "answer_gate": 0.85,
+   "dev": {
+    "n": 137,
+    "acc": 0.964,
+    "fixed": 4,
+    "broken": 0,
+    "answer_overrides": 0
+   },
+   "v1": {
+    "n": 63,
+    "acc": 0.952,
+    "fixed": 3,
+    "broken": 0,
+    "answer_overrides": 0
+   }
+  },
+  {
+   "answer_gate": 0.9,
+   "dev": {
+    "n": 137,
+    "acc": 0.964,
+    "fixed": 4,
+    "broken": 0,
+    "answer_overrides": 0
+   },
+   "v1": {
+    "n": 63,
+    "acc": 0.952,
+    "fixed": 3,
+    "broken": 0,
+    "answer_overrides": 0
+   }
+  },
+  {
+   "answer_gate": 0.95,
+   "dev": {
+    "n": 137,
+    "acc": 0.964,
+    "fixed": 4,
+    "broken": 0,
+    "answer_overrides": 0
+   },
+   "v1": {
+    "n": 63,
+    "acc": 0.952,
+    "fixed": 3,
+    "broken": 0,
+    "answer_overrides": 0
+   }
+  },
+  {
+   "answer_gate": 1.01,
+   "dev": {
+    "n": 137,
+    "acc": 0.964,
+    "fixed": 4,
+    "broken": 0,
+    "answer_overrides": 0
+   },
+   "v1": {
+    "n": 63,
+    "acc": 0.952,
+    "fixed": 3,
+    "broken": 0,
+    "answer_overrides": 0
+   }
+  }
+ ]
+}

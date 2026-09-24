@@ -90,8 +90,10 @@ suppressed rather than returned without its qualification.
   switched yet.
 - `AGENT_JEV_MODE` is `off` by default; `shadow`, `tool_pick`, and
   `tool_pick_template` are described in [`docs/JEV_SHADOW.md`](../../docs/JEV_SHADOW.md).
-  `AGENT_JEV_BACKEND` is `typesafe` or `openrouter`. A `decide` mode is proposed
-  in open PR #49 and is not on `main`.
+  `AGENT_JEV_BACKEND` is `typesafe` or `openrouter`. `decide` (off by default)
+  runs the Jev-first decider right after `route_question`: backstops first, then
+  Jev's disposition behind a 0.8 decline gate and a 0.9 answer gate
+  ([`docs/JEV_DECIDE.md`](../../docs/JEV_DECIDE.md), `decisions/decide_mode.py`).
 
 ## Run
 

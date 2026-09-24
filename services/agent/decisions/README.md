@@ -19,8 +19,10 @@ imports `typesafe_sdk`, and the default `off` mode never imports it.
   intents instead of qwen synthesis.
 
 `AGENT_JEV_BACKEND` is `typesafe` (default, `api.typesafe.ai`) or `openrouter`
-(same request body sent to OpenRouter). Plan and decide modes are proposed in
-open PRs #46 and #49 and are not on main.
+(same request body sent to OpenRouter).
+- `decide`: router backstops first, then Jev's derived disposition behind a decline
+  gate and a higher answer gate; see [`docs/JEV_DECIDE.md`](../../../docs/JEV_DECIDE.md)
+  and `decide_mode.py`. Plan mode is proposed in open PR #46 and is not on main.
 
 Operating guide: [`docs/JEV_SHADOW.md`](../../../docs/JEV_SHADOW.md). OpenRouter
 backend: [`docs/OPENROUTER.md`](../../../docs/OPENROUTER.md). Deferred work:
@@ -40,6 +42,7 @@ backend: [`docs/OPENROUTER.md`](../../../docs/OPENROUTER.md). Deferred work:
 | `mapping.py` | Projects router decisions and eval cases onto Jev's label space (`regex_labels`, `derive_case_labels`, `agreement`). |
 | `shadow.py` | `ShadowRunner` and `get_runner()`: background thread pool, sample rate, concurrency and daily caps, timeout. User requests never wait on it. |
 | `shadow_log.py` | Append-only JSONL log at `AGENT_JEV_LOG_PATH`, rotated by size (5 backups), redacts `TYPESAFE_API_KEY`. |
+| `decide_mode.py` | `AGENT_JEV_MODE=decide`: `BACKSTOP_RULES`, router-only exemptions, the decline and answer gates, the slot-contradiction and code-verified rules, reason texts, the bounded shared executor, and `decide_live()` / `decide_from_answers()`. |
 | `tool_pick_mode.py` | `decide_tool_pick()`, slot-filled arguments per tool, the multi-tool refusal, template intents, and `tool_pick_decision` log lines. |
 | `canonical.py` | Canonical JSON bytes and hashes, so a replay can prove two payloads are the same. |
 | `integrity.py` | Parses raw Jev answers without substituting defaults; question hashes, replay mismatch checks, and scoring helpers. |
