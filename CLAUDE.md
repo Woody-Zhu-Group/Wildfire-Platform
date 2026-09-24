@@ -66,10 +66,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Branches and merge order
 
-Merged into main: `router-paraphrase-fixes` (#22), `docs/agent-context` (#23), `ops-shadow-tooling` (#24), `openai-provider` (#25), `panel-summary-stats` (#26), `risk-health-check` (#27), `geocode-cities` (#28), `jev-shadow` (#43), `hftd-geometry-rebuild` (#45), `jev-multi-tool` (#46, slot planner; plan mode archived on `jev-plan-archive`), `time-resolve-fixes` (#48), `jev-decider` (#49), `model-date-range` (#50), `clarify-all-missing` (#51), `readme-refresh` (#57), `router-followups` (#58), `gitignore-hook-files` (#59), `month-range-fix` (#66), `us-sample-routing` (#68), `geometry-followups` (#69), `risk-and-cleanup-fixes` (#70), `decision-provenance` (#71), `decide-wording` (#72), `remove-qwen` (#73), `handoff-doc` (#74), `site-rebuild` (#75), `county-normalization` (#76), `utility-grounding` (#79), `jev-hardening` (#80), `filter-followups` (#81, issues #77 and #78), `router-polish` (#82), `answer-arithmetic` (#83), `metrics-card` (#85), `us-sample-utility` (#86), `naming-registry` (#87), `architecture-diagrams` (#88).
-
-Open:
-- `research-psps-reports` (PR #29).
+For which PRs are merged or open, check GitHub (gh pr list --state all), not this file.
 
 After each merge, rebase the next branch onto `platform/main`, rerun `pytest tests/agent`, and report route changes across all eval sets.
 
