@@ -85,7 +85,7 @@ Parameter: `date`. Same response shape as `/observed`, but each warehouse CPUC p
 
 ### `GET /metrics`
 
-Returns the `cNHPP` row of `outputs/metrics_table.csv`: `model`, `log_likelihood`, `top5_precision`, `top1_precision`, `lift_top5`, `auc`, and where it came from: `xi`, `train_years`, `eval_year`, `eval_start`, `eval_end`, and `params_sha256`. Nothing is recomputed.
+Returns the `cNHPP` row of `outputs/metrics_table.csv`: `model`, `log_likelihood`, `top5_precision`, `top1_precision`, `lift_top5`, `auc`, `not_applicable_reason`, and where it came from: `xi`, `train_years`, `eval_year`, `eval_start`, `eval_end`, and `params_sha256`. `baselines` lists the HPP and NHPP rows in the same shape, scored on the same year and training years. Nothing is recomputed.
 
 It returns 503, naming the problem and the command to fix it, unless the table was scored from the committed `artifacts/cnhpp_params.npz`: the row's `params_sha256` must equal that file's sha256, its log-likelihood must equal the file's `val_log_likelihood`, and its metrics must differ from the NHPP row while `xi` is not 0. A missing file or row is also a 503.
 
@@ -93,11 +93,11 @@ The committed table scores HPP, NHPP, and cNHPP on 2024 (366 days, 741 events), 
 
 | Model | Log-likelihood | Top 5% precision | Top 1% precision | AUC | Lift, top 5% |
 |---|---|---|---|---|---|
-| HPP | -5204.19 | 0.00019 | 0.0 | 0.500 | 0.08 |
+| HPP | -5204.19 | n/a | n/a | 0.500 | n/a |
 | NHPP | -4877.62 | 0.00534 | 0.00299 | 0.759 | 2.18 |
 | cNHPP | -4873.63 | 0.00486 | 0.00349 | 0.760 | 1.98 |
 
-HPP's precision and lift come from ties: every cell has the same intensity, so its "top" cells are an arbitrary slice. The cNHPP and NHPP log-likelihoods differ by about 4 on 2024, inside the day-bootstrap noise in `outputs/model_comparison.csv`; treat them as a tie (see the caveats below). The table that was here before issue #60 came from the last run of an earlier session, before the restructure (see `DATA_STATUS.md`), whose parameters were not kept. Its cNHPP and NHPP rows were identical (log-likelihood -4390.0, AUC 0.7718), which is what cNHPP gives at xi = 0.0, where it reduces exactly to NHPP, so that run's xi search chose 0.0. It did not describe the committed fit.
+HPP gives every cell the same intensity on every day, so it has no ranking and its top-k cells would be an arbitrary slice. `evaluate_metrics` detects a model like that and writes its top-k precision and lift as empty (null in `/metrics`) with `not_applicable_reason`; its log-likelihood and AUC (0.5, no ranking) stand. The cNHPP and NHPP log-likelihoods differ by about 4 on 2024, inside the day-bootstrap noise in `outputs/model_comparison.csv`; treat them as a tie (see the caveats below). The table that was here before issue #60 came from the last run of an earlier session, before the restructure (see `DATA_STATUS.md`), whose parameters were not kept. Its cNHPP and NHPP rows were identical (log-likelihood -4390.0, AUC 0.7718), which is what cNHPP gives at xi = 0.0, where it reduces exactly to NHPP, so that run's xi search chose 0.0. It did not describe the committed fit.
 
 ## Coverage
 

@@ -45,6 +45,12 @@ from services.risk_forecasting.models import _mrnn_forward, fit_hpp, fit_nhpp, p
 METRICS_PATH = Path(__file__).resolve().parent / "outputs" / "metrics_table.csv"
 # Relative tolerance for "the table was produced from these params".
 LL_REL_TOL = 1e-6
+# Top-k precision and lift need a ranking of cells.
+RANKING_COLUMNS = ["top5%_precision", "top1%_precision", "lift_top5%"]
+RANKING_NA_REASON = (
+    "every cell has the same intensity on every day, so top-k precision and "
+    "lift would rank an arbitrary slice of cells"
+)
 
 
 def params_sha256(path: Path = PARAMS_PATH) -> str:
@@ -65,7 +71,16 @@ _METRIC_COLUMNS = ("log_likelihood", "top5%_precision", "top1%_precision", "AUC"
 def load_verified_cnhpp_row(
     metrics_path: Path = METRICS_PATH, params_path: Path = PARAMS_PATH
 ) -> dict[str, str]:
-    """The cNHPP row, only if the table matches the committed params.
+    """The cNHPP row, only if the table matches the committed params."""
+    return load_verified_rows(metrics_path, params_path)["cnhpp"]
+
+
+def load_verified_rows(
+    metrics_path: Path = METRICS_PATH, params_path: Path = PARAMS_PATH
+) -> dict[str, dict[str, str]]:
+    """Every row by lower-case model name, only if the table matches the committed params.
+
+    Values are strings; a not-applicable metric is the empty string.
 
     Raises MetricsMismatch when the file or row is missing, the table records
     no params hash or a different one, the cNHPP log likelihood differs from
@@ -76,7 +91,9 @@ def load_verified_cnhpp_row(
     try:
         rows = {
             row["model"].strip().lower(): row
-            for row in pd.read_csv(metrics_path, dtype=str).to_dict("records")
+            for row in pd.read_csv(
+                metrics_path, dtype=str, keep_default_na=False
+            ).to_dict("records")
         }
     except (FileNotFoundError, KeyError, pd.errors.EmptyDataError) as exc:
         raise MetricsMismatch(f"{metrics_path} is missing or unreadable; {fix}") from exc
@@ -107,7 +124,7 @@ def load_verified_cnhpp_row(
             f"cNHPP and NHPP rows in {metrics_path.name} are identical although the "
             f"committed xi is {float(params['xi'])}; {fix}"
         )
-    return cnhpp
+    return rows
 
 
 def build_table() -> pd.DataFrame:
@@ -163,6 +180,21 @@ def build_table() -> pd.DataFrame:
         SimpleNamespace(log_lambda=cnhpp_h, log_likelihood=cnhpp_ll),
     ]
     table = all_metrics(e_val, *results)
+    # A model that gives every cell the same intensity on every day has no
+    # ranking, so its top-k cells are an arbitrary slice: report top-k
+    # precision and lift as not applicable. Its log likelihood and AUC stand.
+    reasons = []
+    for index, result in enumerate(results):
+        if np.all(np.ptp(result.log_lambda, axis=0) == 0):
+            table.loc[index, RANKING_COLUMNS] = np.nan
+            reasons.append(RANKING_NA_REASON)
+            print(
+                f"[METRICS] {table.loc[index, 'model']}: top-k precision and lift "
+                "written as not applicable (one intensity for every cell)"
+            )
+        else:
+            reasons.append("")
+    table["not_applicable_reason"] = reasons
     table["xi"] = [np.nan, 0.0, xi]
     table["train_years"] = ";".join(map(str, train_years))
     table["eval_year"] = val_year

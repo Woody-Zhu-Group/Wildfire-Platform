@@ -102,8 +102,8 @@ def test_metrics_endpoint_returns_503_for_a_stale_table(tmp_path, monkeypatch):
     stale.write_text("model,log_likelihood\ncNHPP,-4390.0\n", encoding="utf-8")
     monkeypatch.setattr(
         app_module,
-        "load_verified_cnhpp_row",
-        lambda: em.load_verified_cnhpp_row(stale, PARAMS),
+        "load_verified_rows",
+        lambda: em.load_verified_rows(stale, PARAMS),
     )
     client = TestClient(app_module.app)
     response = client.get("/metrics")
@@ -124,6 +124,45 @@ def test_metrics_endpoint_serves_the_verified_row_with_its_provenance():
     assert body["train_years"] == [int(y) for y in params["train_years"]]
     assert body["eval_year"] == int(params["val_year"])
     assert body["params_sha256"] == em.params_sha256(PARAMS)
+    assert body["not_applicable_reason"] is None
+    assert body["top5_precision"] is not None and body["lift_top5"] is not None
+    baselines = {item["model"]: item for item in body["baselines"]}
+    assert set(baselines) == {"HPP", "NHPP"}
+    hpp = baselines["HPP"]
+    assert (hpp["top5_precision"], hpp["top1_precision"], hpp["lift_top5"]) == (None, None, None)
+    assert "same intensity" in hpp["not_applicable_reason"]
+    assert hpp["log_likelihood"] < baselines["NHPP"]["log_likelihood"]
+    assert hpp["auc"] == pytest.approx(0.5)
+    assert baselines["NHPP"]["not_applicable_reason"] is None
+    assert baselines["NHPP"]["top5_precision"] is not None
+
+
+def test_hpp_ranking_metrics_are_not_applicable_in_the_committed_table():
+    hpp = next(row for row in _rows(METRICS) if row["model"] == "HPP")
+    assert (hpp["top5%_precision"], hpp["top1%_precision"], hpp["lift_top5%"]) == ("", "", "")
+    assert hpp["not_applicable_reason"] == em.RANKING_NA_REASON
+    assert float(hpp["log_likelihood"]) < 0
+    assert float(hpp["AUC"]) == pytest.approx(0.5)
+    for model in ("NHPP", "cNHPP"):
+        row = next(row for row in _rows(METRICS) if row["model"] == model)
+        assert row["top5%_precision"] and row["lift_top5%"] and not row["not_applicable_reason"]
+
+
+def test_metrics_table_is_tracked_so_a_fresh_deploy_serves_it():
+    import subprocess
+
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", str(METRICS.relative_to(REPO_ROOT))],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert tracked.returncode == 0, tracked.stderr
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", str(METRICS.relative_to(REPO_ROOT))],
+        cwd=REPO_ROOT,
+    )
+    assert ignored.returncode == 1
 
 
 # ---- Issue #63 ---------------------------------------------------------------
