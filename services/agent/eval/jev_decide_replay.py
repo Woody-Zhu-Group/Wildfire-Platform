@@ -7,7 +7,8 @@
 
 Sets. dev: cases.json + jev_paraphrases.json (used for tuning). v1: jev_holdout.json.
 v2: jev_holdout_v2.json from platform/jev-multi-tool. Holdout rows marked
-needs_human_review are left out. v3: jev_holdout_v3.json with the 65 rows the
+needs_human_review are left out. v3: jev_holdout_v3_questions.json (renamed from
+jev_holdout_v3.json on jev-multi-tool; same ids, questions, and order) with the 65 rows the
 independent ChatGPT labels made certain; v3 was partly tuned on and is labeled tuned.
 
     python -m services.agent.eval.jev_decide_replay capture --cap-usd 0.3
@@ -79,7 +80,7 @@ def load_sets() -> dict[str, list[dict[str, Any]]]:
             if row.get("needs_human_review"):
                 continue
             sets[name].append({"id": row["id"], "question": row["question"], "labels": [row["expected_disposition"]]})
-    v3 = _git_json("platform/jev-multi-tool:services/agent/eval/jev_holdout_v3.json")
+    v3 = _git_json("platform/jev-multi-tool:services/agent/eval/jev_holdout_v3_questions.json")
     chatgpt = json.loads((HERE / "jev_holdout_v3_labels_chatgpt.json").read_text(encoding="utf-8"))
     for index, label in enumerate(chatgpt):
         if "disposition" not in label or label.get("uncertain"):
