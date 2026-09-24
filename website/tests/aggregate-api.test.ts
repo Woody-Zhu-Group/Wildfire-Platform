@@ -91,3 +91,22 @@ test('unsupported aggregate filters are blocked before network access', async t 
   await assert.rejects(getRegionalSeries({...DEFAULT_FILTERS, utility: 'SCE'}, 'daily'), /PG&E only/);
   assert.equal(fetch.mock.callCount(), 0);
 });
+
+test('CAL FIRE county rows may exceed the incident total only when the service reports multi-county incidents', async t => {
+  clearDataCache(); t.after(clearDataCache);
+  const note = 'A CAL FIRE incident that lists several counties is counted in every county it lists.';
+  const fetch = t.mock.method(globalThis, 'fetch', async () => Response.json({
+    total: 2, multi_county_incidents: 1, note,
+    rows: [{key: 'Shasta', value: 2}, {key: 'Tehama', value: 1}],
+  }));
+  const result = await getGroupedCounts('calfire', DEFAULT_FILTERS, 'county');
+  assert.equal(result.total, 2);
+  assert.equal(result.multi_county_incidents, 1);
+  assert.equal(result.note, note);
+  clearDataCache();
+  fetch.mock.mockImplementation(async () => Response.json({total: 2, rows: [{key: 'Shasta', value: 2}, {key: 'Tehama', value: 1}]}));
+  await assert.rejects(getGroupedCounts('calfire', DEFAULT_FILTERS, 'county'), /complete dataset/);
+  clearDataCache();
+  fetch.mock.mockImplementation(async () => Response.json({total: 2, multi_county_incidents: 1, rows: [{key: 'Marin', value: 3}]}));
+  await assert.rejects(getGroupedCounts('cpuc', DEFAULT_FILTERS, 'county'), /complete dataset/);
+});

@@ -15,10 +15,13 @@ from services.data_query.filters import (
     MAX_LIMIT,
     RANK_DEFAULT_LIMIT,
     RANK_MAX_LIMIT,
+    parse_cause,
     parse_circuit_id,
     parse_county,
     parse_date_param,
     parse_format,
+    parse_incident_type,
+    parse_outage_type,
     parse_tier,
     parse_utility,
     validate_date_range,
@@ -149,6 +152,8 @@ def rank(
     start = parse_date_param(start_date, "start_date")
     end = parse_date_param(end_date, "end_date")
     validate_date_range(start, end)
+    if dataset_key == "calfire_incidents":
+        incident_type = parse_incident_type(conn, incident_type)
     try:
         rows, extra = queries.query_rank(
             conn,
@@ -459,6 +464,8 @@ def epss_outages(
     validate_date_range(start, end)
     bb = parse_bbox_filter(bbox)
     fmt = parse_format(format)
+    outage_type = parse_outage_type(conn, outage_type)
+    cause = parse_cause(conn, cause)
 
     rows, total, notes = queries.query_epss(
         conn,
@@ -598,6 +605,7 @@ def calfire_incidents(
     end = parse_date_param(end_date, "end_date")
     validate_date_range(start, end)
     fmt = parse_format(format)
+    incident_type = parse_incident_type(conn, incident_type)
 
     rows, total, extra = queries.query_calfire(
         conn,

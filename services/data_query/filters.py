@@ -8,6 +8,12 @@ from typing import Any
 from fastapi import HTTPException, Query
 
 from services.shared.counties import UnknownCountyError, normalize_county
+from services.shared.epss_causes import cause_word
+from services.shared.stored_values import (
+    UnknownStoredValueError,
+    resolve_stored_value,
+    stored_values,
+)
 
 KNOWN_UTILITIES = frozenset(
     {"PGE", "SCE", "SDGE", "PACIFICORP", "Liberty", "BVES"}
@@ -171,6 +177,64 @@ def parse_county(value: str | None) -> str | None:
         return normalize_county(value)
     except UnknownCountyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _parse_stored(conn: Any, field: str, value: str | None) -> str | None:
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return resolve_stored_value(field, value, stored_values(conn, field))
+    except UnknownStoredValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def parse_outage_type(conn: Any, value: str | None) -> str | None:
+    """Resolve an EPSS outage_type to its stored spelling, or 400."""
+    return _parse_stored(conn, "outage_type", value)
+
+
+def parse_cause(conn: Any, value: str | None) -> str | None:
+    """Resolve an EPSS cause to its word form, or 400.
+
+    Case and spacing are ignored. A code and its word form are one cause
+    (dataset_registry.EPSS_CAUSE_CODE_WORDS): "veg", "VEG", and "vegetation"
+    all return "Vegetation", and the query matches both stored spellings.
+    Suggestions are word forms too.
+    """
+    if value is None or value.strip() == "":
+        return None
+    stored = stored_values(conn, "cause")
+    try:
+        return cause_word(resolve_stored_value("cause", value, stored))
+    except UnknownStoredValueError as exc:
+        words = tuple(dict.fromkeys(cause_word(item) for item in stored))
+        suggestions = list(dict.fromkeys(cause_word(item) for item in exc.suggestions))
+        folded = UnknownStoredValueError("cause", value, suggestions, words, ambiguous=exc.ambiguous)
+        raise HTTPException(status_code=400, detail=str(folded)) from exc
+
+
+CALFIRE_TYPE_KEYWORDS = frozenset({"all", "untyped"})
+_CALFIRE_DEFAULT_TYPES = frozenset({"wildfire", "fire"})
+
+
+def parse_incident_type(conn: Any, value: str | None) -> str | None:
+    """Resolve a CAL FIRE incident_type filter.
+
+    None or empty is the Wildfire/Fire default, and so is the default spelled
+    out ("Wildfire,Fire"). "all" and "untyped" are keywords, returned
+    lowercase. Anything else must match one stored incident type, ignoring
+    case; an unmatched value is a 400 with the closest stored types, never a
+    0-row answer.
+    """
+    if value is None or value.strip() == "":
+        return None
+    key = " ".join(value.split()).casefold()
+    if key in CALFIRE_TYPE_KEYWORDS:
+        return key
+    parts = {part.strip() for part in key.split(",")}
+    if "," in key and parts == _CALFIRE_DEFAULT_TYPES:
+        return None
+    return _parse_stored(conn, "incident_type", value)
 
 
 def parse_pagination(

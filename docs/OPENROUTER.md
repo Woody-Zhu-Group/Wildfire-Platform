@@ -281,6 +281,8 @@ where the label names `comparison_run` or `data_query_rank`. One answer is incom
 `ho_022` leaves out Bear Valley, which the router does not extract as a utility; the answer says
 it cannot place Bear Valley rather than inventing a number. Shasta's 4 is exact-county: 2 more
 2020 incidents are tagged "Shasta, Tehama" and are excluded by the data service's county filter.
+Since the `filter-followups` change (issue #78) a county filter includes them, so Shasta 2020 is
+6 and the answer carries the multi-county caveat; this run predates that change.
 
 LLM, the 14 force_model cases in cases.json, with the data services and PostGIS running (the
 `--thinking` and `--modes` flags from the original command were removed with the Ollama path):

@@ -9,6 +9,8 @@ from typing import Any
 import psycopg
 from psycopg.rows import dict_row
 
+from services.shared.calfire_county import county_match_sql, multi_county_count_sql
+from services.shared.epss_causes import cause_display_sql, cause_filter_sql, cause_variants
 from services.visualization.styles import acres_radius_hint
 
 
@@ -154,8 +156,8 @@ def map_epss_circuits(
         where.append("e.outage_type = %s")
         params.append(outage_type)
     if cause is not None:
-        where.append("e.cause = %s")
-        params.append(cause)
+        where.append(cause_filter_sql("e.cause"))
+        params.append(cause_variants(cause))
     where_sql = " AND ".join(where)
 
     bbox_clause = ""
@@ -181,7 +183,7 @@ def map_epss_circuits(
                          'start_date', e2.start_date,
                          'end_date', e2.end_date,
                          'county', e2.county,
-                         'cause', e2.cause,
+                         'cause', """ + cause_display_sql("e2.cause") + """,
                          'outage_type', e2.outage_type,
                          'division', e2.division,
                          'customer_minutes', e2.customer_minutes,
@@ -321,39 +323,16 @@ def map_calfire(
     limit: int,
     offset: int,
 ) -> tuple[list[dict], int]:
-    where = ["TRUE"]
-    params: list[Any] = []
-    if incident_type is None or incident_type.strip() == "":
-        where.append("c.incident_type IN ('Wildfire', 'Fire')")
-    elif incident_type.strip().lower() == "all":
-        pass
-    elif incident_type.strip().lower() == "untyped":
-        where.append("c.incident_type IS NULL")
-    else:
-        where.append("c.incident_type = %s")
-        params.append(incident_type.strip())
-
-    if utility == "untagged":
-        where.append("c.utility IS NULL")
-    elif utility is not None:
-        where.append("c.utility = %s")
-        params.append(utility)
-    if county is not None:
-        where.append("lower(c.county) = lower(%s)")
-        params.append(county)
-    if year is not None:
-        where.append("EXTRACT(YEAR FROM c.date_only_created) = %s")
-        params.append(year)
-    if start_date is not None:
-        where.append("c.date_only_created >= %s")
-        params.append(start_date)
-    if end_date is not None:
-        where.append("c.date_only_created <= %s")
-        params.append(end_date)
-    if min_acres is not None:
-        where.append("c.acres_burned >= %s")
-        params.append(min_acres)
-    where_sql = " AND ".join(where) + _bbox_sql("c", bbox, params)
+    where_sql, params = _calfire_where(
+        utility=utility,
+        county=county,
+        year=year,
+        start_date=start_date,
+        end_date=end_date,
+        min_acres=min_acres,
+        incident_type=incident_type,
+        bbox=bbox,
+    )
 
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
@@ -377,6 +356,69 @@ def map_calfire(
     for row in rows:
         row["radius_hint"] = acres_radius_hint(row.get("acres_burned"))
     return rows, total
+
+
+def _calfire_where(
+    *,
+    utility: str | None,
+    county: str | None,
+    year: int | None,
+    start_date: date | None,
+    end_date: date | None,
+    incident_type: str | None,
+    min_acres: float | None = None,
+    bbox: tuple[float, float, float, float] | None = None,
+) -> tuple[str, list[Any]]:
+    """CAL FIRE WHERE clause (alias c) shared by the map, time series, and meta.
+
+    incident_type is None for the Wildfire/Fire default, "all", "untyped", or
+    a stored value the route already resolved.
+    """
+    where = ["TRUE"]
+    params: list[Any] = []
+    if incident_type is None or incident_type.strip() == "":
+        where.append("c.incident_type IN ('Wildfire', 'Fire')")
+    elif incident_type.strip().lower() == "all":
+        pass
+    elif incident_type.strip().lower() == "untyped":
+        where.append("c.incident_type IS NULL")
+    else:
+        where.append("c.incident_type = %s")
+        params.append(incident_type.strip())
+
+    if utility == "untagged":
+        where.append("c.utility IS NULL")
+    elif utility is not None:
+        where.append("c.utility = %s")
+        params.append(utility)
+    if county is not None:
+        where.append(county_match_sql("c.county"))
+        params.append(county)
+    if year is not None:
+        where.append("EXTRACT(YEAR FROM c.date_only_created) = %s")
+        params.append(year)
+    if start_date is not None:
+        where.append("c.date_only_created >= %s")
+        params.append(start_date)
+    if end_date is not None:
+        where.append("c.date_only_created <= %s")
+        params.append(end_date)
+    if min_acres is not None:
+        where.append("c.acres_burned >= %s")
+        params.append(min_acres)
+    return " AND ".join(where) + _bbox_sql("c", bbox, params), params
+
+
+def calfire_multi_county_count(conn: psycopg.Connection, **filters: Any) -> int:
+    """How many CAL FIRE incidents matching ``filters`` list several counties."""
+    where_sql, params = _calfire_where(**filters)
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT {multi_county_count_sql('c.county')} "
+            f"FROM wildfire.calfire_incidents c WHERE {where_sql}",
+            params,
+        )
+        return int(cur.fetchone()[0] or 0)
 
 
 # Map display only: the stored HFTD and IOU polygons are full resolution for
@@ -486,36 +528,16 @@ def time_series_dates(
                 params,
             )
         elif dataset == "calfire":
-            where = ["TRUE"]
-            params = []
-            if incident_type is None or incident_type == "":
-                where.append("incident_type IN ('Wildfire', 'Fire')")
-            elif incident_type.lower() == "all":
-                pass
-            elif incident_type.lower() == "untyped":
-                where.append("incident_type IS NULL")
-            else:
-                where.append("incident_type = %s")
-                params.append(incident_type)
-            if utility == "untagged":
-                where.append("utility IS NULL")
-            elif utility:
-                where.append("utility = %s")
-                params.append(utility)
-            if county:
-                where.append("lower(county) = lower(%s)")
-                params.append(county)
-            if year is not None:
-                where.append("EXTRACT(YEAR FROM date_only_created) = %s")
-                params.append(year)
-            if start_date:
-                where.append("date_only_created >= %s")
-                params.append(start_date)
-            if end_date:
-                where.append("date_only_created <= %s")
-                params.append(end_date)
+            where_sql, params = _calfire_where(
+                utility=utility or None,
+                county=county or None,
+                year=year,
+                start_date=start_date or None,
+                end_date=end_date or None,
+                incident_type=incident_type,
+            )
             cur.execute(
-                f"SELECT date_only_created FROM wildfire.calfire_incidents WHERE {' AND '.join(where)}",
+                f"SELECT c.date_only_created FROM wildfire.calfire_incidents c WHERE {where_sql}",
                 params,
             )
         elif dataset == "us_ignitions":
@@ -582,7 +604,8 @@ def _epss_outages_for_circuit(
         cur.execute(
             f"""
             SELECT id, circuit_id, circuit, year, start_date, end_date, county,
-                   cause, outage_type, division, customer_minutes, restoration_min,
+                   {cause_display_sql("cause")} AS cause, outage_type, division,
+                   customer_minutes, restoration_min,
                    medical_baseline, life_support, schools, hospitals
             FROM wildfire.epss_outages
             WHERE {where_sql}
@@ -641,9 +664,10 @@ def event_detail(
             )
         elif dataset == "epss":
             cur.execute(
-                """
+                f"""
                 SELECT id, circuit_id, circuit, year, start_date, end_date, county,
-                       cause, outage_type, division, customer_minutes, restoration_min,
+                       {cause_display_sql("cause")} AS cause, outage_type, division,
+                       customer_minutes, restoration_min,
                        medical_baseline, life_support, schools, hospitals,
                        ST_AsGeoJSON(geom) AS geom
                 FROM wildfire.epss_outages WHERE id = %s

@@ -928,6 +928,7 @@ def _select_metadata(meta: dict[str, Any]) -> dict[str, Any]:
         "ignition_definition",
         "calfire_incident_types",
         "empty_reason",
+        "multi_county_incidents",
     }
     return {key: value for key, value in meta.items() if key in keep}
 

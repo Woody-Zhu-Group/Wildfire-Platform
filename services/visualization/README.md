@@ -33,6 +33,8 @@ CORS is enabled (`*`) so a local frontend on another port can call this API.
 - **EPSS** `include_outages=true`: embed filtered outage rows on each circuit feature (day scrubber / popups).
 - Missing circuit geometries → features with `geometry: null` (not dropped).
 - Filters: `utility`, `year`, `start_date`, `end_date`, `county`, `outage_type`, `cause`, `min_acres`, `incident_type`, `tier` (HFTD), `bbox`, `limit`, `offset`.
+- `outage_type`, `cause` (EPSS) and `incident_type` (CAL FIRE) use the data query parsers: stored values matched ignoring case, 400 with close matches otherwise. `/time-series` parses `incident_type` the same way.
+- A CAL FIRE `county` filter (map and time series) includes incidents that list that county among several; `meta.multi_county_incidents` says how many.
 - Default `limit=5000` (max 20000). The UIs request 20000.
 - `us_ignitions` style color is **`#dc2626`**. GitHub Pages `docs/` hardcodes that red; local `frontend/` still hardcodes teal `#0f766e` on the layer swatch until that copy is synced.
 

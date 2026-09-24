@@ -12,9 +12,10 @@ def test_rank_calfire_counties_2023_matches_sql(
     with db_conn.cursor() as cur:
         cur.execute(
             """
-            SELECT COALESCE(NULLIF(TRIM(county), ''), '(unknown)') AS grp,
-                   COUNT(*)::bigint AS n
-            FROM wildfire.calfire_incidents
+            SELECT TRIM(part) AS grp, COUNT(*)::bigint AS n
+            FROM wildfire.calfire_incidents,
+                 LATERAL unnest(string_to_array(
+                     COALESCE(NULLIF(TRIM(county), ''), '(unknown)'), ',')) AS part
             WHERE incident_type IN ('Wildfire', 'Fire')
               AND EXTRACT(YEAR FROM date_only_created) = 2023
             GROUP BY 1
@@ -22,7 +23,19 @@ def test_rank_calfire_counties_2023_matches_sql(
             """
         )
         expected = list(cur.fetchall())
+        cur.execute(
+            """
+            SELECT COUNT(*) FROM wildfire.calfire_incidents
+            WHERE incident_type IN ('Wildfire', 'Fire')
+              AND EXTRACT(YEAR FROM date_only_created) = 2023
+              AND county LIKE '%,%'
+            """
+        )
+        multi = int(cur.fetchone()[0])
     assert expected, "warehouse has no 2023 CAL FIRE Wildfire/Fire rows"
+    # A multi-county incident ranks in every county it lists, never as its own
+    # "Monterey, San Luis Obispo" group.
+    assert all("," not in row[0] for row in expected)
 
     r = data_client.get(
         "/rank",
@@ -42,6 +55,7 @@ def test_rank_calfire_counties_2023_matches_sql(
     assert body["kind"] == "ranking"
     assert body["metric"] == "calfire_incident_count"
     assert "top" not in (body["meta"].get("empty_reason") or "").lower()
+    assert body["meta"]["multi_county_incidents"] == multi
 
     cutoff_value = expected[min(10, len(expected)) - 1][1]
     include = [row for row in expected if row[1] >= cutoff_value][:25]
