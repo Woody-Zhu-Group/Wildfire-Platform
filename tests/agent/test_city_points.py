@@ -260,7 +260,7 @@ def test_city_point_caveat_attaches_only_to_a_read_at_the_city_point():
     assert "city_center_point" in found
     text = found["city_center_point"]["text"]
     assert "Chico" in text and "2025 Gazetteer" in text
-    assert "Parts of the city may be" in text
+    assert "Parts of the place may be" in text
     assert "municipal utility" in found["iou_territory_not_provider"]["text"]
     assert "city_center_point" not in asyncio.run(run([elsewhere], question))
     assert "city_center_point" not in asyncio.run(
@@ -441,3 +441,121 @@ def test_the_snap_flag_is_hidden_from_the_model_and_sent_only_when_set():
             kind="summary", utility="PGE", start_date="2024-01-01",
             end_date="2024-12-31", snap_shoreline=True,
         )
+
+
+
+# ---- PR #28 review: harness-only arguments, county-word places, no-IOU wording ----
+
+
+def test_a_model_path_call_cannot_enable_the_shoreline_snap():
+    import httpx
+
+    from services.agent.artifacts import ArtifactStore
+    from services.agent.schemas import harness_only_arguments, strip_harness_only_arguments
+    from services.agent.tools import ToolExecutor
+
+    assert harness_only_arguments("data_query_spatial") == {"snap_shoreline"}
+    args = {"kind": "point", "lat": 33.8366, "lon": -117.9145, "snap_shoreline": True}
+    assert strip_harness_only_arguments("data_query_spatial", args) == (
+        {"kind": "point", "lat": 33.8366, "lon": -117.9145}, ["snap_shoreline"]
+    )
+    seen = []
+
+    def handler(request):
+        seen.append(dict(request.url.params))
+        return httpx.Response(200, json={
+            "lat": 33.8366, "lon": -117.9145, "iou": {"utility": None, "utility_name": None},
+            "hftd_tier": None, "grid_cell": {"cell_id": 582, "row": 1, "col": 1},
+            "county": "Orange", "meta": {},
+        })
+
+    executor = ToolExecutor(AgentSettings(), ArtifactStore(60), transport=httpx.MockTransport(handler))
+
+    async def run(harness_call):
+        return await executor.execute(
+            "data_query_spatial", dict(args), request_id="t", attempt=1, harness_call=harness_call
+        )
+
+    model_call = asyncio.run(run(False))
+    assert model_call.ok
+    assert "snap_shoreline" not in seen[0]
+    # The validated call records the default (off), never the model's True.
+    assert model_call.arguments.get("snap_shoreline") in (None, False)
+    assert executor.preview_arguments("data_query_spatial", dict(args)) == {
+        "kind": "point", "lat": 33.8366, "lon": -117.9145,
+    }
+    router_call = asyncio.run(run(True))
+    assert router_call.ok
+    assert seen[1]["snap_shoreline"] == "true"
+
+
+@pytest.mark.parametrize(
+    "question,name,place_type",
+    [
+        ("Which utility territory contains Lake Forest?", "Lake Forest", "city"),
+        ("What HFTD tier is Kings Beach in?", "Kings Beach", "CDP"),
+        ("What utility service territory is South Lake Tahoe in?", "South Lake Tahoe", "city"),
+        ("What HFTD tier is Plumas Lake in?", "Plumas Lake", "CDP"),
+        ("Which IOU territory contains Sutter Creek?", "Sutter Creek", "city"),
+    ],
+)
+def test_a_census_place_holding_a_county_word_routes_as_that_place(question, name, place_type):
+    decision = route_question(question)
+    assert decision.rule == "city_point_context", question
+    assert decision.slots["city_point"]["name"] == name
+    assert decision.slots["city_point"]["place_type"] == place_type
+    assert decision.slots["county"] is None
+
+
+def test_counts_in_a_county_word_place_ask_for_a_place_not_a_county():
+    kings = route_question("How many ignitions were there in Kings Beach in 2023?")
+    assert kings.rule == "city_needs_place"
+    assert "community (census designated place)" in kings.answer
+    assert "Kings County" not in kings.answer
+    lake = route_question("How many CAL FIRE incidents were there in Lake Forest in 2023?")
+    assert lake.rule == "city_needs_place"
+    assert "Lake County" not in lake.answer
+
+
+@pytest.mark.parametrize(
+    "question,county",
+    [
+        ("How many ignitions were there in Trinity in 2023?", "Trinity County"),
+        ("How many CAL FIRE incidents were there in Kings in 2022?", "Kings County"),
+        ("How many CAL FIRE incidents were there in Napa Valley in 2020?", "Napa County"),
+    ],
+)
+def test_a_bare_county_word_or_a_non_place_still_clarifies(question, county):
+    decision = route_question(question)
+    assert decision.rule == "county_place_ambiguous", question
+    assert county in decision.answer
+
+
+def test_a_cdp_point_caveat_says_census_designated_place():
+    from services.agent.places import city_point_caveat
+    from services.agent.routing import _COUNTY_WORD_CDPS
+
+    text = city_point_caveat(_COUNTY_WORD_CDPS["kings beach"])
+    assert "census designated place (unincorporated)" in text
+    assert "incorporated CDP" not in text
+
+
+def test_no_iou_is_said_in_a_sentence_not_iou_none():
+    anaheim = dict(
+        _POINT_SUMMARY, iou={"utility": None, "utility_name": None}, county="Orange",
+        grid_cell={"cell_id": 582},
+    )
+    response, _ = _run_with_point("Which utility territory contains Anaheim?", anaheim)
+    assert response["status"] == "answer"
+    text = response["answer_text"]
+    assert "No investor-owned utility (IOU) territory contains the center point of Anaheim." in text
+    assert "IOU=None" not in text
+    chico, _ = _run_with_point("Which utility territory contains Chico?", _POINT_SUMMARY)
+    assert "IOU=Pacific Gas and Electric" in chico["answer_text"]
+
+
+def test_shasta_lake_is_the_city_not_shasta_county():
+    decision = route_question("How many CAL FIRE incidents were there in Shasta Lake in 2020?")
+    assert decision.rule == "city_needs_place"
+    assert decision.slots["county"] is None and decision.slots["counties"] == []
+    assert decision.tool_calls == []

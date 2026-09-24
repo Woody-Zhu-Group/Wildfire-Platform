@@ -45,7 +45,8 @@ arguments (`caveats.py`):
 - Who supplies power ("which utility serves Redding"). See the finding below.
 - Two cities, or a city plus a county. With explicit coordinates, the
   coordinates are the place and the city name is only a label.
-- Names that are not in the 458-name municipality list (for example CDPs).
+- Names that are not in the 458-name municipality list, and CDPs in
+  general, except the county-word places below.
 - Common-word city names (Industry, Commerce, Weed, Needles, Paradise,
   Coronado) still need a place cue such as "the city of Weed" or
   "Needles, California". Without one they are not treated as cities.
@@ -53,12 +54,40 @@ arguments (`caveats.py`):
   name (West Sacramento, South San Francisco, Mount Shasta) is not taken as
   that county.
 
+## County-word places
+
+A Census place whose name holds a county word is that place, not the county.
+Main's `county_place_ambiguous` rule asks "Did you mean Lake County?" for
+"Lake Forest"; recognized place names now win over it:
+
+- **Incorporated places** already in the municipality list: Lake Forest,
+  Shasta Lake, South Lake Tahoe, Sutter Creek, Monterey Park, Imperial
+  Beach, West Sacramento. These route as cities.
+- **Census designated places** that the county-word rule would otherwise
+  misread (32 in the 2025 Gazetteer, computed from the rule itself).
+  Examples: Kings Beach, Plumas Lake, Lake Arrowhead, Lake Isabella, Lake Los
+  Angeles, Trinity Center, Mono City, Orange Park Acres. They route as places
+  and resolve to their CDP internal point. Their caveat and clarification
+  call them a "census designated place" or "community", not a city.
+- **A bare county word** ("in Trinity", "in Kings") or a non-place phrase
+  ("Napa Valley", "Kern River") still gets `county_place_ambiguous`.
+
+A count in one of these places still clarifies (`city_needs_place`), for
+example "How many CAL FIRE incidents were there in Shasta Lake in 2020?".
+CDPs outside this set stay unresolved, because many share a name with an
+incorporated place elsewhere (Paradise, Burbank, Mountain View).
+
 ## Shoreline points
 
 Some Census city centers sit just off a mapped coastline. For example,
 Albany's is 3.5 m outside PG&E's polygon on the Bay shore. City routes
 therefore call `/spatial/point` with `snap_shoreline=true`. That flag is
 hidden from the model's tool schema and is off for explicit coordinates.
+Harness-only arguments (fields left out of the model-facing schema,
+currently just `snap_shoreline`) are stripped from every call that does not
+come from the router. So a model, or a qualification read, cannot turn the
+snap on for its own point read, and the stripping is logged as
+`harness_arguments_stripped`.
 
 With the flag on, a point that no polygon contains is snapped to the one
 nearby polygon, under these limits:
@@ -78,6 +107,9 @@ Guards, so a point is never put in a territory it is clearly outside of:
 - **Exactly one candidate.** A snap needs exactly one polygon of that layer
   within the limit. A point in water between two territories or counties is
   left alone.
+- **No IOU is said plainly.** When no IOU territory contains the point, even
+  after the snap, the answer says "No investor-owned utility (IOU) territory
+  contains the center point of Anaheim." instead of reporting `IOU=None`.
 - **Disclosed.** The response metadata records each snap and its distance,
   and the answer carries a `city_shoreline_snap` caveat that names it.
 

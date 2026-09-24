@@ -21,10 +21,13 @@ says nothing about the city boundary.
 
 ## How the agent uses it
 
-`services/agent/places.py` loads the incorporated rows (city and town) only.
+`services/agent/places.py` resolves incorporated rows (city and town).
 CDPs are skipped so a name such as Paradise or Mountain View resolves to the
-incorporated place, never a same-named CDP elsewhere in the state. See
-`docs/CITY_POINTS.md` for the routes that use it.
+incorporated place, never a same-named CDP elsewhere in the state. The one
+exception is CDPs whose name holds a county word that the router's
+county-word rule would otherwise misread as the county (Kings Beach, Plumas
+Lake, Lake Arrowhead, and others; 32 in this vintage). Those resolve to their
+CDP point. See `docs/CITY_POINTS.md` for the routes that use it.
 
 ## Reconciliation with the municipality list
 
