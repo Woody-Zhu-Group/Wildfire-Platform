@@ -15,6 +15,7 @@ from services.shared.calfire_county import (
     multi_county_count_sql,
     multi_county_meta,
 )
+from services.shared.epss_causes import cause_display_sql, cause_filter_sql, cause_variants
 from services.shared.dataset_registry import (
     ALLOWED_RANK_PAIRS,
     GROUP_BY_FIELDS,
@@ -226,13 +227,13 @@ def query_epss(
         where.append("e.outage_type = %s")
         params.append(outage_type)
     if cause is not None:
-        where.append("e.cause = %s")
-        params.append(cause)
+        where.append(cause_filter_sql("e.cause"))
+        params.append(cause_variants(cause))
     where_sql = " AND ".join(where) + _bbox_clause("e", bbox, params)
 
     select_sql = f"""
         SELECT e.id, e.circuit_id, e.circuit, e.year, e.start_date, e.end_date,
-               e.county, e.cause, e.outage_type, e.division,
+               e.county, {cause_display_sql("e.cause")} AS cause, e.outage_type, e.division,
                e.customer_minutes, e.restoration_min,
                e.medical_baseline, e.life_support, e.schools, e.hospitals,
                ST_AsGeoJSON(e.geom) AS _geom_geojson
@@ -1306,6 +1307,8 @@ def _group_expr(dataset: str, group_by: str) -> str | None:
         return None
     if group_by == "utility":
         return _utility_display_expr(col)
+    if group_by == "cause":
+        return _text_group_expr(cause_display_sql(col))
     return _text_group_expr(col)
 
 

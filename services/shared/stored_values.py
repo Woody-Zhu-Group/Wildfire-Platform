@@ -46,6 +46,7 @@ class UnknownStoredValueError(ValueError):
         self.field = field
         self.value = value
         self.suggestions = suggestions
+        self.ambiguous = ambiguous
         shown = suggestions or list(allowed)
         hint = f" Did you mean {' or '.join(shown)}?" if shown else ""
         what = (
@@ -108,7 +109,8 @@ def resolve_stored_value(field: str, value: str, allowed: tuple[str, ...]) -> st
 
     Matching ignores case and repeated or surrounding whitespace only; it
     never maps one stored value onto a different one ("veg" resolves to the
-    stored code "VEG", not to "Vegetation").
+    stored code "VEG"). Folding EPSS cause codes into their word forms is a
+    separate rule applied by ``parse_cause`` (see ``epss_causes``).
     """
     key = _key(value)
     matches = [item for item in allowed if _key(item) == key]

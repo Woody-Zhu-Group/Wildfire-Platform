@@ -10,6 +10,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from services.shared.calfire_county import county_match_sql, multi_county_count_sql
+from services.shared.epss_causes import cause_display_sql, cause_filter_sql, cause_variants
 from services.visualization.styles import acres_radius_hint
 
 
@@ -155,8 +156,8 @@ def map_epss_circuits(
         where.append("e.outage_type = %s")
         params.append(outage_type)
     if cause is not None:
-        where.append("e.cause = %s")
-        params.append(cause)
+        where.append(cause_filter_sql("e.cause"))
+        params.append(cause_variants(cause))
     where_sql = " AND ".join(where)
 
     bbox_clause = ""
@@ -182,7 +183,7 @@ def map_epss_circuits(
                          'start_date', e2.start_date,
                          'end_date', e2.end_date,
                          'county', e2.county,
-                         'cause', e2.cause,
+                         'cause', """ + cause_display_sql("e2.cause") + """,
                          'outage_type', e2.outage_type,
                          'division', e2.division,
                          'customer_minutes', e2.customer_minutes,
@@ -603,7 +604,8 @@ def _epss_outages_for_circuit(
         cur.execute(
             f"""
             SELECT id, circuit_id, circuit, year, start_date, end_date, county,
-                   cause, outage_type, division, customer_minutes, restoration_min,
+                   {cause_display_sql("cause")} AS cause, outage_type, division,
+                   customer_minutes, restoration_min,
                    medical_baseline, life_support, schools, hospitals
             FROM wildfire.epss_outages
             WHERE {where_sql}
@@ -662,9 +664,10 @@ def event_detail(
             )
         elif dataset == "epss":
             cur.execute(
-                """
+                f"""
                 SELECT id, circuit_id, circuit, year, start_date, end_date, county,
-                       cause, outage_type, division, customer_minutes, restoration_min,
+                       {cause_display_sql("cause")} AS cause, outage_type, division,
+                       customer_minutes, restoration_min,
                        medical_baseline, life_support, schools, hospitals,
                        ST_AsGeoJSON(geom) AS geom
                 FROM wildfire.epss_outages WHERE id = %s

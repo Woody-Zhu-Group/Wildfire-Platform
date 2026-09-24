@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import HTTPException, Query
 
 from services.shared.counties import UnknownCountyError, normalize_county
+from services.shared.epss_causes import cause_word
 from services.shared.stored_values import (
     UnknownStoredValueError,
     resolve_stored_value,
@@ -193,13 +194,23 @@ def parse_outage_type(conn: Any, value: str | None) -> str | None:
 
 
 def parse_cause(conn: Any, value: str | None) -> str | None:
-    """Resolve an EPSS cause to its stored spelling, or 400.
+    """Resolve an EPSS cause to its word form, or 400.
 
-    Case and spacing are ignored, nothing more: the source mixes codes and
-    words ("VEG" and "Vegetation", "UNK" and "Unknown"), and each stays its
-    own value.
+    Case and spacing are ignored. A code and its word form are one cause
+    (dataset_registry.EPSS_CAUSE_CODE_WORDS): "veg", "VEG", and "vegetation"
+    all return "Vegetation", and the query matches both stored spellings.
+    Suggestions are word forms too.
     """
-    return _parse_stored(conn, "cause", value)
+    if value is None or value.strip() == "":
+        return None
+    stored = stored_values(conn, "cause")
+    try:
+        return cause_word(resolve_stored_value("cause", value, stored))
+    except UnknownStoredValueError as exc:
+        words = tuple(dict.fromkeys(cause_word(item) for item in stored))
+        suggestions = list(dict.fromkeys(cause_word(item) for item in exc.suggestions))
+        folded = UnknownStoredValueError("cause", value, suggestions, words, ambiguous=exc.ambiguous)
+        raise HTTPException(status_code=400, detail=str(folded)) from exc
 
 
 CALFIRE_TYPE_KEYWORDS = frozenset({"all", "untyped"})

@@ -50,7 +50,7 @@ NO_DB = object()
         ("VEGETATION", "Vegetation"),
         ("  Vegetation ", "Vegetation"),
         ("equipment  failure/involved", "Equipment Failure/Involved"),
-        ("veg", "VEG"),
+        ("veg", "Vegetation"),
         ("3rd party", "3rd Party"),
     ],
 )
@@ -58,11 +58,27 @@ def test_cause_matches_ignoring_case_and_spacing(value, expected):
     assert parse_cause(NO_DB, value) == expected
 
 
-def test_a_code_never_resolves_to_a_different_stored_value():
-    """"veg" is the stored code VEG (1 row), not Vegetation: no aliasing."""
-    assert parse_cause(NO_DB, "veg") == "VEG"
-    assert parse_cause(NO_DB, "Unknown") == "Unknown"
-    assert parse_cause(NO_DB, "unk") == "UNK"
+@pytest.mark.parametrize(
+    "value,expected",
+    [("VEG", "Vegetation"), ("veg", "Vegetation"), ("UNK", "Unknown"), ("unk", "Unknown"),
+     ("3RD", "3rd Party"), ("Unknown", "Unknown")],
+)
+def test_a_cause_code_resolves_to_its_word_form(value, expected):
+    """Written rule: a code and its word form are one cause, shown as the word."""
+    assert parse_cause(NO_DB, value) == expected
+
+
+def test_an_ambiguous_code_and_the_two_equipment_words_stay_distinct():
+    assert parse_cause(NO_DB, "EF") == "EF"
+    assert parse_cause(NO_DB, "Equipment") == "Equipment"
+    assert parse_cause(NO_DB, "equipment failure/involved") == "Equipment Failure/Involved"
+
+
+def test_cause_suggestions_are_word_forms():
+    with pytest.raises(HTTPException) as info:
+        parse_cause(NO_DB, "Vegitation")
+    assert "Did you mean Vegetation?" in info.value.detail
+    assert "VEG" not in info.value.detail
 
 
 @pytest.mark.parametrize(
@@ -272,12 +288,13 @@ def test_warehouse_values_and_a_lowercase_cause_counts_the_stored_rows(db_conn):
     assert set(sv.stored_values(db_conn, "outage_type")) >= {"FTS", "HLT"}
     assert {"Wildfire", "Fire"} <= set(sv.stored_values(db_conn, "incident_type"))
 
-    resolved = parse_cause(db_conn, "vegetation")
+    resolved = parse_cause(db_conn, "veg")
+    assert resolved == "Vegetation"
     _rows, total, _notes = queries.query_epss(
         db_conn, circuit_id=None, utility=None, county=None, year=None, start_date=None,
         end_date=None, outage_type=None, cause=resolved, bbox=None, limit=1, offset=0,
     )
     with db_conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM wildfire.epss_outages WHERE cause = 'Vegetation'")
+        cur.execute("SELECT COUNT(*) FROM wildfire.epss_outages WHERE cause IN ('Vegetation', 'VEG')")
         expected = int(cur.fetchone()[0])
     assert total == expected > 0

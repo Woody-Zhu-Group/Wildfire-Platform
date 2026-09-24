@@ -27,6 +27,27 @@ WORKSPACE_UTILITIES = ("PG&E", "SCE", "SDG&E")
 # data_query/queries.py — grouped-counts allow-list is global, not per-column
 GROUP_BY_FIELDS = frozenset({"cause", "utility", "county"})
 
+# EPSS cause codes (written rule from Michael, 2026-09-24): a cause code and
+# its word form are the same cause. Filters and groupings match both, and
+# results display the word form. The codes appear only in the 2021 rows; from
+# 2022 the source writes words. Applied only to unambiguous pairs:
+#   VEG (1 row)  -> Vegetation (1,042)
+#   UNK (6 rows) -> Unknown (3,724)
+#   3RD (1 row)  -> 3rd Party (914)
+# Left alone: EF (1 row, 2021). It reads as "Equipment Failure", but two word
+# forms could claim it: "Equipment" (290 rows, 2022 only) and "Equipment
+# Failure/Involved" (986 rows, 2023 on). "Equipment" and "Equipment
+# Failure/Involved" are two words, not a code and a word, so the rule does
+# not merge them either.
+EPSS_CAUSE_CODE_WORDS: dict[str, str] = {
+    "VEG": "Vegetation",
+    "UNK": "Unknown",
+    "3RD": "3rd Party",
+}
+EPSS_CAUSE_CODES_LEFT_ALONE: dict[str, str] = {
+    "EF": 'ambiguous between "Equipment" (2022) and "Equipment Failure/Involved" (2023 on)',
+}
+
 # visualization/styles.py (not in DATASET_STYLES)
 IOU_STYLE = {
     "color": "#334155",
