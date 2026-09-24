@@ -53,6 +53,11 @@ REGEX_ONLY = {
     "unknown_county": (
         "A name-plus-County check against the county list, not an atomic fact."
     ),
+    "county_place_ambiguous": (
+        "A county word used as a different place (Napa Valley, Kern River) or a "
+        "cue-required county word without County, checked against the county "
+        "list. Not an atomic fact."
+    ),
     "hftd_constraint_unavailable": (
         "Tool-schema gap: no read intersects circuits with an HFTD tier or "
         "measures HFTD polygon area."

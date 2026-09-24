@@ -866,13 +866,61 @@ _BREAKDOWN = re.compile(
 )
 
 
-def _counties(text: str) -> list[str]:
-    """Every county named in the question, not just the first."""
-    lower = " ".join(text.lower().split())
+_COUNTY_PLACE_CUE = re.compile(
+    r"\b(?:in|at|near|around|for|within|inside|across|throughout|from)\s+$", re.I
+)
+
+
+def _qualified_counties(lower: str) -> list[str]:
+    """Counties named with the word County, or in an "X and Y counties" list."""
     found: list[str] = []
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
         if re.search(rf"\b{re.escape(name.lower())}\s+county\b", lower):
             found.append(name)
+    # "Lake and Napa counties": the plural qualifies every name before it.
+    for match in re.finditer(r"\bcounties\b", lower):
+        window = lower[max(0, match.start() - 80) : match.start()]
+        for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+            if name not in found and re.search(rf"\b{re.escape(name.lower())}\b", window):
+                found.append(name)
+    return found
+
+
+def _unresolved_county_place(text: str) -> str | None:
+    """A county word used as a different place, with no qualified county.
+
+    "Napa Valley", "Kern River", and "Shasta Lake" are places, not the county
+    of the same name. "In Trinity" without the word County is ambiguous. With
+    no county qualified anywhere in the question, ask which county was meant
+    instead of answering statewide or for a county the user did not name.
+    """
+    lower = " ".join(text.lower().split())
+    if _qualified_counties(lower):
+        return None
+    scrubbed = lower
+    for pattern in UTILITY_PATTERNS.values():
+        scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
+    scrubbed = " ".join(scrubbed.split())
+    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+        for match in re.finditer(rf"\b{re.escape(name.lower())}\b", scrubbed):
+            after = scrubbed[match.end() :]
+            noun = _COUNTY_PLACE_NOUN_AFTER.match(after)
+            if noun:
+                return (name.lower() + noun.group(0)).strip()
+            if name.lower() in _COUNTY_REQUIRES_QUALIFIER and _COUNTY_PLACE_CUE.search(
+                scrubbed[: match.start()]
+            ):
+                return name.lower()
+    return None
+
+
+def _counties(text: str) -> list[str]:
+    """Every county named in the question, not just the first.
+
+    _county derives the single slot from this list, so the two always agree.
+    """
+    lower = " ".join(text.lower().split())
+    found = _qualified_counties(lower)
     # Keep scanning bare names: "Napa and Sonoma County" names two counties.
     if re.search(r"\b(?:near|around|close to)\b", lower):
         return found
@@ -970,28 +1018,13 @@ def _defer_collapsed(
 
 
 def _county(text: str) -> str | None:
-    """Extract a county / county-seat place constraint from the question."""
-    lower = " ".join(text.lower().split())
-    # Prefer explicit "X County" phrasing.
-    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
-        pattern = rf"\b{re.escape(name.lower())}\s+county\b"
-        if re.search(pattern, lower):
-            return name
-    # Bare county / seat name (e.g. "in sacramento") — skip vague spatial
-    # phrasing which has its own clarification path.
-    if re.search(r"\b(?:near|around|close to)\b", lower):
-        return None
-    # Strip IOU phrases so "San Diego Gas & Electric" is not a county hit.
-    scrubbed = lower
-    for pattern in UTILITY_PATTERNS.values():
-        scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
-    scrubbed = " ".join(scrubbed.split())
-    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
-        if name.lower() in _COUNTY_REQUIRES_QUALIFIER:
-            continue
-        if re.search(rf"\b{re.escape(name.lower())}\b", scrubbed):
-            return name
-    return None
+    """The one county the question names, from the same scan as _counties.
+
+    Several named counties give None, so no single-county hint is ever built
+    from a list.
+    """
+    counties = _counties(text)
+    return counties[0] if len(counties) == 1 else None
 
 
 def _time_filter_args(time_resolution) -> dict[str, Any]:
@@ -1256,14 +1289,32 @@ def _future_refusal_phrase(text: str, lower: str) -> str | None:
     return match.group(0) if match else None
 
 
+# Passive and object forms: a recommended strategy, penalties for a utility,
+# something required of a utility, whether it is advisable for a utility.
+_ADVICE_OBJECT = re.compile(
+    rf"\brecommend(?:s|ed|ation)?\b(?:\s+\w+){{0,4}}?\s+strateg(?:y|ies)\b|"
+    rf"\bpenalt(?:y|ies)\b(?:\s+\w+){{0,6}}?\s+(?:for|to|on|against)\s+{_ADVICE_SUBJECT}\b|"
+    rf"\bshould\s+apply\s+to\s+{_ADVICE_SUBJECT}\b|"
+    rf"\bshould\b(?:\s+\w+){{1,6}}?\s+(?:be\s+)?(?:required|mandated|imposed|ordered|expected)"
+    rf"\s+(?:of|for|on|by|from)\s+{_ADVICE_SUBJECT}\b|"
+    rf"\b(?:advisable|wise|prudent|appropriate)\s+for\s+{_ADVICE_SUBJECT}\b",
+    re.I,
+)
+_ADVICE_ANY_SUBJECT = re.compile(rf"\b{_ADVICE_SUBJECT}\b", re.I)
+
+
 def _asks_for_advice(text: str) -> bool:
     """What a utility or the CPUC should do. Quoted 'should' does not count.
 
-    The utility or the CPUC must be the subject of should or recommend. A
-    question where the analyst is the subject ("should I use", "would you
-    recommend for SCE") is a data question and routes normally.
+    The utility or the CPUC must be the subject of should or recommend, or
+    the object of a recommended strategy, a penalty, a requirement, or an
+    advisability question. A question where the analyst is the subject
+    ("should I use", "would you recommend for SCE") is a data question.
     """
-    return bool(_ADVICE.search(_strip_quotes(text)))
+    bare = _strip_quotes(text)
+    if _ADVICE.search(bare):
+        return True
+    return bool(_ADVICE_OBJECT.search(bare) and _ADVICE_ANY_SUBJECT.search(bare))
 
 
 def _forward_relative_phrase(lower: str) -> str | None:
@@ -1547,6 +1598,9 @@ def _asks_ranking(lower: str) -> bool:
     )
 
 
+_TIER_MENTION = re.compile(r"\bhftd\b|\bhigh fire threat|\btier\s*[23]\b", re.I)
+
+
 def _hftd_constraint_unavailable(lower: str) -> bool:
     """Circuit inventory crossed with a tier, or a request to measure HFTD area.
 
@@ -1811,9 +1865,11 @@ def _route_ranking(
     named = _datasets(text)
     # "Tier 3 circuits" names the HFTD constraint, not the circuits table and
     # not the grouping, so a tier ranking keeps its real dataset and dimension.
-    tier_constraint = _hftd_constraint_unavailable(lower)
+    tier_constraint = bool(_TIER_MENTION.search(lower))
     if tier_constraint:
-        named = [item for item in named if item != "circuits"]
+        # "Tier 3 circuits" and "HFTD Tier 2 areas" name the constraint, not
+        # the circuits or hftd tables.
+        named = [item for item in named if item not in {"circuits", "hftd"}]
         if group_by is None:
             group_by = _rank_dimension(re.sub(r"\bcircuits?\b", " ", lower))
     # "circuit" is the grouping dimension, not the circuits inventory table.
@@ -1900,9 +1956,9 @@ def _route_ranking(
             slots=slots,
         )
 
-    # An allowed ranking restricted to an HFTD tier: no tool applies the tier
-    # to a ranking, so ask rather than rank statewide and drop it.
-    if _hftd_constraint_unavailable(lower):
+    # An allowed ranking restricted to an HFTD tier: no ranking tool takes a
+    # tier argument, so ask rather than rank statewide and drop it.
+    if tier_constraint:
         return RouteDecision(
             "clarification",
             "hftd_constraint_unavailable",
@@ -2120,6 +2176,19 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             answer=(
                 "How should that nearby area be defined? Provide a radius "
                 "(for example 25 km) or a county/utility polygon to use."
+            ),
+        )
+    county_place = _unresolved_county_place(text)
+    if county_place:
+        county_word = county_place.split()[0].title()
+        return RouteDecision(
+            "clarification",
+            "county_place_ambiguous",
+            "A county word is used as a different place, or without the word County",
+            slots=slots,
+            answer=(
+                f"{county_place.title()} is not a county filter in this warehouse. "
+                f"Did you mean {county_word} County, or another county?"
             ),
         )
     named_county = _city_named_as_county(lower)

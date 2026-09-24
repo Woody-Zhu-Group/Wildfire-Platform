@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from services.agent.routing import route_question
+from services.agent.routing import _counties, _county, route_question
 
 
 FORECAST_AND_PREDICT = [
@@ -405,3 +405,116 @@ def test_issue_41_route_snapshot_matches_the_committed_fixture():
     moved = {k: (expected.get(k), v) for k, v in actual.items() if expected.get(k) != v}
     missing = sorted(set(expected) - set(actual))
     assert not moved and not missing, {"moved": moved, "missing": missing}
+
+
+# ---------------------------------------------------------------------------
+# Review of PR 58: plural counties, one county scan, county place words,
+# passive advice, and any HFTD tier on a ranking.
+# ---------------------------------------------------------------------------
+
+
+
+@pytest.mark.parametrize(
+    "question,expected",
+    [
+        ("How many CAL FIRE incidents were there in Lake and Napa counties in 2020?", {"Lake", "Napa"}),
+        ("How many CPUC ignitions were there in Kings and Tulare counties in 2019?", {"Kings", "Tulare"}),
+        ("How many PSPS events were there in Sonoma, Napa, and Lake counties in 2021?", {"Sonoma", "Napa", "Lake"}),
+    ],
+)
+def test_review_42_a_plural_counties_list_qualifies_every_name(question, expected):
+    decision = route_question(question)
+    assert set(decision.slots["counties"]) == expected, question
+    assert decision.slots["county"] is None, question
+    assert decision.rule == "multi_entity_deferred", question
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["Napa Valley", "Sonoma Valley", "Kern River", "Santa Clara Valley", "Shasta Lake"],
+)
+def test_review_42_the_single_and_list_county_slots_always_agree(phrase):
+    question = f"How many CAL FIRE incidents were there in {phrase} in 2020?"
+    counties = _counties(question)
+    single = _county(question)
+    assert single == (counties[0] if len(counties) == 1 else None), phrase
+    assert counties == [], phrase
+    decision = route_question(question)
+    assert decision.slots["county"] is None and decision.slots["counties"] == [], phrase
+    assert decision.path == "clarification", phrase
+    assert decision.rule == "county_place_ambiguous", phrase
+    assert decision.tool_calls == [], phrase
+
+
+def test_review_42_a_cue_required_county_word_without_county_clarifies():
+    decision = route_question("How many CAL FIRE incidents were there in Trinity in 2020?")
+    assert decision.path == "clarification"
+    assert decision.rule == "county_place_ambiguous"
+    assert "Trinity County" in (decision.answer or "")
+    qualified = route_question("How many CAL FIRE incidents were there in Trinity County in 2020?")
+    assert qualified.rule == "filtered_records"
+    assert qualified.slots["county"] == "Trinity"
+
+
+def test_review_42_a_qualified_county_resolves_a_place_word_beside_it():
+    decision = route_question(
+        "How many CAL FIRE incidents were there in Kings Canyon National Park in Fresno County in 2020?"
+    )
+    assert decision.rule == "filtered_records"
+    assert decision.slots["county"] == "Fresno"
+    assert decision.slots["counties"] == ["Fresno"]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Recommend a strategy to cut PG&E ignitions in 2024",
+        "What penalties should apply to SCE for its 2021 ignitions?",
+        "Should undergrounding be required of PG&E after 2021?",
+        "Is it advisable for SCE to expand EPSS?",
+    ],
+)
+def test_review_30_passive_and_object_advice_is_refused(question):
+    decision = route_question(question)
+    assert decision.path == "unsupported", question
+    assert decision.rule == "unsupported_optimization", question
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Which PG&E circuits should I look at for 2023 outages?",
+        "Which dataset would you recommend for SCE ignitions?",
+        "Should I use the spatial or attribute definition for PG&E ignitions in 2024?",
+        "How many SCE ignitions should I expect to see in the 2021 data?",
+        "How many PG&E ignitions were there in 2024 after EPSS was required on its circuits?",
+    ],
+)
+def test_review_30_the_analyst_as_subject_still_answers(question):
+    assert route_question(question).rule != "unsupported_optimization", question
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Which utility had the most ignitions in Tier 3 in 2023?",
+        "Which counties had the most CAL FIRE incidents in HFTD Tier 2 areas in 2022?",
+        "Rank EPSS circuits in Tier 3 by outages in 2023.",
+    ],
+)
+def test_review_31_any_tier_on_an_allowed_ranking_asks_instead_of_dropping_it(question):
+    decision = route_question(question)
+    assert decision.path == "clarification", question
+    assert decision.rule == "hftd_constraint_unavailable", question
+    assert decision.tool_calls == [], question
+    assert "statewide" in (decision.answer or ""), question
+
+
+def test_review_31_a_tier_on_an_unsupported_ranking_is_refused_first():
+    assert route_question("Rank utilities by EPSS outages in Tier 3 in 2023.").rule == "unsupported_rank_epss_utility"
+    assert route_question("Rank grid cells in Tier 3 by ignition risk in 2024.").rule == "unsupported_ranking"
+
+
+def test_review_31_the_same_rankings_still_answer_without_a_tier():
+    assert route_question("Which utility had the most ignitions in 2023?").rule == "ranked_records"
+    assert route_question("Which counties had the most CAL FIRE incidents in 2022?").rule == "ranked_records"
