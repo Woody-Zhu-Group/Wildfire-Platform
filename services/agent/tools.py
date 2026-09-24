@@ -30,12 +30,21 @@ from services.agent.schemas import (
 )
 from services.agent.time_resolve import CallWindows, apply_harness_years
 from services.shared.counties import UnknownCountyError, normalize_county
+from services.agent.coverage import (
+    call_coverage_gap,
+    call_dataset,
+    call_periods,
+    count_coverage_gap,
+    dataset_known,
+    named_utilities,
+)
 from services.shared.dataset_registry import (
     COMPARISON_METRIC_DATASETS,
     data_query_path,
+    dataset_coverage_gap,
     group_code_and_label,
     not_covered_message,
-    utility_coverage_gap,
+    partial_coverage_note,
 )
 
 
@@ -1172,52 +1181,32 @@ def _summarize_risk_surface(args: RiskSurfaceArgs, raw: dict[str, Any]) -> dict[
     }
 
 
-def _named_utilities(tool: str, arguments: dict[str, Any]) -> list[str]:
-    """The utilities a call is scoped to, whichever argument names them."""
-    if tool == "comparison_run":
-        kind = arguments.get("kind")
-        if kind == "utilities":
-            return [str(item) for item in arguments.get("utilities") or []]
-        if kind == "periods" and arguments.get("scope_type") == "utility":
-            return [str(arguments["scope"])] if arguments.get("scope") else []
-        return []
-    utility = arguments.get("utility")
-    return [str(utility)] if utility else []
-
-
 def coverage_gap(tool: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
-    """The registry coverage gap a call would hit, or None when every read is covered."""
-    if tool in {"data_query_records", "data_query_rank", "visualization_create"}:
-        return utility_coverage_gap(
-            arguments.get("dataset"), _named_utilities(tool, arguments)
-        )
-    if tool == "comparison_run":
-        # Validated arguments carry a known metric; an unmapped one is a
-        # registry gap and must fail here rather than skip the check.
-        dataset = COMPARISON_METRIC_DATASETS[str(arguments.get("metric"))]
-        return utility_coverage_gap(dataset, _named_utilities(tool, arguments))
-    return None
+    """The measured coverage gap a call would hit, or None when some of it is covered."""
+    return call_coverage_gap(tool, arguments)
 
 
 def mark_uncovered_counts(
     tool: str, arguments: dict[str, Any], summary: dict[str, Any]
 ) -> None:
-    """Replace each count for a dataset that does not cover the named utility.
+    """Replace each count that falls outside measured coverage with None.
 
     A result can hold counts for several datasets at once (a spatial summary
     counts ignitions, EPSS outages, and CAL FIRE incidents inside one
     territory). Each count key is resolved to its dataset through the
-    registry; where that dataset holds no rows for the named utility, the
-    count becomes None and ``summary["not_covered"][key]`` records why, so no
-    answer, view, or grounding check can read it as a zero. An unknown count
-    key raises: a count that cannot be traced to a dataset is not rendered.
+    registry; where that dataset has no rows for the named utility in the
+    call's period, the count becomes None and ``summary["not_covered"][key]``
+    records why, so no answer, view, or grounding check can read it as a zero.
+    An unknown count key raises: a count that cannot be traced to a dataset is
+    not rendered. A comparison's rows are checked side by side the same way.
     """
-    counts = summary.get("counts")
-    utilities = _named_utilities(tool, arguments)
-    if not isinstance(counts, dict) or not utilities:
+    if tool == "comparison_run":
+        _mark_uncovered_comparison(arguments, summary)
         return
-    for key in list(counts):
-        gap = utility_coverage_gap(key, utilities)
+    counts = summary.get("counts")
+    datasets = list(counts) if isinstance(counts, dict) else []
+    for key in datasets:
+        gap = count_coverage_gap(key, tool, arguments)
         if gap is None:
             continue
         counts[key] = None
@@ -1225,16 +1214,88 @@ def mark_uncovered_counts(
             **gap,
             "message": not_covered_message(gap, subject="count"),
         }
+    # A covered count whose period runs past measured coverage counts only the
+    # covered part; the answer says which part.
+    dataset = call_dataset(tool, arguments)
+    if dataset and not datasets and dataset_known(dataset):
+        datasets = [dataset]
+    (start, end), *_ = call_periods(tool, arguments)
+    notes = [
+        note
+        for key in datasets
+        if key not in (summary.get("not_covered") or {})
+        for utility in named_utilities(tool, arguments) or [None]
+        if (note := partial_coverage_note(key, utility, start, end))
+    ]
+    if notes:
+        summary["coverage_notes"] = list(dict.fromkeys(notes))
+
+
+def _mark_uncovered_comparison(arguments: dict[str, Any], summary: dict[str, Any]) -> None:
+    """Null every comparison value outside measured coverage, and note partial periods.
+
+    The comparison service applies the same measured coverage; this holds the
+    invariant even if a service response disagrees, so a value outside
+    coverage is never shown as a number.
+    """
+    dataset = COMPARISON_METRIC_DATASETS.get(str(summary.get("metric") or arguments.get("metric")))
+    if not dataset:
+        return
+    notes: list[str] = []
+
+    def check(row: dict[str, Any], utility: str | None, start: Any, end: Any) -> None:
+        gap = dataset_coverage_gap(dataset, [utility] if utility else [], start, end)
+        if gap is not None:
+            row["value"] = None
+            row["raw_value"] = None
+            row["reason"] = gap["reason"]
+            row["not_covered"] = gap
+            return
+        note = partial_coverage_note(dataset, utility, start, end)
+        if note:
+            row["coverage_note"] = note
+            if note not in notes:
+                notes.append(note)
+
+    # Rows are copied: the summary must not rewrite the raw service response.
+    kind = summary.get("kind") or arguments.get("kind")
+    if kind in {"utilities", "regions"}:
+        start, end = arguments.get("start_date"), arguments.get("end_date")
+        summary["results"] = [dict(row) for row in summary.get("results") or []]
+        for row in summary["results"]:
+            utility = str(row.get("key")) if kind == "utilities" else None
+            check(row, utility, start, end)
+    else:
+        utility = named_utilities("comparison_run", arguments)
+        for name in ("period_a", "period_b"):
+            if isinstance(summary.get(name), dict):
+                row = summary[name] = dict(summary[name])
+                check(
+                    row,
+                    utility[0] if utility else None,
+                    row.get("start_date") or arguments.get(f"{name}_start"),
+                    row.get("end_date") or arguments.get(f"{name}_end"),
+                )
+        if isinstance(summary.get("delta"), dict) and any(
+            (summary.get(name) or {}).get("value") is None for name in ("period_a", "period_b")
+        ):
+            delta = summary["delta"] = dict(summary["delta"])
+            delta["value"] = None
+            delta["reason"] = delta.get("reason") or "Cannot compute delta when either period value is null"
+    if notes:
+        summary["coverage_notes"] = notes
 
 
 def not_covered_notes(executions: list[Any]) -> list[str]:
-    """One sentence per uncovered count across the cited results, in order."""
+    """One sentence per uncovered count or partly covered period, in order."""
     notes: list[str] = []
     for execution in executions:
         if not getattr(execution, "ok", False):
             continue
-        for gap in ((execution.summary or {}).get("not_covered") or {}).values():
-            message = gap.get("message")
+        summary = execution.summary or {}
+        messages = [gap.get("message") for gap in (summary.get("not_covered") or {}).values()]
+        messages.extend(summary.get("coverage_notes") or [])
+        for message in messages:
             if message and message not in notes:
                 notes.append(message)
     return notes

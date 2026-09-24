@@ -1,10 +1,12 @@
 """Label rule I on comparison routes, and comparison answers that never say None.
 
 The production question below was a period_comparison on epss_outage_count for
-SCE and rendered "period A=None, period B=None, delta=None". EPSS is PG&E-only,
-so a comparison where no named utility is PG&E clarifies; one that includes
-PG&E runs and states the non-PG&E side's reason in a sentence. Service values
-here are fixture numbers, not warehouse figures.
+SCE and rendered "period A=None, period B=None, delta=None". Measured coverage
+has EPSS rows for PG&E only, so a comparison where no named utility is PG&E
+clarifies; one that includes PG&E runs and states the other side's reason in a
+sentence. Offers are held to measured coverage too: SCE has no PSPS rows before
+2021-10-11, so a 2020 question is not offered PSPS. Service values here are
+fixture numbers, not warehouse figures.
 """
 
 from __future__ import annotations
@@ -24,9 +26,16 @@ from services.agent.provider import ModelReply
 from services.agent.routing import route_question
 from services.agent.tools import ToolExecutor
 from services.shared.dataset_registry import (
-    REASON_EPSS_PGE_ONLY,
     REASON_NO_COUNTY,
     UTILITY_CLARIFY_LABELS,
+    dataset_coverage_gap,
+)
+
+# The measured reason SCE has no EPSS value (no hand-written string).
+SCE_GAP = dataset_coverage_gap("epss_outages", ["SCE"])
+REASON_SCE = SCE_GAP["reason"]
+SCE_2020_2021 = dataset_coverage_gap(
+    "epss_outages", ["SCE"], periods=[("2020-01-01", "2020-12-31"), ("2021-01-01", "2021-12-31")]
 )
 
 PRODUCTION_QUESTION = (
@@ -42,9 +51,9 @@ def _assert_rule_i_comparison_clarification(question: str, utilities: list[str])
     assert decision.path == "clarification", (question, decision.rule)
     assert decision.rule == "epss_non_pge_utility", (question, decision.rule)
     assert decision.tool_calls == []
-    assert "PG&E-only" in decision.answer
+    assert "rows only for PG&E" in decision.answer
     assert "absent, not zero" in decision.answer
-    assert "PSPS events or CPUC ignitions" in decision.answer
+    assert "CPUC ignitions" in decision.answer
     # Named as the reader knows it (SDG&E, not the code SDGE).
     for utility in utilities:
         assert UTILITY_CLARIFY_LABELS.get(utility, utility) in decision.answer
@@ -53,7 +62,9 @@ def _assert_rule_i_comparison_clarification(question: str, utilities: list[str])
 def test_the_production_question_clarifies_instead_of_comparing_nulls():
     _assert_rule_i_comparison_clarification(PRODUCTION_QUESTION, ["SCE"])
     decision = route_question(PRODUCTION_QUESTION)
-    assert "compare SCE's PSPS events or CPUC ignitions" in decision.answer
+    # SCE's PSPS rows start on 2021-10-11, so PSPS is not offered for 2020.
+    assert "compare SCE's CPUC ignitions in 2020 and 2021 instead" in decision.answer
+    assert "PSPS" not in decision.answer
     assert decision.slots["years"] == [2020, 2021]
 
 
@@ -169,16 +180,17 @@ def test_a_both_null_period_comparison_names_the_reason_and_what_exists():
             "metric": "epss_outage_count",
             "scope_type": "utility",
             "scope": "SCE",
-            "period_a": _period(None, "2020-01-01", "2020-12-31", REASON_EPSS_PGE_ONLY),
-            "period_b": _period(None, "2021-01-01", "2021-12-31", REASON_EPSS_PGE_ONLY),
+            "period_a": {**_period(None, "2020-01-01", "2020-12-31", REASON_SCE), "not_covered": SCE_2020_2021},
+            "period_b": {**_period(None, "2021-01-01", "2021-12-31", REASON_SCE), "not_covered": SCE_2020_2021},
             "delta": {"value": None, "reason": "Cannot compute delta when either period value is null"},
         },
     )
     assert "None" not in text and "=" not in text
     assert "SCE has no EPSS outage count for 2020 or 2021" in text
-    assert REASON_EPSS_PGE_ONLY in text
+    assert REASON_SCE in text
     assert "no change can be computed" in text
-    assert "PSPS events and CPUC ignitions do exist" in text
+    # Only what measured coverage has for SCE in both years.
+    assert "SCE's CPUC ignitions do exist" in text and "PSPS" not in text
 
 
 def test_a_one_null_period_comparison_keeps_the_known_value():
@@ -224,7 +236,7 @@ def _comparison_service(request: httpx.Request) -> httpx.Response:
     if request.url.path.endswith("/compare-utilities"):
         results = [
             {"key": "PGE", "value": FIXTURE_PGE["2022"], "raw_value": FIXTURE_PGE["2022"], "reason": None},
-            {"key": "SCE", "value": None, "raw_value": None, "reason": REASON_EPSS_PGE_ONLY},
+            {"key": "SCE", "value": None, "raw_value": None, "reason": REASON_SCE},
         ]
         return httpx.Response(
             200, json={"metric": params.get("metric"), "normalize": "none", "results": results, "meta": meta}
@@ -280,7 +292,7 @@ def test_pge_versus_sce_end_to_end_shows_pge_and_says_why_sce_is_missing():
     assert response["status"] == "answer", text
     assert "None" not in text and "unavailable (" not in text
     assert "PG&E 1,024" in text
-    assert f"SCE has no EPSS outage count: {REASON_EPSS_PGE_ONLY}" in text
+    assert f"SCE has no EPSS outage count: {REASON_SCE}" in text
     assert "SCE's PSPS events and CPUC ignitions do exist" in text
 
 
@@ -474,8 +486,11 @@ def test_the_free_model_path_paraphrase_clarifies_instead_of_reporting_zero(call
     assert model.routing_turns == 1
     assert backend.requests == []
     assert response["status"] == "clarification", text
-    assert "EPSS is PG&E-only" in text and "absent, not zero" in text
-    assert "PSPS events and CPUC ignitions" in text
+    assert "rows only for PG&E" in text and "absent, not zero" in text
+    # CPUC has SCE rows in 2020 and 2021; PSPS is offered only for 2021, the
+    # year its measured SCE coverage includes (rows start 2021-10-11).
+    assert "SCE data that does exist in 2020" in text and "CPUC ignitions" in text
+    assert "exist in 2020: PSPS" not in text and "2020 and 2021: PSPS" not in text
     assert " 0 " not in f" {text} " and "None" not in text
 
 

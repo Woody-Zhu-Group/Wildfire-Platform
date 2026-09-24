@@ -19,6 +19,11 @@ from db.loaders.util import (
 )
 from services.shared.dataset_registry import EPSS_UNKNOWN_CAUSE, EPSS_UNKNOWN_CAUSE_SOURCE_SPELLINGS
 
+# The source files are PG&E's EPSS publication, and the table has no utility
+# column: every row loaded here is PG&E's. db.loaders.coverage attributes the
+# measured rows and dates to this utility.
+SOURCE_UTILITY = "PGE"
+
 
 def _normalize_cause(cause: str | None) -> str | None:
     cause = blank_to_none(cause)

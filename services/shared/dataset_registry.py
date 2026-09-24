@@ -10,7 +10,10 @@ and lazy-imports the strings so the catalog is not duplicated.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from datetime import date
+from pathlib import Path
 from typing import Any, Mapping
 
 # Naming conventions (utilities, counties, tiers, causes, incident types, and
@@ -45,18 +48,12 @@ STATEWIDE_CENTER = [37.6, -120.8]
 HDW_YEARS = frozenset(range(2020, 2026))
 
 # comparison/metrics.py
-REASON_EPSS_PGE_ONLY = "EPSS is PG&E-only in this warehouse"
 REASON_NO_COUNTY = "No county attribute/polygon for this metric in the warehouse"
 REASON_NO_COUNTY_AREA = "No county polygon layer; per_km2 unavailable for county regions"
-REASON_CIRCUITS_PGE = (
-    "per_circuit uses the PGE EPSS circuits inventory; not meaningful for this scope"
-)
 REASON_ZERO_IGNITIONS = "Ignition count is zero; ratio undefined"
 REASON_COMPONENT_NULL = "One or more component metrics are null"
 REASON_US_NO_UTILITY = "The US ignitions sample has no utility column"
 
-# Discrepancy: services.agent.caveats epss_pge_only text is longer and is not
-# this REASON_EPSS_PGE_ONLY string. Do not collapse them.
 
 
 def _us_ignitions_meta(*, notes: str) -> dict[str, Any]:
@@ -122,12 +119,13 @@ class DatasetSpec:
     caveat_ids: tuple[str, ...]
     stat_label: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
-    # Utilities the dataset holds rows for. None means every utility; an empty
-    # tuple means the dataset has no utility column. A read for any other
-    # utility is not covered: absent data, never a zero (label rules I and J).
-    covered_utilities: tuple[str, ...] | None = None
-    not_covered_reason: str | None = None
-    # Datasets that do hold rows for an uncovered utility, offered instead.
+    # Which utilities and dates the dataset covers is measured by the loaders
+    # (shared/dataset_coverage.json, read by dataset_coverage below), never
+    # declared here. These two fields are wording only.
+    # Why a dataset with no utility dimension cannot answer for a utility.
+    no_utility_reason: str | None = None
+    # Datasets to offer when a read is not covered, in order. Each is offered
+    # only where its measured coverage includes the utilities and the period.
     not_covered_alternatives: tuple[str, ...] = ()
 
 
@@ -242,6 +240,7 @@ DATASETS: dict[str, DatasetSpec] = {
         },
         caveat_ids=("cpuc_utility_caused",),
         stat_label="CPUC ignitions",
+        not_covered_alternatives=("calfire_incidents",),
     ),
     "calfire_incidents": _spec(
         key="calfire_incidents",
@@ -281,6 +280,7 @@ DATASETS: dict[str, DatasetSpec] = {
         # counts; it is not in CAVEAT_TEXT and is omitted from the static JSON.
         caveat_ids=("calfire_missingness", "calfire_map_feed_counts"),
         stat_label="CAL FIRE incidents",
+        not_covered_alternatives=("cpuc_ignitions",),
     ),
     "epss_outages": _spec(
         key="epss_outages",
@@ -309,9 +309,6 @@ DATASETS: dict[str, DatasetSpec] = {
         },
         caveat_ids=("epss_pge_only",),
         stat_label="EPSS outages",
-        extra={"empty_reason_non_pge": REASON_EPSS_PGE_ONLY},
-        covered_utilities=("PGE",),
-        not_covered_reason=REASON_EPSS_PGE_ONLY,
         not_covered_alternatives=("psps_events", "cpuc_ignitions"),
     ),
     "psps_events": _spec(
@@ -334,6 +331,7 @@ DATASETS: dict[str, DatasetSpec] = {
         },
         caveat_ids=(),
         stat_label="PSPS events",
+        not_covered_alternatives=("epss_outages", "cpuc_ignitions", "calfire_incidents"),
     ),
     "us_ignitions": _spec(
         key="us_ignitions",
@@ -365,9 +363,8 @@ DATASETS: dict[str, DatasetSpec] = {
             "meta_data_query": US_IGNITIONS_META_DATA_QUERY,
             "meta_visualization": US_IGNITIONS_META_VISUALIZATION,
         },
-        covered_utilities=(),
-        not_covered_reason=REASON_US_NO_UTILITY,
-        not_covered_alternatives=("cpuc_ignitions",),
+        no_utility_reason=REASON_US_NO_UTILITY,
+        not_covered_alternatives=("cpuc_ignitions", "calfire_incidents"),
     ),
     "circuits": _spec(
         key="circuits",
@@ -766,86 +763,325 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-def utility_coverage_gap(dataset: str | None, utilities: list[str]) -> dict[str, Any] | None:
-    """The uncovered utilities when none of ``utilities`` is covered, else None.
 
-    A read that names at least one covered utility runs; the service returns
-    the uncovered side as null with its reason (a comparison), so only a read
-    with no covered utility at all is refused. An unknown dataset raises: a
-    coverage check that cannot find its dataset must not pass silently.
-    """
-    if not dataset or not utilities:
-        return None
+
+# ---------------------------------------------------------------------------
+# Measured coverage (label rules I and J, and every count by utility or period)
+# ---------------------------------------------------------------------------
+
+# Written by db/loaders/coverage.py from the loaded warehouse; the website
+# imports the same file. Coverage is measured, never declared: a dataset
+# covers a utility only if it has rows for it, from that utility's first row
+# date to the dataset's last row date. The window closes on the dataset's last
+# date, not the utility's: in a sparse series (five SDG&E PSPS events) a
+# utility's last event is not the end of the source's reporting.
+COVERAGE_PATH = Path(__file__).resolve().parents[2] / "shared" / "dataset_coverage.json"
+
+
+def _load_coverage() -> dict[str, Any]:
     try:
-        spec = DATASETS[to_canonical(dataset)]
+        payload = json.loads(COVERAGE_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"{COVERAGE_PATH} is missing. Load the warehouse (python -m db.loaders) "
+            "or regenerate it with: python -m db.loaders.coverage"
+        ) from exc
+    return payload["datasets"]
+
+
+# dataset key -> {"first", "last", "rows", "utility_dimension", "utilities":
+# {code: {"first", "last", "rows"}}}. Tests may swap entries (monkeypatch).
+DATASET_COVERAGE: dict[str, dict[str, Any]] = _load_coverage()
+
+
+def _day(value: Any) -> date | None:
+    if value is None or isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def _measured(dataset: str) -> dict[str, Any] | None:
+    try:
+        key = to_canonical(dataset)
     except (KeyError, ValueError) as exc:
-        raise ValueError(f"utility coverage: unknown dataset {dataset!r}") from exc
-    covered = spec.covered_utilities
-    if covered is None:
+        raise ValueError(f"coverage: unknown dataset {dataset!r}") from exc
+    return DATASET_COVERAGE.get(key)
+
+
+def coverage_window(dataset: str, utility: str | None = None) -> tuple[date, date] | None:
+    """The measured dates a count can fall in, or None when there are none.
+
+    With a utility: from its first row to the dataset's last row, or None when
+    the dataset has no rows for it. Without one: the dataset's own span. A
+    dataset with rows but no date column (circuits) has no window.
+    """
+    entry = _measured(dataset)
+    if entry is None:
         return None
-    uncovered = [u for u in utilities if u not in covered]
-    if not uncovered or len(uncovered) < len(utilities):
-        return None
-    return {
-        "dataset": spec.key,
-        "utilities": uncovered,
-        "covered_utilities": list(covered),
-        "reason": spec.not_covered_reason,
-        "alternatives": list(spec.not_covered_alternatives),
-    }
+    last = _day(entry.get("last"))
+    if utility is None:
+        first = _day(entry.get("first"))
+    elif utility == UNTAGGED_UTILITY:
+        first = _day((entry.get("untagged") or {}).get("first"))
+    else:
+        span = (entry.get("utilities") or {}).get(utility)
+        first = _day(span.get("first")) if span else None
+    return (first, last) if first and last else None
+
+
+def covered_utilities(dataset: str) -> list[str]:
+    """Utilities the dataset has rows for, as measured."""
+    entry = _measured(dataset)
+    return list((entry or {}).get("utilities") or {})
 
 
 def single_utility_dataset(dataset: str | None) -> bool:
-    """True when the dataset holds rows for exactly one utility (EPSS: PG&E).
+    """True when the dataset has rows for exactly one utility (EPSS: PG&E).
 
     Such a dataset has no utility dimension to rank or group by.
     """
     if not dataset:
         return False
-    covered = DATASETS[to_canonical(dataset)].covered_utilities
-    return covered is not None and len(covered) == 1
+    entry = _measured(dataset)
+    return bool(
+        entry and entry.get("utility_dimension") and len(entry.get("utilities") or {}) == 1
+    )
+
+
+def _utility_name(code: str) -> str:
+    if code == UNTAGGED_UTILITY:
+        return "untagged"
+    return UTILITY_CLARIFY_LABELS.get(code) or UTILITY_DISPLAY_LABELS.get(code) or code
+
+
+def _series(items: list[str]) -> str:
+    if len(items) <= 2:
+        return " and ".join(items)
+    return ", ".join(items[:-1]) + ", and " + items[-1]
 
 
 def _utility_names(codes: list[str]) -> str:
-    return " and ".join(UTILITY_CLARIFY_LABELS.get(code, code) for code in codes)
+    return _series([_utility_name(code) for code in codes])
+
+
+def _possessive(names: str) -> str:
+    return f"{names}'" if names.endswith("s") else f"{names}'s"
+
+
+def period_phrase(start: Any, end: Any) -> str:
+    """' in 2019' for a calendar year, ' from A to B' otherwise, '' for no period."""
+    start, end = _day(start), _day(end)
+    if start is None and end is None:
+        return ""
+    if (
+        start
+        and end
+        and start.year == end.year
+        and (start.month, start.day, end.month, end.day) == (1, 1, 12, 31)
+    ):
+        return f" in {start.year}"
+    if start and end:
+        return f" from {start.isoformat()} to {end.isoformat()}"
+    return f" from {start.isoformat()} on" if start else f" through {end.isoformat()}"
+
+
+def coverage_summary(dataset: str) -> str:
+    """Which utilities the dataset has rows for, as measured, in one clause."""
+    key = to_canonical(dataset)
+    label = STAT_LABELS.get(key, key)
+    return f"{label} have rows only for {_utility_names(covered_utilities(key))}"
+
+
+def _overlaps(window: tuple[date, date], start: date | None, end: date | None) -> bool:
+    first, last = window
+    return (end is None or end >= first) and (start is None or start <= last)
+
+
+def _uncovered_reason(
+    dataset: str, utility: str | None, start: date | None, end: date | None
+) -> str | None:
+    """Why the dataset has no rows for this utility and period, or None if it does."""
+    entry = _measured(dataset)
+    if entry is None:
+        return None
+    spec = DATASETS[to_canonical(dataset)]
+    label = STAT_LABELS.get(spec.key, spec.key)
+    if utility is not None and not entry.get("utility_dimension"):
+        return spec.no_utility_reason or f"{label} have no utility column"
+    if utility == UNTAGGED_UTILITY and not entry.get("untagged"):
+        return f"{label} have no rows without a utility"
+    if utility not in (None, UNTAGGED_UTILITY) and utility not in (entry.get("utilities") or {}):
+        return coverage_summary(spec.key)
+    window = coverage_window(spec.key, utility)
+    if window is None or _overlaps(window, start, end):
+        return None
+    who = f" for {_utility_name(utility)}" if utility else ""
+    if end is not None and end < window[0]:
+        return f"{label}{who} start on {window[0].isoformat()}"
+    return f"{label} end on {window[1].isoformat()}"
+
+
+def partial_coverage_note(
+    dataset: str, utility: str | None, start: Any, end: Any
+) -> str | None:
+    """A note when a covered period runs past the measured window on either side.
+
+    The count is real for the covered part only; it must not be read as the
+    whole period's.
+    """
+    start, end = _day(start), _day(end)
+    window = coverage_window(dataset, utility)
+    if window is None or start is None or end is None or not _overlaps(window, start, end):
+        return None
+    first, last = window
+    if start >= first and end <= last:
+        return None
+    label = STAT_LABELS.get(to_canonical(dataset), dataset)
+    who = f" for {_utility_name(utility)}" if utility else ""
+    return (
+        f"{label}{who} cover {first.isoformat()} to {last.isoformat()}, so the count"
+        f"{period_phrase(start, end)} covers only {max(start, first).isoformat()} to "
+        f"{min(end, last).isoformat()}."
+    )
+
+
+Period = tuple[Any, Any]
+
+
+def _covers_all(dataset: str, utilities: list[str], periods: list[tuple[date | None, date | None]]) -> bool:
+    return all(
+        _uncovered_reason(dataset, utility, start, end) is None
+        for utility in (utilities or [None])
+        for start, end in periods
+    )
+
+
+def dataset_coverage_gap(
+    dataset: str | None,
+    utilities: list[str],
+    start: Any = None,
+    end: Any = None,
+    *,
+    periods: list[Period] | None = None,
+) -> dict[str, Any] | None:
+    """The coverage gap a read would hit, or None when it is covered.
+
+    A read is covered when the dataset has rows for at least one named utility
+    in at least one period (``periods``, or the one period ``start`` to
+    ``end``); the service returns an uncovered side as null with its reason, so
+    only a read with nothing covered is refused. A read with no utility is
+    checked against the dataset's own dates. What the gap offers instead is
+    held to more: an alternative dataset, or another utility, is offered only
+    where measured coverage includes every named utility in every period. An
+    unknown dataset raises: a coverage check that cannot find its dataset must
+    not pass.
+    """
+    if not dataset:
+        return None
+    windows_asked = [(_day(a), _day(b)) for a, b in (periods or [(start, end)])]
+    entry = _measured(dataset)
+    no_period = all(a is None and b is None for a, b in windows_asked)
+    if entry is None or (not utilities and no_period):
+        return None
+    spec = DATASETS[to_canonical(dataset)]
+    named = list(utilities)
+    reasons = [
+        _uncovered_reason(spec.key, utility, a, b)
+        for utility in named or [None]
+        for a, b in windows_asked
+    ]
+    if any(reason is None for reason in reasons):
+        return None
+    others = [
+        utility
+        for utility in covered_utilities(spec.key)
+        if utility not in named and _covers_all(spec.key, [utility], windows_asked)
+    ]
+    # A named utility with rows in the dataset at other dates: its own window.
+    own = {utility: coverage_window(spec.key, utility) for utility in named}
+    return {
+        "dataset": spec.key,
+        "utilities": named,
+        "periods": [
+            [a.isoformat() if a else None, b.isoformat() if b else None]
+            for a, b in windows_asked
+        ],
+        "reason": "; ".join(dict.fromkeys(str(reason) for reason in reasons)),
+        "covered_utilities": others,
+        "utility_windows": {
+            utility: [window[0].isoformat(), window[1].isoformat()]
+            for utility, window in own.items()
+            if window is not None
+        },
+        "alternatives": [
+            other
+            for other in spec.not_covered_alternatives
+            if _covers_all(other, named, windows_asked)
+        ],
+    }
+
+
+def _gap_parts(gap: dict[str, Any]) -> tuple[str, str, str, str]:
+    label = STAT_LABELS.get(gap["dataset"], gap["dataset"])
+    named = _utility_names(list(gap.get("utilities") or []))
+    phrases = [period_phrase(a, b) for a, b in gap.get("periods") or []]
+    phrases = [phrase for phrase in dict.fromkeys(phrases) if phrase]
+    # " in 2020" and " in 2021" read as " in 2020 and 2021"; three or more
+    # years as " in 2018, 2019, and 2020".
+    if len(phrases) > 1 and all(phrase.startswith(" in ") for phrase in phrases):
+        period = " in " + _series([phrase[4:] for phrase in phrases])
+    else:
+        period = " and".join(phrases)
+    head = (
+        f"{gap.get('reason') or label + ' do not cover this read'}, so there are "
+        f"{'no ' + named + ' rows' if named else 'no rows'} in {label}{period}"
+    )
+    return label, named, period, head
 
 
 def not_covered_message(gap: dict[str, Any], *, subject: str = "result") -> str:
     """The reason, that the result is absent rather than zero, and what data exists."""
-    label = STAT_LABELS.get(gap["dataset"], gap["dataset"])
-    named = _utility_names(gap["utilities"])
-    text = (
-        f"{gap.get('reason') or label + ' do not cover this utility'}, so there are "
-        f"no {named} rows in {label}: that {subject} would be absent, not zero."
-    )
+    _label, named, period, head = _gap_parts(gap)
+    text = f"{head}: that {subject} would be absent, not zero."
     alternatives = [STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []]
     if alternatives:
-        text += f" {named} data that does exist: {' and '.join(alternatives)}."
+        whose = f"{named} data" if named else "Data"
+        text += f" {whose} that does exist{period}: {' and '.join(alternatives)}."
     return text
 
 
 def not_covered_question(gap: dict[str, Any], *, comparison: bool = False) -> str:
-    """Clarification for an uncovered read: the reason, then what to use instead."""
-    label = STAT_LABELS.get(gap["dataset"], gap["dataset"])
-    named = _utility_names(gap["utilities"])
-    covered = _utility_names(list(gap.get("covered_utilities") or []))
+    """Clarification for an uncovered read: the reason, then only offers the data covers."""
+    label, named, period, head = _gap_parts(gap)
+    head += f": that {'comparison' if comparison else 'result'} would be absent, not zero."
     alternatives = " or ".join(
         STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []
     )
-    reason = gap.get("reason") or f"{label} do not cover {named}"
-    head = (
-        f"{reason}, so there are no {named} rows in {label}: that "
-        f"{'comparison' if comparison else 'result'} would be absent, not zero."
-    )
+    # Another utility's rows are offered only when the dataset covers exactly
+    # one in the period (EPSS: PG&E); a list of several is not an answer to a
+    # question about the named utility.
+    others = list(gap.get("covered_utilities") or [])
+    covered = _utility_names(others) if named and len(others) == 1 else ""
+    whose = f"{_possessive(named)} " if named else ""
     offers: list[str] = []
-    if comparison:
-        if alternatives:
-            offers.append(f"compare {named}'s {alternatives} instead")
-        if covered:
-            offers.append(f"{covered}'s {label}")
-        return f"{head} Do you want to {', or '.join(offers)}?" if offers else head
+    if comparison and alternatives:
+        offers.append(f"compare {whose}{alternatives}{period} instead")
     if covered:
-        offers.append(f"{covered}'s {label} for that period")
-    if alternatives:
-        offers.append(f"{named}'s {alternatives} instead")
-    return f"{head} Do you want {', or '.join(offers)}?" if offers else head
+        offers.append(f"{_possessive(covered)} {label}{period}")
+    if not comparison and alternatives:
+        offers.append(f"{whose}{alternatives}{period} instead")
+    # A named utility the dataset covers at other dates: offer those dates.
+    for utility, (first, _last) in (gap.get("utility_windows") or {}).items():
+        offers.append(f"{_possessive(_utility_name(utility))} {label} from {first} on")
+    if not offers:
+        return head
+    verb = "Do you want to " if offers[0].startswith("compare ") else "Do you want "
+    return f"{head} {verb}{', or '.join(offers)}?"
+
+
+# comparison/metrics.py: the per-circuit denominator exists only for the
+# utilities the circuits inventory has rows for, as measured.
+REASON_CIRCUITS_SCOPE = (
+    f"per_circuit uses the {_utility_names(covered_utilities('circuits'))} EPSS circuits "
+    "inventory; not meaningful for this scope"
+)

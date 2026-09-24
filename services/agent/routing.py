@@ -53,10 +53,13 @@ from services.shared.dataset_registry import (
     UTILITY_ADVICE_SUBJECT_WORDS,
     UTILITY_CLARIFY_LABELS,
     UTILITY_PATTERNS,
+    coverage_summary,
+    covered_utilities,
+    dataset_coverage_gap,
     not_covered_question,
     single_utility_dataset,
-    utility_coverage_gap,
 )
+from services.agent.coverage import call_coverage_gap, not_covered_rule
 
 
 @dataclass
@@ -1224,36 +1227,39 @@ def _county_expressed(args: dict[str, Any], county: str) -> bool:
     return isinstance(value, str) and value.lower() == county.lower()
 
 
-# The clarification rule for a read the dataset does not cover, per dataset
-# with limited coverage (DatasetSpec.covered_utilities is not None). Label rule
-# I is EPSS (PG&E only); label rule J is the US sample (no utility column).
-NOT_COVERED_RULES = {
-    "epss_outages": "epss_non_pge_utility",
-    "us_ignitions": "us_sample_utility_filter",
-}
-
-
 def _not_covered_clarification(
     gap: dict[str, Any],
     slots: dict[str, Any],
     *,
     comparison: bool = False,
 ) -> RouteDecision:
-    """A read the dataset holds no rows for is absent, not zero (label rules I, J).
+    """A read outside measured coverage is absent, not zero (label rules I, J).
 
     The reason, the covered utilities, and the alternatives all come from the
-    registry entry, so the text follows the data rather than a fixed sentence.
-    On a comparison every side would be null, so it offers the datasets those
-    utilities do have.
+    measured coverage, so the text follows the data rather than a fixed
+    sentence, and only data that exists for those utilities and that period
+    is offered.
     """
-    named = " and ".join(gap["utilities"])
+    named = " and ".join(gap["utilities"]) or "the period"
     return RouteDecision(
         "clarification",
-        NOT_COVERED_RULES[gap["dataset"]],
+        not_covered_rule(gap),
         f"{gap.get('reason')}; {named} has no {gap['dataset']} rows",
         answer=not_covered_question(gap, comparison=comparison),
         slots=slots,
     )
+
+
+def _never_covered(slots: dict[str, Any]) -> dict[str, Any] | None:
+    """The gap when the slot dataset has no rows for any named utility at any date."""
+    dataset = slots.get("dataset")
+    utilities = list(slots.get("utilities") or [])
+    if not isinstance(dataset, str) or not utilities:
+        return None
+    try:
+        return dataset_coverage_gap(dataset, utilities)
+    except ValueError:
+        return None
 
 
 def _comparison_metric(lower: str) -> str | None:
@@ -1308,10 +1314,10 @@ def comparison_uncarried_constraints(
         else [args.get("scope")] if scope_type == "hftd" else []
     )
     dataset = COMPARISON_METRIC_DATASETS.get(str(args.get("metric")))
-    only = DATASETS[dataset].covered_utilities if dataset else None
+    only = covered_utilities(dataset) if dataset else []
     dropped: list[str] = []
     for utility in slots.get("utilities") or []:
-        if utility not in carried_utilities and tuple(only or ()) != (utility,):
+        if utility not in carried_utilities and only != [utility]:
             dropped.append("utility")
             break
     counties = list(slots.get("counties") or []) or (
@@ -1372,13 +1378,13 @@ def _block_unexpressed_constraints(
     reason: str,
 ) -> RouteDecision | None:
     """Refuse a deterministic answer that would silently drop asked filters."""
-    for _tool, args in tool_calls:
-        # A read for a utility the dataset holds no rows for (EPSS is PG&E
-        # only) would come back as 0 or an empty series: absent, not zero.
-        if args.get("dataset") and args.get("utility"):
-            gap = utility_coverage_gap(args["dataset"], [str(args["utility"])])
-            if gap is not None:
-                return _not_covered_clarification(gap, slots)
+    for tool, args in tool_calls:
+        # A read outside measured coverage (a utility or a period the dataset
+        # has no rows for) would come back as 0 or an empty series: absent,
+        # not zero.
+        gap = call_coverage_gap(tool, args)
+        if gap is not None:
+            return _not_covered_clarification(gap, slots, comparison=tool == "comparison_run")
     dropped: list[str] = []
     county = slots.get("county")
     if county and not any(
@@ -2238,9 +2244,9 @@ def _route_ranking(
         return RouteDecision(
             "unsupported",
             "unsupported_rank_epss_utility",
-            f"{spec.not_covered_reason}; no utility dimension to rank",
+            f"{coverage_summary(spec.key)}; no utility dimension to rank",
             answer=(
-                f"{spec.not_covered_reason}; there is no utility dimension to "
+                f"{coverage_summary(spec.key)}; there is no utility dimension to "
                 f"rank. I can {by}compare named utilities on a metric that "
                 "exists for them."
             ),
@@ -2488,6 +2494,21 @@ def _predict_word_is_model_skill(text: str, lower: str) -> bool:
 
 
 def _route_question(
+    question: str, *, force_model: bool = False, skip_topic_judgments: bool = False
+) -> RouteDecision:
+    decision = _route_rules(
+        question, force_model=force_model, skip_topic_judgments=skip_topic_judgments
+    )
+    if decision.path == "clarification" and decision.rule.endswith("_missing_year"):
+        # Asking for a year cannot help when the dataset has no rows for the
+        # named utility at any date (measured coverage): say so instead.
+        gap = _never_covered(decision.slots)
+        if gap is not None:
+            return _not_covered_clarification(gap, decision.slots)
+    return decision
+
+
+def _route_rules(
     question: str, *, force_model: bool = False, skip_topic_judgments: bool = False
 ) -> RouteDecision:
     text = " ".join(question.strip().split())
@@ -3214,12 +3235,17 @@ def _route_question(
     if re.search(r"\bcompare|versus|\bvs\.?\b", lower):
         metric = _comparison_metric(lower)
 
-        # A comparison whose metric's dataset covers none of the named
+        # A comparison whose metric's dataset has rows for none of the named
         # utilities (label rule I: EPSS without PG&E) would be all nulls, so
         # clarify. With a covered utility named it runs, and the uncovered side
-        # comes back null with its reason.
+        # comes back null with its reason. The named years are the periods;
+        # a built call is checked again below with its exact windows.
         gap = (
-            utility_coverage_gap(COMPARISON_METRIC_DATASETS[metric], list(utilities))
+            dataset_coverage_gap(
+                COMPARISON_METRIC_DATASETS[metric],
+                list(utilities),
+                periods=[_range_for_year(int(item)) for item in years] or None,
+            )
             if metric
             else None
         )
@@ -3284,6 +3310,9 @@ def _route_question(
             )
         if candidate is not None:
             rule, reason, args = candidate
+            gap = call_coverage_gap("comparison_run", args)
+            if gap is not None:
+                return _not_covered_clarification(gap, slots, comparison=True)
             blocked = _block_uncarried_comparison_constraints(
                 question=text, args=args, slots=slots
             )

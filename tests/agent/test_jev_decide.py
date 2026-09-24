@@ -377,7 +377,9 @@ def test_timed_out_jev_calls_do_not_leak_threads():
     assert len(workers) <= decide_mode.MAX_WORKERS
 
 
-MULTI_Q = "How many PG&E PSPS events were recorded in 2018, 2019, and 2020?"
+# Years inside measured PSPS coverage for PG&E (rows start 2021-10-11), so the
+# slot plan is not refused as not covered.
+MULTI_Q = "How many PG&E PSPS events were recorded in 2022, 2023, and 2024?"
 
 
 def _both_on():

@@ -12,6 +12,12 @@
     "PGE": "PG&E",
     "SDGE": "SDG&E"
   },
+  "utility_clarify_labels": {
+    "PGE": "PG&E",
+    "SDGE": "SDG&E",
+    "PACIFICORP": "PacifiCorp",
+    "BVES": "Bear Valley"
+  },
   "workspace_utilities": [
     "PG&E",
     "SCE",

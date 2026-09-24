@@ -11,7 +11,9 @@ Review of PR #93 found three gaps:
    a month nobody asked for.
 3. Coverage was hardcoded as "PGE" in the router, the Jev templates, and the
    slot planner. They now read the registry, and the comparison metrics map is
-   the comparison service's own.
+   the comparison service's own. The re-review found the registry's coverage
+   itself was declared by hand; it is now measured by the loaders
+   (shared/dataset_coverage.json, tests/agent/test_measured_coverage.py).
 
 Counts here are fixture values, not warehouse figures.
 """
@@ -34,15 +36,17 @@ from services.agent.decisions.tool_pick_mode import arguments_for_tool
 from services.agent.eval.slot_plan import _months_named
 from services.agent.orchestrator import AgentOrchestrator
 from services.agent.provider import ModelReply
-from services.agent.routing import NOT_COVERED_RULES, route_question
+from services.agent.coverage import NOT_COVERED_RULES
+from services.agent.routing import route_question
 from services.agent.time_resolve import month_from_text, months_from_text, resolve_time
 from services.agent.tools import ToolExecution, ToolExecutor, mark_uncovered_counts
 from services.agent.views import GroundingError, StatCardViewParams, ComponentSpec, ground_views
 from services.shared import dataset_registry
 from services.shared.dataset_registry import (
     COMPARISON_METRIC_DATASETS,
+    DATASET_COVERAGE,
     DATASETS,
-    utility_coverage_gap,
+    dataset_coverage_gap,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -155,8 +159,8 @@ def _assert_epss_not_covered(response: dict, utility_label: str) -> None:
     assert summary["not_covered"]["epss_outages"]["dataset"] == "epss_outages"
     # The answer names it as not covered, once, and never as a zero.
     assert "epss_outages=0" not in text
-    assert text.count("EPSS is PG&E-only in this warehouse") == 1
-    assert f"no {utility_label} rows in EPSS outages: that count would be absent, not zero" in text
+    assert text.count("EPSS outages have rows only for PG&E") == 1
+    assert f"no {utility_label} rows in EPSS outages in 2024: that count would be absent, not zero" in text
     # The view says not covered instead of drawing a 0 card.
     card = _epss_card(response)
     assert card["value"] is None
@@ -232,11 +236,16 @@ def _summary_execution(utility: str | None, region_kind: str = "utility") -> tup
 
 
 def test_counts_are_marked_only_for_an_uncovered_named_utility():
-    for utility in ("SCE", "SDGE", "PACIFICORP"):
+    for utility in ("SCE", "SDGE"):
         args, summary = _summary_execution(utility)
         mark_uncovered_counts("data_query_spatial", args, summary)
         assert summary["counts"] == {"ignitions": 7, "epss_outages": None, "calfire_incidents": 3}, utility
         assert set(summary["not_covered"]) == {"epss_outages"}
+    # PacifiCorp's CPUC rows start on 2025-04-24, so its 2024 ignitions are not
+    # covered either; its CAL FIRE rows are.
+    args, summary = _summary_execution("PACIFICORP")
+    mark_uncovered_counts("data_query_spatial", args, summary)
+    assert summary["counts"] == {"ignitions": None, "epss_outages": None, "calfire_incidents": 3}
     # PG&E is covered, and a county or tier region names no utility.
     for utility in ("PGE", None):
         args, summary = _summary_execution(utility)
@@ -244,10 +253,17 @@ def test_counts_are_marked_only_for_an_uncovered_named_utility():
         assert summary["counts"] == TERRITORY_COUNTS and "not_covered" not in summary
 
 
-def test_the_marking_follows_the_registry_not_a_utility_name(monkeypatch):
-    # Give EPSS SCE rows in the registry: the SCE count is no longer marked.
-    spec = DATASETS["epss_outages"]
-    monkeypatch.setitem(DATASETS, "epss_outages", replace(spec, covered_utilities=("PGE", "SCE")))
+def _measured_with(monkeypatch, dataset: str, **utilities: dict) -> None:
+    """Pretend the loaders measured extra utility rows for a dataset."""
+    entry = DATASET_COVERAGE[dataset]
+    monkeypatch.setitem(
+        DATASET_COVERAGE, dataset, {**entry, "utilities": {**entry["utilities"], **utilities}}
+    )
+
+
+def test_the_marking_follows_measured_coverage_not_a_utility_name(monkeypatch):
+    # Measured SCE rows in EPSS: the SCE count is no longer marked.
+    _measured_with(monkeypatch, "epss_outages", SCE={"first": "2021-11-01", "last": "2025-11-15", "rows": 1})
     args, summary = _summary_execution("SCE")
     mark_uncovered_counts("data_query_spatial", args, summary)
     assert summary["counts"]["epss_outages"] == 0 and "not_covered" not in summary
@@ -256,7 +272,7 @@ def test_the_marking_follows_the_registry_not_a_utility_name(monkeypatch):
 def test_an_unknown_count_key_fails_loudly():
     args, summary = _summary_execution("SCE")
     summary["counts"]["tree_falls"] = 4
-    with pytest.raises(ValueError, match="unknown dataset 'tree_falls'"):
+    with pytest.raises(ValueError, match="unknown count key 'tree_falls'"):
         mark_uncovered_counts("data_query_spatial", args, summary)
 
 
@@ -443,53 +459,41 @@ def test_comparison_metric_datasets_are_the_comparison_services_own():
     assert COMPARISON_METRIC_DATASETS["epss_to_ignition_ratio"] == COMPARISON_METRIC_DATASETS["epss_outage_count"]
 
 
-def test_utility_coverage_gap_raises_on_an_unknown_dataset():
+def test_dataset_coverage_gap_raises_on_an_unknown_dataset():
     with pytest.raises(ValueError, match="unknown dataset"):
-        utility_coverage_gap("epss_outage", ["SCE"])
-    # No dataset or no utility is not a coverage question.
-    assert utility_coverage_gap(None, ["SCE"]) is None
-    assert utility_coverage_gap("epss_outages", []) is None
+        dataset_coverage_gap("epss_outage", ["SCE"])
+    # No dataset, or no utility and no period, is not a coverage question.
+    assert dataset_coverage_gap(None, ["SCE"]) is None
+    assert dataset_coverage_gap("epss_outages", []) is None
 
 
-def test_every_dataset_with_limited_coverage_has_a_clarification_rule():
-    limited = {key for key, spec in DATASETS.items() if spec.covered_utilities is not None}
-    assert limited == set(NOT_COVERED_RULES)
+def test_the_rule_i_and_j_datasets_are_measured():
+    for dataset in NOT_COVERED_RULES:
+        assert dataset in DATASET_COVERAGE, dataset
 
 
-def test_the_router_templates_and_planner_hardcode_no_utility_for_coverage():
-    # Coverage comes from DatasetSpec.covered_utilities; a literal "PGE" in
-    # these files would be a second source.
-    for path in (
-        "services/agent/routing.py",
-        "services/agent/decisions/tool_pick_mode.py",
-        "services/agent/eval/slot_plan.py",
-    ):
-        source = (ROOT / path).read_text(encoding="utf-8")
-        assert not re.search(r"""["']PGE["']""", source), path
-
-
-def test_coverage_checks_follow_the_registry(monkeypatch):
+def test_coverage_checks_follow_measured_coverage(monkeypatch):
     question = "Compare SCE and SDG&E EPSS outages in 2022"
     assert route_question(question).rule == "epss_non_pge_utility"
     slots = route_question("How many EPSS outages did SCE have in 2022?").slots
     assert arguments_for_tool("data_query_records", slots, "") is None
-    # Registry says EPSS covers SCE too: the router compares and the template runs.
-    spec = DATASETS["epss_outages"]
-    monkeypatch.setitem(DATASETS, "epss_outages", replace(spec, covered_utilities=("PGE", "SCE", "SDGE")))
+    # Measured EPSS rows for SCE and SDG&E: the router compares and the template runs.
+    span = {"first": "2021-11-01", "last": "2025-11-15", "rows": 1}
+    _measured_with(monkeypatch, "epss_outages", SCE=span, SDGE=span)
     assert route_question(question).rule == "utility_comparison"
     assert arguments_for_tool("data_query_records", slots, "")["utility"] == "SCE"
 
 
-def test_the_clarification_text_comes_from_the_registry(monkeypatch):
+def test_the_clarification_text_comes_from_measured_coverage(monkeypatch):
     spec = DATASETS["epss_outages"]
     monkeypatch.setitem(
-        DATASETS,
-        "epss_outages",
-        replace(spec, not_covered_reason="Test reason", not_covered_alternatives=("calfire_incidents",)),
+        DATASETS, "epss_outages", replace(spec, not_covered_alternatives=("calfire_incidents",))
     )
     answer = route_question("Compare SCE and SDG&E EPSS outages in 2022").answer
-    assert answer.startswith("Test reason, so there are no SCE and SDG&E rows in EPSS outages")
-    assert "compare SCE and SDG&E's CAL FIRE incidents instead, or PG&E's EPSS outages" in answer
+    assert answer.startswith(
+        "EPSS outages have rows only for PG&E, so there are no SCE and SDG&E rows in EPSS outages in 2022"
+    )
+    assert "compare SCE and SDG&E's CAL FIRE incidents in 2022 instead, or PG&E's EPSS outages in 2022" in answer
     assert "PSPS" not in answer
 
 

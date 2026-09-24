@@ -27,6 +27,10 @@ from services.shared.dataset_registry import (
     UTILITY_DISPLAY_LABELS,
     WORKSPACE_UTILITIES,
     calfire_default_type_sql,
+    coverage_summary,
+    covered_utilities,
+    dataset_coverage_gap,
+    single_utility_dataset,
     group_code_and_label,
 )
 
@@ -204,13 +208,11 @@ def query_epss(
     limit: int,
     offset: int,
 ) -> tuple[list[dict[str, Any]], int, dict[str, Any]]:
-    notes: dict[str, Any] = {"dataset_utility": "PGE"}
-    # EPSS is PGE-only. Other utilities → empty.
-    if utility is not None and utility not in ("PGE", "untagged"):
-        notes["empty_reason"] = f"EPSS outages are PG&E-only; utility={utility} matches nothing"
-        return [], 0, notes
-    if utility == "untagged":
-        notes["empty_reason"] = "EPSS rows always have implicit utility PGE; untagged matches nothing"
+    # EPSS rows have no utility column; measured coverage says whose they are.
+    notes: dict[str, Any] = {"dataset_utility": ", ".join(covered_utilities("epss_outages"))}
+    empty_reason = _epss_rank_empty(utility)
+    if empty_reason is not None:
+        notes["empty_reason"] = empty_reason
         return [], 0, notes
 
     where = ["TRUE"]
@@ -1003,10 +1005,20 @@ def _rank_calfire_sql(
 
 
 def _epss_rank_empty(utility: str | None) -> str | None:
-    if utility is not None and utility not in ("PGE", "untagged"):
-        return f"EPSS outages are PG&E-only; utility={utility} matches nothing"
+    """Why an EPSS utility filter matches nothing, from measured coverage.
+
+    The EPSS table has no utility column, so the SQL cannot filter by
+    utility; a utility the measured coverage does not list must return empty
+    here rather than every row.
+    """
+    covered = covered_utilities("epss_outages")
     if utility == "untagged":
-        return "EPSS rows always have implicit utility PGE; untagged matches nothing"
+        return (
+            f"EPSS rows are all {', '.join(covered)} rows (measured coverage); "
+            "untagged matches nothing"
+        )
+    if utility is not None and utility not in covered:
+        return f"{coverage_summary('epss_outages')}; utility={utility} matches nothing"
     return None
 
 
@@ -1117,7 +1129,10 @@ def _pad_utility_rows(
     *,
     dataset: str,
     utility_filter: str | None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> list[dict[str, Any]]:
+    """One row per utility; a utility outside measured coverage is null with its reason."""
     if utility_filter:
         seed = [_utility_display_label(utility_filter)]
     else:
@@ -1125,8 +1140,14 @@ def _pad_utility_rows(
     keys = list(dict.fromkeys([*seed, *sorted(counts)]))
     rows: list[dict[str, Any]] = []
     for key in keys:
-        if dataset == "epss_outages" and key != UTILITY_DISPLAY_LABELS["PGE"]:
-            rows.append({"key": key, "value": None})
+        code = group_code_and_label("utility", key)["code"]
+        gap = (
+            None
+            if key in counts
+            else dataset_coverage_gap(dataset, [code], start_date, end_date)
+        )
+        if gap is not None:
+            rows.append({"key": key, "value": None, "reason": gap["reason"]})
         else:
             rows.append({"key": key, "value": int(counts.get(key, 0))})
     return _sort_grouped_rows(rows)
@@ -1379,12 +1400,18 @@ def query_grouped_counts(
                 total = sum(value for _key, value in grouped)
 
     if group_by == "utility":
-        if dataset == "epss_outages":
-            counts = {UTILITY_DISPLAY_LABELS["PGE"]: total} if total and not empty_epss else {}
+        if dataset == "epss_outages" and single_utility_dataset(dataset):
+            # No utility column: every row is the one measured utility's.
+            only = _utility_display_label(covered_utilities(dataset)[0])
+            counts = {only: total} if total and not empty_epss else {}
         else:
             counts = dict(grouped)
         rows = _pad_utility_rows(
-            counts, dataset=dataset, utility_filter=utility
+            counts,
+            dataset=dataset,
+            utility_filter=utility,
+            start_date=start_date,
+            end_date=end_date,
         )
     else:
         rows = _sort_grouped_rows(

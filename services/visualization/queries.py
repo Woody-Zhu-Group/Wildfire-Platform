@@ -10,7 +10,11 @@ import psycopg
 from psycopg.rows import dict_row
 
 from services.shared.calfire_county import county_match_sql, multi_county_count_sql
-from services.shared.dataset_registry import calfire_default_type_sql
+from services.shared.dataset_registry import (
+    calfire_default_type_sql,
+    coverage_summary,
+    covered_utilities,
+)
 from services.shared.epss_causes import cause_display_sql, cause_filter_sql, cause_variants
 from services.visualization.styles import acres_radius_hint
 
@@ -134,9 +138,12 @@ def map_epss_circuits(
     include_outages: bool = False,
 ) -> tuple[list[dict], int, dict[str, Any]]:
     """Aggregate EPSS events onto circuit line geometries (website behavior)."""
-    notes: dict[str, Any] = {"render_as": "circuit_lines", "dataset_utility": "PGE"}
-    if utility is not None and utility not in ("PGE",):
-        notes["empty_reason"] = f"EPSS is PG&E-only; utility={utility} matches nothing"
+    # EPSS rows have no utility column; measured coverage says whose they are,
+    # and a utility it does not list matches nothing (never every row).
+    covered = covered_utilities("epss_outages")
+    notes: dict[str, Any] = {"render_as": "circuit_lines", "dataset_utility": ", ".join(covered)}
+    if utility is not None and utility not in covered:
+        notes["empty_reason"] = f"{coverage_summary('epss_outages')}; utility={utility} matches nothing"
         return [], 0, notes
 
     where = ["TRUE"]
@@ -491,7 +498,7 @@ def time_series_dates(
         elif dataset == "epss":
             where = ["TRUE"]
             params = []
-            if utility and utility not in ("PGE", None):
+            if utility and utility not in covered_utilities("epss_outages"):
                 return []
             if year is not None:
                 where.append("year = %s")

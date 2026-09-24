@@ -206,31 +206,56 @@ counts and no computed change.
 ## Dataset coverage in the executor
 
 `ToolExecutor.execute` is the one guarantee that a read never reports a zero
-for a utility its dataset does not cover, on every path (router, model, Jev
-templates, slot planner). Coverage comes from the registry
-(`DatasetSpec.covered_utilities`: EPSS is `("PGE",)`, the US sample has no
-utility column). A `data_query_records`, `data_query_rank`,
-`visualization_create`, or `comparison_run` call where no named utility is
-covered returns `ok: false` with code `not_covered` (not recoverable), the
-reason, and `not_covered` details (dataset, utilities, alternatives), and no
-service is called. A comparison that names at least one covered utility runs,
-and the service returns the uncovered side as null with its reason. The
-orchestrator turns a `not_covered` result into a clarification that names the
-reason and the data that does exist: the deterministic path, the Jev template
-path, and the model loop (which stops at the first one, so the model never
-answers that part) all do this. The router's earlier clarifications
-(`epss_non_pge_utility`, `us_sample_utility_filter`) still fire first. They,
-the Jev templates, and the slot planner read the same registry coverage
-(`utility_coverage_gap`, `NOT_COVERED_RULES` in `routing.py` for the rule id)
-and the registry's clarification text; none of them names a utility.
+for a utility or period its dataset does not cover, on every path (router,
+model, Jev templates, slot planner). Coverage is measured, never declared: the
+loaders write `shared/dataset_coverage.json` (which utilities each dataset has
+rows for, and each one's first and last date; see `db/README.md`), and the
+registry reads it (`dataset_coverage_gap`). A utility is covered from its first
+row to the dataset's last row; a read with no utility is checked against the
+dataset's own dates. For example, CPUC has rows for PacifiCorp (from
+2025-04-24), PG&E, SCE, and SDG&E only; PSPS for PG&E, SCE, SDG&E, and Liberty
+from 2021-10-11; EPSS for PG&E from 2021-11-01.
+
+`services/agent/coverage.py` applies that to one call (`call_coverage_gap`:
+the call's dataset, named utilities, and periods, a year becoming that
+calendar year). A `data_query_records`, `data_query_rank`,
+`data_query_spatial`, `visualization_create`, or `comparison_run` call with
+nothing covered returns `ok: false` with code `not_covered` (not recoverable),
+the reason, and `not_covered` details (dataset, utilities, periods, covered
+utilities, alternatives), and no service is called. A comparison with one
+covered side (a utility, or one of two periods) runs, and the uncovered side
+comes back null with its reason. The orchestrator turns a `not_covered` result
+into a clarification on the deterministic path, the Jev template path, and the
+model loop (which stops at the first one). The router checks the same call
+before it answers (`dataset_not_covered`, or `epss_non_pge_utility` and
+`us_sample_utility_filter` when a named utility has no rows in EPSS or the US
+sample at all: label rules I and J), and a `*_missing_year` clarification
+becomes the not-covered one when the dataset has no rows for the named utility
+at any date, since a year cannot help. The Jev templates and the slot planner
+read the same check (`not_covered_rule` gives the rule id); none of them names
+a utility.
+
+A clarification offers only data measured coverage has: an alternative
+dataset (the spec's `not_covered_alternatives`, in order) only where it covers
+every named utility in every asked period; another utility's rows only when
+the dataset covers exactly one in that period (EPSS: PG&E); and a named
+utility's own later dates ("PG&E's PSPS events from 2021-10-11 on"). So
+"Liberty CPUC ignitions in 2023" offers Liberty's CAL FIRE incidents but not
+PSPS (Liberty's PSPS rows start 2024-11-11), and "PacifiCorp vs PG&E PSPS in
+2019" offers CAL FIRE only.
 
 Coverage also applies per number. One result can hold counts for several
 datasets (a spatial summary for SCE territory counts CPUC ignitions, EPSS
 outages, and CAL FIRE incidents inside it, and EPSS comes back 0 because it
 holds PG&E circuits only). After any tool returns, `mark_uncovered_counts`
 resolves each key of the result's `counts` to its dataset through the registry;
-a count whose dataset does not cover the named utility becomes `None`, with
-the reason under `summary.not_covered`. An unknown count key raises. Then:
+a count whose dataset does not cover the named utility in the call's period
+becomes `None`, with the reason under `summary.not_covered`. An unknown count
+key raises. A comparison's values are checked side by side the same way (a
+service value outside coverage is nulled even if a service returns a number),
+and a covered count whose period runs past measured coverage gets a note
+saying which part it counts (`summary.coverage_notes`: "the count in 2021
+covers only 2021-11-01 to 2021-12-31"). Then:
 
 - the answer text says the count is not covered, once, on every path
   (`_with_not_covered_notes`, the last step of `_ensure_readable_answer`); the

@@ -49,9 +49,9 @@ from services.agent.views import dump_planned, empty_views_payload, plan_views
 from services.shared.dataset_registry import (
     DATASETS,
     EVENT_DATASET_WORDS,
-    REASON_CIRCUITS_PGE,
-    REASON_EPSS_PGE_ONLY,
+    REASON_CIRCUITS_SCOPE,
     REASON_NO_COUNTY,
+    STAT_LABELS,
     REASON_NO_COUNTY_AREA,
     UTILITY_DISPLAY_LABELS,
     UTILITY_POSSESSIVE_NAMES,
@@ -3458,20 +3458,31 @@ def _comparison_period(period: dict[str, Any], fallback: str) -> str:
 def _comparison_reason(reason: Any) -> str:
     text = str(reason or "the comparison service returned no value").strip().rstrip(".")
     first = text.split(" ", 1)[0]
-    # Keep acronyms ("EPSS", "PGE") as written; lowercase an ordinary first word.
+    # Keep acronyms ("EPSS", "CPUC") as written; lowercase an ordinary first word.
     if any(char.isupper() for char in first[1:]):
         return text
     return text[:1].lower() + text[1:]
 
 
-def _comparison_alternative(reason: Any, entity: str) -> str | None:
-    """What the warehouse does hold when a comparison value is null."""
-    if reason == REASON_EPSS_PGE_ONLY:
+def _comparison_alternative(row: dict[str, Any], entity: str) -> str | None:
+    """What the warehouse does hold when a comparison value is null.
+
+    For a value outside measured coverage, only the alternatives whose measured
+    coverage includes that utility and period (``row["not_covered"]``) are
+    offered, so no offer leads to another absent count.
+    """
+    reason = row.get("reason")
+    gap = row.get("not_covered")
+    if isinstance(gap, dict):
+        alternatives = [STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []]
+        if not alternatives:
+            return None
+        whose = f"{entity}'s " if gap.get("utilities") else ""
         return (
-            f"{entity}'s PSPS events and CPUC ignitions do exist in the warehouse "
-            "and can be compared instead."
+            f"{whose}{' and '.join(alternatives)} do exist in the warehouse for that "
+            "period and can be compared instead."
         )
-    if reason == REASON_CIRCUITS_PGE:
+    if reason == REASON_CIRCUITS_SCOPE:
         return f"The unnormalized count for {entity} does exist; ask without per circuit."
     if reason == REASON_NO_COUNTY:
         return (
@@ -3498,7 +3509,7 @@ def _render_comparison_answer(arguments: dict[str, Any], summary: dict[str, Any]
                 present.append(f"{entity} {_comparison_number(row['value'])}")
                 continue
             sentence = f"{entity} has no {label}: {_comparison_reason(row.get('reason'))}."
-            alternative = _comparison_alternative(row.get("reason"), entity)
+            alternative = _comparison_alternative(row, entity)
             missing.append(f"{sentence} {alternative}" if alternative else sentence)
         lines = []
         if present:
@@ -3537,7 +3548,7 @@ def _render_comparison_answer(arguments: dict[str, Any], summary: dict[str, Any]
                 f"({_comparison_reason(period_a.get('reason'))}) or {name_b} "
                 f"({_comparison_reason(period_b.get('reason'))}), so no change can be computed."
             )
-        alternative = _comparison_alternative(reason, entity) if reason else None
+        alternative = _comparison_alternative(period_a, entity) if reason else None
         return f"{line} {alternative}" if alternative else line
     known_name, known_value = (name_a, value_a) if value_a is not None else (name_b, value_b)
     missing_name, missing = (name_b, period_b) if value_a is not None else (name_a, period_a)
@@ -3546,7 +3557,7 @@ def _render_comparison_answer(arguments: dict[str, Any], summary: dict[str, Any]
         f"There is no value for {missing_name}: {_comparison_reason(missing.get('reason'))}, "
         "so no change can be computed."
     )
-    alternative = _comparison_alternative(missing.get("reason"), entity)
+    alternative = _comparison_alternative(missing, entity)
     return f"{line} {alternative}" if alternative else line
 
 

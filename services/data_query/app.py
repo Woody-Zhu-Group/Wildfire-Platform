@@ -32,6 +32,8 @@ from services.data_query.geo import respond
 from services.shared.dataset_registry import (
     CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
     US_IGNITIONS_META_DATA_QUERY,
+    coverage_summary,
+    single_utility_dataset,
 )
 from shared.db import connect, get_settings
 
@@ -143,13 +145,10 @@ def rank(
                 "not available"
             ),
         )
-    if dataset_key == "epss_outages" and group_key == "utility":
+    if group_key == "utility" and single_utility_dataset(dataset_key):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "EPSS outages are PG&E-only; there is no utility dimension "
-                "to rank"
-            ),
+            detail=f"{coverage_summary(dataset_key)}; there is no utility dimension to rank",
         )
     util = parse_utility(utility) if utility else None
     county = parse_county(county)
@@ -448,7 +447,7 @@ def us_ignitions(
 @app.get("/epss/outages")
 def epss_outages(
     circuit_id: Optional[str] = Query(None),
-    utility: Optional[str] = Query(None, description="PGE only; other utilities return empty"),
+    utility: Optional[str] = Query(None, description="Only utilities in measured EPSS coverage; others return empty"),
     county: Optional[str] = Query(None),
     year: Optional[int] = Query(None),
     start_date: Optional[str] = Query(None),

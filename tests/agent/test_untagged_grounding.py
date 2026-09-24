@@ -159,7 +159,9 @@ def test_the_executor_keeps_untagged_only_when_allowed():
         return _time_series(request)
 
     executor = ToolExecutor(AgentSettings(), ArtifactStore(60), transport=httpx.MockTransport(handler))
-    args = {"kind": "time_series", "dataset": "ignitions", "utility": "untagged", "year": 2024, "interval": "weekly"}
+    # CAL FIRE: measured coverage has rows without a utility; CPUC has none, so
+    # an untagged CPUC read is not covered rather than a zero.
+    args = {"kind": "time_series", "dataset": "calfire", "utility": "untagged", "year": 2024, "interval": "weekly"}
     blocked = asyncio.run(executor.execute("visualization_create", dict(args), request_id="t", attempt=1, utilities=[]))
     allowed = asyncio.run(
         executor.execute("visualization_create", dict(args), request_id="t", attempt=2, utilities=[], allow_untagged=True)

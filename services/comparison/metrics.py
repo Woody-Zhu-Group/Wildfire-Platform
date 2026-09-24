@@ -5,9 +5,8 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from services.shared.dataset_registry import (
-    REASON_CIRCUITS_PGE,
+    REASON_CIRCUITS_SCOPE,
     REASON_COMPONENT_NULL,
-    REASON_EPSS_PGE_ONLY,
     REASON_NO_COUNTY,
     REASON_NO_COUNTY_AREA,
     REASON_ZERO_IGNITIONS,

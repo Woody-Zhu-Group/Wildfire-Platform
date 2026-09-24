@@ -23,13 +23,12 @@ from services.agent.routing import (
     comparison_uncarried_constraints,
 )
 from services.shared.dataset_registry import (
-    COMPARISON_METRIC_DATASETS,
     HFTD_TIER_BY_NUMBER,
     HFTD_TIER_NAMES,
     LAYER_VIZ_KEYS,
     TIER_DIGIT_PATTERN,
-    utility_coverage_gap,
 )
+from services.agent.coverage import call_coverage_gap
 
 
 _VIZ_DATASET = LAYER_VIZ_KEYS
@@ -219,13 +218,17 @@ def arguments_for_tool(
     return None
 
 
-def _not_covered(dataset: Any, utilities: list[str]) -> bool:
-    """The dataset holds no rows for the named utility (label rules I and J).
+def _not_covered(tool: str, args: dict[str, Any], utilities: list[str]) -> bool:
+    """Measured coverage has no rows for the named utilities in the period.
 
     Such a read is absent, not zero, so the template falls back to the model
     loop, where the router's clarification or the executor's check applies.
     """
-    return bool(dataset) and utility_coverage_gap(str(dataset), utilities) is not None
+    for utility in utilities or [None]:
+        call = {**args, "utility": utility} if utility else args
+        if call_coverage_gap(tool, call) is not None:
+            return True
+    return False
 
 
 def _records_args(slots: dict[str, Any]) -> dict[str, Any] | None:
@@ -237,7 +240,7 @@ def _records_args(slots: dict[str, Any]) -> dict[str, Any] | None:
     if len(utilities) > 1:
         return None
     args: dict[str, Any] = {"dataset": dataset, "result_mode": "count", **time_args}
-    if _not_covered(dataset, utilities):
+    if _not_covered("data_query_records", args, utilities):
         return None
     if len(utilities) == 1:
         args["utility"] = utilities[0]
@@ -271,7 +274,7 @@ def _visualization_args(slots: dict[str, Any], question: str) -> dict[str, Any] 
             return None
         args["interval"] = interval.group(1)
     utilities = list(slots.get("utilities") or [])
-    if _not_covered(dataset, utilities):
+    if _not_covered("visualization_create", args, utilities):
         return None
     if len(utilities) == 1:
         args["utility"] = utilities[0]
@@ -286,7 +289,13 @@ def _visualization_args(slots: dict[str, Any], question: str) -> dict[str, Any] 
 def _comparison_args(slots: dict[str, Any], question: str) -> dict[str, Any] | None:
     """Comparison arguments from slots, or None when a named constraint would drop."""
     args = _comparison_slot_args(slots, question)
-    if args is not None and comparison_uncarried_constraints(question, args, slots):
+    if args is None:
+        return None
+    if call_coverage_gap("comparison_run", args) is not None:
+        # Measured coverage has none of the named utilities in the period
+        # (label rule I), so every side would be null. The router clarifies.
+        return None
+    if comparison_uncarried_constraints(question, args, slots):
         return None
     return args
 
@@ -297,10 +306,6 @@ def _comparison_slot_args(slots: dict[str, Any], question: str) -> dict[str, Any
     if metric is None or "us ignition" in lower:
         return None
     utilities = list(slots.get("utilities") or [])
-    if utility_coverage_gap(COMPARISON_METRIC_DATASETS[metric], utilities):
-        # The metric's dataset covers none of the named utilities (label rule
-        # I), so every side would be null. The router clarifies these.
-        return None
     years = list(slots.get("years") or [])
     if len(years) == 2 and len(utilities) == 1:
         a_start, a_end = _range_for_year(int(years[0]))

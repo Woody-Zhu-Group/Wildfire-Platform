@@ -21,8 +21,10 @@ from services.data_query.filters import (
 from services.shared.calfire_county import MULTI_COUNTY_NOTE, multi_county_meta
 from services.shared.dataset_registry import (
     CALFIRE_DEFAULT_INCIDENT_TYPES,
+    DATASET_COVERAGE,
     HFTD_TIERS,
     group_code_and_label,
+    partial_coverage_note,
 )
 from shared.db import connect, get_settings
 
@@ -51,7 +53,8 @@ app = FastAPI(
     title="Wildfire Comparison",
     description=(
         "Compare metrics across utilities, counties/HFTD tiers, or two date ranges. "
-        "EPSS is PG&E-only (null + reason, never zero). Ignition counts use an explicit "
+        "A value outside measured dataset coverage (a utility or a period with no rows) "
+        "is null with its reason, never zero. Ignition counts use an explicit "
         "attribute vs spatial definition."
     ),
     version="0.1.0",
@@ -138,13 +141,21 @@ def _metric_for_scope(
     denom, denom_reason = queries.normalization_denominator(
         conn, scope=scope, scope_id=scope_id, normalize=normalize
     )
-    return metrics.apply_normalization(
+    row = metrics.apply_normalization(
         raw,
         key=scope_id,
         normalize=normalize,
         denominator=denom,
         denom_reason=denom_reason,
     )
+    # A period that runs past the measured window counts only its covered part.
+    note = partial_coverage_note(
+        metrics.METRIC_DATASETS[metric],
+        scope_id if scope == "utility" else None,
+        start,
+        end,
+    )
+    return {**row, "coverage_note": note} if note else row
 
 
 CALFIRE_METRICS = frozenset({"calfire_incident_count", "acres_burned"})
@@ -177,7 +188,8 @@ def _base_meta(
         "normalize": normalize,
         "ignition_definition": ignition_definition,
         "calfire_incident_types": list(CALFIRE_DEFAULT_INCIDENT_TYPES),
-        "epss_scope": "PGE-only",
+        # Measured coverage of the metric's dataset (shared/dataset_coverage.json).
+        "coverage": DATASET_COVERAGE.get(metrics.METRIC_DATASETS[metric]),
         "area_method": "ST_Area(geom::geography)/1e6 km2",
         "filters": filters,
         "notes": notes or [],
@@ -196,7 +208,10 @@ def health(conn: psycopg.Connection = Depends(get_conn)) -> dict[str, Any]:
         "definitions": {
             "ignitions_attribute": "Filter/count by utility column (default for utility compares).",
             "ignitions_spatial": "ST_Within IOU or HFTD polygon (default for HFTD compares).",
-            "epss": "PG&E-only; non-PGE utilities return null with reason, not zero.",
+            "coverage": (
+                "Measured by the loaders: a utility or period a dataset has no rows "
+                "for returns null with reason, not zero."
+            ),
             "calfire": "Default incident_type IN (Wildfire, Fire); untyped excluded.",
             "no_cpz": "No Circuit Protection Zone polygons in this warehouse.",
         },
