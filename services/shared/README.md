@@ -4,7 +4,7 @@ Backend-only helpers shared by the FastAPI services. Not to be confused with the
 
 ## `dataset_registry.py`
 
-One catalog of the warehouse datasets. Each `DatasetSpec` in `DATASETS` records the warehouse table, aliases, visualization key, agent key, map style, allowed group-by fields, summary metrics, filters, rank pairs, routes and caveat IDs for one dataset.
+One catalog of the warehouse datasets. Each `DatasetSpec` in `DATASETS` records the warehouse table, aliases, visualization key, agent key, map style, allowed group-by fields, summary metrics, filters, rank pairs, routes and caveat IDs for one dataset. `covered_utilities` (with `not_covered_reason` and `not_covered_alternatives`) says which utilities the dataset holds rows for: `None` for every utility, `("PGE",)` for EPSS, and an empty tuple for the US sample, which has no utility column. `utility_coverage_gap(dataset, utilities)` reads it, and `COMPARISON_METRIC_DATASETS` maps each comparison metric to its dataset. The agent executor and the comparison service both use them.
 
 Imported by:
 

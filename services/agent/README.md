@@ -30,6 +30,15 @@ dataset/metric, scope, and required time/location slots are explicit:
   clarification offers the utility's PSPS events or CPUC ignitions. A
   comparison that names PG&E still runs, and the non-PG&E side is null with
   its reason. "Outage" in a comparison means EPSS unless the question names PSPS
+- a comparison that would drop a named utility, county, HFTD tier, or month
+  (one `comparison_run` compares utilities, tiers, or two whole years of one
+  scope) → clarification `unexpressed_filter_constraints`, for every metric.
+  "Compare SCE ignitions tier 2 vs tier 3 in 2023" used to return statewide
+  tier counts. A utility counts as carried when the metric's dataset covers
+  only that utility (a PG&E EPSS tier comparison runs). The Jev comparison
+  template applies the same check (`comparison_uncarried_constraints`), and on
+  the model path any run that includes a comparison must cover every named
+  utility, county, year, and tier or it stops with a clarification
 - a US-sample question restricted to a utility (map, count, series, rank, or a
   comparison with CPUC) → clarification `us_sample_utility_filter` (label rule
   J): the sample has no utility column, so the router offers the national
@@ -193,6 +202,24 @@ Jev off) they stay out of the evidence, so neither synthesis nor the fallback
 text can show them, and the trajectory records `derived_evidence_withheld`.
 With Jev off, a change question over two model reads therefore gets both
 counts and no computed change.
+
+## Dataset coverage in the executor
+
+`ToolExecutor.execute` is the one guarantee that a read never reports a zero
+for a utility its dataset does not cover, on every path (router, model, Jev
+templates, slot planner). Coverage comes from the registry
+(`DatasetSpec.covered_utilities`: EPSS is `("PGE",)`, the US sample has no
+utility column). A `data_query_records`, `data_query_rank`,
+`visualization_create`, or `comparison_run` call where no named utility is
+covered returns `ok: false` with code `not_covered` (not recoverable), the
+reason, and `not_covered` details (dataset, utilities, alternatives), and no
+service is called. A comparison that names at least one covered utility runs,
+and the service returns the uncovered side as null with its reason. The
+orchestrator turns a `not_covered` result into a clarification that names the
+reason and the data that does exist: the deterministic path, the Jev template
+path, and the model loop (which stops at the first one, so the model never
+answers that part) all do this. The router's earlier clarifications
+(`epss_non_pge_utility`, `us_sample_utility_filter`) still fire first.
 
 A comparison answer (`_render_comparison_answer` in `orchestrator.py`) is
 plain sentences on every comparison route. A null value is never shown as
