@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 8771",
     "build": "tsc --noEmit && node scripts/build.mjs",
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test tests/*.test.ts",
+    "check-build": "node scripts/check-build.mjs"
   },
   "dependencies": {
     "@turf/boolean-point-in-polygon": "^7.3.0",
