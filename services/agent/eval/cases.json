@@ -802,6 +802,18 @@
     "expected_tools": [
       "data_query_records"
     ],
+    "accepted_tool_sequences": [
+      [
+        "data_query_records",
+        "data_query_records"
+      ],
+      [
+        "data_query_records",
+        "data_query_records",
+        "data_query_records"
+      ]
+    ],
+    "expectation_note": "With OpenRouter tool_choice required (PR 73, 2026-09-24) the model answers this open question with a calfire_incidents count call plus one or two records calls, all for Sacramento County 2024. Both give the correct answer (11 incidents, evidence-backed), so the extra records-only calls are accepted; the single records call remains the primary expectation.",
     "required_caveats": [
       "calfire_missingness"
     ],

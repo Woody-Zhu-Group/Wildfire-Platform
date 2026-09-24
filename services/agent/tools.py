@@ -89,6 +89,7 @@ class ToolExecutor:
         time_resolution: dict[str, Any] | None = None,
         qualification_call: bool = False,
         harness_call: bool = False,
+        allow_untagged: bool = False,
     ) -> dict[str, Any]:
         """Return harness-normalized arguments without calling the backend.
 
@@ -110,7 +111,7 @@ class ToolExecutor:
         )
         if not qualification_call:
             normalized, _stripped = _strip_ungrounded_utilities(
-                normalized, utilities=utilities
+                normalized, utilities=utilities, allow_untagged=allow_untagged
             )
             normalized, _error = apply_harness_years(
                 normalized,
@@ -132,6 +133,7 @@ class ToolExecutor:
         utilities: list[str] | None = None,
         time_resolution: dict[str, Any] | None = None,
         harness_call: bool = False,
+        allow_untagged: bool = False,
     ) -> ToolExecution:
         started = time.perf_counter()
         if tool not in EXECUTABLE_TOOL_MODELS:
@@ -204,7 +206,7 @@ class ToolExecutor:
             )
         if not qualification_call:
             normalized_arguments, stripped_utilities = _strip_ungrounded_utilities(
-                normalized_arguments, utilities=utilities
+                normalized_arguments, utilities=utilities, allow_untagged=allow_untagged
             )
             normalized_arguments, year_error = apply_harness_years(
                 normalized_arguments,
@@ -284,7 +286,7 @@ class ToolExecutor:
         if self.fault_scenario == "validation_error_persistent" and not qualification_call:
             return self._error(
                 tool,
-                arguments,
+                normalized_arguments,
                 "invalid_arguments",
                 "Injected persistent schema validation failure.",
                 True,
@@ -306,7 +308,7 @@ class ToolExecutor:
             if self.fault_scenario == "validation_error_once":
                 return self._error(
                     tool,
-                    arguments,
+                    normalized_arguments,
                     "invalid_arguments",
                     "Injected validation failure for recovery evaluation.",
                     True,
@@ -317,7 +319,7 @@ class ToolExecutor:
             if self.fault_scenario == "service_503_once":
                 return self._error(
                     tool,
-                    arguments,
+                    normalized_arguments,
                     "service_unavailable",
                     "Injected HTTP 503 for recovery evaluation.",
                     True,
@@ -791,14 +793,20 @@ def _strip_ungrounded_utilities(
     arguments: dict[str, Any],
     *,
     utilities: list[str] | None,
+    allow_untagged: bool = False,
 ) -> tuple[dict[str, Any], list[str]]:
     """Remove utility filters that were not named in the question/slots.
 
     Place names (e.g. Sacramento) must never be silently coerced into an IOU.
     Prefer stripping and answering at the asked scope over rejecting the call
-    after the model invents SCE/PGE.
+    after the model invents SCE/PGE. "untagged" (records with no utility) is
+    kept only when allow_untagged says the question asked for it; it is a
+    valid value that would otherwise turn a statewide count into a count of
+    unattributed records.
     """
     allowed = set(utilities or [])
+    if allow_untagged:
+        allowed.add("untagged")
     filled = dict(arguments)
     stripped: list[str] = []
     value = filled.get("utility")

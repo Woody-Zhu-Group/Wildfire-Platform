@@ -20,6 +20,7 @@ from services.agent.domain import DOMAIN_REFERENCE
 from services.agent.grounding import (
     ground_model_filters,
     named_entities,
+    question_allows_untagged,
     uncovered_entities,
 )
 from services.agent.provider import OpenAICompatibleProvider, SynthesisTimeoutError
@@ -795,6 +796,7 @@ class AgentOrchestrator:
         cancel_event: asyncio.Event | None = None,
         qualification_call: bool = False,
         harness_call: bool = False,
+        allow_untagged: bool = False,
     ) -> ToolExecution:
         self._raise_if_cancelled(cancel_event)
         if tool in HARNESS_TOOL_MODELS and not harness_call:
@@ -826,6 +828,7 @@ class AgentOrchestrator:
                 year=year,
                 years=years,
                 utilities=utilities,
+                allow_untagged=allow_untagged,
                 time_resolution=time_resolution,
                 harness_call=harness_call,
             )
@@ -850,6 +853,7 @@ class AgentOrchestrator:
             year=year,
             years=years,
             utilities=utilities,
+            allow_untagged=allow_untagged,
             time_resolution=time_resolution,
             qualification_call=qualification_call,
             harness_call=harness_call,
@@ -888,6 +892,7 @@ class AgentOrchestrator:
                     year=year,
                     years=years,
                     utilities=utilities,
+                    allow_untagged=allow_untagged,
                     time_resolution=time_resolution,
                     harness_call=harness_call,
                 )
@@ -912,6 +917,7 @@ class AgentOrchestrator:
                 year=year,
                 years=years,
                 utilities=utilities,
+                allow_untagged=allow_untagged,
                 time_resolution=time_resolution,
                 qualification_call=qualification_call,
                 harness_call=harness_call,
@@ -1058,6 +1064,9 @@ class AgentOrchestrator:
             county=county,
             time_resolution=time_resolution,
         )
+        # "untagged" is a valid utility value the model may pick on its own;
+        # only a question about untagged or unattributed records keeps it.
+        allow_untagged = question_allows_untagged(question)
         routing_messages: list[dict[str, Any]] = [
             {
                 "role": "user",
@@ -1340,6 +1349,7 @@ class AgentOrchestrator:
                         year=year,
                         years=years,
                         utilities=utilities,
+                        allow_untagged=allow_untagged,
                         time_resolution=time_resolution,
                         trajectory=trajectory,
                         on_event=on_event,
@@ -1449,6 +1459,7 @@ class AgentOrchestrator:
                         year=year,
                         years=years,
                         utilities=utilities,
+                        allow_untagged=allow_untagged,
                         time_resolution=time_resolution,
                         trajectory=trajectory,
                         on_event=on_event,
@@ -1609,6 +1620,7 @@ class AgentOrchestrator:
         trajectory: list[dict[str, Any]],
         on_event: ProgressCallback | None,
         cancel_event: asyncio.Event | None,
+        allow_untagged: bool = False,
     ) -> list[ToolExecution]:
         """For open-ended asks, ensure a small record sample exists alongside counts."""
         del question  # detection already done by caller
@@ -1635,6 +1647,7 @@ class AgentOrchestrator:
                 year=year,
                 years=years or [],
                 utilities=utilities or [],
+                allow_untagged=allow_untagged,
                 time_resolution=time_resolution,
                 trajectory=trajectory,
                 on_event=on_event,

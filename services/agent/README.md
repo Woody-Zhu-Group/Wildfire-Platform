@@ -34,7 +34,14 @@ range (`time_resolve.apply_harness_years`), strips invented utilities
 (`tools._strip_ungrounded_utilities`), and drops model-proposed filters (circuit
 id, HFTD tier, county, coordinates) and sentinel values that the question and
 router slots do not support (`grounding.ground_model_filters`); each drop is
-logged.
+logged. Enum values the tool schema accepts are filters too: `utility=untagged`
+runs only when the question asks about untagged, unattributed, or non-utility
+records (`grounding.question_allows_untagged`), and a CAL FIRE
+`incident_type_mode` of `all` or `untyped` runs only when the question asks for
+every incident type or for records with no type
+(`grounding.question_incident_type_modes`). Otherwise the value is dropped and
+the tool runs at its default, never at a narrower or wider scope the user did
+not ask for.
 
 ## Grouped tools
 
