@@ -19,6 +19,7 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 - Every change to routing reports how many existing routes changed across `cases.json`, `jev_paraphrases.json`, and all holdouts.
 - Any claim about accuracy states which eval set it came from and whether that set is clean or already used for tuning.
 - Every PR that changes behavior, setup, architecture, endpoints, or env vars must update the affected docs (READMEs, `docs/*.md`, service READMEs, `.env.example`, CLAUDE.md, AGENTS.md) in the same PR, verified against the code on that branch. The PR description must list the docs touched, or say that none were affected. Never describe unmerged work as done.
+- Any PR that changes website source (anything under `website/` that the build reads: `src/`, `index.html`, `package*.json`, `vite.config.ts`, `.env.production`) must run `npm run build` in `website/` and commit the rebuilt `docs/index.html` and `docs/assets/workspace/` in the same PR. The website test `tests/build-freshness.test.ts` (also `npm run check-build`) fails when `docs/` is not the build of the current source.
 
 ## Architecture (target design: Jev first)
 
@@ -58,7 +59,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 ## Tests
 
 - `pytest tests/agent`
-- Website tests in `website/tests/`
+- Website tests in `website/tests/` (`npm test`), including the check that `docs/` matches a fresh build
 
 ## Branches and merge order
 
