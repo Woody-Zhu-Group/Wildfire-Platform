@@ -27,6 +27,6 @@ test('cumulative acres preserves zero days and missing acreage', () => {
 
 test('the caption never reports 0 missing-acreage incidents before the records load', () => {
   assert.match(cumulativeCaption('2024-01-01', '2024-12-31', undefined), /not available until the records load/);
-  assert.doesNotMatch(cumulativeCaption('2024-01-01', '2024-12-31', undefined), /0 incidents/);
+  assert.doesNotMatch(cumulativeCaption('2024-01-01', '2024-12-31', undefined), /\b0 incidents/);
   assert.match(cumulativeCaption('2024-01-01', '2024-12-31', 0), /0 incidents have no acreage/);
 });

@@ -133,27 +133,37 @@ def month_from_text(text: str) -> tuple[int, str] | None:
     return found[0] if found else None
 
 
-def named_months(text: str) -> list[tuple[int, str]]:
-    """Every distinct calendar month named, as (month_number, phrase), in text order.
-
-    "July 2024 and August 2024" names two months; a resolver that kept only
-    one would silently drop the other, and a harness that held the model's
-    July call to that one month would rewrite it to August.
-    """
-    lower = " ".join(text.lower().split())
-    found: dict[int, tuple[int, int, str]] = {}
-    for name, number in sorted(MONTHS.items(), key=lambda item: -len(item[0])):
-        for match in re.finditer(rf"\b{re.escape(name)}\b", lower):
-            if number not in found or match.start() < found[number][0]:
-                found[number] = (match.start(), number, name)
-    return [(number, name) for _pos, number, name in sorted(found.values())]
-
-
 _MONTH_LIST_SEP = r"(?:\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+|\s*&\s*)(?:in\s+)?"
 _MONTH_LIST = re.compile(
     rf"\b((?:{_MONTH_ALT})(?:\s+(?:20\d{{2}}))?(?:{_MONTH_LIST_SEP}(?:{_MONTH_ALT})(?:\s+(?:20\d{{2}}))?)*)"
     rf"\s*,?\s+(?:of\s+|in\s+)?(20\d{{2}})\b"
 )
+
+
+def named_months(text: str) -> list[tuple[int, str]]:
+    """Every distinct calendar month named, as (month_number, phrase), in text order.
+
+    "July 2024 and August 2024" names two months; a resolver that kept only
+    one would silently drop the other, and a harness that held the model's
+    July call to that one month would rewrite it to August. A month word
+    counts only where it is a date: where ``months_from_text`` reads it as a
+    month, or inside a list of months that ends in a year ("July and August
+    2023"). "may" and "march" as verbs are never months.
+    """
+    lower = " ".join(text.lower().split())
+    found: dict[int, tuple[int, int, str]] = {}
+
+    def add(number: int, position: int, name: str) -> None:
+        if number not in found or position < found[number][0]:
+            found[number] = (position, number, name)
+
+    for match in _MONTH_IN_CONTEXT.finditer(lower):
+        group = next(name for name in ("after", "before", "following", "ending") if match.group(name))
+        add(MONTHS[match.group(group)], match.start(group), match.group(group))
+    for match in _MONTH_LIST.finditer(lower):
+        for item in re.finditer(rf"\b({_MONTH_ALT})\b", match.group(1)):
+            add(MONTHS[item.group(1)], match.start(1) + item.start(1), item.group(1))
+    return [(number, name) for _pos, number, name in sorted(found.values())]
 
 
 def named_month_periods(text: str) -> list[str]:

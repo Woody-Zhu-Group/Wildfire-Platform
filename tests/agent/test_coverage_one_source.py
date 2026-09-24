@@ -437,6 +437,38 @@ def test_real_month_questions_still_resolve_to_the_month():
     assert (resolved.start_date, resolved.end_date) == ("2023-08-01", "2023-08-31")
 
 
+# Found when rebasing onto #95: its named_months counted every month word, so
+# "may" the verb beside a real month widened the window from May to the month
+# and deferred the count as two months. named_months follows the same rule as
+# months_from_text (and #95's list of months ending in a year).
+VERB_BESIDE_A_MONTH = [
+    ("How many PG&E ignitions in August 2023, which may be higher than usual?", 8, 2023),
+    ("SCE ignitions for July 2022 so I can march them into my report", 7, 2022),
+    ("Count PG&E ignitions in June 2024; you may round the number", 6, 2024),
+    ("What were SDG&E ignitions in October 2021, and may I see the map too?", 10, 2021),
+]
+
+
+@pytest.mark.parametrize("question,month,year", VERB_BESIDE_A_MONTH)
+def test_a_verb_beside_a_real_month_does_not_widen_the_window(question, month, year):
+    from services.agent.time_resolve import named_months
+
+    assert [number for number, _word in named_months(question)] == [month]
+    resolved = resolve_time(question)
+    assert resolved.start_date == f"{year}-{month:02d}-01", resolved
+    assert resolved.end_date[:7] == f"{year}-{month:02d}", resolved
+
+
+def test_named_months_still_reads_lists_of_months_that_end_in_a_year():
+    from services.agent.time_resolve import named_months
+
+    for question in (
+        "How many PG&E ignitions were there in July and August 2024?",
+        "How many PG&E ignitions were there in July 2024 and August 2024?",
+    ):
+        assert [number for number, _word in named_months(question)] == [7, 8], question
+
+
 # ---------------------------------------------------------------------------
 # 3. One source for coverage
 # ---------------------------------------------------------------------------
