@@ -317,6 +317,52 @@ UNTYPED_INCIDENT_PATTERN = re.compile(
 )
 
 # ---------------------------------------------------------------------------
+# Change intent in questions. One definition, used by time resolution
+# (two endpoint years, not one span), derived arithmetic (which operations
+# to compute), and routing (a period comparison for one utility or county).
+# ---------------------------------------------------------------------------
+
+# How a question asks how a quantity moved between two periods: change verbs,
+# up or down, percent change forms, a ratio between periods (not a named
+# metric ratio such as EPSS-to-ignition), and comparatives ("more ... than",
+# "fewer ... than 2020"; "more than 100 acres" is a size, not a change).
+CHANGE_INTENT_PATTERN = re.compile(
+    r"\b(?:chang(?:e|ed|es|ing)|differen(?:ce|ces|t)|differ(?:ed|s)?|"
+    r"increas(?:e|ed|es|ing)|decreas(?:e|ed|es|ing)|ris(?:e|en|ing)|rose|"
+    r"f[ae]ll(?:en|ing)?|drop(?:ped|s)?|gr[eo]w(?:n|th|s)?|declin(?:e|ed|es|ing)|"
+    r"(?:went|go|gone|going|goes)\s+(?:up|down)|"
+    r"(?:up|down)\s+or\s+(?:up|down)|"
+    r"(?:up|down)\s+(?:in|from|between|since|by|compared)|"
+    r"percent(?:age)?\s+(?:change|increase|decrease|difference)|"
+    r"by\s+what\s+percent(?:age)?|"
+    r"(?<!to[- ]ignition\s)(?<!ignition\s)ratio|"
+    r"(?:more|fewer|less|higher|lower|greater|smaller|larger|bigger)\b"
+    r"(?:\s+\S+){0,8}?\s+than\s+(?:(?:in\s+)?20\d{2}\b|(?!\d)))",
+    re.IGNORECASE,
+)
+# Compare words. Beside two listed years ("compare X in 2017 and 2022") they
+# name a comparison between those years. Beside a written range ("compare
+# Liberty and Bear Valley from 2019 through 2023") they may compare two
+# entities over one span, so they do not split a range on their own.
+COMPARISON_WORDS_PATTERN = re.compile(
+    r"\b(?:compar(?:e|ed|es|ing|ison)|versus|vs\.?)\b", re.IGNORECASE
+)
+# A percent or a ratio the derived arithmetic should compute.
+PERCENT_ASK_PATTERN = re.compile(r"\bpercent(?:age)?\b|%", re.IGNORECASE)
+RATIO_ASK_PATTERN = re.compile(
+    r"\bratio\b|\btimes (?:as (?:many|much|high)|more|higher)\b|\b(?:double|triple)d?\b|\bfold\b",
+    re.IGNORECASE,
+)
+# A total asked over a range keeps the range one span even beside a change
+# word ("how many in total from 2019 to 2022"). A noun total whose change is
+# asked ("increase in county totals from 2017 to 2021") is still a change.
+TOTAL_ASK_PATTERN = re.compile(
+    r"\bin\s+total\b|\boverall\b|\baltogether\b|\bcombined\b|\bsum\b|"
+    r"\btotal\s+(?:number|count)\b|^\s*total\b|\b(?:the|a)\s+total\s+(?:of|for)\b",
+    re.IGNORECASE,
+)
+
+# ---------------------------------------------------------------------------
 # Dataset wording in questions (keys, aliases, and labels are on DatasetSpec)
 # ---------------------------------------------------------------------------
 

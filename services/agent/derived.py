@@ -8,10 +8,13 @@ module computes those values from the successful primary count results and
 returns them as one evidence item with its own id and the ids it came from.
 Synthesis cites that id like any other evidence.
 
-Pairs are formed only between counts of the same measure:
-- the same entity (same dataset, utility, county, tier, filters) across two
-  periods, earliest period first;
-- two entities in the same period, when the period has exactly two.
+Which pairs to form comes from the structure of the calls, not from the
+question's words. Within one measure (dataset, metric, definition):
+- an entity (same dataset, utility, county, tier, filters) that appears in two
+  or more periods gets its change over time, earliest period first;
+- a difference between two entities is computed only when every call of that
+  measure shares one period and there are exactly two entities. Calls over
+  several periods never produce cross-entity rows the question did not ask for.
 Nothing is derived from qualification companions.
 """
 
@@ -24,33 +27,29 @@ from datetime import date
 from typing import Any
 
 from services.agent.tools import ToolExecution
+from services.shared.dataset_registry import (
+    CHANGE_INTENT_PATTERN,
+    COMPARISON_WORDS_PATTERN,
+    PERCENT_ASK_PATTERN,
+    RATIO_ASK_PATTERN,
+)
 
 DERIVED_TOOL = "harness_arithmetic"
 
-_CHANGE_RE = re.compile(
-    r"\b(?:chang(?:e|ed|es|ing)|differen(?:ce|ces|t)|differ(?:ed|s)?|"
-    r"increas(?:e|ed|es|ing)|decreas(?:e|ed|es|ing)|ris(?:e|en|ing)|rose|"
-    r"f[ae]ll|falling|drop(?:ped|s)?|gr[eo]w(?:n|th)?|declin(?:e|ed|es|ing)|"
-    r"up or down|how much (?:more|less|fewer|higher|lower)|"
-    r"how many (?:more|fewer)|by how much|gap)\b",
-    re.IGNORECASE,
-)
-_PERCENT_RE = re.compile(r"\bpercent(?:age)?\b|%", re.IGNORECASE)
-_RATIO_RE = re.compile(
-    r"\bratio\b|\btimes (?:as (?:many|much|high)|more|higher)\b|\b(?:double|triple)d?\b|\bfold\b",
-    re.IGNORECASE,
-)
-
-
 def requested_operations(question: str) -> set[str]:
-    """Arithmetic the question asks for: difference, percent_change, ratio."""
+    """Arithmetic the question asks for: difference, percent_change, ratio.
+
+    Change intent is the registry's one definition (CHANGE_INTENT_PATTERN),
+    shared with time resolution and routing; a compare word asks for the
+    difference too. Which pairs get these values is decided by call structure.
+    """
     text = question or ""
     ops: set[str] = set()
-    if _PERCENT_RE.search(text):
+    if PERCENT_ASK_PATTERN.search(text):
         ops.update({"difference", "percent_change"})
-    if _RATIO_RE.search(text):
-        ops.add("ratio")
-    if _CHANGE_RE.search(text):
+    if RATIO_ASK_PATTERN.search(text):
+        ops.update({"difference", "ratio"})
+    if CHANGE_INTENT_PATTERN.search(text) or COMPARISON_WORDS_PATTERN.search(text):
         ops.add("difference")
     return ops
 
@@ -213,17 +212,20 @@ def derive_arithmetic(question: str, executions: list[ToolExecution]) -> ToolExe
 
     rows: list[dict[str, Any]] = []
     by_entity: dict[tuple[str, str], list[_Cell]] = {}
-    by_period: dict[tuple[str, str, str], list[_Cell]] = {}
+    by_measure: dict[str, list[_Cell]] = {}
     for cell in cells.values():
         by_entity.setdefault((cell.measure, cell.entity), []).append(cell)
-        by_period.setdefault((cell.measure, cell.start, cell.end), []).append(cell)
+        by_measure.setdefault(cell.measure, []).append(cell)
 
+    # An entity read in two or more periods: its change over time.
     for series in by_entity.values():
         ordered = sorted(series, key=lambda item: (item.start, item.end))
         for earlier, later in zip(ordered, ordered[1:]):
             rows.append(_derive(earlier, later, ops, basis="change_over_time"))
-    for group in by_period.values():
-        if len(group) != 2:
+    # Two entities read in one shared period, and nothing else: their difference.
+    for group in by_measure.values():
+        periods = {(cell.start, cell.end) for cell in group}
+        if len(periods) != 1 or len(group) != 2:
             continue
         first, second = sorted(group, key=lambda item: item.entity)
         rows.append(_derive(first, second, ops, basis="difference_between_entities"))

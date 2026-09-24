@@ -91,6 +91,7 @@ class ToolExecutor:
         qualification_call: bool = False,
         harness_call: bool = False,
         allow_untagged: bool = False,
+        turn_windows: list[tuple[str, str] | None] | None = None,
     ) -> dict[str, Any]:
         """Return harness-normalized arguments without calling the backend.
 
@@ -118,6 +119,7 @@ class ToolExecutor:
                 normalized,
                 time_resolution=time_resolution,
                 hold_window=not harness_call,
+                turn_windows=turn_windows,
             )
         return normalized
 
@@ -135,6 +137,7 @@ class ToolExecutor:
         time_resolution: dict[str, Any] | None = None,
         harness_call: bool = False,
         allow_untagged: bool = False,
+        turn_windows: list[tuple[str, str] | None] | None = None,
     ) -> ToolExecution:
         started = time.perf_counter()
         if tool not in EXECUTABLE_TOOL_MODELS:
@@ -214,6 +217,7 @@ class ToolExecutor:
                 time_resolution=time_resolution,
                 hold_window=not harness_call,
                 corrections=time_corrections,
+                turn_windows=turn_windows,
             )
             for correction in time_corrections:
                 print(

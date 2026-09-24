@@ -43,6 +43,7 @@ from services.agent.schemas import (
     openai_tools,
 )
 from services.agent.streaming import ProgressCallback
+from services.agent.time_resolve import call_window
 from services.agent.tools import ToolExecution, ToolExecutor
 from services.agent.views import dump_planned, empty_views_payload, plan_views
 from services.shared.dataset_registry import EVENT_DATASET_WORDS, UTILITY_POSSESSIVE_NAMES
@@ -841,6 +842,7 @@ class AgentOrchestrator:
         utilities: list[str] | None,
         allow_untagged: bool,
         time_resolution: dict[str, Any] | None,
+        turn_windows: list[tuple[str, str] | None] | None = None,
     ) -> dict[str, Any]:
         """The arguments a model call will run with after harness correction.
 
@@ -861,6 +863,7 @@ class AgentOrchestrator:
                 allow_untagged=allow_untagged,
                 time_resolution=time_resolution,
                 harness_call=False,
+                turn_windows=turn_windows,
             )
         except Exception:  # noqa: BLE001
             return args
@@ -882,6 +885,7 @@ class AgentOrchestrator:
         qualification_call: bool = False,
         harness_call: bool = False,
         allow_untagged: bool = False,
+        turn_windows: list[tuple[str, str] | None] | None = None,
     ) -> ToolExecution:
         self._raise_if_cancelled(cancel_event)
         if tool in HARNESS_TOOL_MODELS and not harness_call:
@@ -916,6 +920,7 @@ class AgentOrchestrator:
                 allow_untagged=allow_untagged,
                 time_resolution=time_resolution,
                 harness_call=harness_call,
+                turn_windows=turn_windows,
             )
             if callable(preview)
             else args
@@ -942,6 +947,7 @@ class AgentOrchestrator:
             time_resolution=time_resolution,
             qualification_call=qualification_call,
             harness_call=harness_call,
+            turn_windows=turn_windows,
         )
         if not result.ok and _should_harness_retry(result):
             # Keep the failed attempt visible for recovery scoring, then retry
@@ -1006,6 +1012,7 @@ class AgentOrchestrator:
                 time_resolution=time_resolution,
                 qualification_call=qualification_call,
                 harness_call=harness_call,
+                turn_windows=turn_windows,
             )
         await self._emit(
             on_event,
@@ -1328,6 +1335,9 @@ class AgentOrchestrator:
             turn_results: dict[tuple[str, str], ToolExecution] = {}
             turn_had_success = False
             turn_had_failure = False
+            # The windows of every call in this turn, so the hold rule can see
+            # when the model split a range into distinct periods on purpose.
+            turn_windows = _turn_windows(reply.tool_calls)
             for call in reply.tool_calls:
                 function = call.get("function") or {}
                 tool = str(function.get("name") or "")
@@ -1389,6 +1399,7 @@ class AgentOrchestrator:
                     utilities=utilities,
                     allow_untagged=allow_untagged,
                     time_resolution=time_resolution,
+                    turn_windows=turn_windows,
                 )
                 cache_key = (
                     tool,
@@ -1460,6 +1471,7 @@ class AgentOrchestrator:
                         trajectory=trajectory,
                         on_event=on_event,
                         cancel_event=cancel_event,
+                        turn_windows=turn_windows,
                     )
                     turn_results[cache_key] = execution
                     executions.append(execution)
@@ -3143,6 +3155,20 @@ def _render_deterministic(
     # The same evidence rendered twice reads as two findings. One line each.
     unique = list(dict.fromkeys(part for part in parts if part))
     return " ".join(unique) or "The service returned no usable evidence."
+
+
+def _turn_windows(tool_calls: list[dict[str, Any]]) -> list[tuple[str, str] | None]:
+    """The date window each call in a model turn filters on, as the model wrote it."""
+    windows: list[tuple[str, str] | None] = []
+    for call in tool_calls:
+        function = call.get("function") or {}
+        try:
+            args = json.loads(function.get("arguments") or "{}")
+        except (json.JSONDecodeError, TypeError):
+            windows.append(None)
+            continue
+        windows.append(call_window(args) if isinstance(args, dict) else None)
+    return windows
 
 
 def _execution_event(execution: ToolExecution) -> dict[str, Any]:

@@ -162,11 +162,9 @@ def test_synthesis_states_the_harness_computed_changes_and_cites_them():
         [counts[("PGE", 2020)], counts[("PGE", 2023)]]
     )
     assert changes["utility=SCE"]["difference"] == 15
-    between = {row["from"]["period"]: row for row in rows if row["basis"] == "difference_between_entities"}
-    assert between["2020"]["difference"] == 75 - 402
-    assert between["2023"]["difference"] == 90 - 374
-    assert between["2023"]["larger"] == "utility=PGE"
-    assert "direction" not in between["2023"]
+    # Four calls over two periods: each utility's change, and no cross-entity
+    # rows the question did not ask for. The structure of the calls decides.
+    assert [row["basis"] for row in rows] == ["change_over_time", "change_over_time"]
     assert set(derived[0]["arguments"]["source_evidence_ids"]) == set(counts.values())
 
     # The model saw the derived evidence in its synthesis payload.
@@ -250,6 +248,36 @@ def test_nothing_is_derived_from_companions_or_when_not_asked():
         "How many PG&E ignitions in 2020 and 2023?",
         [_count("evidence_a", "PGE", 2020, 402), _count("evidence_b", "PGE", 2023, 374)],
     ) is None
+
+
+def test_two_entities_in_one_shared_period_get_their_difference():
+    derived = derive_arithmetic(
+        "How many more ignitions did PG&E have than SCE in 2023?",
+        [_count("evidence_a", "PGE", 2023, 374), _count("evidence_b", "SCE", 2023, 90)],
+    )
+    rows = derived.summary["derivations"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["basis"] == "difference_between_entities"
+    assert row["from"]["entity"] == "utility=PGE" and row["to"]["entity"] == "utility=SCE"
+    assert row["difference"] == 90 - 374
+    assert row["larger"] == "utility=PGE"
+    assert "direction" not in row
+
+
+def test_cross_entity_rows_need_every_call_in_one_period():
+    # One utility read twice and another once: the change over time only.
+    derived = derive_arithmetic(
+        "Did PG&E ignitions fall more than SCE's between 2020 and 2023?",
+        [
+            _count("evidence_a", "PGE", 2020, 402),
+            _count("evidence_b", "PGE", 2023, 374),
+            _count("evidence_c", "SCE", 2023, 90),
+        ],
+    )
+    rows = derived.summary["derivations"]
+    assert [row["basis"] for row in rows] == ["change_over_time"]
+    assert rows[0]["to"]["entity"] == "utility=PGE"
 
 
 def test_count_cards_are_not_capped_but_other_stats_are():

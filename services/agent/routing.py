@@ -18,7 +18,14 @@ from services.agent.places import (
     city_point,
     county_word_places,
 )
-from services.agent.time_resolve import DATA_YEAR_MIN, month_from_text, resolve_time
+from services.agent.time_resolve import (
+    DATA_YEAR_MIN,
+    explicit_month_range_in_year,
+    explicit_month_year_range,
+    month_from_text,
+    named_months,
+    resolve_time,
+)
 from services.shared.dataset_registry import (
     SERIES_DATASETS,
     ALL_CAUSES_AFTER_IGNITIONS_PATTERN,
@@ -1056,6 +1063,17 @@ _YEAR_RANGE = re.compile(
 )
 
 
+def _enumerated_months(lower: str) -> bool:
+    """True when several calendar months are named apart from one month range.
+
+    "July 2024 and August 2024" is two windows; "July to August 2024" is one.
+    A single count over both would silently merge the months.
+    """
+    if len(named_months(lower)) <= 1:
+        return False
+    return explicit_month_range_in_year(lower) is None and explicit_month_year_range(lower) is None
+
+
 def _enumerated_years(lower: str) -> bool:
     """True when the named years are not exactly one matched range.
 
@@ -1100,7 +1118,7 @@ def _single_call_would_collapse(
     named_years = set(re.findall(r"\b20\d{2}\b", lower))
     # "from 2018 to 2020" is one window with start and end dates. Enumerated
     # years, a range plus another year, or a breakdown word defer.
-    enumerated = _enumerated_years(lower)
+    enumerated = _enumerated_years(lower) or _enumerated_months(lower)
     # "Which year had the most" over a range is a per-year breakdown.
     per_period = _PER_PERIOD_ASK.search(lower) and len(named_years) > 1
     if kind == "count" and (enumerated or per_period or _BREAKDOWN.search(lower)):

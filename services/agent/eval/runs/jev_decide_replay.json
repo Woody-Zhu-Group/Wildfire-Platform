@@ -4699,8 +4699,8 @@
     "answer"
    ],
    "router": [
-    "model",
-    "open_comparison"
+    "deterministic",
+    "period_comparison"
    ],
    "jev": [
     "answer",
@@ -4708,8 +4708,8 @@
     0.94
    ],
    "decide": [
-    "model",
-    "open_comparison",
+    "deterministic",
+    "period_comparison",
     "router",
     "agree"
    ],
@@ -5349,8 +5349,8 @@
     "answer"
    ],
    "router": [
-    "model",
-    "open_comparison"
+    "deterministic",
+    "period_comparison"
    ],
    "jev": [
     "answer",
@@ -5358,8 +5358,8 @@
     0.94
    ],
    "decide": [
-    "model",
-    "open_comparison",
+    "deterministic",
+    "period_comparison",
     "router",
     "agree"
    ],

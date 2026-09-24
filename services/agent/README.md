@@ -66,11 +66,7 @@ Compositions, cross-dataset questions, and requests not matching those strict
 rules go to the model. Every response logs `path`, `rule`, and tool trajectory.
 
 On the model path the harness holds tool calls to the resolved years and date
-range (`time_resolve.apply_harness_years`; a change, difference, increase,
-decrease, percent change, or ratio between two years resolves to the two
-endpoint years, marked `endpoints`, so per-year calls are kept and a call over
-the whole span is refused, while a total or count over the range stays one
-span), strips invented utilities
+range (`time_resolve.apply_harness_years`), strips invented utilities
 (`tools._strip_ungrounded_utilities`), and drops model-proposed filters (circuit
 id, HFTD tier, county, coordinates) and sentinel values that the question and
 router slots do not support (`grounding.ground_model_filters`); each drop is
@@ -128,6 +124,30 @@ companion calls:
 If a required companion call or metadata field fails, the primary result is
 suppressed rather than returned without its qualification.
 
+### Time windows the model chose
+
+Widening a model call to the resolved range applies only when a single call
+narrows the range with no other call covering the rest. When one model turn
+holds calls for distinct periods (a 2019 count and a 2022 count for "from
+2019 to 2022", or a July count and an August count for "July 2024 and August
+2024"), the model is splitting the question into periods on purpose and every
+call is kept as written (`_hold_resolved_window` with the turn's
+`call_window`s). This does not depend on how the question is worded. Years the
+question never named are still rejected.
+
+Change intent has one definition, `CHANGE_INTENT_PATTERN` in
+`services/shared/naming.py` (change verbs, up or down, percent change, a ratio
+between periods, comparatives such as "more ... than"). It is read by the time
+resolver (a change between two years is the two endpoint years, `endpoints`,
+not one span; a total asked over the range stays a span), by the derived
+arithmetic (which values to compute), and by routing (a single-utility or
+single-county change question is a `period_comparison`). Compare words alone
+split two listed years but not a written range, since "compare Liberty and
+Bear Valley from 2019 through 2023" compares two entities over one span. Two
+named months ("July 2024 and August 2024") resolve to the window from the
+first month to the last with `per_year`, and a count over them defers to the
+model rather than counting one month.
+
 ## Derived arithmetic
 
 Synthesis may state only numbers found in evidence or caveats, and the model
@@ -136,9 +156,13 @@ increase, decrease, percent change, or ratio, `derived.py` computes those
 values from the successful primary counts before synthesis (and on the
 deterministic path before the answer is rendered) and adds them as
 one `harness_arithmetic` evidence item (`evidence_derived_...`). Each
-derivation carries its `source_evidence_ids`. Pairs are the same entity across
-periods (earliest first, with `direction`) and two entities in one period
-(with `larger`). A zero base gives a null percent or ratio with a reason, not a
+derivation carries its `source_evidence_ids`. Which pairs to form comes from
+the structure of the calls, not from the question's words: an entity read in
+two or more periods gets its change over time (earliest first, with
+`direction`); two entities get their difference (with `larger`) only when every
+call of that measure shares one period and there are exactly two entities, so
+four calls over two periods never produce cross-entity rows the question did
+not ask for. A zero base gives a null percent or ratio with a reason, not a
 number. Companion reads are never used. The trajectory records a
 `derived_evidence` event, and the deterministic fallback renders the same
 values.

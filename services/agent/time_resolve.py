@@ -8,6 +8,12 @@ from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Any
 
+from services.shared.dataset_registry import (
+    CHANGE_INTENT_PATTERN,
+    COMPARISON_WORDS_PATTERN,
+    TOTAL_ASK_PATTERN,
+)
+
 # Warehouse coverage used for out-of-range guards (inclusive).
 DATA_YEAR_MIN = 2014
 
@@ -107,6 +113,22 @@ def month_from_text(text: str) -> tuple[int, str] | None:
         if re.search(rf"\b{re.escape(name)}\b", lower):
             return number, name
     return None
+
+
+def named_months(text: str) -> list[tuple[int, str]]:
+    """Every distinct calendar month named, as (month_number, phrase), in text order.
+
+    "July 2024 and August 2024" names two months; a resolver that kept only
+    one would silently drop the other, and a harness that held the model's
+    July call to that one month would rewrite it to August.
+    """
+    lower = " ".join(text.lower().split())
+    found: dict[int, tuple[int, int, str]] = {}
+    for name, number in sorted(MONTHS.items(), key=lambda item: -len(item[0])):
+        for match in re.finditer(rf"\b{re.escape(name)}\b", lower):
+            if number not in found or match.start() < found[number][0]:
+                found[number] = (match.start(), number, name)
+    return [(number, name) for _pos, number, name in sorted(found.values())]
 
 
 def explicit_calendar_day(text: str) -> date | None:
@@ -224,45 +246,30 @@ def explicit_year_range(text: str) -> tuple[str, str, str] | None:
     return f"{year_a}-01-01", f"{year_b}-12-31", match.group(0)
 
 
-# A question about how a quantity moved between two years. "percent" alone is
-# a share ("what percent were in HFTD"), so it counts only as a percent change
-# or a "by what percentage" opener. A named metric ratio (EPSS-to-ignition) is
-# a measure, not a ratio between two years.
-_CHANGE_WORDS = re.compile(
-    r"\b(?:chang(?:e|ed|es|ing)|differen(?:ce|ces|t)|differ(?:ed|s)?|"
-    r"increas(?:e|ed|es|ing)|decreas(?:e|ed|es|ing)|ris(?:e|en|ing)|rose|"
-    r"f[ae]ll(?:en|ing)?|drop(?:ped|s)?|gr[eo]w(?:n|th|s)?|declin(?:e|ed|es|ing)|"
-    r"percent(?:age)?\s+(?:change|increase|decrease|difference)|"
-    r"by\s+what\s+percent(?:age)?|"
-    r"(?<!to[- ]ignition\s)(?<!ignition\s)ratio)\b"
-)
-# Compare words are not enough to split a written range: "compare Liberty
-# and Bear Valley from 2019 through 2023" compares two utilities over one
-# span. They do split two listed years ("compare X in 2017 and 2022").
-_COMPARE_WORDS = re.compile(r"\b(?:compar(?:e|ed|es|ing|ison)|versus|vs\.?)\b")
-# Wording that keeps a year range one span even beside a change word: a
-# per-year breakdown, or the range named as a period.
-_SPAN_WORDS = re.compile(r"\bperiods?\b")
 # Two years joined directly by a comparison word: "2020 vs 2023".
 _YEARS_JOINED_BY_VERSUS = re.compile(
     r"\b20\d{2}\s+(?:vs\.?|versus|compared\s+(?:to|with|against)|against)\s+20\d{2}\b"
 )
 
 
-def asks_change_between_years(text: str, *, compare_words: bool = False) -> bool:
-    """True for a change, difference, percent change, or ratio question.
+def asks_change_between_years(text: str, *, listed_years: bool = False) -> bool:
+    """True for a change, difference, percent change, ratio, or comparative question.
 
-    A total or count over the range ("how many between 2020 and 2023") is not
-    a change question, and neither is a per-year breakdown or a named period.
-    With ``compare_words``, compare and versus also count; that is safe only
-    when the question lists two years rather than writing a range.
+    Change intent is the registry's one definition (CHANGE_INTENT_PATTERN).
+    A per-year breakdown keeps a range one span. For a written range, a total
+    over it ("how many in total from 2019 to 2022") keeps it one span too, and
+    compare words alone do not split it (they may compare two entities over
+    the span). With ``listed_years`` ("compare X in 2017 and 2022") there is
+    no span to total over, so compare and versus count and totals do not.
     """
     lower = " ".join(expand_apostrophe_year(text).lower().split())
-    if _PER_YEAR_WORDS.search(lower) or _SPAN_WORDS.search(lower):
+    if _PER_YEAR_WORDS.search(lower):
         return False
-    if _CHANGE_WORDS.search(lower):
+    if not listed_years and TOTAL_ASK_PATTERN.search(lower):
+        return False
+    if CHANGE_INTENT_PATTERN.search(lower):
         return True
-    return bool(compare_words and _COMPARE_WORDS.search(lower))
+    return bool(listed_years and COMPARISON_WORDS_PATTERN.search(lower))
 
 
 def _endpoint_resolution(
@@ -581,6 +588,24 @@ def _resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
                 phrase=str(year),
                 reason=f"Year {year} is outside warehouse coverage {DATA_YEAR_MIN}-{data_max}",
             )
+        months = named_months(lower)
+        if len(months) > 1:
+            # "July 2024 and August 2024" names separate months. The window
+            # runs from the first named month to the last, and per_year marks
+            # it as named periods so one call per month is kept as written.
+            numbers = [number for number, _name in months]
+            start, _ = _range_for_year_month(year, min(numbers))
+            _, end = _range_for_year_month(year, max(numbers))
+            return TimeResolution(
+                status="explicit",
+                year=year,
+                years=(year,),
+                start_date=start,
+                end_date=end,
+                source="explicit",
+                phrase=", ".join(name for _number, name in months) + f" {year}",
+                per_year=True,
+            )
         if month_hit is not None:
             month, month_name = month_hit
             start, end = _range_for_year_month(year, month)
@@ -617,7 +642,7 @@ def _resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
                 )
         if len(years) == 2 and (
             _YEARS_JOINED_BY_VERSUS.search(lower)
-            or asks_change_between_years(lower, compare_words=True)
+            or asks_change_between_years(lower, listed_years=True)
         ):
             # "2020 vs 2023" or "how did X change in 2020 and 2023": the two
             # listed years are the endpoints of a comparison.
@@ -865,47 +890,70 @@ def _argument_window(
     return start or year_start or resolved[0], end or year_end or resolved[1]
 
 
-def _endpoint_span_error(
-    filled: dict[str, Any],
-    time_resolution: dict[str, Any],
-    hold_window: bool,
-) -> str | None:
-    """Reject a model window that spans both endpoint years of a change question.
+def call_window(arguments: dict[str, Any]) -> tuple[str, str] | None:
+    """The window a tool call filters on, as ISO dates, from start/end or a year.
 
-    "How did X change between 2020 and 2023" needs one count for 2020 and one
-    for 2023. A single call from 2020-01-01 to 2023-12-31 would count the whole
-    span, so it is refused with the years to use. Period-comparison arguments
-    (period_a_*, period_b_*) already carry two windows and are not checked.
+    Used to collect the windows of every call in one model turn so the hold
+    rule can see whether the model split a range into distinct periods.
     """
-    if not hold_window or not time_resolution.get("endpoints"):
+    year = arguments.get("year")
+    start = _as_day(arguments.get("start_date"))
+    end = _as_day(arguments.get("end_date"))
+    if start is None and end is None:
+        if isinstance(year, int):
+            return f"{year}-01-01", f"{year}-12-31"
         return None
-    years = [int(year) for year in time_resolution.get("years") or []]
-    if len(years) != 2:
+    if start is None and isinstance(year, int):
+        start = date(year, 1, 1)
+    if end is None and isinstance(year, int):
+        end = date(year, 12, 31)
+    if start is None or end is None:
         return None
-    start = _as_day(filled.get("start_date"))
-    end = _as_day(filled.get("end_date"))
-    if start is None or end is None or start.year == end.year:
-        return None
-    return (
-        f"The question asks for a change between {years[0]} and {years[1]}; "
-        f"filter each call on one of those years instead of the span "
-        f"{start.isoformat()} to {end.isoformat()}"
-    )
+    return start.isoformat(), end.isoformat()
+
+
+def _distinct_periods_in_turn(
+    turn_windows: list[tuple[str, str] | None] | None,
+) -> bool:
+    """True when the turn's calls name two or more different windows.
+
+    Years or months alike: a July call beside an August call, or a 2019 count
+    beside a 2022 count, is the model splitting the question into periods on
+    purpose. Years the question never named still fall to the rejection rules.
+    """
+    distinct: set[tuple[str, str]] = set()
+    for window in turn_windows or []:
+        if window is None:
+            continue
+        start, end = _as_day(window[0]), _as_day(window[1])
+        if start is None or end is None:
+            continue
+        distinct.add((start.isoformat(), end.isoformat()))
+    return len(distinct) >= 2
 
 
 def _hold_resolved_window(
     filled: dict[str, Any],
     time_resolution: dict[str, Any],
     corrections: list[dict[str, Any]] | None,
+    *,
+    turn_windows: list[tuple[str, str] | None] | None = None,
 ) -> dict[str, Any]:
     """Replace a tool window that differs from the resolved span with the span.
 
     The model may not narrow ``2021 to 2025`` to one year, or ``from January
     2024 up to today`` to one month. A span that is one full calendar year is
-    written as ``year=`` so a single-year question stays single-year. A
+    written as ``year=`` so a single-year question stays single-year.
+
+    Widening applies only when a single call narrows the range with no other
+    call covering the rest. When the same turn holds calls for distinct
+    periods (a 2019 count and a 2022 count for "from 2019 to 2022", or a July
+    count and an August count), the model is splitting the question into
+    periods on purpose and every call is kept as written; this does not
+    depend on how the question is worded. A
     question that names separate years or asks for a per-year breakdown
-    (``per_year``) keeps its per-year calls; years outside it still fall to
-    the override and rejection rules.
+    (``per_year``) keeps its per-year calls too; years outside the span still
+    fall to the override and rejection rules.
     """
     if time_resolution.get("per_year"):
         return filled
@@ -914,6 +962,8 @@ def _hold_resolved_window(
         return filled
     window = _argument_window(filled, resolved)
     if window is None or window == resolved:
+        return filled
+    if _distinct_periods_in_turn(turn_windows):
         return filled
     start, end = resolved
     before = {
@@ -963,6 +1013,7 @@ def apply_harness_years(
     today: date | None = None,
     hold_window: bool = False,
     corrections: list[dict[str, Any]] | None = None,
+    turn_windows: list[tuple[str, str] | None] | None = None,
 ) -> tuple[dict[str, Any], str | None]:
     """Override wrong model years with harness years; reject only invented years.
 
@@ -973,7 +1024,10 @@ def apply_harness_years(
     - When ``time_resolution`` is omitted, only coverage bounds apply.
     - With ``hold_window`` (model tool calls), years inside the resolved span
       may not narrow or reshape it: the call gets the resolved start and end,
-      and each correction is appended to ``corrections``.
+      and each correction is appended to ``corrections``. ``turn_windows``
+      lists the windows of every call in the same model turn (``call_window``);
+      when they name distinct periods inside the span, the model is splitting
+      the range on purpose and no call is widened.
     """
     filled = dict(arguments)
     found = years_in_arguments(filled)
@@ -1004,11 +1058,10 @@ def apply_harness_years(
     if not allowed:
         return filled, None
     if found and found.issubset(allowed):
-        endpoint_error = _endpoint_span_error(filled, time_resolution, hold_window)
-        if endpoint_error:
-            return filled, endpoint_error
         if hold_window:
-            filled = _hold_resolved_window(filled, time_resolution, corrections)
+            filled = _hold_resolved_window(
+                filled, time_resolution, corrections, turn_windows=turn_windows
+            )
         # Prefer harness month/window when present and model used a bare year.
         start = time_resolution.get("start_date")
         end = time_resolution.get("end_date")
