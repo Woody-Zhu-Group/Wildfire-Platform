@@ -345,7 +345,33 @@ class AgentOrchestrator:
                         return OrchestrationResult(
                             response=response, raw_log=raw_log
                         )
-                answer = _render_deterministic(executions)
+                    outside = _city_point_outside_coverage(decision, execution, question)
+                    if outside:
+                        response = self._response(
+                            request_id=request_id,
+                            decision=decision,
+                            status="clarification",
+                            answer=outside,
+                            executions=executions,
+                            qualifications=[],
+                            trajectory=trajectory,
+                            started=started,
+                            model_latency=0,
+                            direct_without_tool=0,
+                            model_turns=0,
+                            synthesis_fallback=False,
+                        )
+                        await self._emit(on_event, "answer", response)
+                        return OrchestrationResult(
+                            response=response, raw_log=raw_log
+                        )
+                city = decision.slots.get("city_point") or {}
+                answer = _render_deterministic(
+                    executions,
+                    place_label=(
+                        f"the center point of {city['name']}" if city.get("name") else None
+                    ),
+                )
                 need_synthesis = False
             else:
                 jev_ready = None
@@ -2665,7 +2691,47 @@ def _render_rank_answer(arguments: dict[str, Any], summary: dict[str, Any]) -> s
     return line + "."
 
 
-def _render_deterministic(executions: list[ToolExecution]) -> str:
+def _city_point_outside_coverage(
+    decision: RouteDecision, execution: ToolExecution, question: str = ""
+) -> str | None:
+    """Clarification when a city center point has no county or needed grid cell.
+
+    The point read already snaps a city center that sits just off a mapped
+    shoreline (IOU within 50 m, county within 150 m). A point still in no
+    county is outside coverage. A missing grid cell matters only when the
+    answer needs one: a risk question, or a question about the grid cell.
+    Some cities (Santa Monica, Manhattan Beach, Los Angeles, Coronado) are outside
+    the fitted model grid, but their territory and tier are still answerable.
+    """
+    if not decision.rule.startswith("city_point"):
+        return None
+    if execution.tool != "data_query_spatial" or execution.summary.get("kind") != "point":
+        return None
+    city = decision.slots.get("city_point") or {}
+    grid = execution.summary.get("grid_cell") or {}
+    missing = []
+    if not execution.summary.get("county"):
+        missing.append("county")
+    needs_cell = decision.rule == "city_point_risk_chain" or bool(
+        re.search(r"\b(?:grid|cells?)\b", question.lower())
+    )
+    if needs_cell and grid.get("cell_id") is None:
+        missing.append("model grid cell")
+    if not missing:
+        return None
+    name = city.get("name") or "This city"
+    return (
+        f"{name}'s Census center point ({city.get('lat'):.4f}, "
+        f"{city.get('lon'):.4f}) is not inside any {' or '.join(missing)} in "
+        "the warehouse, so I can't answer from it. Which latitude and longitude "
+        "on land in California should I use, or which county or utility "
+        "territory?"
+    )
+
+
+def _render_deterministic(
+    executions: list[ToolExecution], *, place_label: str | None = None
+) -> str:
     parts = []
     for item in [execution for execution in executions if execution.ok and not execution.qualification_call]:
         summary = item.summary
@@ -2692,9 +2758,19 @@ def _render_deterministic(executions: list[ToolExecution]) -> str:
             if summary.get("kind") == "point":
                 iou = summary.get("iou") or {}
                 grid = summary.get("grid_cell") or {}
+                utility = iou.get("utility_name") or iou.get("utility")
+                if utility:
+                    iou_part = f"IOU={utility}, "
+                else:
+                    # Say it plainly rather than IOU=None.
+                    parts.append(
+                        "No investor-owned utility (IOU) territory contains "
+                        f"{place_label or 'this point'}."
+                    )
+                    iou_part = ""
                 parts.append(
                     "Point context: "
-                    f"IOU={iou.get('utility_name') or iou.get('utility')}, "
+                    f"{iou_part}"
                     f"HFTD={summary.get('hftd_tier')}, "
                     f"county={summary.get('county')}, "
                     f"grid cell={grid.get('cell_id')}."

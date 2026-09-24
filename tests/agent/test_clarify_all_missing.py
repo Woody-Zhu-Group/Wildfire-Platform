@@ -65,7 +65,9 @@ def test_place_alone_reads_as_before():
     for question in (
         "How many CAL FIRE incidents happened near San Jose in 2023?",
         "What was the ignition risk on 2024-08-15?",
-        "What utility service territory contains Modesto?",
+        # A territory question about one city is answered at its center point
+        # (city_point_context); a count inside a city still needs a place.
+        "How many CAL FIRE incidents were there in Modesto in 2023?",
         "Show the risk surface for August 2024",
     ):
         before, after = _pair(question)

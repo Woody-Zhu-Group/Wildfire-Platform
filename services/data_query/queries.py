@@ -485,7 +485,68 @@ def query_iou(
 
 # ---- Spatial ----
 
-def spatial_point(conn: psycopg.Connection, lat: float, lon: float) -> dict[str, Any]:
+# Shoreline snap (opt in, used for Census city center points). Some city
+# points sit just off the mapped coastline of a layer. Measured on the 483
+# incorporated places: every IOU miss on a shoreline is at most 41.8 m (Morro
+# Bay), while the nearest city truly outside every IOU is 265.8 m away (Los
+# Angeles, LADWP). The county layer is 1:500k Census cartographic boundaries,
+# generalized at the coast; its shoreline misses reach 142 m (Coronado).
+SHORE_SNAP_IOU_M = 50.0
+SHORE_SNAP_COUNTY_M = 150.0
+
+
+def _shore_snap(cur, lat: float, lon: float, *, iou_missing: bool, county_missing: bool) -> dict:
+    """Nearest IOU and county for a point that no polygon contains.
+
+    Snaps only when exactly one polygon of that layer is within the distance.
+    An IOU point inside an outer boundary but in a hole (a municipal utility
+    such as Anaheim) is never snapped. HFTD tiers and grid cells are never
+    snapped: a tier edge is a regulatory boundary, and a missing grid cell
+    means the model has no cell there.
+    """
+    snapped: dict[str, Any] = {}
+    point = "ST_SetSRID(ST_MakePoint(%s, %s), 4326)"
+    if iou_missing:
+        cur.execute(
+            f"""
+            WITH pt AS (SELECT {point} AS g)
+            SELECT
+              (SELECT bool_or(ST_Contains(ST_MakePolygon(ST_ExteriorRing(d.geom)), pt.g))
+                 FROM wildfire.iou_territories i, ST_Dump(i.geom) d) AS in_hole,
+              (SELECT json_agg(json_build_object(
+                         'utility', i.utility, 'utility_name', i.utility_name,
+                         'distance_m', ST_Distance(i.geom::geography, pt.g::geography)))
+                 FROM wildfire.iou_territories i
+                 WHERE ST_DWithin(i.geom::geography, pt.g::geography, %s)) AS near
+            FROM pt
+            """,
+            (lon, lat, SHORE_SNAP_IOU_M),
+        )
+        row = cur.fetchone()
+        near = row["near"] or []
+        if not row["in_hole"] and len(near) == 1:
+            snapped["iou"] = near[0]
+    if county_missing:
+        cur.execute(
+            f"""
+            WITH pt AS (SELECT {point} AS g)
+            SELECT json_agg(json_build_object(
+                     'county', c.name,
+                     'distance_m', ST_Distance(c.geom::geography, pt.g::geography))) AS near
+            FROM wildfire.counties c, pt
+            WHERE ST_DWithin(c.geom::geography, pt.g::geography, %s)
+            """,
+            (lon, lat, SHORE_SNAP_COUNTY_M),
+        )
+        near = cur.fetchone()["near"] or []
+        if len(near) == 1:
+            snapped["county"] = near[0]
+    return snapped
+
+
+def spatial_point(
+    conn: psycopg.Connection, lat: float, lon: float, *, snap_shoreline: bool = False
+) -> dict[str, Any]:
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             """
@@ -516,7 +577,31 @@ def spatial_point(conn: psycopg.Connection, lat: float, lon: float) -> dict[str,
             (lon, lat, lon, lat, lon, lat, lon, lat, lon, lat, lon, lat, lon, lat),
         )
         row = cur.fetchone() or {}
+        snapped: dict[str, Any] = {}
+        if snap_shoreline and (row.get("iou_utility") is None or row.get("county_name") is None):
+            snapped = _shore_snap(
+                cur, lat, lon,
+                iou_missing=row.get("iou_utility") is None,
+                county_missing=row.get("county_name") is None,
+            )
+    if "iou" in snapped:
+        row["iou_utility"] = snapped["iou"]["utility"]
+        row["iou_utility_name"] = snapped["iou"]["utility_name"]
+    if "county" in snapped:
+        row["county_name"] = snapped["county"]["county"]
     county_name = row.get("county_name")
+    meta: dict[str, Any] = {
+        "county_unavailable": False,
+        "county_source": "census_tiger_pip",
+    }
+    if snap_shoreline:
+        meta["shoreline_snap"] = {
+            "iou_limit_m": SHORE_SNAP_IOU_M,
+            "county_limit_m": SHORE_SNAP_COUNTY_M,
+            "snapped": {
+                layer: round(float(value["distance_m"]), 1) for layer, value in snapped.items()
+            },
+        }
     return {
         "lat": lat,
         "lon": lon,
@@ -531,10 +616,7 @@ def spatial_point(conn: psycopg.Connection, lat: float, lon: float) -> dict[str,
             "col": row.get("grid_col"),
         },
         "county": county_name,
-        "meta": {
-            "county_unavailable": False,
-            "county_source": "census_tiger_pip",
-        },
+        "meta": meta,
     }
 
 
