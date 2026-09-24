@@ -6,16 +6,16 @@
   "dev": {
    "n": 137,
    "router": 128,
-   "jev": 132,
-   "decide": 132,
+   "jev": 133,
+   "decide": 133,
    "jev_errors": 0,
    "exempt": 24,
    "jev_won": 7,
-   "overrides_right": 4,
+   "overrides_right": 5,
    "overrides_wrong": 0,
    "router_acc": 0.934,
-   "jev_acc": 0.964,
-   "decide_acc": 0.964,
+   "jev_acc": 0.971,
+   "decide_acc": 0.971,
    "status": "used for tuning"
   },
   "v1": {
@@ -50,17 +50,17 @@
   },
   "v3": {
    "n": 65,
-   "router": 47,
-   "jev": 47,
-   "decide": 52,
+   "router": 48,
+   "jev": 48,
+   "decide": 53,
    "jev_errors": 0,
    "exempt": 15,
-   "jev_won": 9,
+   "jev_won": 8,
    "overrides_right": 5,
    "overrides_wrong": 0,
-   "router_acc": 0.723,
-   "jev_acc": 0.723,
-   "decide_acc": 0.8,
+   "router_acc": 0.738,
+   "jev_acc": 0.738,
+   "decide_acc": 0.815,
    "status": "tuned (router fixes written from its disagreements)"
   },
   "smoke": {
@@ -2507,13 +2507,13 @@
     "open_ended"
    ],
    "jev": [
-    "unsupported",
-    "unsupported_other_measure",
+    "clarify",
+    "ambiguous_risk_metric",
     0.96
    ],
    "decide": [
-    "unsupported",
-    "unsupported_other_measure",
+    "clarification",
+    "ambiguous_risk_metric",
     "jev",
     "gate"
    ]
@@ -5822,7 +5822,7 @@
    ],
    "router": [
     "clarification",
-    "ranking_missing_slots"
+    "ambiguous_risk_metric"
    ],
    "jev": [
     "clarify",
@@ -5831,9 +5831,9 @@
    ],
    "decide": [
     "clarification",
-    "ranking_missing_slots",
+    "ambiguous_risk_metric",
     "router",
-    "below_gate"
+    "agree"
    ]
   },
   "v3|hv3_040": {
@@ -6409,19 +6409,19 @@
     "clarify"
    ],
    "router": [
-    "model",
-    "open_ended"
+    "clarification",
+    "ambiguous_risk_metric"
    ],
    "jev": [
-    "unsupported",
-    "unsupported_other_measure",
+    "clarify",
+    "ambiguous_risk_metric",
     0.83
    ],
    "decide": [
-    "unsupported",
-    "unsupported_other_measure",
-    "jev",
-    "gate"
+    "clarification",
+    "ambiguous_risk_metric",
+    "router",
+    "agree"
    ]
   },
   "v3|hv3_073": {

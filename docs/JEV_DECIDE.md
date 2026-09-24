@@ -310,17 +310,18 @@ were made.
 Disposition accuracy with the default gates, decline 0.8 and answer 0.9, replayed from the
 store with no new Jev calls, router as of main after PR #90 (`runs/jev_decide_replay.json`,
 regenerated 2026-09-24; the v2 and v3 router numbers rose with the router fixes merged since
-the first replay, and no Jev or decide entry changed):
+the first replay, and no Jev or decide entry changed; updated for the judgment-word change
+below):
 
 | Set | n | Status | Router alone | Jev alone | Decide | Jev won (fixed / broke) |
 |---|---|---|---|---|---|---|
-| dev | 137 | used for tuning | 0.934 | 0.964 | 0.964 | 7 (4 / 0) |
+| dev | 137 | used for tuning | 0.934 | 0.971 | 0.971 | 7 (5 / 0) |
 | v1 | 63 | seen, now development data | 0.905 | 0.937 | 0.952 | 7 (3 / 0) |
 | v2 | 42 | seen, now development data | 0.881 | 0.857 | 0.929 | 3 (2 / 0) |
-| v3 | 65 | **tuned**, reported only, not used for any choice | 0.723 | 0.723 | 0.800 | 9 (5 / 0) |
+| v3 | 65 | **tuned**, reported only, not used for any choice | 0.738 | 0.738 | 0.815 | 8 (5 / 0) |
 | smoke | 6 | production smoke test questions (five captured 2026-09-24 through OpenRouter, cross-backend) | 1.000 | 0.833 | 1.000 | 0 |
 
-Across all four sets Jev's wins fix 14 decisions and break 0. The slot and code-verified
+Across all four sets Jev's wins fix 15 decisions and break 0. The slot and code-verified
 rules changed the recorded reason on four rows and no final decision:
 `timeline_missing_year` (router `trend_missing_year`, Jev answered at 0.47, now
 `code_verified`), and `hv3_079`, `hv2_036`, and `hv2_047` (router `forecast_missing_date`
@@ -328,6 +329,20 @@ after PR #28 geocoded the city; Jev asked for a place the router resolved, now
 `contradicts_slot`).
 
 None of these sets is clean; production shadow logs are the next clean test.
+
+**Judgment words (branch `judgment-words`).** Production answered "Which utility had the most
+dangerous fires in 2023?" with the generic `ranking_missing_slots` question. The router now
+sends a ranking or comparison by a judgment word (`routing._JUDGMENT_WORD`) to
+`ambiguous_risk_metric`, with text that names the word, keeps the grouping and period, and
+lists the measures for that grouping. `jev_policy`'s `measure_is_judgment` check uses the same
+list, so Jev's `other_measure` on "worse" clarifies instead of refusing. Rule
+`ambiguous_risk_metric` has no Jev fact, so a Jev answer never overrides it. The replay moved
+three rows, all to their labels: `amb_better_or_worse` (dev; Jev refused, now Jev clarifies
+and wins at 0.96), `hv3_039` (router `ranking_missing_slots` below the gate, now router and
+Jev agree), and `hv3_071` (Jev refused at 0.83 and won, now router and Jev agree on
+`ambiguous_risk_metric`). v3 is tuned, and `hv3_071` is the backlog row this list was missing,
+so the v3 gain is not clean evidence. No Jev call was made; stored answers and their
+confidences are unchanged.
 
 Where Jev wins:
 - Fixed: prompt injection and off-topic questions the router sent to the model path

@@ -1229,7 +1229,7 @@
  ],
  "jev_holdout_v3_questions.json:hv3_039": [
   "clarification",
-  "ranking_missing_slots"
+  "ambiguous_risk_metric"
  ],
  "jev_holdout_v3_questions.json:hv3_040": [
   "model",
@@ -1244,8 +1244,8 @@
   "open_ended"
  ],
  "jev_holdout_v3_questions.json:hv3_043": [
-  "model",
-  "open_comparison"
+  "clarification",
+  "ambiguous_risk_metric"
  ],
  "jev_holdout_v3_questions.json:hv3_044": [
   "unsupported",
@@ -1356,8 +1356,8 @@
   "undefined_spatial_scope"
  ],
  "jev_holdout_v3_questions.json:hv3_071": [
-  "model",
-  "open_ended"
+  "clarification",
+  "ambiguous_risk_metric"
  ],
  "jev_holdout_v3_questions.json:hv3_072": [
   "unsupported",

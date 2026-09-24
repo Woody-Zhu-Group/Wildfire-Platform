@@ -1325,6 +1325,119 @@ def _wants_risk(lower: str) -> bool:
     )
 
 
+# A judgment word names no warehouse measure: dangerous, worst, severe, and so on.
+# "Severe wind" or "bad weather" describes conditions, not the ranked events.
+_JUDGMENT_WORD = re.compile(
+    r"\b(dangerous|severe|severity|destructive|damaging|deadly|deadliest|deadlier|"
+    r"catastrophic|devastating|harmful|serious|worst|worse|bad|"
+    r"hardest[- ]hit|hit\s+(?:the\s+)?hardest)\b"
+    r"(?!\s+(?:winds?|weather|drought|heat(?:wave)?|conditions?|storms?)\b)"
+)
+_JUDGMENT_RANK_CONTEXT = re.compile(
+    r"\b(?:which|what)\s+(?:\w+\s+){0,2}?"
+    r"(?:circuit|count(?:y|ies)|utilit(?:y|ies))s?\b|\brank(?:s|ed|ing)?\b"
+)
+_JUDGMENT_COMPARE_CONTEXT = re.compile(r"\b(?:compar\w*|versus|vs\.?|than)\b")
+_JUDGMENT_GROUP_PLURALS = {"utility": "utilities", "county": "counties", "circuit": "circuits"}
+_JUDGMENT_MEASURES = {
+    ("rank", "utility"): "CPUC ignition counts",
+    ("rank", "county"): "CPUC ignition counts, CAL FIRE incident counts, or CAL FIRE acres burned",
+    ("rank", "circuit"): "EPSS outage counts (PG&E circuits only)",
+    ("compare", "utility"): (
+        "CPUC ignition counts, PSPS event counts, or customers de-energized in PSPS events"
+    ),
+    ("compare", "county"): (
+        "CPUC ignition counts, CAL FIRE incident counts, or CAL FIRE acres burned"
+    ),
+}
+_JUDGMENT_ANY_MEASURE = (
+    "CPUC ignition counts by county or utility, CAL FIRE incident counts or acres "
+    "burned by county, or EPSS outage counts by PG&E circuit"
+)
+
+
+def _judgment_word(
+    lower: str, utilities: list[str], counties: list[str], years: list[int]
+) -> tuple[str, str] | None:
+    """(word, "rank" or "compare") when a ranking or comparison turns on a judgment word."""
+    match = _JUDGMENT_WORD.search(lower)
+    if not match:
+        return None
+    word = re.sub(r"\s+", " ", match.group(1))
+    if word.startswith("hit"):
+        word = "hardest hit"
+    if _asks_ranking(lower) or _JUDGMENT_RANK_CONTEXT.search(lower):
+        return word, "rank"
+    # "SCE or PacifiCorp", "2019 and 2020": two named things set side by side.
+    named = max(len(utilities), len(counties), len(years))
+    if _JUDGMENT_COMPARE_CONTEXT.search(lower) or (named >= 2 and re.search(r"\bor\b", lower)):
+        return word, "compare"
+    return None
+
+
+def _time_phrase(time_resolution) -> str | None:
+    """The resolved period in words, or None when there is none."""
+    if time_resolution.status not in {"explicit", "relative_year", "relative_range"}:
+        return None
+    years = list(time_resolution.years)
+    start, end = time_resolution.start_date, time_resolution.end_date
+    whole_years = bool(start and end and start[5:] == "01-01" and end[5:] == "12-31")
+    if len(years) == 1 and (whole_years or not start):
+        return str(years[0])
+    if len(years) >= 2 and time_resolution.per_year:
+        return ", ".join(str(item) for item in years[:-1]) + f" and {years[-1]}"
+    if whole_years:
+        return f"{start[:4]} through {end[:4]}"
+    if start and end:
+        return f"{start} to {end}"
+    return None
+
+
+def _judgment_clarification(
+    word: str,
+    kind: str,
+    lower: str,
+    utilities: list[str],
+    counties: list[str],
+    dataset: str | None,
+    time_resolution,
+) -> str:
+    """Name the judgment word, keep the grouping and period, list the real measures."""
+    if len(utilities) >= 2:
+        group = "utility"
+    elif len(counties) >= 2:
+        group = "county"
+    else:
+        group = _rank_dimension(lower)
+    if kind == "compare" and len(utilities) >= 2:
+        names = [UTILITY_CLARIFY_LABELS.get(item, item) for item in utilities]
+        subject = ", ".join(names[:-1]) + f" and {names[-1]}"
+    elif kind == "compare" and len(counties) >= 2:
+        subject = ", ".join(counties[:-1]) + f" and {counties[-1]}"
+    else:
+        subject = _JUDGMENT_GROUP_PLURALS.get(group or "", "")
+    verb = "rank" if kind == "rank" else "compare"
+    period = _time_phrase(time_resolution)
+    target = " ".join(part for part in (verb, subject, f"for {period}" if period else "") if part)
+    if kind == "compare" and group == "utility" and dataset == "psps_events":
+        measures = "PSPS event counts or customers de-energized in PSPS events"
+    else:
+        measures = _JUDGMENT_MEASURES.get((kind, group or ""), _JUDGMENT_ANY_MEASURE)
+    parts = [
+        f'"{word.capitalize()}" is a judgment, not a measure in the data.',
+        f"To {target}, I can use {measures}.",
+    ]
+    if group == "utility" and dataset != "psps_events":
+        parts.append("Acres burned are available only by county, from CAL FIRE incidents.")
+    parts.append("Damage, fatalities, and destroyed structures are not in the data.")
+    parts.append(
+        "Which measure should I use?"
+        if period
+        else "Which measure should I use, and for which year or date range?"
+    )
+    return " ".join(parts)
+
+
 def _single_risk_date(text: str, time_resolution) -> str | None:
     """ISO day only when the question names one calendar day."""
     start = getattr(time_resolution, "start_date", None)
@@ -2407,6 +2520,21 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             answer=(
                 "Which risk measure and time period should I use—for example "
                 "ignition count, CAL FIRE incidents, EPSS outages, or fitted cell risk?"
+            ),
+        )
+    # A ranking or comparison by a judgment word (dangerous, worst, severe) names
+    # no measure. Ask which one, keeping the grouping and period already given,
+    # rather than the generic missing-slots question or a model answer.
+    judgment = _judgment_word(lower, utilities, counties, years)
+    if judgment is not None:
+        word, kind = judgment
+        return RouteDecision(
+            "clarification",
+            "ambiguous_risk_metric",
+            f'"{word}" names no measure in the data',
+            slots=slots,
+            answer=_judgment_clarification(
+                word, kind, lower, utilities, counties, dataset, time_resolution
             ),
         )
     city_plan = _city_point_plan(text, lower)

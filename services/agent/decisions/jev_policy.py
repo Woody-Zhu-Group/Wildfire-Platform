@@ -10,7 +10,7 @@ from typing import Any, Callable
 
 import re
 
-from services.agent.routing import _coords, _rank_metric, _wants_risk
+from services.agent.routing import _JUDGMENT_WORD, _coords, _rank_metric, _wants_risk
 from services.agent.time_resolve import resolve_time
 
 # The router writes this pattern inside _wants_risk. Compile that source
@@ -293,11 +293,13 @@ def derive_outcome(
     if facts.measure == "other_measure" and (facts.intent or "") in MEASURE_GATED_INTENTS:
         # A map, a territory boundary, or spatial context names no warehouse
         # measure, so other_measure never declines those intents.
+        # The router's judgment words (dangerous, worse, severe, ...) ask which
+        # measure, the same clarification the router gives.
         if re.search(
-            r"\b(?:worst|most dangerous|safest|riskiest|most risky|highest risk)\b",
+            r"\b(?:safest|riskiest|most risky|highest risk)\b",
             question or "",
             re.I,
-        ):
+        ) or _JUDGMENT_WORD.search((question or "").lower()):
             trace.append("measure_is_judgment")
             return hit("ambiguous_risk_metric")
         trace.append("unsupported_other_measure")
