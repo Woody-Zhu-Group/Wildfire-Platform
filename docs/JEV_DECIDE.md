@@ -281,8 +281,17 @@ and holdouts v1 to v3 (314 questions) are unchanged against main; `routing.py` i
 **Smoke set.** The replay now carries a `smoke` set: the six questions
 `scripts/smoke_test.sh` asks production, each with the route the smoke test expects
 (`jev_decide_replay.SMOKE_CHECKS`). A smoke row replays from its own stored call or from a
-stored call for the same question elsewhere (the PG&E 2024 count is in dev); the other five
-are reported as not stored and are captured on the next `capture` run. `replay` prints
+stored call for the same question elsewhere (the PG&E 2024 count is in dev). The other five
+were captured on 2026-09-24 (`capture --sets smoke --cap-usd 0.05`, 30,648 input tokens,
+$0.0013 at the TypeSafe rate) through the OpenRouter backend with the same Jev build
+(`typesafe/jev-1.13-20260917`), since the TypeSafe account has no credits; those rows carry
+`backend`, `model_request`, and `captured` so they are never mistaken for the TypeSafe
+first pass. The stored Modesto call shows the bug's shape: intent `spatial_context` at 0.98,
+measure `other_measure`, `has_time_scope` 0.23, and with the fix Jev's outcome is answer
+and decide agrees with `city_point_context`. Jev alone scores 0.833 on the smoke set only
+because the two backstop rows (`modesto_count`, `live`) are scored on Jev's own reading,
+which the runtime never consults. The capture cap is per run, not the store's lifetime
+total. `replay` prints
 `SMOKE ROUTE CHANGED` when decide moves a smoke question off its expected route.
 `tests/agent/test_jev_decide_scope.py` runs the same checks in pytest, from the store where
 a row exists and against adverse synthetic Jev answers (a year request at 0.85 and at 0.79,
@@ -309,7 +318,7 @@ the first replay, and no Jev or decide entry changed):
 | v1 | 63 | seen, now development data | 0.905 | 0.937 | 0.952 | 7 (3 / 0) |
 | v2 | 42 | seen, now development data | 0.881 | 0.857 | 0.929 | 3 (2 / 0) |
 | v3 | 65 | **tuned**, reported only, not used for any choice | 0.723 | 0.723 | 0.800 | 9 (5 / 0) |
-| smoke | 1 of 6 stored | production smoke test questions | 1.000 | 1.000 | 1.000 | 0 |
+| smoke | 6 | production smoke test questions (five captured 2026-09-24 through OpenRouter, cross-backend) | 1.000 | 0.833 | 1.000 | 0 |
 
 Across all four sets Jev's wins fix 14 decisions and break 0. The slot and code-verified
 rules changed the recorded reason on four rows and no final decision:

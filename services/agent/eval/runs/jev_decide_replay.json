@@ -64,17 +64,17 @@
    "status": "tuned (router fixes written from its disagreements)"
   },
   "smoke": {
-   "n": 1,
-   "router": 1,
-   "jev": 1,
-   "decide": 1,
+   "n": 6,
+   "router": 6,
+   "jev": 5,
+   "decide": 6,
    "jev_errors": 0,
-   "exempt": 0,
+   "exempt": 2,
    "jev_won": 0,
    "overrides_right": 0,
    "overrides_wrong": 0,
    "router_acc": 1.0,
-   "jev_acc": 1.0,
+   "jev_acc": 0.833,
    "decide_acc": 1.0,
    "status": "production smoke test questions (scripts/smoke_test.sh)"
   }
@@ -6557,35 +6557,110 @@
     "answer",
     "clarify"
    ],
-   "stored": false
+   "router": [
+    "model",
+    "multi_entity_deferred"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.94
+   ],
+   "decide": [
+    "model",
+    "multi_entity_deferred",
+    "router",
+    "agree"
+   ],
+   "smoke_route_ok": true
   },
   "smoke|modesto": {
    "question": "What utility service territory contains Modesto?",
    "labels": [
     "answer"
    ],
-   "stored": false
+   "router": [
+    "deterministic",
+    "city_point_context"
+   ],
+   "jev": [
+    "answer",
+    "answer",
+    0.89
+   ],
+   "decide": [
+    "deterministic",
+    "city_point_context",
+    "router",
+    "agree"
+   ],
+   "smoke_route_ok": true
   },
   "smoke|modesto_count": {
    "question": "How many CAL FIRE incidents were there in Modesto in 2023?",
    "labels": [
     "clarify"
    ],
-   "stored": false
+   "router": [
+    "clarification",
+    "city_needs_place"
+   ],
+   "jev": [
+    "answer",
+    null,
+    null
+   ],
+   "decide": [
+    "clarification",
+    "city_needs_place",
+    "router",
+    "backstop"
+   ],
+   "smoke_route_ok": true
   },
   "smoke|epss_rank": {
    "question": "Rank utilities by EPSS events in 2023",
    "labels": [
     "unsupported"
    ],
-   "stored": false
+   "router": [
+    "unsupported",
+    "unsupported_rank_epss_utility"
+   ],
+   "jev": [
+    "unsupported",
+    "unsupported_rank_epss_utility",
+    0.61
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_rank_epss_utility",
+    "router",
+    "agree"
+   ],
+   "smoke_route_ok": true
   },
   "smoke|live": {
    "question": "What wildfires are burning right now?",
    "labels": [
     "unsupported"
    ],
-   "stored": false
+   "router": [
+    "unsupported",
+    "unsupported_live_web"
+   ],
+   "jev": [
+    "unsupported",
+    null,
+    null
+   ],
+   "decide": [
+    "unsupported",
+    "unsupported_live_web",
+    "router",
+    "backstop"
+   ],
+   "smoke_route_ok": true
   }
  }
 }

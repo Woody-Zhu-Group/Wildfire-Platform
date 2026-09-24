@@ -18,6 +18,7 @@ adverse synthetic Jev answers, so decide-mode regressions on them are caught wit
 any Jev call.
 
     python -m services.agent.eval.jev_decide_replay capture --cap-usd 0.3
+    python -m services.agent.eval.jev_decide_replay capture --sets smoke --cap-usd 0.05
     python -m services.agent.eval.jev_decide_replay replay
     python -m services.agent.eval.jev_decide_replay sweep-gate
     python -m services.agent.eval.jev_decide_replay live --cap-usd 0.1
@@ -192,7 +193,11 @@ def capture(args: argparse.Namespace) -> int:
     store.setdefault("model_request", settings.jev_model)
     rows = store.setdefault("rows", {})
     tokens = int(store.get("input_tokens", 0))
+    spent = 0  # input tokens this run; the cap is per run, not the store's lifetime total
+    wanted = set(args.sets.split(",")) if args.sets else None
     for set_name, items in load_sets().items():
+        if wanted is not None and set_name not in wanted:
+            continue
         for item in items:
             key = f"{set_name}|{item['id']}"
             if key in rows and not rows[key].get("error"):
@@ -202,25 +207,32 @@ def capture(args: argparse.Namespace) -> int:
             decision = route_question(item["question"])
             # Exempt routes are stored too, so "Jev alone" is scored on every row.
             # The decide replay, like the runtime, ignores Jev on them.
-            if tokens * INPUT_USD_PER_MILLION / 1e6 >= args.cap_usd:
-                print(f"STOP at ${tokens * INPUT_USD_PER_MILLION / 1e6:.4f}")
+            if spent * INPUT_USD_PER_MILLION / 1e6 >= args.cap_usd:
+                print(f"STOP: this run spent ${spent * INPUT_USD_PER_MILLION / 1e6:.4f}, cap ${args.cap_usd}")
                 STORE.write_text(json.dumps(store, indent=1), encoding="utf-8")
                 return 2
             answers, error, used = ask_jev(backend, item["question"], today)
             tokens += used
+            spent += used
             rows[key] = {
                 "question": item["question"],
                 "answers": {name: answer_to_json(answer) for name, answer in answers.items()} or None,
                 "error": error,
                 "exempt": exemption(decision),
             }
+            if settings.jev_backend != store.get("backend") or settings.jev_model != store.get("model_request"):
+                # A row captured through a different backend or model than the store's
+                # first pass is labeled, so cross-backend rows are never mistaken for it.
+                rows[key]["backend"] = settings.jev_backend
+                rows[key]["model_request"] = settings.jev_model
+                rows[key]["captured"] = date.today().isoformat()
             store["input_tokens"] = tokens
             if len(rows) % 20 == 0:
                 STORE.write_text(json.dumps(store, indent=1), encoding="utf-8")
                 print(f"{len(rows)} stored ${tokens * INPUT_USD_PER_MILLION / 1e6:.4f}", flush=True)
     store["input_tokens"] = tokens
     STORE.write_text(json.dumps(store, indent=1), encoding="utf-8")
-    print(f"stored {len(rows)} rows, {tokens} input tokens, ${tokens * INPUT_USD_PER_MILLION / 1e6:.4f}")
+    print(f"stored {len(rows)} rows, {tokens} input tokens, ${tokens * INPUT_USD_PER_MILLION / 1e6:.4f} lifetime; this run {spent} input tokens, ${spent * INPUT_USD_PER_MILLION / 1e6:.4f}")
     return 0
 
 
@@ -475,6 +487,7 @@ def main() -> int:
     parser.add_argument("--cap-usd", type=float, default=0.3)
     parser.add_argument("--gate", type=float, default=0.8)
     parser.add_argument("--answer-gate", type=float, default=0.9)
+    parser.add_argument("--sets", default=None, help="capture only these comma-separated sets, for example smoke")
     args = parser.parse_args()
     from dotenv import load_dotenv
 
