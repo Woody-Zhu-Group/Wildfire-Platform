@@ -11,7 +11,7 @@ setup, warehouse prerequisites and historical model limitations.
 | Module | Responsibility |
 |---|---|
 | `src/App.tsx`, `src/state.tsx` | Workspace composition, independent panel settings and browser persistence |
-| `src/panelViews.ts`, `src/PanelPicker.tsx` | Five categories and 18 implemented analysis presets |
+| `src/panelViews.ts`, `src/PanelPicker.tsx` | Five categories and 19 implemented analysis presets |
 | `src/PanelWorkspace.tsx`, `src/Controls.tsx` | Panel layout, expansion, filters and common controls |
 | `src/api.ts`, `src/useRemote.ts` | Remote records, pagination, request state and streamed Ask responses |
 | `src/workspaceAggregates.ts` | Configured SQL aggregation; record-based mode when the Data Query URL is empty |

@@ -22,7 +22,7 @@ $env:PYTHONIOENCODING = "utf-8"
 uvicorn services.risk_forecasting.app:app --port 8001 --app-dir .
 ```
 
-There is no systemd unit for this service in `deploy/systemd/`.
+In production it runs as the systemd unit `deploy/systemd/wildfire-risk-forecasting.service` on port 8001 (added in PR #24).
 
 At startup the app loads the fitted parameters, `grid_cells.csv` and `grid_W.pkl`. If any of them is missing, the process still starts: `/health` reports `degraded` with the load error, and `/predict` and `/surface` return 503. The service never fits the model on its own.
 
