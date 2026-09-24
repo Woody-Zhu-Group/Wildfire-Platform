@@ -97,11 +97,17 @@ def main() -> int:
         parse_timestamptz_null_sentinel(r.get("incident_date_created"))
     print(f"  calfire_incidents: {len(cf)}, sentinel dates={sent}")
 
-    # hftd / iou / grid
-    with (demo / "hftd.geojson").open(encoding="utf-8") as f:
-        print(f"  hftd_tiers: {len(json.load(f)['features'])}")
-    with (demo / "iou_territories.geojson").open(encoding="utf-8") as f:
-        print(f"  iou_territories: {len(json.load(f)['features'])}")
+    # hftd / iou (CPUC Esri JSON cache, no network) / grid
+    from db.loaders.arcgis_polygons import LAYERS, features_to_rows
+
+    for layer in LAYERS:
+        if not layer.cache_path.exists():
+            print(f"  {layer.name}: no cache at {layer.cache_path} (seed with "
+                  "python -m db.loaders.rebuild_boundaries --fetch-only)")
+            continue
+        payload = json.loads(layer.cache_path.read_text(encoding="utf-8"))
+        rows = features_to_rows(payload, layer)
+        print(f"  {layer.name}: {len(rows)} features, rings OK")
     with (s.risk_forecasting_data_dir / "grid_cells.csv").open(newline="", encoding="utf-8") as f:
         print(f"  grid_cells: {sum(1 for _ in csv.DictReader(f))}")
 

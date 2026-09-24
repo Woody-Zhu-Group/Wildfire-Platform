@@ -1,60 +1,79 @@
-"""Load HFTD Tier 2/3 polygons."""
+"""HFTD Tier 2/3 polygons from CPUC's FeatureServer, with holes kept.
+
+Loaded together with IOU territories in one transaction by
+db/loaders/load_boundaries.py. dataset_demo/assets/data/hftd.geojson is the
+old simplified geometry, kept only in geom_source for audit when present.
+See docs/DATA_CHANGE_HFTD_IOU.md.
+"""
 
 from __future__ import annotations
 
 import json
+from datetime import datetime
+from typing import Any
 
+import httpx
 import psycopg
 
-from db.loaders.config import Settings
-from db.loaders.util import (
-    as_multi_polygon_geojson,
-    load_geojson,
-    print_counts,
-    print_step,
-    table_count,
-    truncate,
+from db.loaders.arcgis_polygons import (
+    HFTD_LAYER,
+    build_geometry,
+    dataset_demo_geometries,
+    features_to_rows,
+    load_source,
 )
+from db.loaders.config import Settings
+
+TABLE = "hftd_tiers"
+KEY_COLUMN = "tier"
 
 
-def load(conn: psycopg.Connection, settings: Settings) -> int:
-    path = settings.dataset_demo_data_dir / "hftd.geojson"
-    print_step(f"hftd_tiers ← {path}")
-    print("  NOTE: no CPZ data in dataset_demo (known gap); loading HFTD tiers only.")
-    data = load_geojson(path)
-    features = data["features"]
-    print_counts("read", features=len(features))
+def prepare(
+    settings: Settings, *, refresh: bool = False, transport: httpx.BaseTransport | None = None
+) -> dict[str, Any]:
+    """Source, completeness, and rings. Touches no table."""
+    payload = load_source(HFTD_LAYER, refresh=refresh, transport=transport)
+    rows = features_to_rows(payload, HFTD_LAYER)
+    for row in rows:
+        print(f"  {row['key']}: {row['report'].summary()}")
+    return {
+        "payload": payload,
+        "rows": rows,
+        "previous": dataset_demo_geometries(
+            settings.dataset_demo_data_dir / "hftd.geojson", "HFTD"
+        ),
+    }
 
-    rows = []
-    for feat in features:
-        props = feat["properties"]
-        geom = as_multi_polygon_geojson(feat["geometry"])
-        rows.append(
+
+def insert(cur: psycopg.Cursor, prepared: dict[str, Any], *, schema: str = "wildfire") -> None:
+    payload = prepared["payload"]
+    edited = payload.get("data_last_edit")
+    for row in prepared["rows"]:
+        attrs = row["attributes"]
+        geom, repaired = build_geometry(cur, row["polygons"])
+        if repaired:
+            print(f"  {row['key']}: ST_MakeValid repaired {repaired} polygon(s)")
+        source = prepared["previous"].get(row["key"])
+        cur.execute(
+            f"""
+            INSERT INTO {schema}.{TABLE}
+              (tier, objectid, shape_length, shape_area, geom, geom_source,
+               publisher_area_m2, source_url, source_edited_at)
+            VALUES (
+              %s, %s, %s, %s, %s,
+              ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326),
+              %s, %s, %s
+            )
+            """,
             (
-                props["HFTD"],
-                props.get("OBJECTID"),
-                props.get("Shape__Length") or props.get("Shape_Leng"),
-                props.get("Shape__Area"),
-                json.dumps(geom),
-            )
+                row["key"],
+                attrs.get("OBJECTID"),
+                attrs.get("Shape__Length") or attrs.get("Shape_Leng"),
+                attrs.get("Shape__Area"),
+                geom,
+                json.dumps(source["geom"]) if source else None,
+                row["publisher_area_m2"],
+                payload["source_url"],
+                datetime.fromisoformat(edited) if edited else None,
+            ),
         )
-
-    with conn.transaction():
-        truncate(conn, "wildfire.hftd_tiers")
-        with conn.cursor() as cur:
-            cur.executemany(
-                """
-                INSERT INTO wildfire.hftd_tiers
-                  (tier, objectid, shape_length, shape_area, geom)
-                VALUES (
-                  %s, %s, %s, %s,
-                  ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)
-                )
-                """,
-                rows,
-            )
-        inserted = len(rows)
-
-    final = table_count(conn, "wildfire.hftd_tiers")
-    print_counts("loaded", inserted=inserted, table_count=final)
-    return final

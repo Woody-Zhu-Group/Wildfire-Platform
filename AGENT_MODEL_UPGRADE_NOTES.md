@@ -1,5 +1,9 @@
 # Agent model upgrade notes: qwen3:4b → qwen3:32b (remote Ollama, L4 24GB)
 
+> Status (2026-09-23): historical notes from the qwen3:4b to qwen3:32b investigation. The runtime default is now `qwen2.5:7b` (`services/agent/config.py`), the eval runner still defaults to `qwen3:4b`, and a hosted OpenRouter option exists behind `AGENT_LLM_PROVIDER` (see [`docs/OPENROUTER.md`](docs/OPENROUTER.md)). Statements below about the `qwen3:4b` runtime default describe the code at the time they were written.
+>
+> Other statements below that no longer match the code: `.env.example` now sets `AGENT_MODEL=qwen2.5:7b` (section 1 table). A failed `ensure_runtime_model()` or `ensure_context_loaded()` no longer stops the process from becoming healthy; lifespan catches both and still binds the port (`services/agent/app.py` 33-45; section 4). systemd units now exist in `deploy/systemd/` (`wildfire-agent.service` is `Type=simple` with the default `TimeoutStartSec`; section 4). `eval/cases.json` has 107 cases, not 62 (section 6). `validate()` is now at `config.py` 174-232 (section 5), and the `num_ctx` comment quoted in section 2 now reads "Ollama defaults to 4096 when unset" (`config.py` 56).
+
 Read-only audit. No code, `.env`, or config was changed. Findings are grounded in `services/agent/` as of this write-up.
 
 The service was designed and scored against local `qwen3:4b` (thinking off, constrained synthesis, often CPU). Pointing it at remote `qwen3:32b` on an NVIDIA L4 (24GB) does **not** require a rewrite, but three things will misbehave if left at 4B defaults: **32k context vs VRAM**, **the thinking-off alias never being created on a remote URL**, and **eval expectations that assume 4B tool-sequence / synthesis-origin behavior**.
@@ -12,7 +16,7 @@ The service was designed and scored against local `qwen3:4b` (thinking off, cons
 
 Runtime config defaults to `qwen3:4b` in two places only (`AgentSettings.model` and `from_env()`). That is the intended default; it is overridden by `AGENT_MODEL`.
 
-Other `qwen3:4b` strings in `services/agent/` are documentation, eval history, or CLI defaults — they do **not** pin the live service:
+Other `qwen3:4b` strings in `services/agent/` are documentation, eval history, or CLI defaults: they do **not** pin the live service:
 
 | Location | Role |
 |---|---|
@@ -83,7 +87,7 @@ The repo does **not** calculate KV-cache size anywhere. The 32768 default is doc
 
 ### KV cache at `num_ctx = 32768`
 
-Standard inference KV (K and V, all layers, allocated for the **configured** context — Ollama sizes the cache from `num_ctx`, not from the tiny prompt):
+Standard inference KV (K and V, all layers, allocated for the **configured** context: Ollama sizes the cache from `num_ctx`, not from the tiny prompt):
 
 ```text
 bytes = 2 * n_layers * n_kv_heads * head_dim * seq_len * bytes_per_element
@@ -110,8 +114,8 @@ A Q4 / Q4_K_M 32B GGUF is typically **~18–20.5 GB** of weights (32e9 × ~4.5 b
 |---|---:|---:|---|
 | 32768 | 8.00 GiB | ~28 GB | **overflow (~4 GB short)** |
 | 16384 | 4.00 GiB | ~24 GB | **none** (compute/CUDA still need 0.5–2 GB) |
-| 8192 | 2.00 GiB | ~22 GB | ~2 GB — tight, often works |
-| 4096 | 1.00 GiB | ~21 GB | ~3 GB — safer |
+| 8192 | 2.00 GiB | ~22 GB | ~2 GB: tight, often works |
+| 4096 | 1.00 GiB | ~21 GB | ~3 GB: safer |
 
 This ignores CUDA context, compute scratch, and fragmentation. Those are why “24 GB exactly” is not a working budget.
 
@@ -157,12 +161,12 @@ There is no `AGENT_ROUTING_TIMEOUT_SECONDS`. Routing uses only the httpx client 
 
 **`AGENT_SYNTHESIS_TIMEOUT_SECONDS=180` is the one to watch.** It gates the final answer. It will trip if:
 
-- the remote template still forces thinking (alias skipped — §1), or
+- the remote template still forces thinking (alias skipped: §1), or
 - `AGENT_SYNTHESIS_THINKING=true`, or
 - `AGENT_STRUCTURED_MODE=prompt` (the original 180s CPU failure mode), or
-- synthesis retries (`max_validation_retries + 2` attempts, each with its own 180s budget — retries help quality, not a single slow turn).
+- synthesis retries (`max_validation_retries + 2` attempts, each with its own 180s budget: retries help quality, not a single slow turn).
 
-Recommendation: keep **constrained** + **thinking off**, and set synthesis to **300s** for 32B bring-up. 180s is defensible on a warm L4 if thinking is truly off; 300s is the cheaper insurance than silent fallback-to-tool-summary. Do not raise it to 900 — that just recreates the old hang.
+Recommendation: keep **constrained** + **thinking off**, and set synthesis to **300s** for 32B bring-up. 180s is defensible on a warm L4 if thinking is truly off; 300s is the cheaper insurance than silent fallback-to-tool-summary. Do not raise it to 900: that just recreates the old hang.
 
 **`AGENT_TIMEOUT_SECONDS`:** keep the **900** code default, not the 300 from `.env.example`. 300s is enough for a warm request and may be enough for a local-disk 32B load; it is tight for first-pull + VRAM alloc + warmup over the network. Routing has no tighter cap, so 900s also bounds a stuck routing call.
 
@@ -172,8 +176,8 @@ Recommendation: keep **constrained** + **thinking off**, and set synthesis to **
 
 `app.py` lifespan:
 
-1. `ensure_runtime_model()` — **no-op** for a remote `AGENT_MODEL_BASE_URL` (see §1).
-2. `provider.ensure_context_loaded()` — unload (`keep_alive: 0`) then `/api/chat` with `num_predict=1` and configured `num_ctx`, `keep_alive: -1`.
+1. `ensure_runtime_model()`: **no-op** for a remote `AGENT_MODEL_BASE_URL` (see §1).
+2. `provider.ensure_context_loaded()`: unload (`keep_alive: 0`) then `/api/chat` with `num_predict=1` and configured `num_ctx`, `keep_alive: -1`.
 3. If that raises, **the process does not become healthy**.
 
 There is **no separate warmup timeout**. Warmup uses the same native httpx client, so it is bounded only by `AGENT_TIMEOUT_SECONDS` (900 code default / 300 if `.env.example` is copied).
@@ -282,7 +286,7 @@ COMPARISON_BASE_URL=http://127.0.0.1:8003
 # 8192 → ~2 GiB FP16 KV. Drop to 4096 if ollama ps / nvidia-smi still OOMs.
 AGENT_NUM_CTX=8192
 
-# Do not copy .env.example's 300 — that is also the startup-warmup deadline.
+# Do not copy .env.example's 300: that is also the startup-warmup deadline.
 AGENT_TIMEOUT_SECONDS=900
 
 # 180s was enough for constrained 4B on CPU (~15–25s) with thinking off.
@@ -290,7 +294,7 @@ AGENT_TIMEOUT_SECONDS=900
 # recreating the old unbounded hang (that was 900s with no wait_for).
 AGENT_SYNTHESIS_TIMEOUT_SECONDS=300
 
-# Same as today — required for thinking-off and for the 180/300s budget to mean anything.
+# Same as today: required for thinking-off and for the 180/300s budget to mean anything.
 AGENT_THINKING=off
 AGENT_STRUCTURED_MODE=constrained
 AGENT_SYNTHESIS_THINKING=false
@@ -298,4 +302,4 @@ AGENT_SYNTHESIS_THINKING=false
 
 Unchanged and fine at code defaults: `AGENT_MAX_ROUTING_TOKENS=900`, `AGENT_MAX_SYNTHESIS_TOKENS=1200`, `AGENT_MAX_COMPLETION_TOKENS=1800`, `AGENT_MAX_TOOL_STEPS=5`, `AGENT_PROVIDER=openai_compatible`, `AGENT_MODEL_API_KEY=ollama`.
 
-**After first start, verify on the GPU host:** `ollama ps` `context_length` equals 8192 (or whatever you set), VRAM is under ~23 GB with headroom, and `ollama show qwen3:32b` does not force an open `<think>` block. If it does, create `qwen3:32b-agent-nothink` on that host and point `AGENT_MODEL` at the alias — the agent will not do that for you while the URL is remote.
+**After first start, verify on the GPU host:** `ollama ps` `context_length` equals 8192 (or whatever you set), VRAM is under ~23 GB with headroom, and `ollama show qwen3:32b` does not force an open `<think>` block. If it does, create `qwen3:32b-agent-nothink` on that host and point `AGENT_MODEL` at the alias: the agent will not do that for you while the URL is remote.

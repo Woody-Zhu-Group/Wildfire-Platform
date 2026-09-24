@@ -20,9 +20,9 @@ Docs: http://127.0.0.1:8002/docs
 | Path | Purpose |
 |------|---------|
 | `GET /health` | DB ping + ignition definition notes |
-| `GET /map-layer` | Styled GeoJSON for ignitions / us_ignitions / EPSS / PSPS / CAL FIRE / HFTD |
-| `GET /time-series` | daily \| weekly \| monthly count buckets (incl. `us_ignitions`) |
-| `GET /utility-territory` | IOU polygon + bbox + suggested center |
+| `GET /map-layer` | Styled GeoJSON for ignitions / us_ignitions / EPSS / PSPS / CAL FIRE / HFTD (`dataset=circuits` returns 400; use `epss`) |
+| `GET /time-series` | daily \| weekly \| monthly count buckets for ignitions / us_ignitions / EPSS / PSPS / CAL FIRE |
+| `GET /utility-territory` | `utility` (required). IOU polygon + bbox + suggested center |
 | `GET /event-detail` | Full attributes + website-ordered detail fields |
 
 CORS is enabled (`*`) so a local frontend on another port can call this API.
@@ -30,8 +30,9 @@ CORS is enabled (`*`) so a local frontend on another port can call this API.
 ### `/map-layer`
 
 - **EPSS** returns **circuit lines** (aggregated event counts), not outage points.
-- **EPSS** `include_outages=true` — embed filtered outage rows on each circuit feature (day scrubber / popups).
+- **EPSS** `include_outages=true`: embed filtered outage rows on each circuit feature (day scrubber / popups).
 - Missing circuit geometries → features with `geometry: null` (not dropped).
+- Filters: `utility`, `year`, `start_date`, `end_date`, `county`, `outage_type`, `cause`, `min_acres`, `incident_type`, `tier` (HFTD), `bbox`, `limit`, `offset`.
 - Default `limit=5000` (max 20000). The UIs request 20000.
 - `us_ignitions` style color is **`#dc2626`**. GitHub Pages `docs/` hardcodes that red; local `frontend/` still hardcodes teal `#0f766e` on the layer swatch until that copy is synced.
 
@@ -56,6 +57,7 @@ CORS is enabled (`*`) so a local frontend on another port can call this API.
 | epss | integer `id` |
 | psps | `event_name` |
 | calfire | `incident_id` |
+| us_ignitions | integer `id` |
 | circuits | `circuit_id` (9-digit, zero-padded) |
 
 ## Ignition counting: two definitions
@@ -64,8 +66,8 @@ CORS is enabled (`*`) so a local frontend on another port can call this API.
 
 | Definition | Where used | PGE 2024 example |
 |------------|------------|------------------|
-| **Attribute** — `cpuc_ignitions.utility = 'PGE'` | This service (`/map-layer`, `/time-series` with `utility=`), data_query `/ignitions?utility=` | **532** |
-| **Spatial** — point inside PGE IOU polygon (`ST_Within`) | data_query `/spatial/summary?utility=PGE` | **536** |
+| **Attribute**: `cpuc_ignitions.utility = 'PGE'` | This service (`/map-layer`, `/time-series` with `utility=`), data_query `/ignitions?utility=` | **532** |
+| **Spatial**: point inside PGE IOU polygon (`ST_Within`) | data_query `/spatial/summary?utility=PGE` | **536** |
 
 The 4-row gap is ignitions that fall inside PGE’s territory polygon but are **not** tagged `PGE` in the CSV (other utility or untagged). Neither answer is wrong; agents should say which definition they used.
 
@@ -80,4 +82,4 @@ The 4-row gap is ignitions that fall inside PGE’s territory polygon but are **
 | PSPS | `#1d6fa5` (fillOpacity 0.25) |
 | HFTD | `#d97706` for both tiers; Tier 3 uses higher fillOpacity (0.38 vs 0.16) |
 
-`us_ignitions` is a CONUS FireCastRL sample (not a census, not utility-attributed). Meta always includes `not_comparable_to=cpuc_ignitions` and `sample_geography` (California ≈40% overall / ≈59% of 2024). No `utility`/`county` filters (400).
+`us_ignitions` is a CONUS FireCastRL sample (not a census, not utility-attributed). Meta always includes `not_comparable_to=cpuc_ignitions` and `sample_geography` (California ≈40% overall / ≈59% of 2024). `utility` or `county` filters on `/map-layer` or `/time-series` return 400.

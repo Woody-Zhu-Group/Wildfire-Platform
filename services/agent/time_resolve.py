@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import calendar
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Any
 
@@ -69,6 +69,9 @@ class TimeResolution:
     source: str | None = None
     phrase: str | None = None
     reason: str | None = None
+    # The question names separate years or asks for a per-year breakdown, so
+    # one tool call per year is correct and must not be widened to the span.
+    per_year: bool = False
 
     def as_slot(self) -> dict[str, Any]:
         return {
@@ -80,6 +83,7 @@ class TimeResolution:
             "source": self.source,
             "phrase": self.phrase,
             "reason": self.reason,
+            "per_year": self.per_year,
         }
 
 
@@ -170,6 +174,35 @@ def explicit_month_year_range(text: str) -> tuple[str, str, str] | None:
     return start, end, match.group(0)
 
 
+_MONTH_RANGE_SEP = r"(?:to|through|thru|until|till|\u2013|\u2014|-)"
+
+
+def explicit_month_range_in_year(text: str) -> tuple[int, int, int, str] | None:
+    """``from March to June 2023``, ``Mar-Jun 2023``, ``between March and June 2023``.
+
+    Two months that share one written year. Returns (year, first month, last
+    month, phrase); the caller decides what a backwards range means.
+    """
+    lower = " ".join(text.lower().split())
+    match = re.search(
+        rf"\b(?:from\s+)?({_MONTH_ALT})\s*{_MONTH_RANGE_SEP}\s*({_MONTH_ALT})"
+        rf",?\s+(?:of\s+|in\s+)?(20\d{{2}})\b",
+        lower,
+    ) or re.search(
+        rf"\bbetween\s+({_MONTH_ALT})\s+and\s+({_MONTH_ALT})"
+        rf",?\s+(?:of\s+|in\s+)?(20\d{{2}})\b",
+        lower,
+    )
+    if not match:
+        return None
+    return (
+        int(match.group(3)),
+        MONTHS[match.group(1)],
+        MONTHS[match.group(2)],
+        match.group(0),
+    )
+
+
 def explicit_year_range(text: str) -> tuple[str, str, str] | None:
     """``2021 to 2025`` / ``2021-2025`` → full inclusive calendar years."""
     lower = " ".join(text.lower().split())
@@ -215,21 +248,191 @@ def _span_resolution(
     )
 
 
+_APOSTROPHE_YEAR = re.compile(r"(?<!\d)'(\d{2})\b")
+# Same pivot as Python's %y: '00-'68 are the 2000s, '69-'99 the 1900s.
+_APOSTROPHE_PIVOT = 69
+
+
+def _apostrophe_century_year(digits: str) -> int:
+    value = int(digits)
+    return (1900 if value >= _APOSTROPHE_PIVOT else 2000) + value
+
+
 def expand_apostrophe_year(text: str) -> str:
-    """Turn a written '24 into 2024. The digits are in the question; this is not a guess."""
+    """Turn a written '24 into 2024 and '99 into 1999.
+
+    The digits are in the question; this is not a guess. A year outside
+    coverage in either century (like '99) is left to the coverage clarify.
+    """
 
     def replace(match: re.Match[str]) -> str:
-        return str(2000 + int(match.group(1)))
+        return str(_apostrophe_century_year(match.group(1)))
 
-    return re.sub(r"(?<!\d)'(\d{2})\b", replace, text)
+    return _APOSTROPHE_YEAR.sub(replace, text)
+
+
+# A written 1900s year. Decimals (a coordinate like 38.1985), thousands
+# separators, money, and acreage are numbers, not years.
+_BARE_1900S_YEAR = re.compile(
+    r"(?<![\d.,$])\b(19\d{2})\b(?![.,]\d)(?!\s*(?:acres?|ac)\b)",
+    re.IGNORECASE,
+)
+
+
+def _pre_2000_apostrophe_year(text: str) -> tuple[int, str] | None:
+    """The first '69-'99 year written in the question, as (year, phrase)."""
+    for match in _APOSTROPHE_YEAR.finditer(text):
+        year = _apostrophe_century_year(match.group(1))
+        if year < 2000:
+            return year, match.group(0)
+    return None
+
+
+def _pre_2000_year(text: str) -> tuple[int, str] | None:
+    """The first pre-2000 year in the question, written '99 or 1999."""
+    written = _pre_2000_apostrophe_year(text)
+    if written is not None:
+        return written
+    bare = _BARE_1900S_YEAR.search(text)
+    if bare is not None:
+        return int(bare.group(1)), bare.group(1)
+    return None
+
+
+_START_EXPR = (
+    rf"(?P<start>20\d{{2}}-\d{{2}}-\d{{2}}"
+    rf"|(?:{_MONTH_ALT})\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+20\d{{2}}"
+    rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+(?:{_MONTH_ALT})\s+20\d{{2}}"
+    rf"|(?:{_MONTH_ALT})\s+(?:of\s+)?20\d{{2}}"
+    rf"|20\d{{2}})"
+)
+_OPEN_END = (
+    r"(?:up\s+(?:to|until|till|through)|to|through|thru|until|till|til|\u2013|\u2014|-)\s*"
+    r"(?:today|now|the\s+present(?:\s+day)?|present(?:\s+day)?|date)\b"
+)
+_OPEN_RANGE_WITH_END = re.compile(
+    rf"(?:\b(?:from|since)\s+)?(?<![\w-]){_START_EXPR}\s*{_OPEN_END}"
+)
+_SINCE_START = re.compile(rf"\bsince\s+{_START_EXPR}(?![\w-])")
+_BOUNDED_END_AHEAD = re.compile(
+    rf"\s*(?:to|through|thru|until|till|\u2013|\u2014|-)\s*(?:{_MONTH_ALT}|20\d{{2}})"
+)
+
+
+def _open_range_start(phrase: str) -> date | None:
+    """First day named by an open range start: a day, a month, or a year."""
+    day = explicit_calendar_day(phrase)
+    if day is not None:
+        return day
+    month_year = re.fullmatch(rf"({_MONTH_ALT})\s+(?:of\s+)?(20\d{{2}})", phrase)
+    if month_year:
+        return date(int(month_year.group(2)), MONTHS[month_year.group(1)], 1)
+    if re.fullmatch(r"20\d{2}", phrase):
+        return date(int(phrase), 1, 1)
+    return None
+
+
+def open_ended_range(lower: str, *, today: date) -> TimeResolution | None:
+    """``from January 2024 up to today`` / ``since March 2023`` / ``2021 to date``.
+
+    The end is today, capped at the end of warehouse coverage. A ``since``
+    start followed by a named end (``since 2020 to 2022``) is a bounded range
+    and is left to the bounded parsers.
+    """
+    match = _OPEN_RANGE_WITH_END.search(lower)
+    if match is None:
+        match = _SINCE_START.search(lower)
+        if match is None or _BOUNDED_END_AHEAD.match(lower, match.end()):
+            return None
+    start = _open_range_start(match.group("start"))
+    if start is None:
+        return None
+    phrase = match.group(0).strip()
+    data_max = today.year
+    end = min(today, date(data_max, 12, 31))
+    if start.year < DATA_YEAR_MIN:
+        return TimeResolution(
+            status="out_of_coverage",
+            years=tuple(range(start.year, end.year + 1)),
+            source="relative",
+            phrase=phrase,
+            reason=(
+                f"Year {start.year} is outside warehouse coverage "
+                f"{DATA_YEAR_MIN}-{data_max}"
+            ),
+        )
+    if start > end:
+        return TimeResolution(
+            status="out_of_coverage",
+            year=start.year,
+            years=(start.year,),
+            source="relative",
+            phrase=phrase,
+            reason=(
+                f"The range starts {start.isoformat()}, after the end of "
+                f"warehouse coverage {end.isoformat()}"
+            ),
+        )
+    years = tuple(range(start.year, end.year + 1))
+    return TimeResolution(
+        status="relative_range",
+        year=years[0] if len(years) == 1 else None,
+        years=years,
+        start_date=start.isoformat(),
+        end_date=end.isoformat(),
+        source="relative",
+        phrase=phrase,
+    )
+
+
+_PER_YEAR_WORDS = re.compile(
+    r"\b(?:(?:each|every|per)\s+year|by\s+year|year[\s-]+(?:by|over)[\s-]+year|"
+    r"per-year|annual|annually|yearly)\b"
+)
+
+
+def _asks_per_year(text: str, resolution: TimeResolution) -> bool:
+    """Breakdown words, or years named apart from the span's own endpoints."""
+    lower = " ".join(expand_apostrophe_year(text).lower().split())
+    if _PER_YEAR_WORDS.search(lower):
+        return True
+    named = {int(value) for value in re.findall(r"\b(20\d{2})\b", lower)}
+    if resolution.start_date and resolution.end_date:
+        endpoints = {int(resolution.start_date[:4]), int(resolution.end_date[:4])}
+        return bool(named - endpoints)
+    return len(named) > 1
 
 
 def resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     """Resolve explicit or relative time. Never guess vague phrases."""
+    resolution = _resolve_time(text, today=today)
+    if _asks_per_year(text, resolution):
+        return replace(resolution, per_year=True)
+    return resolution
+
+
+def _resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     ref = today or date.today()
+    data_max = ref.year
+    early = _pre_2000_year(text)
+    if early is not None:
+        year, written = early
+        return TimeResolution(
+            status="out_of_coverage",
+            year=year,
+            years=(year,),
+            source="explicit",
+            phrase=written,
+            reason=(
+                f"Year {year} is outside warehouse coverage "
+                f"{DATA_YEAR_MIN}-{data_max}"
+            ),
+        )
     text = expand_apostrophe_year(text)
     lower = " ".join(text.lower().split())
-    data_max = ref.year
+    open_range = open_ended_range(lower, today=ref)
+    if open_range is not None:
+        return open_range
     month_hit = month_from_text(lower)
     day = explicit_calendar_day(text)
     if day is not None:
@@ -259,6 +462,28 @@ def resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     if month_span is not None:
         start, end, phrase = month_span
         return _span_resolution(start, end, phrase=phrase, data_max=data_max)
+
+    month_range = explicit_month_range_in_year(lower)
+    if month_range is not None:
+        year, first, last, phrase = month_range
+        if first > last:
+            # "November to February 2023" crosses a year boundary; which
+            # years it means is not written, so ask instead of guessing.
+            return TimeResolution(
+                status="ambiguous",
+                source="explicit",
+                phrase=phrase,
+                reason=(
+                    f"The month range '{phrase}' crosses a year boundary; "
+                    "give the year of each month"
+                ),
+            )
+        start, _ = _range_for_year_month(year, first)
+        _, end = _range_for_year_month(year, last)
+        resolution = _span_resolution(start, end, phrase=phrase, data_max=data_max)
+        if resolution.status == "explicit":
+            return replace(resolution, year=year)
+        return resolution
 
     year_span = explicit_year_range(lower)
     if year_span is not None:
@@ -507,11 +732,121 @@ def _allowed_years(time_resolution: dict[str, Any] | None) -> set[int]:
     return allowed
 
 
+def _date_filter_keys(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Only the year and start/end filters, without comparison periods."""
+    return {
+        key: arguments[key]
+        for key in ("year", "start_date", "end_date")
+        if key in arguments
+    }
+
+
+def _as_day(value: Any) -> date | None:
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value[:10])
+        except ValueError:
+            return None
+    return None
+
+
+def _resolved_window(time_resolution: dict[str, Any]) -> tuple[date, date] | None:
+    """The harness start and end when the question resolved to a span of days."""
+    start = _as_day(time_resolution.get("start_date"))
+    end = _as_day(time_resolution.get("end_date"))
+    if start is None or end is None or start >= end:
+        return None
+    return start, end
+
+
+def _argument_window(
+    arguments: dict[str, Any], resolved: tuple[date, date]
+) -> tuple[date, date] | None:
+    """The window a tool call filters on, from start/end or a bare year."""
+    year = arguments.get("year")
+    year_start = date(year, 1, 1) if isinstance(year, int) else None
+    year_end = date(year, 12, 31) if isinstance(year, int) else None
+    start = _as_day(arguments.get("start_date"))
+    end = _as_day(arguments.get("end_date"))
+    if start is None and end is None:
+        if year_start is None:
+            return None
+        return year_start, year_end
+    return start or year_start or resolved[0], end or year_end or resolved[1]
+
+
+def _hold_resolved_window(
+    filled: dict[str, Any],
+    time_resolution: dict[str, Any],
+    corrections: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Replace a tool window that differs from the resolved span with the span.
+
+    The model may not narrow ``2021 to 2025`` to one year, or ``from January
+    2024 up to today`` to one month. A span that is one full calendar year is
+    written as ``year=`` so a single-year question stays single-year. A
+    question that names separate years or asks for a per-year breakdown
+    (``per_year``) keeps its per-year calls; years outside it still fall to
+    the override and rejection rules.
+    """
+    if time_resolution.get("per_year"):
+        return filled
+    resolved = _resolved_window(time_resolution)
+    if resolved is None:
+        return filled
+    window = _argument_window(filled, resolved)
+    if window is None or window == resolved:
+        return filled
+    start, end = resolved
+    before = {
+        key: filled.get(key)
+        for key in ("year", "start_date", "end_date", "interval")
+        if key in filled
+    }
+    if start == date(start.year, 1, 1) and end == date(start.year, 12, 31):
+        filled["year"] = start.year
+        filled.pop("start_date", None)
+        filled.pop("end_date", None)
+    else:
+        filled["start_date"] = start.isoformat()
+        filled["end_date"] = end.isoformat()
+        harness_year = time_resolution.get("year")
+        if isinstance(harness_year, int):
+            filled["year"] = harness_year
+        else:
+            filled.pop("year", None)
+            # A weekly series needs one year; a multi-year span reads monthly,
+            # the same window rule the router applies.
+            if filled.get("kind") == "time_series" and filled.get("interval") in (
+                None,
+                "weekly",
+            ):
+                filled["interval"] = "monthly"
+    if corrections is not None:
+        corrections.append(
+            {
+                "rule": "hold_resolved_window",
+                "resolved": [start.isoformat(), end.isoformat()],
+                "requested": before,
+                "applied": {
+                    key: filled.get(key)
+                    for key in ("year", "start_date", "end_date", "interval")
+                    if key in filled
+                },
+            }
+        )
+    return filled
+
+
 def apply_harness_years(
     arguments: dict[str, Any],
     *,
     time_resolution: dict[str, Any] | None,
     today: date | None = None,
+    hold_window: bool = False,
+    corrections: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], str | None]:
     """Override wrong model years with harness years; reject only invented years.
 
@@ -520,6 +855,9 @@ def apply_harness_years(
       substitute the harness window into the arguments.
     - If the harness resolved no year and the model invents one, reject.
     - When ``time_resolution`` is omitted, only coverage bounds apply.
+    - With ``hold_window`` (model tool calls), years inside the resolved span
+      may not narrow or reshape it: the call gets the resolved start and end,
+      and each correction is appended to ``corrections``.
     """
     filled = dict(arguments)
     found = years_in_arguments(filled)
@@ -550,6 +888,8 @@ def apply_harness_years(
     if not allowed:
         return filled, None
     if found and found.issubset(allowed):
+        if hold_window:
+            filled = _hold_resolved_window(filled, time_resolution, corrections)
         # Prefer harness month/window when present and model used a bare year.
         start = time_resolution.get("start_date")
         end = time_resolution.get("end_date")
@@ -591,6 +931,17 @@ def apply_harness_years(
         filled["year"] = only
         filled.pop("start_date", None)
         filled.pop("end_date", None)
+    else:
+        # The question lists separate years (2021, 2022, and 2023) with no
+        # span to substitute. Picking one listed year would be a guess, so a
+        # call filtered on an unlisted year is rejected.
+        stray = sorted(years_in_arguments(_date_filter_keys(filled)) - allowed)
+        if stray:
+            listed = ", ".join(str(year) for year in sorted(allowed))
+            return filled, (
+                f"Year {stray[0]} is not one of the years named in the "
+                f"question ({listed})"
+            )
     for key in (
         "period_a_start",
         "period_a_end",

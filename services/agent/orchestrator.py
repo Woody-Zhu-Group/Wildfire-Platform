@@ -779,6 +779,7 @@ class AgentOrchestrator:
                 years=years,
                 utilities=utilities,
                 time_resolution=time_resolution,
+                harness_call=harness_call,
             )
             if callable(preview)
             else args
@@ -803,6 +804,7 @@ class AgentOrchestrator:
             utilities=utilities,
             time_resolution=time_resolution,
             qualification_call=qualification_call,
+            harness_call=harness_call,
         )
         if not result.ok and _should_harness_retry(result):
             # Keep the failed attempt visible for recovery scoring, then retry
@@ -839,6 +841,7 @@ class AgentOrchestrator:
                     years=years,
                     utilities=utilities,
                     time_resolution=time_resolution,
+                    harness_call=harness_call,
                 )
                 if callable(preview)
                 else args
@@ -863,6 +866,7 @@ class AgentOrchestrator:
                 utilities=utilities,
                 time_resolution=time_resolution,
                 qualification_call=qualification_call,
+                harness_call=harness_call,
             )
         await self._emit(
             on_event,
