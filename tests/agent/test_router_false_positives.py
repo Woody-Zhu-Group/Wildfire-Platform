@@ -287,16 +287,27 @@ def test_issue_32_territory_boundary_phrasings_still_route_to_the_boundary(quest
     assert route_question(question).rule == rule, question
 
 
-def test_issue_32_service_area_phrasing_without_territory_keeps_its_route():
-    # The removed regex never matched these: they carry no "territory" word,
-    # which _asks_territory_boundary requires first. This pins that behavior.
+def test_issue_32_service_area_phrasing_without_territory_is_the_boundary_map():
+    # Label rule G: a utility service-area outline, boundary, polygon, or
+    # footprint with no count and no dataset word is the territory map.
     for question in (
         "Draw the Southern California Edison service-area outline.",
         "What is the SDG&E service area?",
+        "Show the PG&E service-area polygon.",
     ):
         decision = route_question(question)
-        assert decision.path == "model", question
-        assert decision.rule == "open_ended", question
+        assert decision.path == "deterministic", question
+        assert decision.rule == "utility_territory", question
+        assert decision.tool_calls[0][0] == "visualization_inspect", question
+
+
+def test_issue_32_service_area_with_a_count_or_a_dataset_is_not_the_boundary():
+    for question in (
+        "How many ignitions were there in the PG&E service area in 2023?",
+        "Show CAL FIRE incidents inside the SCE service area in 2020.",
+        "Compare EPSS outages across the PG&E service area in 2022 and 2023.",
+    ):
+        assert route_question(question).rule != "utility_territory", question
 
 
 @pytest.mark.parametrize(

@@ -1618,7 +1618,17 @@ def _asks_spatial_containment(lower: str) -> bool:
 def _asks_territory_boundary(lower: str) -> bool:
     """True only when the user wants the polygon/boundary, not a count inside it."""
     if not re.search(r"\bterritor", lower):
-        return False
+        # Label rule G: a utility service-area outline, boundary, polygon, or
+        # footprint with no count and no dataset word is the territory map.
+        return bool(
+            re.search(r"\b(?:service[- ]area|outline|boundary|polygon|footprint)\b", lower)
+            and not _has_quantity_op(lower)
+            and not re.search(
+                r"\b(?:ignitions?|outages?|incidents?|events?|epss|psps|cal\s*fire|"
+                r"risk|compare|versus|trend|time series)\b",
+                lower,
+            )
+        )
     if _has_quantity_op(lower):
         return False
     if re.search(r"\b(?:compare|versus|\bvs\.?\b|trend|time series|forecast|predict)\b", lower):

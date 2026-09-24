@@ -312,8 +312,8 @@
   "unsupported_satellite"
  ],
  "cases.json:router_sce_service_area": [
-  "model",
-  "open_ended"
+  "deterministic",
+  "utility_territory"
  ],
  "cases.json:router_tally_and_trend": [
   "deterministic",
@@ -964,8 +964,8 @@
   "filtered_records"
  ],
  "jev_paraphrases.json:para_territory_boundary": [
-  "model",
-  "open_ended"
+  "deterministic",
+  "utility_territory"
  ],
  "jev_paraphrases.json:para_top_counties_calfire": [
   "model",

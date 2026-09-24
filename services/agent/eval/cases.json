@@ -922,12 +922,24 @@
   {
     "id": "router_sce_service_area",
     "question": "Draw the Southern California Edison service-area outline.",
-    "expected_route": "model",
-    "expected_tools": [],
+    "expected_route": "deterministic",
+    "expected_tools": [
+      "visualization_inspect"
+    ],
     "required_caveats": [],
     "expected_status": "answer",
-    "expected_view_types": [],
-    "expected_view_status": "none"
+    "label_rule": {
+      "id": "G",
+      "date": "2026-09-23",
+      "written_by": "Michael",
+      "text": "A utility service-area outline, boundary, polygon, or footprint request with no count and no dataset word is the territory boundary map (visualization_inspect, kind utility_territory). Applies to router_sce_service_area (cases.json) and para_territory_boundary (jev_paraphrases.json).",
+      "previous": {
+        "expected_route": "model",
+        "expected_tools": [],
+        "expected_view_types": [],
+        "expected_view_status": "none"
+      }
+    }
   },
   {
     "id": "router_around_year",
