@@ -48,9 +48,11 @@ Expected console output from a full load: per-table read/clean/insert counts, or
 | `cpuc_ignitions_with_time` | `cpuc_ignitions.csv` |
 | `us_ignitions` | FireCastRL `Wildfire_Dataset.csv` → `us_ignitions_extracted.csv` (gitignored; CONUS all-cause IRWIN sample, not comparable to CPUC) |
 | `calfire_incidents` | `calfire_incidents.csv` |
-| `hftd_tiers` | `hftd.geojson` (no CPZ in source) |
-| `iou_territories` | `iou_territories.geojson` |
+| `hftd_tiers` | CPUC `CPUC_High_Fire_Threat_District` FeatureServer, Esri JSON cached in `data/boundaries/cpuc_hftd.esri.json` (no CPZ in source) |
+| `iou_territories` | CPUC `IOU_Service_Territories` FeatureServer, Esri JSON cached in `data/boundaries/cpuc_iou_service_territories.esri.json` |
 | `grid_cells` | `services/risk_forecasting/data/grid_cells.csv` |
+
+HFTD and IOU polygons: both tables load together in one transaction (`db/loaders/load_boundaries.py`). Holes are kept by reading ring orientation, and the load is refused unless every geometry is valid and within 0.1% of the publisher's `Shape__Area`. The source Esri JSON must be in `data/boundaries/` before loading; seed it with `python -m db.loaders.rebuild_boundaries --fetch-only` on a machine with network access (the files are gitignored). If the cache is missing and CPUC cannot be reached, `load_all` keeps the previous boundary rows, loads every other table, and exits non-zero. `geom_source` holds the old simplified dataset_demo geometry for audit (NULL where dataset_demo is absent). The dataset_demo `hftd.geojson` and `iou_territories.geojson` files are no longer loaded; the visualization map layers simplify the stored geometry for display. See `docs/DATA_CHANGE_HFTD_IOU.md`.
 
 National ignitions: place `data/north_america/Wildfire_Dataset.csv` locally, then `python -m db.loaders.extract_us_ignitions` (or let `load_us_ignitions` extract on first load). Both the 1.13 GB source and the extracted CSV are gitignored.
 

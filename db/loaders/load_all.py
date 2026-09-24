@@ -4,18 +4,20 @@ from __future__ import annotations
 
 import sys
 
+import psycopg
+
 from db.loaders import (
+    load_boundaries,
     load_calfire,
     load_circuits,
     load_counties,
     load_cpuc,
     load_epss,
     load_grid,
-    load_hftd,
-    load_iou,
     load_psps,
     load_us_ignitions,
 )
+from db.loaders.arcgis_polygons import GeometryGateError
 from db.loaders.util import apply_schema, print_step
 from db.loaders.validate import run_validation
 from shared.db import connect, get_settings
@@ -46,11 +48,23 @@ def main() -> int:
         apply_schema(conn, settings.schema_sql)
 
         counts: dict[str, int] = {}
-        counts["iou_territories"] = load_iou.load(conn, settings)
+        # IOU and HFTD load together from CPUC sources. A missing cache with no
+        # network, a failed gate, or a database error leaves both tables as
+        # they were and does not stop the other tables from loading.
+        boundary_error: str | None = None
+        try:
+            counts.update(load_boundaries.load(conn, settings))
+        except (GeometryGateError, psycopg.Error) as exc:
+            # A database error inside the boundary transaction rolls it back
+            # like a failed gate. Reopen the connection only if it broke.
+            boundary_error = f"{type(exc).__name__}: {exc}"
+            print(f"  ERROR boundaries not loaded, previous rows kept: {boundary_error}")
+            if conn.broken or conn.closed:
+                conn.close()
+                conn = connect(settings, autocommit=True)
         counts["counties"] = load_counties.load(conn, settings)
         counts["circuits"] = load_circuits.load(conn, settings)
         counts["grid_cells"] = load_grid.load(conn, settings)
-        counts["hftd_tiers"] = load_hftd.load(conn, settings)
         counts["cpuc_ignitions"] = load_cpuc.load_combined(conn, settings)
         counts["cpuc_ignitions_with_time"] = load_cpuc.load_with_time(conn, settings)
         counts["calfire_incidents"] = load_calfire.load(conn, settings)
@@ -67,6 +81,12 @@ def main() -> int:
         print_step("LOAD COMPLETE — row counts")
         for name, n in counts.items():
             print(f"  {name}: {n}")
+        if boundary_error:
+            print(
+                "ERROR: iou_territories and hftd_tiers were not reloaded. "
+                "See docs/DATA_CHANGE_HFTD_IOU.md, Deploy notes."
+            )
+            return 1
         return 0
     finally:
         conn.close()

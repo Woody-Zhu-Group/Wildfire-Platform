@@ -379,19 +379,32 @@ def map_calfire(
     return rows, total
 
 
+# Map display only: the stored HFTD and IOU polygons are full resolution for
+# spatial queries, which is about three times the old web-map payload. Map
+# layers draw a simplified copy, kept MultiPolygon like the stored type; no
+# count or containment uses it.
+MAP_SIMPLIFY_DEGREES = 0.001
+MAP_COORD_DECIMALS = 5
+_MAP_GEOJSON = (
+    f"ST_AsGeoJSON(ST_Multi(ST_SimplifyPreserveTopology(geom, {MAP_SIMPLIFY_DEGREES})), "
+    f"{MAP_COORD_DECIMALS})"
+)
+
+
 def map_hftd(conn: psycopg.Connection, *, tier: str | None) -> list[dict]:
     with conn.cursor(row_factory=dict_row) as cur:
         if tier:
             cur.execute(
-                """
-                SELECT tier, objectid, ST_AsGeoJSON(geom) AS geom
+                f"""
+                SELECT tier, objectid, {_MAP_GEOJSON} AS geom
                 FROM wildfire.hftd_tiers WHERE tier = %s
                 """,
                 (tier,),
             )
         else:
             cur.execute(
-                "SELECT tier, objectid, ST_AsGeoJSON(geom) AS geom FROM wildfire.hftd_tiers ORDER BY tier"
+                f"SELECT tier, objectid, {_MAP_GEOJSON} AS geom "
+                "FROM wildfire.hftd_tiers ORDER BY tier"
             )
         return list(cur.fetchall())
 
@@ -528,10 +541,11 @@ def time_series_dates(
 
 def utility_territory(conn: psycopg.Connection, utility: str) -> dict | None:
     with conn.cursor(row_factory=dict_row) as cur:
+        # Simplified outline for drawing; bounds and center use full geometry.
         cur.execute(
-            """
+            f"""
             SELECT utility, utility_name,
-                   ST_AsGeoJSON(geom) AS geom,
+                   {_MAP_GEOJSON} AS geom,
                    ST_XMin(geom) AS min_lon, ST_YMin(geom) AS min_lat,
                    ST_XMax(geom) AS max_lon, ST_YMax(geom) AS max_lat,
                    ST_Y(ST_Centroid(geom)) AS center_lat,
