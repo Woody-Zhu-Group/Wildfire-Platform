@@ -58,6 +58,10 @@ REGEX_ONLY = {
         "cue-required county word without County, checked against the county "
         "list. Not an atomic fact."
     ),
+    "epss_non_pge_utility": (
+        "A warehouse coverage fact: EPSS rows exist only for PG&E, so another "
+        "utility's EPSS read is absent, not zero. Checked on the tool arguments."
+    ),
     "hftd_constraint_unavailable": (
         "Tool-schema gap: no read intersects circuits with an HFTD tier or "
         "measures HFTD polygon area."

@@ -184,13 +184,17 @@ def test_single_stem_topics_still_refuse_with_their_context():
 @pytest.mark.parametrize(
     "question",
     [
-        "For SCE, chart monthly EPSS fast-trip outage events during 2022 and include the annual total.",
+        "For PG&E, chart monthly EPSS fast-trip outage events during 2022 and include the annual total.",
         "Chart weekly PG&E ignitions in 2023 and how many there were overall.",
         "Plot CAL FIRE incidents by month for 2021 plus the total count.",
     ],
 )
 def test_a_series_plus_a_total_defers_instead_of_one_series_panel(question):
-    """Issue 44: with the dataset and window known, the deterministic pair."""
+    """Issue 44: with the dataset and window known, the deterministic pair.
+
+    The issue's SCE wording (hv2_002) is the EPSS PG&E-only clarification
+    instead; see test_review_82_a_non_pge_utility_on_epss_never_returns_zero.
+    """
     decision = route_question(question)
     names = [name for name, _ in decision.tool_calls]
     assert decision.path == "deterministic", question
@@ -603,10 +607,10 @@ def _pair(question):
 
 def test_issue_44_the_pair_carries_the_series_dataset_utility_and_window():
     records, series = _pair(
-        "For SCE, chart monthly EPSS fast-trip outage events during 2022 and include the annual total."
+        "For PG&E, chart monthly EPSS fast-trip outage events during 2022 and include the annual total."
     )
-    assert records == {"dataset": "epss_outages", "result_mode": "count", "year": 2022, "utility": "SCE"}
-    assert series == {"kind": "time_series", "dataset": "epss", "interval": "monthly", "year": 2022, "utility": "SCE"}
+    assert records == {"dataset": "epss_outages", "result_mode": "count", "year": 2022, "utility": "PGE"}
+    assert series == {"kind": "time_series", "dataset": "epss", "interval": "monthly", "year": 2022, "utility": "PGE"}
 
 
 def test_issue_44_the_pair_carries_the_county_and_reads_the_interval_from_by_month():
@@ -642,3 +646,138 @@ def test_issue_44_a_series_plus_a_total_still_defers_without_one_dataset_and_win
 
 def test_issue_44_a_yearly_totals_series_alone_is_still_the_series_panel():
     assert route_question("Show year over year CPUC ignition totals for 2024.").rule == "series_yearly"
+
+
+# ---------------------------------------------------------------------------
+# Review of PR 82: breakdown and per-year charts plus a total, the explicit
+# pair with several utilities, a map plus a count, EPSS for a non-PG&E utility,
+# and the dataset named in the tier clarification.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Chart monthly CPUC ignitions by county in 2023 plus the total",
+        "Plot 2022 ignitions by utility by month and the overall count",
+        "Chart monthly ignitions for each year from 2021 to 2024 plus the annual total",
+        "Chart annual CPUC ignitions 2015 to 2023 plus the overall count",
+        "Plot PG&E ignitions per year from 2019 to 2023 plus the total",
+    ],
+)
+def test_review_82_a_breakdown_or_per_year_chart_plus_a_total_defers(question):
+    decision = route_question(question)
+    assert decision.path == "model", (question, decision.rule)
+    assert decision.tool_calls == [], question
+
+
+def test_review_82_the_total_ask_and_interval_words_are_not_breakdowns():
+    # "annual total" and "by month" describe the total and the step, not a breakdown.
+    records, series = _pair(
+        "For PG&E, chart monthly EPSS fast-trip outage events during 2022 and include the annual total."
+    )
+    assert series["interval"] == "monthly" and records["result_mode"] == "count"
+    _pair("Plot CAL FIRE incidents by month for 2021 plus the total count.")
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Show the monthly trend of PG&E and SCE ignitions in 2023 and the count",
+        "How many PG&E and SCE ignitions were there in 2023 and their monthly trend?",
+        "Show the monthly CAL FIRE incident trend and count for Napa and Sonoma counties in 2022",
+    ],
+)
+def test_review_82_the_explicit_pair_defers_instead_of_dropping_a_utility_or_county(question):
+    decision = route_question(question)
+    assert decision.path == "model", (question, decision.rule)
+    assert decision.rule == "multi_entity_deferred", (question, decision.rule)
+    assert decision.tool_calls == [], question
+
+
+def test_review_82_the_explicit_pair_still_runs_for_one_utility():
+    records, series = _pair("Show the monthly trend of PG&E ignitions in 2023 and the count")
+    assert records["utility"] == "PGE" and series["utility"] == "PGE"
+
+
+@pytest.mark.parametrize(
+    "question,dataset,viz,extra",
+    [
+        ("Map PG&E ignitions in 2023 and how many there were", "cpuc_ignitions", "ignitions", {"utility": "PGE", "year": 2023}),
+        ("Show a map of CAL FIRE incidents in 2021 and how many there were", "calfire_incidents", "calfire", {"year": 2021}),
+        ("Map 2022 EPSS outages and the total count", "epss_outages", "epss", {"year": 2022}),
+        ("How many and where are PG&E CPUC ignitions in 2024?", "cpuc_ignitions", "ignitions", {"utility": "PGE", "year": 2024}),
+    ],
+)
+def test_review_82_a_map_plus_a_count_runs_both_never_the_map_alone(question, dataset, viz, extra):
+    decision = route_question(question)
+    assert decision.path == "deterministic", (question, decision.rule)
+    assert decision.rule == "multi_intent_count_and_map", (question, decision.rule)
+    (count_name, count_args), (map_name, map_args) = decision.tool_calls
+    assert (count_name, map_name) == ("data_query_records", "visualization_create")
+    assert count_args == {"dataset": dataset, "result_mode": "count", **extra}
+    assert map_args == {"kind": "map", "dataset": viz, **extra}
+
+
+def test_review_82_a_map_without_a_count_is_still_the_map_alone():
+    decision = route_question("Map PG&E ignitions in 2023")
+    assert decision.rule == "map"
+    assert [name for name, _ in decision.tool_calls] == ["visualization_create"]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        # hv2_002 and ho_080, both labeled with the note that EPSS is PG&E only.
+        "For SCE, chart monthly EPSS fast-trip outage events during 2022 and include the annual total.",
+        "show monthly epss outage counts for sce in 2022",
+        "How many EPSS outages did SCE have in 2022?",
+        "Map SCE EPSS outages in 2022",
+        "Map SDG&E EPSS outages in 2023 and how many there were",
+    ],
+)
+def test_review_82_a_non_pge_utility_on_epss_never_returns_zero(question):
+    decision = route_question(question)
+    assert decision.path == "clarification", (question, decision.rule)
+    assert decision.rule == "epss_non_pge_utility", (question, decision.rule)
+    assert decision.tool_calls == [], question
+    assert "PG&E-only" in decision.answer and "absent, not zero" in decision.answer
+    assert decision.slots["utilities"] and decision.slots["utilities"][0] in decision.answer
+
+
+@pytest.mark.parametrize(
+    "question,rule",
+    [
+        ("How many EPSS outages did PG&E have in 2022?", "filtered_records"),
+        ("Chart monthly EPSS outages for PG&E in 2022", "time_series"),
+        ("How many EPSS outages were there in 2022?", "filtered_records"),
+        ("How many PSPS events did SCE have in 2022?", "filtered_records"),
+    ],
+)
+def test_review_82_pge_epss_and_other_datasets_are_unchanged(question, rule):
+    decision = route_question(question)
+    assert decision.rule == rule, (question, decision.rule)
+
+
+def test_review_82_the_epss_utility_rule_is_router_only():
+    from services.agent.decisions.jev_policy import REGEX_ONLY
+    from services.agent.decisions.mapping import RULE_TO_INTENT
+    from services.agent.decisions.schemas import CONTEXT_DEFERRED_RULES
+
+    assert "epss_non_pge_utility" in REGEX_ONLY
+    assert "epss_non_pge_utility" in RULE_TO_INTENT
+    assert "epss_non_pge_utility" in CONTEXT_DEFERRED_RULES
+
+
+@pytest.mark.parametrize(
+    "question,label,group",
+    [
+        ("Top 3 utilities by ignitions in HFTD Tier 2 in 2022", "CPUC ignitions", "utility"),
+        ("Top 3 counties by CAL FIRE incidents in Tier 3 in 2022", "CAL FIRE incidents", "county"),
+        ("Rank EPSS circuits in Tier 3 by outages in 2023.", "EPSS outages", "circuit"),
+    ],
+)
+def test_review_82_the_tier_clarification_names_the_resolved_dataset(question, label, group):
+    decision = route_question(question)
+    assert decision.rule == "hftd_constraint_unavailable"
+    assert decision.answer.startswith(f"I can rank {label} by {group} statewide"), decision.answer

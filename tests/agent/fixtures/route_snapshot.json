@@ -744,8 +744,8 @@
   "ranked_records"
  ],
  "jev_holdout.json:ho_080": [
-  "deterministic",
-  "time_series"
+  "clarification",
+  "epss_non_pge_utility"
  ],
  "jev_holdout.json:ho_081": [
   "model",
@@ -820,8 +820,8 @@
   "open_ended"
  ],
  "jev_holdout_v2.json:hv2_002": [
-  "deterministic",
-  "multi_intent_count_and_trend"
+  "clarification",
+  "epss_non_pge_utility"
  ],
  "jev_holdout_v2.json:hv2_003": [
   "model",
