@@ -11,6 +11,7 @@ const ROUTER_REASONS: Record<string, string> = {
   jev_below_gate: 'Jev below confidence gate',
   jev_error: 'Jev error',
   jev_timeout: 'Jev timed out',
+  jev_daily_cap: 'Jev daily call cap reached',
   verified_fact: 'verified fact',
   router_only_route: 'router-only route',
   jev_agreed: 'Jev agreed',

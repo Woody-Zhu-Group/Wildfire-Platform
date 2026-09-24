@@ -88,8 +88,11 @@ class AgentSettings:
                 "provider is openrouter; the local Ollama path was removed."
             )
         model_api_key = _required_openrouter_key("AGENT_LLM_PROVIDER")
-        if jev_backend == "openrouter":
-            _required_openrouter_key("AGENT_JEV_BACKEND")
+        jev_mode = os.getenv("AGENT_JEV_MODE", "off").strip().lower()
+        if jev_mode != "off":
+            # Fail at startup, not on the first question, so a missing key cannot
+            # silently disable Jev while the service looks healthy.
+            _required_jev_key(jev_mode, jev_backend)
         default_jev_model = (
             OPENROUTER_DEFAULT_JEV_MODEL if jev_backend == "openrouter" else "jev-latest"
         )
@@ -139,7 +142,7 @@ class AgentSettings:
             comparison_url=os.getenv(
                 "COMPARISON_BASE_URL", "http://127.0.0.1:8003"
             ).rstrip("/"),
-            jev_mode=os.getenv("AGENT_JEV_MODE", "off").strip().lower(),
+            jev_mode=jev_mode,
             jev_backend=jev_backend,
             jev_model=os.getenv("AGENT_JEV_MODEL", default_jev_model).strip(),
             jev_timeout_seconds=float(os.getenv("AGENT_JEV_TIMEOUT_SECONDS", "3")),
@@ -209,6 +212,13 @@ class AgentSettings:
                 "AGENT_JEV_ABLATION must be v2_full, v3_split, v3_single, "
                 "v3_no_glossary, v3_policy_context, or v3_hybrid"
             )
+        if self.jev_mode != "off" and not self.allow_remote_provider:
+            raise ValueError(
+                f"AGENT_JEV_MODE={self.jev_mode} sends question text to a remote Jev "
+                f"backend ({self.jev_backend}) and the remote-provider gate is off. "
+                "Set AGENT_ALLOW_REMOTE_PROVIDER=true to confirm that questions may "
+                "leave this host, or set AGENT_JEV_MODE=off."
+            )
         if not self.allow_remote_provider and not _is_loopback(self.model_base_url):
             raise ValueError(
                 "The LLM provider is remote (OpenRouter) and the remote-provider "
@@ -242,6 +252,23 @@ def _required_openrouter_key(flag: str) -> str:
             f"{flag}=openrouter requires OPENROUTER_API_KEY in .env or the environment."
         )
     return key
+
+
+JEV_KEY_ENV = {"typesafe": "TYPESAFE_API_KEY", "openrouter": "OPENROUTER_API_KEY"}
+
+
+def _required_jev_key(jev_mode: str, jev_backend: str) -> None:
+    """Require the active Jev backend's key when Jev is on. Never include the value."""
+    env = JEV_KEY_ENV.get(jev_backend)
+    if env is None:
+        raise ValueError("AGENT_JEV_BACKEND must be typesafe or openrouter")
+    key = (os.getenv(env) or "").strip()
+    if not key:
+        raise ValueError(
+            f"AGENT_JEV_MODE={jev_mode} with AGENT_JEV_BACKEND={jev_backend} requires "
+            f"{env} in .env or the environment (it is missing or blank). "
+            "Set the key or set AGENT_JEV_MODE=off."
+        )
 
 
 def _is_loopback(url: str) -> bool:

@@ -25,16 +25,30 @@ Jev is a TypeSafe System One model. `off` and `shadow` do not change answers, to
 | `AGENT_JEV_TIMEOUT_SECONDS` | `3` | Per call. SDK retries are disabled so this is the whole budget |
 | `AGENT_JEV_SAMPLE_RATE` | `1.0` | Fraction of questions sent to Jev |
 | `AGENT_JEV_MAX_CONCURRENCY` | `4` | Extra calls are dropped and counted |
-| `AGENT_JEV_DAILY_CALL_CAP` | `5000` | Per process, UTC day |
-| `AGENT_JEV_LOG_PATH` | `services/agent/logs/jev_shadow.jsonl` | Append-only JSONL |
+| `AGENT_JEV_DAILY_CALL_CAP` | `5000` | Jev API calls per process per UTC day, not questions. One question makes three calls in decide mode and up to four in shadow mode. A question whose calls do not all fit sends none: shadow logs it as `dropped` with reason `daily_cap`, decide falls back to the router with `decision_source.why` = `jev_daily_cap` |
+| `AGENT_JEV_LOG_PATH` | `services/agent/logs/jev_shadow.jsonl` | Append-only JSONL. Each write holds a lock on `<path>.lock`, so several uvicorn workers may share one log |
 | `AGENT_JEV_LOG_MAX_MB` | `50` | Rotate, keep 5 files |
 | `AGENT_JEV_ABLATION` | `v3_hybrid` | Question layout: `v2_full`, `v3_split`, `v3_single`, `v3_no_glossary`, `v3_policy_context`, or `v3_hybrid` |
-| `TYPESAFE_API_KEY` | unset | Read by the SDK for the `typesafe` backend. Never commit it |
+| `TYPESAFE_API_KEY` | unset | Read by the SDK for the `typesafe` backend. Required at startup when Jev is on with that backend. Never commit it |
 | `OPENROUTER_API_KEY` | unset | Required at startup when `AGENT_JEV_BACKEND=openrouter`. Never commit it |
+| `AGENT_ALLOW_REMOTE_PROVIDER` | `false` | Must be `true` for any `AGENT_JEV_MODE` other than `off`; startup fails otherwise |
+
+## Startup checks
+
+Any Jev mode other than `off` is checked when settings load, before the service accepts a request:
+
+- `AGENT_ALLOW_REMOTE_PROVIDER=true` must be set, because every Jev backend is remote (`services/agent/SECURITY.md`).
+- The active backend's key must be present and not blank: `TYPESAFE_API_KEY` for `typesafe`, `OPENROUTER_API_KEY` for `openrouter`. A missing key used to be found on the first question, which silently disabled Jev while the service looked healthy. Now the service refuses to start, and the error names the variable, never its value.
 
 ## Where the key goes
 
-On the EC2 host, put `TYPESAFE_API_KEY` in the systemd environment file for `wildfire-agent` (the same file as the other `AGENT_*` variables), or in AWS Secrets Manager and inject it into that unit. Do not put it in the repo, `.env` that gets committed, or the shadow log. The log writer redacts the key if it ever appears in a line.
+On the EC2 host, put `TYPESAFE_API_KEY` in the systemd environment file for `wildfire-agent` (the same file as the other `AGENT_*` variables), or in AWS Secrets Manager and inject it into that unit. Do not put it in the repo, `.env` that gets committed, or the shadow log. The log writer redacts both backend keys if either ever appears in a line.
+
+## Workers and the log
+
+The log writer is safe across processes. Every write (the rotation check and the append) runs while holding an exclusive lock on `<log path>.lock` (`fcntl.flock` on Linux, `msvcrt.locking` on Windows), so two uvicorn workers cannot rotate the same file at once or interleave partial lines, and `jev_shadow_report --check-parse` stays clean (`test_two_processes_append_and_rotate_without_corrupting_the_log`). The daily call cap and the admitted-request map are per process, so with `--workers N` the total daily spend is N times the cap. Production runs one worker.
+
+Shadow mode keeps a small map of admitted request ids so the outcome record can be matched to its routing record. An entry leaves when the outcome is written; an entry whose request errored or whose streaming client disconnected is evicted after `shadow.ADMITTED_TTL_SECONDS` (15 minutes), and the map never holds more than `shadow.ADMITTED_MAX_SIZE` (10000) entries.
 
 Turning it on: set `AGENT_JEV_MODE=shadow`, provide the key, restart the agent. Turning it off: set `AGENT_JEV_MODE=off` and restart. In-flight shadow calls are abandoned after about 2 seconds on shutdown.
 
@@ -88,7 +102,7 @@ AGENT_JEV_MODE=shadow .venv/bin/python -m services.agent.eval.runner --models op
 
 The shadow report compares Jev's tool_pick with the tools the model emitted, read from each trajectory event, not from `response.tool_calls`. The shadow log is `AGENT_JEV_LOG_PATH`. It is not a file inside the run folder. On this host that file is `services/agent/logs/jev_shadow.jsonl` in `/home/ubuntu/Wildfire-Services`. Pass `--log` when the eval checkout is a different directory. The earlier `jev_vs_qwen` comparison script was removed with the local model path.
 
-A field that differs between off and shadow, and also between the two off runs, is `llm_variance`. Only a difference that appears in the shadow run alone is a shadow effect. `AGENT_JEV_DAILY_CALL_CAP` counts user questions. One question may send several Jev calls. `AGENT_JEV_ABLATION` selects the shadow question layout.
+A field that differs between off and shadow, and also between the two off runs, is `llm_variance`. Only a difference that appears in the shadow run alone is a shadow effect. The diff drops the timing and id fields (`jev_noop_diff.IGNORE`) at every nesting level on both sides before comparing, and reports nested differences by dotted path (for example `route.rule`), so a timing field present on one side only is never reported. `AGENT_JEV_DAILY_CALL_CAP` counts Jev API calls, not questions (see the table above). `AGENT_JEV_ABLATION` selects the shadow question layout.
 
 
 ## Turning on tool_pick
