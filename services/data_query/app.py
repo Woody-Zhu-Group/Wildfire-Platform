@@ -16,6 +16,7 @@ from services.data_query.filters import (
     RANK_DEFAULT_LIMIT,
     RANK_MAX_LIMIT,
     parse_circuit_id,
+    parse_county,
     parse_date_param,
     parse_format,
     parse_tier,
@@ -144,6 +145,7 @@ def rank(
             ),
         )
     util = parse_utility(utility) if utility else None
+    county = parse_county(county)
     start = parse_date_param(start_date, "start_date")
     end = parse_date_param(end_date, "end_date")
     validate_date_range(start, end)
@@ -232,7 +234,7 @@ def grouped_counts(
     start = parse_date_param(start_date, "start_date")
     end = parse_date_param(end_date, "end_date")
     validate_date_range(start, end)
-    county_filter = county.strip() if county and county.strip() else None
+    county_filter = parse_county(county)
     try:
         return queries.query_grouped_counts(
             conn,
@@ -265,7 +267,7 @@ def summary(
     start = parse_date_param(start_date, "start_date")
     end = parse_date_param(end_date, "end_date")
     validate_date_range(start, end)
-    county_filter = county.strip() if county and county.strip() else None
+    county_filter = parse_county(county)
     try:
         return queries.query_summary(
             conn,
@@ -297,7 +299,7 @@ def regional_series(
             status_code=400, detail="start_date and end_date are required"
         )
     validate_date_range(start, end)
-    county_filter = county.strip() if county and county.strip() else None
+    county_filter = parse_county(county)
     try:
         return queries.query_regional_series(
             conn,
@@ -334,7 +336,7 @@ def ignitions(
     validate_date_range(start, end)
     bb = parse_bbox_filter(bbox)
     fmt = parse_format(format)
-    county_filter = county.strip() if county and county.strip() else None
+    county_filter = parse_county(county)
 
     rows, total = queries.query_ignitions(
         conn,
@@ -451,6 +453,7 @@ def epss_outages(
 ) -> dict[str, Any]:
     cid = parse_circuit_id(circuit_id) if circuit_id else None
     util = parse_utility(utility) if utility else None
+    county = parse_county(county)
     start = parse_date_param(start_date, "start_date")
     end = parse_date_param(end_date, "end_date")
     validate_date_range(start, end)
@@ -590,6 +593,7 @@ def calfire_incidents(
     conn: psycopg.Connection = Depends(get_conn),
 ) -> dict[str, Any]:
     util = parse_utility(utility) if utility else None
+    county = parse_county(county)
     start = parse_date_param(start_date, "start_date")
     end = parse_date_param(end_date, "end_date")
     validate_date_range(start, end)
