@@ -6,31 +6,206 @@ The current website offers **18 analysis views in five panel categories**, and t
 
 ## Architecture
 
+Three diagrams: where things run, what the agent does with one question, and where the data comes from. Grey dashed boxes and dashed lines are switched off or unused in production. Production facts come from [`docs/HANDOFF_SINCE_PR4.md`](docs/HANDOFF_SINCE_PR4.md) sections 12 and 13; everything else is what the code on `main` does.
+
+### 1. System and deployment
+
 ```mermaid
-flowchart LR
-    Source["website/: React + TypeScript"] -->|Vite build| Web["docs/: static website in the browser"]
-    Web -->|GeoJSON, daily counts, event detail| Viz["Visualization API :8002"]
-    Web -->|POST /ask/stream| Agent["Agent prototype :8004"]
-    Web -->|Explicitly configured SQL aggregates| Query
-    Web -->|Load yearly assets| HDW["Bundled HDW cubes"]
-    Web -->|Risk surface and residual map| Risk
+flowchart TD
+    Browser["Browser"]
+    Site["GitHub Pages<br>docs/: built website,<br>static HDW weather cubes"]
+    CF["CloudFront<br>proxies /api/*"]
+
+    Browser -->|"page, HDW cubes"| Site
+    Browser --> CF
+
+    subgraph EC2["EC2 backend host: six systemd units"]
+        Agent["wildfire-agent :8004"]
+        Viz["wildfire-visualization :8002"]
+        DQ["wildfire-data-query :8000"]
+        Risk["wildfire-risk-forecasting :8001"]
+        Cmp["wildfire-comparison :8003<br>agent only"]
+        FE["wildfire-frontend :8765<br>older frontend/ app"]
+        JevLog[("Jev decide log<br>/home/ubuntu/wildfire-logs/")]
+    end
+
+    CF -->|"Ask: POST /ask/stream"| Agent
+    CF -->|"direct: maps, records,<br>series, event detail"| Viz
+    CF -->|"direct: SQL aggregates"| DQ
+    CF -->|"direct: risk surface,<br>residual map, metrics card"| Risk
+
     Agent --> Viz
-    Agent --> Query["Data Query API :8000"]
-    Agent --> Compare["Comparison API :8003"]
-    Agent --> Risk["Historical Risk API :8001"]
-    Agent -->|Model-tier requests| LLM["OpenRouter: GPT-6 Luna, Sol on retries"]
-    Agent -.->|Optional, off by default| Jev["Jev decisions: TypeSafe or OpenRouter"]
-    Viz --> DB[(PostGIS warehouse)]
-    Query --> DB
-    Compare --> DB
-    Risk -->|Place boundaries and grid cells| DB
-    Inputs["Fitted parameters, adjacency, covariates"] --> Risk
-    Raw["Read-only source datasets"] --> Loaders["db/loaders"] --> DB
+    Agent --> DQ
+    Agent --> Risk
+    Agent --> Cmp
+    Agent --> JevLog
+
+    DB[("PostGIS warehouse<br>on RDS")]
+    Viz --> DB
+    DQ --> DB
+    Cmp --> DB
+    Risk -->|"places, grid cells,<br>observed ignitions"| DB
+
+    subgraph OR["OpenRouter"]
+        Luna["Model path:<br>GPT-6 Luna, Sol fallback"]
+        Jev["Jev decide mode:<br>OpenRouter backend"]
+    end
+    TS["TypeSafe direct API<br>not used"]
+
+    Agent --> Luna
+    Agent --> Jev
+    Agent -.-> TS
+
+    classDef off fill:#eeeeee,stroke:#999999,color:#666666,stroke-dasharray: 4 4
+    class TS off
 ```
 
-Maps and record tables request complete filtered records from the Visualization API. Grouped comparisons, summary metrics and regional series use geometry-free SQL aggregates through the configured HTTPS Data Query endpoint. Calendar alignment and seasonal averages use the existing daily time-series buckets. HDW playback loads the supplied static weather cubes. The risk surface and residual map panels read the Historical Risk API (`/surface`, `/observed-training`) directly. The Agent API can additionally route questions to the Data Query, Comparison and Risk services and returns structured views alongside its answer.
+The website calls the Visualization API for maps and records, the Data Query API for grouped counts, summaries and regional series, and the Historical Risk API for the risk surface (`/surface`), the residual map (`/observed-training`) and the model performance card (`/metrics`), all through CloudFront (`website/src/api.ts`, `website/.env.production`). The browser never calls the Comparison API; only the agent does. HDW playback loads the static cubes from Pages. `wildfire-frontend` serves the older `frontend/` app, not the Pages site. TypeSafe's direct API is still the code default for `AGENT_JEV_BACKEND`, but production runs Jev through OpenRouter.
 
-The default website connects to the deployed APIs configured in [`website/src/api.ts`](website/src/api.ts). Local services are useful for backend development but are not prerequisites for previewing the built website. The agent is a research prototype: a deterministic router first, a model tier second, and harness-planned views that cite tool evidence.
+### 2. The life of a question inside the agent
+
+```mermaid
+flowchart TD
+    Ask["Ask panel<br>POST /ask/stream"] --> BS
+
+    subgraph Router["Router: routing.py"]
+        BS["Hard backstops<br>live, future, advice, city,<br>HFTD constraint, off-topic"]
+        Slots["Slot extraction and<br>time resolution<br>time_resolve.py"]
+        Rule["Router decision:<br>exact calls, clarify,<br>refuse, or model path"]
+        BS -->|"none fired"| Slots --> Rule
+    end
+
+    subgraph Decide["Jev decide mode: on in production"]
+        Skip["Regex-only rule or<br>router-only tool?"]
+        JevAsk["Jev facts via OpenRouter<br>jev_policy.derive_outcome"]
+        Gates["Gates: decline 0.8,<br>answer 0.9"]
+        Stand["Router decision stands<br>below gate, timeout, error"]
+        Skip -->|"no"| JevAsk --> Gates
+        Gates -->|"below"| Stand
+    end
+
+    Rule --> Skip
+    Skip -->|"yes"| Stand
+
+    Disp{"Disposition"}
+    Gates -->|"Jev wins"| Disp
+    Stand --> Disp
+    BS -->|"fired"| Decline
+
+    Decline["Clarify or refuse<br>clarify-all-missing asks for<br>every missing item;<br>router wording when both decline"]
+    Disp -->|"clarify, refuse"| Decline
+
+    Plan["Slot planner<br>multi-entity questions<br>off in production"]
+    Disp -.->|"multi-entity answer"| Plan
+    Plan -.->|"planned calls"| Det
+    Disp -->|"answer with exact calls"| Det
+    Disp -->|"answer, no exact call"| Model
+
+    Det["Deterministic tool calls<br>ToolExecutor, harness_call"]
+
+    subgraph ModelPath["Model path"]
+        Model["OpenRouter: Luna, Sol fallback<br>up to 3 candidate tools<br>tool_choice required"]
+        Guards["Harness guards<br>filter and enum grounding<br>county and utility names<br>year and range holds<br>harness-only argument stripping<br>coverage: no partial answer"]
+        Model <--> Guards
+    end
+
+    Tools["Tool results<br>with evidence ids"]
+    Det --> Tools
+    Guards --> Tools
+
+    Caveats["Caveats<br>companion calls<br>failed companion: error"]
+    Tools --> Caveats
+
+    Derived["Derived evidence<br>harness arithmetic"]
+    Synth["Synthesis<br>claims cite evidence ids"]
+    Render["Deterministic renderer"]
+    Caveats -->|"model path"| Derived --> Synth
+    Caveats -->|"deterministic path"| Render
+    Synth -.->|"fails"| Render
+
+    Views["View planner<br>plan_views, ground_views"]
+    Synth --> Views
+    Render --> Views
+
+    Source["decision_source<br>backstop, jev, or router"]
+    Resp["AskResponse to the Ask panel<br>answer, evidence, caveats,<br>views, decision_source"]
+    Views --> Resp
+    Decline --> Resp
+    Source --> Resp
+
+    classDef off fill:#eeeeee,stroke:#999999,color:#666666,stroke-dasharray: 4 4
+    class Plan off
+```
+
+`AgentOrchestrator.ask` (`services/agent/orchestrator.py`) runs the router, then decide (`decisions/decide_mode.py`), then the slot planner (`eval/slot_plan.py`, only on `multi_entity_deferred` and only when `AGENT_SLOT_PLAN` is on), then computes `decision_source` (`decisions/provenance.py`) on the final route. Jev shadow mode (`decisions/shadow.py`) is the alternative to decide and is not running: `AGENT_JEV_MODE` holds one value. The guards live in `grounding.py`, `tools.py`, `time_resolve.py` and `schemas.py`; caveats and companion calls in `caveats.py`; harness arithmetic in `derived.py`; clarify-all-missing in `clarify_missing.py`; views in `views.py`. Derived evidence is added only before synthesis, so only on the model path. The SSE stream carries harness events only, never model prose (`streaming.py`).
+
+### 3. Data
+
+```mermaid
+flowchart LR
+    subgraph Src["Read-only sources"]
+        Demo["dataset_demo/assets/data<br>CPUC, CAL FIRE, EPSS,<br>PSPS, circuits"]
+        USX["US ignitions extract<br>FireCastRL, gitignored"]
+        Tiger["Census TIGER<br>county polygons"]
+    end
+
+    FS["CPUC FeatureServers<br>HFTD and IOU, Esri JSON"]
+    Rebuild["Boundary rebuild<br>arcgis_polygons.py"]
+    Gate["Gate: valid geometry,<br>area within 0.1% of CPUC"]
+    Loaders["db/loaders"]
+
+    subgraph WH["PostGIS warehouse"]
+        Events["cpuc_ignitions, calfire_incidents,<br>epss_outages, psps_events,<br>circuits, us_ignitions"]
+        Bounds["hftd_tiers, iou_territories"]
+        Base["counties, grid_cells"]
+    end
+
+    Src --> Loaders
+    Loaders --> Events
+    Loaders --> Base
+    FS --> Rebuild --> Gate
+    Gate -->|"pass: both replaced"| Bounds
+    Gate -.->|"fail: rollback,<br>old rows kept"| Bounds
+
+    subgraph RiskFiles["Risk model files"]
+        Params["cnhpp_params.npz<br>committed"]
+        Metrics["metrics_table.csv<br>committed"]
+        GridCsv["grid_cells.csv<br>committed"]
+        Cov["grid_W.pkl, covariates<br>local, gitignored"]
+        Params -->|"evaluate_metrics.py"| Metrics
+    end
+    GridCsv --> Loaders
+
+    subgraph Reg["Registries: services/shared/"]
+        DSReg["dataset_registry.py"]
+        Names["Naming: counties.py,<br>stored_values.py, epss_causes.py,<br>calfire_county.py"]
+    end
+    Gaz["Census places gazetteer<br>data/places/"]
+
+    Gen["generate_frontend_registry.py"]
+    Web["shared/datasets.json,<br>dataset_caveats.json<br>imported by the website"]
+
+    subgraph Svc["Services"]
+        APIs["Data Query, Visualization,<br>Comparison"]
+        RiskSvc["Historical Risk API<br>/predict, /surface, /metrics"]
+        AgentN["Agent: router and harness"]
+    end
+
+    WH --> APIs
+    WH --> RiskSvc
+    RiskFiles -->|"/metrics checks<br>the params hash"| RiskSvc
+    DSReg --> APIs
+    DSReg -->|"router: HDW years;<br>harness: tools, schemas,<br>views, caveats"| AgentN
+    DSReg --> Gen --> Web
+    Names --> APIs
+    Names -->|"county names"| RiskSvc
+    Names -->|"harness: county names"| AgentN
+    Gaz -->|"places.py: city<br>center points"| AgentN
+```
+
+`db/loaders/load_all.py` loads every table; the boundary pair comes from `load_boundaries.py` behind the gate and keeps its old rows if the gate fails (`python -m db.loaders.rebuild_boundaries` reloads only that pair). CPUC ignitions get their `county` at load by point-in-polygon against `wildfire.counties`. `dataset_registry.py` feeds the three query services and the agent (`caveats.py`, `schemas.py`, `views.py`, `tools.py`, `eval/slot_plan.py`; the router imports only `HDW_YEARS` and keeps its own county list), and the generator writes the two JSON catalogs the website imports (`website/src/data.ts`, `website/src/caveats.ts`). `counties.py` resolves county names for `services/data_query/filters.py` (used by Data Query, Visualization and Comparison), `services/risk_forecasting/place.py` and the agent's tool layer; `stored_values.py` resolves EPSS and CAL FIRE filter values against the warehouse. `GET /metrics` returns 503 unless the stored table matches the committed parameters.
+
+The default website connects to the deployed APIs configured in [`website/src/api.ts`](website/src/api.ts). Local services are useful for backend development but are not prerequisites for previewing the built website.
 
 ## Layout
 
