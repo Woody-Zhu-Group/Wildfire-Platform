@@ -1,4 +1,4 @@
-"""Print the route snapshot fixture: path and rule for every dev and holdout v1 question.
+"""Print the route snapshot fixture: path and rule for every dev, paraphrase, and holdout question.
 
     python -m tests.agent.route_snapshot > tests/agent/fixtures/route_snapshot.json
 
@@ -15,7 +15,13 @@ EVAL = Path(__file__).resolve().parents[2] / "services" / "agent" / "eval"
 
 def snapshot() -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
-    for name in ("cases.json", "jev_paraphrases.json", "jev_holdout.json"):
+    for name in (
+        "cases.json",
+        "jev_paraphrases.json",
+        "jev_holdout.json",
+        "jev_holdout_v2.json",
+        "jev_holdout_v3_questions.json",
+    ):
         for row in json.loads((EVAL / name).read_text(encoding="utf-8")):
             if "question" not in row:
                 continue

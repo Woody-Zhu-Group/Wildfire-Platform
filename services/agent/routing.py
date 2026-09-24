@@ -1187,11 +1187,11 @@ def _time_filter_args(time_resolution) -> dict[str, Any]:
 
 def _default_series_interval(lower: str, time_resolution) -> str:
     """Honor explicit interval words; otherwise match the view planner's window rule."""
-    if "monthly" in lower:
+    if "monthly" in lower or re.search(r"\bby month\b|\bper month\b", lower):
         return "monthly"
-    if "daily" in lower:
+    if "daily" in lower or re.search(r"\bby day\b|\bper day\b", lower):
         return "daily"
-    if "weekly" in lower:
+    if "weekly" in lower or re.search(r"\bby week\b|\bper week\b", lower):
         return "weekly"
     start = getattr(time_resolution, "start_date", None)
     end = getattr(time_resolution, "end_date", None)
@@ -1687,10 +1687,12 @@ def _asks_summary_panel(lower: str) -> bool:
 
 
 # A series or chart request that also asks for a total. One series call would
-# drop the total, so this defers as the count path does, until a deterministic
-# count-plus-series path exists.
+# drop the total. With one known dataset and window it takes the deterministic
+# count-plus-series pair (multi_intent_count_and_trend, issue 44); otherwise it
+# defers as the count path does.
 _SERIES_WORD = re.compile(
-    r"\b(?:chart|plot|graph|series|trend|over time|monthly|weekly|daily|by month)\b",
+    r"\b(?:chart|plot|graph|series|trend|over time|monthly|weekly|daily|"
+    r"by month|by week|by day)\b",
     re.I,
 )
 _TOTAL_ASK = re.compile(
@@ -2064,6 +2066,16 @@ def _route_ranking(
         named = [item for item in named if item not in {"circuits", "hftd"}]
         if group_by is None:
             group_by = _rank_dimension(re.sub(r"\bcircuits?\b", " ", lower))
+        # The router's dataset came from the same scan, so hftd or circuits
+        # there is the constraint too and the dataset is unresolved. With no
+        # other dataset named, resolve the rest of the question as a ranking
+        # without the tier would: bare "ignitions" is CPUC ignitions and bare
+        # "outages" is EPSS (issue 67). Nothing resolved asks for the dataset.
+        if dataset in {"circuits", "hftd"}:
+            dataset = None
+        if not named:
+            without_tier = re.sub(r"\bcircuits?\b", " ", _TIER_MENTION.sub(" ", text))
+            named = _datasets(without_tier)
     # "circuit" is the grouping dimension, not the circuits inventory table.
     if group_by == "circuit":
         named = [item for item in named if item != "circuits"]
@@ -2665,7 +2677,18 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
     has_trend_clause = bool(
         re.search(r"\b(?:trend|time series|weekly|monthly|daily)\b", lower)
     )
-    if has_count_clause and has_trend_clause:
+    explicit_pair = has_count_clause and has_trend_clause
+    # A chart plus a total ("plus the annual total", "and how many overall") is
+    # the same two results. It takes the pair only when one dataset, at most one
+    # utility and county, and one window are known; otherwise the series branch
+    # defers it below (issue 44).
+    series_and_total = (
+        _asks_series_and_total(lower)
+        and len(utilities) <= 1
+        and len(counties) <= 1
+        and not _enumerated_years(lower)
+    )
+    if explicit_pair or series_and_total:
         time_args = _time_filter_args(time_resolution)
         viz_dataset = {
             "cpuc_ignitions": "ignitions",
@@ -2713,12 +2736,13 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 tool_calls=tool_calls,
                 slots=slots,
             )
-        return RouteDecision(
-            "model",
-            "multi_intent_count_and_trend",
-            "Question explicitly requires both a scalar read and a time series",
-            slots=slots,
-        )
+        if explicit_pair:
+            return RouteDecision(
+                "model",
+                "multi_intent_count_and_trend",
+                "Question explicitly requires both a scalar read and a time series",
+                slots=slots,
+            )
     if (
         re.search(r"\bterritor", lower)
         and re.search(r"\b(?:map|layer)\b", lower)
