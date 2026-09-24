@@ -719,6 +719,39 @@ def test_review_82_a_map_plus_a_count_runs_both_never_the_map_alone(question, da
     assert map_args == {"kind": "map", "dataset": viz, **extra}
 
 
+@pytest.mark.parametrize(
+    "question,dataset,extra",
+    [
+        # The US sample maps to itself, so a dataset-rename check dropped its count.
+        ("Map US ignitions in 2023 and how many were there", "us_ignitions", {"year": 2023}),
+        ("Map PG&E ignitions in 2023 and how many were there", "cpuc_ignitions", {"utility": "PGE", "year": 2023}),
+    ],
+)
+def test_review_82_a_us_sample_map_plus_a_count_runs_both(question, dataset, extra):
+    decision = route_question(question)
+    assert decision.rule == "multi_intent_count_and_map", (question, decision.rule)
+    (count_name, count_args), (map_name, _map_args) = decision.tool_calls
+    assert (count_name, map_name) == ("data_query_records", "visualization_create")
+    assert count_args == {"dataset": dataset, "result_mode": "count", **extra}
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Map circuits in 2023 and how many were there",
+        "Map HFTD tier 3 and how many ignitions in 2023",
+        # The US sample has no utility column: never a PG&E-labeled sample count.
+        "Map PG&E US sample ignitions in 2023 and how many were there",
+    ],
+)
+def test_review_82_no_count_is_added_for_a_non_event_map_or_a_utility_scoped_us_sample(question):
+    decision = route_question(question)
+    assert "data_query_records" not in [name for name, _ in decision.tool_calls or []], (
+        question,
+        decision.tool_calls,
+    )
+
+
 def test_review_82_a_map_without_a_count_is_still_the_map_alone():
     decision = route_question("Map PG&E ignitions in 2023")
     assert decision.rule == "map"

@@ -3284,10 +3284,18 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             args["county"] = county
         tool_calls = [("visualization_create", args)]
         rule, reason = "map", "Explicit map, dataset, and time filter"
-        if has_count_clause and viz_dataset != dataset:
+        us_sample_utility = dataset == "us_ignitions" and bool(utilities)
+        if (
+            has_count_clause
+            and viz_dataset in _TIME_SERIES_VIZ
+            and not us_sample_utility
+        ):
             # A map plus a count ("and how many there were") is two results.
             # The count runs with the map's filters; the map alone would
-            # silently drop the number.
+            # silently drop the number. Only event datasets count this way,
+            # the US sample included; hftd and circuits do not. The US sample
+            # has no utility column, so a utility-scoped sample count is not
+            # built here.
             count_args: dict[str, Any] = {
                 "dataset": dataset,
                 "result_mode": "count",
