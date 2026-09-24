@@ -7,7 +7,7 @@ At runtime, no routed answer for any eval question, decide-mode reason text,
 or unsupported answer contains one.
 
 ``services/agent/time_resolve.py`` is not scanned: its em dashes are in
-patterns that read the user's own date ranges ("2019—2021"), not text shown
+patterns that read the user's own date ranges (two years joined by an em dash), not text shown
 to the user.
 """
 
@@ -20,7 +20,7 @@ import pytest
 from services.agent.decisions.decide_mode import _REASON_TEXT
 from services.agent.routing import UNSUPPORTED_ANSWERS, route_question
 
-EM_DASH = "—"
+EM_DASH = "\u2014"
 ROOT = Path(__file__).resolve().parents[2]
 SCANNED = [
     *sorted((ROOT / "services" / "agent").glob("*.py")),
