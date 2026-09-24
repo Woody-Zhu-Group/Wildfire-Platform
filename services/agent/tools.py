@@ -22,6 +22,7 @@ from services.agent.schemas import (
     DataQuerySpatialArgs,
     EXECUTABLE_TOOL_MODELS,
     RiskForecastArgs,
+    strip_harness_only_arguments,
     RiskSurfaceArgs,
     VisualizationCreateArgs,
     VisualizationInspectArgs,
@@ -93,6 +94,8 @@ class ToolExecutor:
         Used so SSE/audit trails show the year/utility actually executed after
         slot fill and year override — not only the raw model payload.
         """
+        if not harness_call:
+            arguments, _hidden = strip_harness_only_arguments(tool, arguments)
         normalized = prepare_tool_arguments(
             tool,
             arguments,
@@ -154,6 +157,22 @@ class ToolExecutor:
                 started,
                 qualification_call,
             )
+        # Harness-only arguments (snap_shoreline) come only from the router. A
+        # model or any other caller cannot turn them on for its own reads.
+        if not harness_call:
+            arguments, hidden = strip_harness_only_arguments(tool, arguments)
+            if hidden:
+                print(
+                    json.dumps(
+                        {
+                            "event": "harness_arguments_stripped",
+                            "request_id": request_id,
+                            "attempt": attempt,
+                            "tool": tool,
+                            "arguments": hidden,
+                        }
+                    )
+                )
         normalized_arguments = prepare_tool_arguments(
             tool,
             arguments,

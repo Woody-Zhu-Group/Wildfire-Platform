@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 from datetime import date
 from enum import Enum
 from typing import Any, Literal
@@ -316,6 +318,31 @@ EXECUTABLE_TOOL_MODELS: dict[str, type[StrictModel]] = {
     **TOOL_MODELS,
     **HARNESS_TOOL_MODELS,
 }
+
+
+@lru_cache(maxsize=None)
+def harness_only_arguments(tool: str) -> frozenset[str]:
+    """Argument fields left out of the model-facing JSON schema (SkipJsonSchema).
+
+    Only the router sets these (for example snap_shoreline on a city center
+    point read). A model never sees them and must not be able to send them.
+    """
+    model = EXECUTABLE_TOOL_MODELS.get(tool)
+    if model is None:
+        return frozenset()
+    visible = set(model.model_json_schema().get("properties") or {})
+    return frozenset(set(model.model_fields) - visible)
+
+
+def strip_harness_only_arguments(
+    tool: str, arguments: dict[str, Any]
+) -> tuple[dict[str, Any], list[str]]:
+    """Drop harness-only arguments from a call that did not come from the router."""
+    hidden = harness_only_arguments(tool)
+    stripped = sorted(key for key in arguments if key in hidden)
+    if not stripped:
+        return arguments, []
+    return {key: value for key, value in arguments.items() if key not in hidden}, stripped
 
 TOOL_DESCRIPTIONS = {
     "data_query_records": (
