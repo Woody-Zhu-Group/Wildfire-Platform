@@ -59,7 +59,12 @@ from services.shared.dataset_registry import (
     not_covered_question,
     single_utility_dataset,
 )
-from services.agent.coverage import call_coverage_gap, not_covered_rule
+from services.agent.coverage import (
+    call_coverage_gap,
+    carry_question_definition,
+    not_covered_rule,
+    question_definitions,
+)
 
 
 @dataclass
@@ -1250,15 +1255,24 @@ def _not_covered_clarification(
     )
 
 
-def _never_covered(slots: dict[str, Any]) -> dict[str, Any] | None:
-    """The gap when the slot dataset has no rows for any named utility at any date."""
+def _never_covered(slots: dict[str, Any], question: str) -> dict[str, Any] | None:
+    """The gap when the slot dataset has no rows for any named utility at any date.
+
+    Measured on the rows the question's count would read: the query
+    definition it asks for, or the default. A question that asks for two
+    definitions at once is left to its own clarification.
+    """
     dataset = slots.get("dataset")
     utilities = list(slots.get("utilities") or [])
     if not isinstance(dataset, str) or not utilities:
         return None
     try:
-        return dataset_coverage_gap(dataset, utilities)
-    except ValueError:
+        asked = question_definitions(dataset, question)
+        if len(asked) > 1:
+            return None
+        definition = next(iter(asked), None)
+        return dataset_coverage_gap(dataset, utilities, definition=definition)
+    except (KeyError, ValueError):
         return None
 
 
@@ -1342,6 +1356,10 @@ def comparison_uncarried_constraints(
     )
     if month_from_text(question) is not None and whole_years:
         dropped.append("month")
+    # A comparison reads its dataset's default query only, so an asked
+    # non-default definition (CAL FIRE all or untyped incident types) is dropped.
+    if not carry_question_definition("comparison_run", dict(args), question):
+        dropped.append("incident type")
     return dropped
 
 
@@ -1378,6 +1396,14 @@ def _block_unexpressed_constraints(
     reason: str,
 ) -> RouteDecision | None:
     """Refuse a deterministic answer that would silently drop asked filters."""
+    dropped: list[str] = []
+    for tool, args in tool_calls:
+        # The rows a count reads: a call gets the dataset's query definition
+        # the question asks for (CAL FIRE all or untyped incident types), so
+        # its coverage below is that definition's. One that cannot carry it
+        # would answer for other rows.
+        if not carry_question_definition(tool, args, question) and "incident type" not in dropped:
+            dropped.append("incident type")
     for tool, args in tool_calls:
         # A read outside measured coverage (a utility or a period the dataset
         # has no rows for) would come back as 0 or an empty series: absent,
@@ -1385,7 +1411,6 @@ def _block_unexpressed_constraints(
         gap = call_coverage_gap(tool, args)
         if gap is not None:
             return _not_covered_clarification(gap, slots, comparison=tool == "comparison_run")
-    dropped: list[str] = []
     county = slots.get("county")
     if county and not any(
         _county_expressed(args, county) for _tool, args in tool_calls
@@ -2502,7 +2527,7 @@ def _route_question(
     if decision.path == "clarification" and decision.rule.endswith("_missing_year"):
         # Asking for a year cannot help when the dataset has no rows for the
         # named utility at any date (measured coverage): say so instead.
-        gap = _never_covered(decision.slots)
+        gap = _never_covered(decision.slots, question)
         if gap is not None:
             return _not_covered_clarification(gap, decision.slots)
     return decision

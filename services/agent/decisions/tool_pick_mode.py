@@ -28,7 +28,7 @@ from services.shared.dataset_registry import (
     LAYER_VIZ_KEYS,
     TIER_DIGIT_PATTERN,
 )
-from services.agent.coverage import call_coverage_gap
+from services.agent.coverage import call_coverage_gap, carry_question_definition
 
 
 _VIZ_DATASET = LAYER_VIZ_KEYS
@@ -208,14 +208,23 @@ def arguments_for_tool(
 ) -> dict[str, Any] | None:
     """Arguments from route slots. Missing required fields fall back to the model loop."""
     if tool == "data_query_records":
-        return _records_args(slots)
-    if tool == "visualization_create":
-        return _visualization_args(slots, question)
-    if tool == "comparison_run":
-        return _comparison_args(slots, question)
-    if tool == "data_query_spatial":
-        return _spatial_args(slots)
-    return None
+        args = _records_args(slots)
+    elif tool == "visualization_create":
+        args = _visualization_args(slots, question)
+    elif tool == "comparison_run":
+        args = _comparison_args(slots, question)
+    elif tool == "data_query_spatial":
+        args = _spatial_args(slots)
+    else:
+        return None
+    if args is None:
+        return None
+    # The call reads the query definition the question asks for (CAL FIRE all
+    # or untyped incident types), and its coverage is that definition's; a
+    # call that cannot carry it falls back to the model loop.
+    if not carry_question_definition(tool, args, question) or _not_covered(tool, args, []):
+        return None
+    return args
 
 
 def _not_covered(tool: str, args: dict[str, Any], utilities: list[str]) -> bool:

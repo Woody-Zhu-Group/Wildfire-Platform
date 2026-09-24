@@ -301,6 +301,25 @@ def calfire_default_type_sql(column: str) -> str:
     return f"{column} IN ({quoted})"
 
 
+# The rows each ``incident_type_mode`` reads, as a WHERE predicate on the CAL
+# FIRE table's own ``incident_type`` column (None: every row), and the words
+# that name those rows in a coverage reason. The registry gives these to the
+# CAL FIRE DatasetSpec; the coverage loader measures each one, so a count and
+# its coverage always read the same rows.
+CALFIRE_INCIDENT_TYPE_MODE_SQL: dict[str, str | None] = {
+    DEFAULT_INCIDENT_TYPE_MODE: calfire_default_type_sql("incident_type"),
+    "all": None,
+    "untyped": "incident_type IS NULL",
+}
+CALFIRE_INCIDENT_TYPE_MODE_WORDS: dict[str, str] = {
+    DEFAULT_INCIDENT_TYPE_MODE: (
+        "of the default incident types (" + ", ".join(CALFIRE_DEFAULT_INCIDENT_TYPES) + ")"
+    ),
+    "all": "of any incident type",
+    "untyped": "with no incident type",
+}
+
+
 # Question wording for the two non-default modes.
 ALL_INCIDENT_TYPES_PATTERN = re.compile(
     r"\b(?:all (?:calfire |cal fire )?(?:incident |record )?types|every (?:incident |record )?type|"

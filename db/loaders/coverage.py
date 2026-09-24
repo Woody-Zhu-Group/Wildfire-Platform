@@ -2,7 +2,11 @@
 
 Coverage is measured, never declared: for each dataset, which utilities it has
 rows for, each one's first and last date, and its row count per calendar year,
-read from the tables the loaders just filled. ``services.shared.dataset_registry``
+read from the tables the loaders just filled. It is measured on exactly the
+rows each count reads: once per query definition the registry gives the
+dataset (``DatasetSpec.query_definitions``; CAL FIRE's default incident
+types, all types, untyped), with the default's measurement at the top of the
+entry and the others under ``definitions``. ``services.shared.dataset_registry``
 reads the file this writes; the website imports the same file. Run after a load (``load_all`` does) or alone:
 
     python -m db.loaders.coverage
@@ -21,6 +25,7 @@ import psycopg
 
 from db.loaders import load_circuits, load_epss
 from db.loaders.util import print_step
+from services.shared.dataset_registry import DATASETS
 from shared.db import connect, get_settings
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -67,7 +72,9 @@ def _span(row: tuple[Any, ...]) -> dict[str, Any]:
     }
 
 
-def _years(cur: psycopg.Cursor, table: str, date_col: str, where: str) -> dict[str, dict[str, int]]:
+def _years(
+    cur: psycopg.Cursor, table: str, date_col: str, where: str, rows_sql: str
+) -> dict[str, dict[str, int]]:
     """Rows per calendar year, keyed by the group (a utility, or "" for all rows).
 
     Only years with rows appear; a year that is absent has none. Rows with no
@@ -76,7 +83,7 @@ def _years(cur: psycopg.Cursor, table: str, date_col: str, where: str) -> dict[s
     cur.execute(
         f"""
         SELECT {where}, extract(year FROM {date_col})::int, count(*) FROM {table}
-        WHERE {date_col} IS NOT NULL
+        WHERE {date_col} IS NOT NULL AND {rows_sql}
         GROUP BY 1, 2 ORDER BY 1, 2
         """
     )
@@ -86,52 +93,72 @@ def _years(cur: psycopg.Cursor, table: str, date_col: str, where: str) -> dict[s
     return years
 
 
+def _measure_rows(cur: psycopg.Cursor, source: dict[str, Any], where: str | None) -> dict[str, Any]:
+    """The span, utilities, and years of the table's rows that ``where`` selects (None: all)."""
+    table = source["table"]
+    date_col = source.get("date")
+    rows_sql = f"({where})" if where else "TRUE"
+    span_sql = (
+        f"min({date_col}), max({date_col}), count(*)"
+        if date_col
+        else "NULL::date, NULL::date, count(*)"
+    )
+    # A row with no date cannot place a count in a period, so it does
+    # not extend coverage; the row count still includes it.
+    cur.execute(f"SELECT {span_sql} FROM {table} WHERE {rows_sql}")
+    entry: dict[str, Any] = {"date_column": date_col, **_span(cur.fetchone())}
+    # Rows per calendar year: whether rows exist in an asked period,
+    # not only whether the period falls inside the span.
+    entry["years"] = _years(cur, table, date_col, "''", rows_sql).get("", {}) if date_col else {}
+    if source.get("utility"):
+        column = source["utility"]
+        cur.execute(
+            f"""
+            SELECT {column}, {span_sql} FROM {table}
+            WHERE {column} IS NOT NULL AND {rows_sql}
+            GROUP BY 1 ORDER BY 1
+            """
+        )
+        entry["utility_dimension"] = True
+        entry["utilities"] = {row[0]: _span(row[1:]) for row in cur.fetchall()}
+        by_utility = _years(cur, table, date_col, column, rows_sql) if date_col else {}
+        for code, span in entry["utilities"].items():
+            span["years"] = by_utility.get(code, {})
+        # Rows with no utility: what an "untagged" filter can count.
+        cur.execute(f"SELECT {span_sql} FROM {table} WHERE {column} IS NULL AND {rows_sql}")
+        untagged = _span(cur.fetchone())
+        untagged["years"] = by_utility.get("", {})
+        entry["untagged"] = untagged if untagged["rows"] else None
+    elif source.get("source_utility"):
+        # Every row is the source utility's, so its span is the table's.
+        entry["utility_dimension"] = True
+        span = {name: entry[name] for name in ("first", "last", "rows", "years")}
+        entry["utilities"] = {source["source_utility"]: span} if entry["rows"] else {}
+    else:
+        entry["utility_dimension"] = False
+        entry["utilities"] = {}
+    return entry
+
+
 def measure(conn: psycopg.Connection) -> dict[str, Any]:
-    """Each dataset's measured date span, and its span per utility."""
+    """Each dataset's measured date span and its span per utility, per query definition.
+
+    The definitions (a WHERE predicate each, the default first) come from the
+    registry, never from here: the rows measured are the rows each count reads.
+    """
     datasets: dict[str, Any] = {}
     with conn.cursor() as cur:
         for key, source in SOURCES.items():
-            table = source["table"]
-            date_col = source.get("date")
-            span_sql = (
-                f"min({date_col}), max({date_col}), count(*)"
-                if date_col
-                else "NULL::date, NULL::date, count(*)"
-            )
-            # A row with no date cannot place a count in a period, so it does
-            # not extend coverage; the row count still includes it.
-            cur.execute(f"SELECT {span_sql} FROM {table}")
-            entry: dict[str, Any] = {"date_column": date_col, **_span(cur.fetchone())}
-            # Rows per calendar year: whether rows exist in an asked period,
-            # not only whether the period falls inside the span.
-            entry["years"] = _years(cur, table, date_col, "''").get("", {}) if date_col else {}
-            if source.get("utility"):
-                column = source["utility"]
-                cur.execute(
-                    f"""
-                    SELECT {column}, {span_sql} FROM {table}
-                    WHERE {column} IS NOT NULL
-                    GROUP BY 1 ORDER BY 1
-                    """
-                )
-                entry["utility_dimension"] = True
-                entry["utilities"] = {row[0]: _span(row[1:]) for row in cur.fetchall()}
-                by_utility = _years(cur, table, date_col, column) if date_col else {}
-                for code, span in entry["utilities"].items():
-                    span["years"] = by_utility.get(code, {})
-                # Rows with no utility: what an "untagged" filter can count.
-                cur.execute(f"SELECT {span_sql} FROM {table} WHERE {column} IS NULL")
-                untagged = _span(cur.fetchone())
-                untagged["years"] = by_utility.get("", {})
-                entry["untagged"] = untagged if untagged["rows"] else None
-            elif source.get("source_utility"):
-                # Every row is the source utility's, so its span is the table's.
-                entry["utility_dimension"] = True
-                span = {name: entry[name] for name in ("first", "last", "rows", "years")}
-                entry["utilities"] = {source["source_utility"]: span} if entry["rows"] else {}
-            else:
-                entry["utility_dimension"] = False
-                entry["utilities"] = {}
+            definitions = dict(DATASETS[key].query_definitions)
+            if not definitions:
+                datasets[key] = _measure_rows(cur, source, None)
+                continue
+            (default, where), *others = definitions.items()
+            entry = {"definition": default, "where": where, **_measure_rows(cur, source, where)}
+            entry["definitions"] = {
+                name: {"where": other, **_measure_rows(cur, source, other)}
+                for name, other in others
+            }
             datasets[key] = entry
     return {"$generated": GENERATED_NOTE, "datasets": datasets}
 

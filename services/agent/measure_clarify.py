@@ -15,10 +15,10 @@ from services.shared.dataset_registry import (
     COMPARE_MEASURES,
     MEASURE_DATASETS,
     MEASURE_LABELS,
-    MEASURE_UTILITIES,
     MEASURES_NOT_IN_DATA,
     RANK_MEASURES,
     UTILITY_CLARIFY_LABELS,
+    measure_utilities,
 )
 
 _GROUP_PLURALS = {"utility": "utilities", "county": "counties", "circuit": "circuits"}
@@ -104,11 +104,12 @@ def measure_clarification(
             subject = _join(counties, "and")
         else:
             subject = plural
-        # EPSS is PG&E only: offered only when PG&E is one of the named utilities.
+        # A measure whose dataset has rows for one utility only (EPSS) is
+        # offered only when that utility is one of the named utilities.
         measures = [
             item
             for item in COMPARE_MEASURES[group]
-            if len(utilities) < 2 or set(utilities) & MEASURE_UTILITIES.get(item, set(utilities))
+            if len(utilities) < 2 or set(utilities) & (measure_utilities(item) or set(utilities))
         ]
         parts.append(f"To compare {subject}{when}, I can use {_join(_labels(measures, dataset), 'or')}.")
     else:

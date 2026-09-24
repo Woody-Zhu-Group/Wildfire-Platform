@@ -82,13 +82,15 @@ class FakeBackend:
 
 
 # The five passing mentions named in #97, as in-scope questions, with the route
-# each takes once the keyword is set aside.
+# each takes once the keyword is set aside. PSPS rows start 2021-10-11 (measured
+# coverage, PR #93), so the 2019 PSPS count is the not-covered clarification,
+# never a 0.
 PASSING_MENTIONS = [
     ("After the budget meeting, how many PG&E ignitions were there in 2022?", "unsupported_cost", "filtered_records"),
     ("The CEO testified last week. How many SCE ignitions were in Tier 3 HFTD in 2022?", "unsupported_leadership", "filtered_records"),
     ("Our schedule is tight: how many CAL FIRE incidents were there in Butte County in 2020?", "unsupported_optimization", "filtered_records"),
     ("For a cost report, show a map of PG&E ignitions in 2022.", "unsupported_cost", "map"),
-    ("Ahead of the price cap hearing, how many PSPS events were there in 2019?", "unsupported_cost", "filtered_records"),
+    ("Ahead of the price cap hearing, how many PSPS events were there in 2019?", "unsupported_cost", "dataset_not_covered"),
 ]
 
 # Questions whose subject is the unsupported topic, with the off_topic option
@@ -118,8 +120,12 @@ def test_passing_mention_is_answered_when_jev_reads_on_topic(question, keyword_r
     decision = route_question(question)
     assert is_topic_judgment(decision, question) and exemption(decision, question) is None
     result = decide_from_answers(question, decision, _facts("on_topic", 0.9), gate=0.8, today=TODAY)
-    assert (result.decision.path, result.decision.rule) == ("deterministic", answer_rule)
-    assert result.decision.tool_calls
+    if answer_rule == "dataset_not_covered":
+        assert (result.decision.path, result.decision.rule) == ("clarification", answer_rule)
+        assert "absent, not zero" in result.decision.answer and not result.decision.tool_calls
+    else:
+        assert (result.decision.path, result.decision.rule) == ("deterministic", answer_rule)
+        assert result.decision.tool_calls
     assert (result.winner, result.why) == ("jev", "on_topic")
     assert result.topic_keyword_rule == keyword_rule
     assert (result.router_path, result.router_rule) == ("unsupported", keyword_rule)

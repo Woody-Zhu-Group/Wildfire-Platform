@@ -40,6 +40,7 @@ from services.agent.coverage import (
 )
 from services.shared.dataset_registry import (
     COMPARISON_METRIC_DATASETS,
+    call_definition,
     data_query_path,
     dataset_coverage_gap,
     group_code_and_label,
@@ -1225,7 +1226,11 @@ def mark_uncovered_counts(
         for key in datasets
         if key not in (summary.get("not_covered") or {})
         for utility in named_utilities(tool, arguments) or [None]
-        if (note := partial_coverage_note(key, utility, start, end))
+        if (
+            note := partial_coverage_note(
+                key, utility, start, end, definition=call_definition(key, arguments)
+            )
+        )
     ]
     if notes:
         summary["coverage_notes"] = list(dict.fromkeys(notes))

@@ -24,6 +24,7 @@ import re
 from dataclasses import fields
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -45,6 +46,9 @@ from services.shared.dataset_registry import (
     coverage_window,
     covered_utilities,
     dataset_coverage_gap,
+    dataset_years,
+    default_definition,
+    definition_for_filter,
     partial_coverage_note,
     rows_in_period,
 )
@@ -177,9 +181,9 @@ def test_liberty_cpuc_2023_is_not_covered_and_offers_only_covered_data(question)
     answer = decision.answer
     assert "CPUC ignitions have rows only for PacifiCorp, PG&E, SCE, and SDG&E" in answer
     assert "absent, not zero" in answer
-    # Nothing is offered: Liberty has no CAL FIRE rows in 2023 (its CAL FIRE
-    # windows overlap 2023, but its measured rows are in 2014 to 2017, 2020,
-    # 2021, and 2024), and its PSPS rows start 2024-11-11.
+    # Nothing is offered: the CAL FIRE count reads its default query, which
+    # has no Liberty rows in 2023, and Liberty's PSPS rows start 2024-11-11.
+    assert not rows_in_period("calfire_incidents", "Liberty", "2023-01-01", "2023-12-31")
     assert "CAL FIRE" not in answer and "PSPS" not in answer
     assert "Do you want" not in answer
 
@@ -209,10 +213,13 @@ def test_bear_valley_psps_and_cpuc_are_not_covered(question, label):
     # With no year, asking for one cannot help: Bear Valley has no rows at all.
     assert (decision.path, decision.rule) == ("clarification", "dataset_not_covered"), decision.answer
     assert f"no Bear Valley rows in {label}" in decision.answer
-    # Bear Valley's CAL FIRE rows are in 2013 and 2015 only: offered with no
-    # year asked, never for a year in which it has no rows.
+    # Bear Valley's CAL FIRE incidents are offered only where the count the
+    # offer leads to (CAL FIRE's default query) has Bear Valley rows in the
+    # asked period, as measured.
+    year = decision.slots.get("year")
+    period = (f"{year}-01-01", f"{year}-12-31") if year else (None, None)
     offered = "Bear Valley's CAL FIRE incidents" in decision.answer
-    assert offered == (decision.slots.get("year") is None), decision.answer
+    assert offered == rows_in_period("calfire_incidents", "BVES", *period), decision.answer
 
 
 # ---------------------------------------------------------------------------
@@ -525,15 +532,25 @@ def test_partial_note_is_none_inside_coverage():
 # ---------------------------------------------------------------------------
 # Final review: offers need measured rows in the asked period, not a window
 # that overlaps it. SDG&E's PSPS window spans 2022, but SDG&E has no PSPS rows
-# in 2022 or 2023; Bear Valley has no CAL FIRE rows in 2020, Liberty none in
-# 2022. The generated file holds rows per calendar year for each dataset,
-# utility, and the untagged rows, and every offer is checked against them.
+# in 2022 or 2023. The generated file holds rows per calendar year for each
+# dataset, utility, and the untagged rows, per query definition, and every
+# offer is checked against them.
 # ---------------------------------------------------------------------------
 
 
-def _year_rows(dataset: str, utility: str | None, year: int) -> int:
+def _year_rows(
+    dataset: str, utility: str | None, year: int, definition: str | None = None
+) -> int:
+    """Measured rows in a year, for the query definition (None: the default)."""
     entry = DATASET_COVERAGE[dataset]
-    span = entry if utility is None else (entry.get("utilities") or {}).get(utility) or {}
+    if definition not in (None, entry.get("definition")):
+        entry = entry["definitions"][definition]
+    if utility is None:
+        span = entry
+    elif utility == "untagged":
+        span = entry.get("untagged") or {}
+    else:
+        span = (entry.get("utilities") or {}).get(utility) or {}
     return int((span.get("years") or {}).get(str(year), 0))
 
 
@@ -597,8 +614,7 @@ def test_an_overlapping_window_without_rows_is_never_offered(dataset, utility, y
 
 @pytest.mark.parametrize(
     "dataset,utility,year",
-    [("psps_events", "SDGE", 2022), ("psps_events", "SDGE", 2023),
-     ("calfire_incidents", "BVES", 2020), ("calfire_incidents", "Liberty", 2022)],
+    [("psps_events", "SDGE", 2022), ("psps_events", "SDGE", 2023)],
 )
 def test_the_reviewer_pairs_overlap_the_window_but_have_no_rows(dataset, utility, year):
     start, end = date(year, 1, 1), date(year, 12, 31)
@@ -606,6 +622,30 @@ def test_the_reviewer_pairs_overlap_the_window_but_have_no_rows(dataset, utility
     assert first <= end and last >= start
     assert _year_rows(dataset, utility, year) == 0
     assert not rows_in_period(dataset, utility, start, end)
+
+
+def test_every_window_year_without_rows_has_no_rows_in_period_for_every_definition():
+    # The CAL FIRE reviewer pairs (Bear Valley 2020, Liberty 2022) as a rule:
+    # any year inside a utility's window with no measured rows, in any query
+    # definition, is never counted as having rows.
+    checked = 0
+    for dataset, spec in DATASETS.items():
+        entry = DATASET_COVERAGE.get(dataset)
+        if not entry or not entry.get("utility_dimension"):
+            continue
+        for definition in list(spec.query_definitions) or [None]:
+            for utility in covered_utilities(dataset, definition=definition):
+                window = coverage_window(dataset, utility, definition=definition)
+                if window is None:  # no date column (circuits): no years
+                    continue
+                first, last = window
+                for year in range(first.year, last.year + 1):
+                    if _year_rows(dataset, utility, year, definition) == 0:
+                        checked += 1
+                        assert not rows_in_period(
+                            dataset, utility, f"{year}-01-01", f"{year}-12-31", definition=definition
+                        ), (dataset, definition, utility, year)
+    assert checked > 10
 
 
 def test_rows_in_period_needs_a_whole_year_or_a_measured_row_date():
@@ -616,8 +656,9 @@ def test_rows_in_period_needs_a_whole_year_or_a_measured_row_date():
     assert not rows_in_period("psps_events", "SDGE", "2022-01-01", "2023-12-31")
     # Part of a year with rows, holding neither measured date: not known.
     assert not rows_in_period("psps_events", "SDGE", "2024-03-01", "2024-03-31")
-    # Untagged rows are measured too.
-    assert rows_in_period("calfire_incidents", "untagged", "2013-01-01", "2013-12-31")
+    # Untagged rows are measured too, on the rows the default count reads.
+    year = dataset_years("calfire_incidents", "untagged")[0]
+    assert rows_in_period("calfire_incidents", "untagged", f"{year}-01-01", f"{year}-12-31")
     assert not rows_in_period("cpuc_ignitions", "untagged", "2023-01-01", "2023-12-31")
 
 
@@ -681,6 +722,125 @@ def test_cpuc_for_a_utility_with_no_rows_that_year_anywhere_offers_nothing(quest
     assert "Do you want" not in answer and "CAL FIRE" not in answer
 
 
+# ---------------------------------------------------------------------------
+# Final check: coverage is measured on exactly the rows each count reads.
+#
+# The final check found coverage measured on every CAL FIRE row while the
+# default CAL FIRE count reads only the registry's default incident types, so
+# years whose rows the default excludes (2013; Bear Valley's and some of
+# Liberty's years, offered as alternatives) were measured as covered and then
+# answered 0. The loader now measures each query definition the registry
+# gives a dataset (DatasetSpec.query_definitions), and every coverage lookup
+# uses the definition its call reads. The expectations below are read from the
+# measured file per definition, never from a list of incident types: the
+# default definition may change.
+# ---------------------------------------------------------------------------
+
+CALFIRE = "calfire_incidents"
+
+
+_DATA_QUERY: list[Any] = []
+
+
+def _real_data_query() -> Any:
+    """The data_query app on the warehouse, or None when the warehouse is not reachable."""
+    if not _DATA_QUERY:
+        client = None
+        try:
+            import psycopg
+            from fastapi.testclient import TestClient
+
+            from services.data_query.app import app
+            from shared.db import connect, get_settings
+
+            connect(get_settings()).close()
+            client = TestClient(app)
+        except (ImportError, psycopg.Error):
+            client = None
+        _DATA_QUERY.append(client)
+    return _DATA_QUERY[0]
+
+
+def _calfire_service(requests: list[dict]) -> Any:
+    """data_query for the reviewer cases: the real service when the warehouse is up.
+
+    With the warehouse, the returned value is data_query's own count, so an
+    answer only matches the measured rows when coverage and the count read the
+    same rows. Without it, a fixture returns the measured count of the rows the
+    request reads (its incident_type picks the definition exactly as
+    data_query does), and test_each_definitions_measured_rows_are_what_data_query_counts
+    ties the measured file to data_query where a warehouse exists.
+    """
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/calfire/incidents"), request.url
+        params = dict(request.url.params)
+        requests.append(params)
+        real = _real_data_query()
+        if real is not None:
+            response = real.get(request.url.path, params=params)
+            return httpx.Response(response.status_code, json=response.json())
+        definition = definition_for_filter(CALFIRE, params.get("incident_type"))
+        entry = DATASET_COVERAGE[CALFIRE]
+        if definition != entry["definition"]:
+            entry = entry["definitions"][definition]
+        if "year" in params:
+            total = _year_rows(CALFIRE, params.get("utility"), int(params["year"]), definition)
+        else:
+            total = entry["rows"]
+        meta = {
+            "total": total,
+            "returned": 0,
+            "filters": params,
+            "null_incident_type_count": DATASET_COVERAGE[CALFIRE]["definitions"]["untyped"]["rows"],
+            "null_utility_records_in_table": (entry.get("untagged") or {}).get("rows", 0),
+        }
+        return httpx.Response(200, json={"data": [], "meta": meta})
+
+    return handle
+
+
+def _count_call(year: int, utility: str | None = None, definition: str | None = None) -> tuple[str, dict]:
+    args: dict[str, Any] = {"dataset": CALFIRE, "result_mode": "count", "year": year}
+    if utility:
+        args["utility"] = utility
+    if definition:
+        args["incident_type_mode"] = definition
+    return ("data_query_records", args)
+
+
+def _assert_count_or_not_covered(
+    question: str, year: int, utility: str | None, definition: str | None
+) -> dict:
+    """Ask the question end to end and check the returned value against measured rows.
+
+    Where the definition's measured rows hold none for the utility in the
+    year, the answer is the not-covered clarification and no service is
+    called. Otherwise the count the service returns is in the answer.
+    """
+    rows = _year_rows(CALFIRE, utility, year, definition)
+    requests: list[dict] = []
+    backend = _RecordingBackend(_calfire_service(requests))
+    response = _ask(question, backend, _ScriptedModel([_count_call(year, utility, definition)]))
+    text = response["answer_text"]
+    covered = dataset_coverage_gap(
+        CALFIRE, [utility] if utility else [], f"{year}-01-01", f"{year}-12-31", definition=definition
+    ) is None
+    if not covered:
+        assert response["status"] == "clarification", text
+        assert backend.requests == [], text
+        assert "absent, not zero" in text and " 0 " not in f" {text} "
+        return response
+    assert response["status"] == "answer", text
+    counted = [params for params in requests if params.get("year") == str(year)]
+    assert counted, requests
+    wanted = definition or default_definition(CALFIRE)
+    for params in counted:
+        assert definition_for_filter(CALFIRE, params.get("incident_type")) == wanted, params
+    assert re.search(rf"(?<![\d,]){rows:,}(?![\d,])", text), (rows, text)
+    return response
+
+
 CAL_FIRE_2013 = [
     "How many CAL FIRE incidents were there in 2013?",
     "CAL FIRE wildfire count for 2013",
@@ -690,13 +850,193 @@ CAL_FIRE_2013 = [
 
 
 @pytest.mark.parametrize("question", CAL_FIRE_2013)
-def test_cal_fire_2013_answers_because_it_has_rows(question):
-    assert _year_rows("calfire_incidents", None, 2013) == 141
-    decision = route_question(question)
-    assert decision.path == "deterministic", decision.answer
-    (tool, args), = decision.tool_calls
-    assert tool == "data_query_records" and args["dataset"] == "calfire_incidents"
-    assert args.get("year") == 2013 or str(args.get("start_date", ""))[:4] == "2013"
+def test_cal_fire_2013_is_answered_from_the_rows_the_default_count_reads(question):
+    # The default count's rows, as measured: the not-covered result when it
+    # has none in 2013, the returned count otherwise. Never 0 for rows the
+    # default count does not read.
+    response = _assert_count_or_not_covered(question, 2013, None, None)
+    if _year_rows(CALFIRE, None, 2013) == 0:
+        years = dataset_years(CALFIRE)
+        before = max(year for year in years if year < 2013)
+        after = min(year for year in years if year > 2013)
+        assert f"have no rows between {before} and {after}" in response["answer_text"]
+        # Other definitions have 2013 rows, so the reason names the default's.
+        assert _year_rows(CALFIRE, None, 2013, "all") > 0
+        assert DATASETS[CALFIRE].definition_words[default_definition(CALFIRE)] in (
+            response["answer_text"]
+        )
+
+
+BEAR_VALLEY_CAL_FIRE = [
+    ("How many CAL FIRE incidents did Bear Valley have in 2013?", 2013),
+    ("Bear Valley Electric CAL FIRE incidents, 2015", 2015),
+    ("Count BVES CAL FIRE incidents for 2013", 2013),
+    ("How many CAL FIRE fires were tagged to Bear Valley in 2015?", 2015),
+]
+
+
+@pytest.mark.parametrize("question,year", BEAR_VALLEY_CAL_FIRE)
+def test_bear_valley_cal_fire_years_are_measured_on_the_default_count(question, year):
+    # Bear Valley's CAL FIRE rows under every incident type fall in 2013 and
+    # 2015; whether the default count reads any is the measured file's answer.
+    assert _year_rows(CALFIRE, "BVES", year, "all") > 0
+    _assert_count_or_not_covered(question, year, "BVES", None)
+
+
+LIBERTY_OFFERS = [
+    ("How many CPUC ignitions did Liberty have in 2015?", 2015),
+    ("Liberty Utilities CPUC ignitions in 2016", 2016),
+    ("Count Liberty's CPUC-reported ignitions for 2017", 2017),
+    ("How many CPUC ignitions did Liberty report in 2020?", 2020),
+    ("Number of utility-caused ignitions for Liberty in 2014?", 2014),
+]
+
+
+@pytest.mark.parametrize("question,year", LIBERTY_OFFERS)
+def test_liberty_cal_fire_is_offered_only_where_the_default_count_has_rows(question, year):
+    # CPUC has no Liberty rows, so the clarification may offer Liberty's CAL
+    # FIRE incidents: only in a year the offered count (CAL FIRE's default
+    # query) has Liberty rows, and following the offer returns those rows.
+    rule, answer = _clarification_on_any_path(question, _count("cpuc_ignitions", "Liberty", year))
+    assert rule in {"dataset_not_covered", "executor"}, answer
+    offered = "Liberty's CAL FIRE incidents" in answer
+    assert offered == (_year_rows(CALFIRE, "Liberty", year) > 0), answer
+    if offered:
+        _assert_count_or_not_covered(
+            f"How many CAL FIRE incidents did Liberty have in {year}?", year, "Liberty", None
+        )
+
+
+DEFINITION_2013 = [
+    ("How many CAL FIRE incidents of all incident types were there in 2013?", "all"),
+    ("How many CAL FIRE records, including non-wildfire, were there in 2013?", "all"),
+    ("CAL FIRE incident count for 2013 regardless of incident type", "all"),
+    ("How many untyped CAL FIRE incidents were there in 2013?", "untyped"),
+    ("How many CAL FIRE incidents without an incident type were there in 2013?", "untyped"),
+]
+
+
+@pytest.mark.parametrize("question,definition", DEFINITION_2013)
+def test_a_call_with_another_definition_uses_that_definitions_coverage(question, definition):
+    # incident_type_mode all or untyped reads other rows than the default, so
+    # its coverage is its own: 2013 has rows there, and the count is returned.
+    assert _year_rows(CALFIRE, None, 2013, definition) > 0
+    _assert_count_or_not_covered(question, 2013, None, definition)
+    gap = dataset_coverage_gap(CALFIRE, [], "2013-01-01", "2013-12-31", definition=definition)
+    assert gap is None
+
+
+def test_a_comparison_cannot_carry_another_definition_so_it_clarifies():
+    # comparison_run reads the default query only; answering would drop the
+    # asked incident types.
+    decision = route_question("Compare all CAL FIRE incident types for PG&E vs SCE in 2019")
+    assert (decision.path, decision.rule) == ("clarification", "unexpressed_filter_constraints")
+    assert "incident type" in decision.answer
+
+
+def test_every_definition_is_measured_from_the_registry():
+    # The measured file names each dataset's definitions exactly as the
+    # registry gives them, the default first; nothing else is measured.
+    for key, spec in DATASETS.items():
+        entry = DATASET_COVERAGE.get(key)
+        if entry is None:
+            continue
+        definitions = dict(spec.query_definitions)
+        if not definitions:
+            assert "definition" not in entry and "definitions" not in entry, key
+            continue
+        default, *others = definitions
+        assert (entry["definition"], entry["where"]) == (default, definitions[default]), key
+        assert {name: other["where"] for name, other in entry["definitions"].items()} == {
+            name: definitions[name] for name in others
+        }, key
+
+
+def test_a_file_measured_for_other_definitions_fails_loudly():
+    from services.shared import dataset_registry as registry
+
+    stale = json.loads(COVERAGE_PATH.read_text(encoding="utf-8"))["datasets"]
+    assert registry._stale_definitions(stale) is None
+    stale[CALFIRE]["where"] = "incident_type IN ('Something else')"
+    message = registry._stale_definitions(stale)
+    assert message and "python -m db.loaders.coverage" in message
+    unavailable = registry._CoverageUnavailable(message)
+    with pytest.raises(RuntimeError, match="db.loaders.coverage"):
+        unavailable.get(CALFIRE)
+
+
+class _SqlRecorder:
+    """A connection whose cursor records SQL and reports no rows."""
+
+    def __init__(self) -> None:
+        self.sql: list[str] = []
+
+    def cursor(self):
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+    def execute(self, sql, *_params):
+        self.sql.append(" ".join(str(sql).split()))
+
+    def fetchone(self):
+        return (None, None, 0)
+
+    def fetchall(self):
+        return []
+
+
+def test_the_loader_measures_the_registry_definitions_not_its_own(monkeypatch):
+    # Swap the registry's CAL FIRE definitions: the loader must measure the
+    # swapped predicates, so it holds no incident types of its own.
+    from dataclasses import replace
+
+    from db.loaders import coverage as loader
+
+    swapped = {"first_rows": "incident_type = 'Swapped'", "every_row": None}
+    monkeypatch.setitem(
+        DATASETS, CALFIRE, replace(DATASETS[CALFIRE], query_definitions=swapped)
+    )
+    conn = _SqlRecorder()
+    measured = loader.measure(conn)["datasets"][CALFIRE]
+    assert (measured["definition"], measured["where"]) == ("first_rows", swapped["first_rows"])
+    assert list(measured["definitions"]) == ["every_row"]
+    calfire_sql = [sql for sql in conn.sql if "calfire_incidents" in sql]
+    assert any("incident_type = 'Swapped'" in sql for sql in calfire_sql)
+    source = (ROOT / "db/loaders/coverage.py").read_text(encoding="utf-8")
+    assert "incident_type" not in source and "Wildfire" not in source
+
+
+def test_each_definitions_measured_rows_are_what_data_query_counts():
+    """Ground truth: data_query's CAL FIRE count for each definition, year, and
+    utility equals the measured rows, so coverage and the count read the same rows."""
+    psycopg = pytest.importorskip("psycopg")
+    from services.data_query.queries import query_calfire
+    from shared.db import connect, get_settings
+
+    try:
+        conn = connect(get_settings())
+    except psycopg.Error as exc:
+        pytest.skip(f"warehouse not reachable: {exc}")
+    try:
+        for definition in DATASETS[CALFIRE].query_definitions:
+            incident_type = None if definition == default_definition(CALFIRE) else definition
+            for utility in [None, "BVES", "Liberty"]:
+                for year in range(2009, 2027):
+                    _rows, total, _extra = query_calfire(
+                        conn, utility=utility, include_untagged=False, county=None, year=year,
+                        start_date=None, end_date=None, min_acres=None,
+                        incident_type=incident_type, limit=1, offset=0,
+                    )
+                    assert total == _year_rows(CALFIRE, utility, year, definition), (
+                        definition, utility, year,
+                    )
+    finally:
+        conn.close()
 
 
 SDGE_2009 = [
@@ -717,22 +1057,28 @@ def test_a_year_outside_one_dataset_uses_the_not_covered_wording(question):
 
 
 def test_a_year_between_measured_rows_is_not_covered():
-    # CAL FIRE has one 2009 row, then rows from 2013: 2010 to 2012 are a gap
-    # in the source, not zeros.
-    for year in (2010, 2011, 2012):
-        assert _year_rows("calfire_incidents", None, year) == 0
+    # CAL FIRE's default count has one 2009 row, then no rows until its next
+    # measured year: the years between are a gap in the source, not zeros.
+    years = dataset_years(CALFIRE)
+    after = min(year for year in years if year > 2009)
+    assert after > 2010
+    for year in range(2010, after):
+        assert _year_rows(CALFIRE, None, year) == 0
         decision = route_question(f"How many CAL FIRE incidents were there in {year}?")
         assert (decision.path, decision.rule) == ("clarification", "dataset_not_covered")
-        assert "CAL FIRE incidents have no rows between 2009 and 2013" in decision.answer
+        assert f"have no rows between 2009 and {after}" in decision.answer
 
 
 def test_the_first_covered_year_is_measured_not_declared():
     from services.agent.time_resolve import DATA_YEAR_MIN
 
+    # Every query definition counts: a year only one of them has rows in can
+    # still be asked about.
     first = min(
         int(year)
         for entry in DATASET_COVERAGE.values()
-        for year, rows in (entry.get("years") or {}).items()
+        for measured in (entry, *(entry.get("definitions") or {}).values())
+        for year, rows in (measured.get("years") or {}).items()
         if rows
     )
     assert DATA_YEAR_MIN == first

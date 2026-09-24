@@ -22,10 +22,10 @@ from services.shared.dataset_registry import (
     CLARIFY_DATASET_LABELS,
     COMPARE_MEASURES,
     MEASURE_DATASETS,
-    MEASURE_UTILITIES,
     RANK_MEASURES,
     SERIES_DATASETS,
     UTILITY_CLARIFY_LABELS,
+    measure_utilities,
 )
 
 # The item each clarification rule's own text asks for. Rules that are not
@@ -139,7 +139,7 @@ def compare_datasets(group: str | None, utilities: list[str]) -> list[str]:
         item
         for g in groups
         for item in COMPARE_MEASURES[g]
-        if len(utilities) < 2 or set(utilities) & MEASURE_UTILITIES.get(item, set(utilities))
+        if len(utilities) < 2 or set(utilities) & (measure_utilities(item) or set(utilities))
     ]
     return _ordered_datasets(MEASURE_DATASETS[item] for item in measures)
 

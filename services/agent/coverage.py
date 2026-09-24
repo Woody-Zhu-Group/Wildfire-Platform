@@ -11,11 +11,16 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from services.agent.grounding import question_incident_type_modes
+from services.agent.schemas import TOOL_MODELS
 from services.shared.dataset_registry import (
     COMPARISON_METRIC_DATASETS,
     DATASET_COVERAGE,
+    DATASETS,
+    call_definition,
     covered_utilities,
     dataset_coverage_gap,
+    default_definition,
     to_canonical,
 )
 
@@ -142,8 +147,56 @@ def call_coverage_gap(tool: str, arguments: dict[str, Any]) -> dict[str, Any] | 
     if not dataset:
         return None
     utilities = named_utilities(tool, arguments)
-    gap = dataset_coverage_gap(dataset, utilities, periods=call_periods(tool, arguments))
+    # Coverage of the rows this call counts: its dataset's query definition
+    # (CAL FIRE incident_type_mode), the default when the call names none.
+    gap = dataset_coverage_gap(
+        dataset,
+        utilities,
+        periods=call_periods(tool, arguments),
+        definition=call_definition(dataset, arguments),
+    )
     return _with_filters(gap, tool, arguments)
+
+
+def question_definitions(dataset: str, question: str) -> set[str]:
+    """The dataset's non-default query definitions the question asks for.
+
+    Only CAL FIRE has more than one (``incident_type_mode``); the wording that
+    asks for all or untyped incident types is the registry's
+    (``ALL_INCIDENT_TYPES_PATTERN``, ``UNTYPED_INCIDENT_PATTERN``), read
+    through the same function model-path grounding uses.
+    """
+    default = default_definition(dataset)
+    if default is None:
+        return set()
+    spec = DATASETS[to_canonical(dataset)]
+    return {
+        mode
+        for mode in question_incident_type_modes(question)
+        if mode != default and mode in spec.query_definitions
+    }
+
+
+def carry_question_definition(tool: str, arguments: dict[str, Any], question: str) -> bool:
+    """Give a planned call the query definition its question asks for.
+
+    A count reads, and its coverage is measured on, the rows of one
+    definition; a question that asks for a non-default one must get it, not
+    the default. Returns False when the call cannot carry it (its tool takes
+    no definition argument, as a comparison does, or the question asks for
+    two definitions at once): answering would drop an asked filter.
+    """
+    dataset = call_dataset(tool, arguments)
+    if not dataset or not dataset_known(dataset):
+        return True
+    asked = question_definitions(dataset, question)
+    if not asked:
+        return True
+    argument = DATASETS[to_canonical(dataset)].definition_argument
+    if len(asked) > 1 or argument not in TOOL_MODELS[tool].model_fields:
+        return False
+    arguments[argument] = next(iter(asked))
+    return True
 
 
 def dataset_known(dataset: str) -> bool:
@@ -168,4 +221,7 @@ def count_coverage_gap(
         return None
     utilities = named_utilities(tool, arguments)
     (start, end), *_ = call_periods(tool, arguments)
-    return _with_filters(dataset_coverage_gap(dataset, utilities, start, end), tool, arguments)
+    gap = dataset_coverage_gap(
+        dataset, utilities, start, end, definition=call_definition(dataset, arguments)
+    )
+    return _with_filters(gap, tool, arguments)

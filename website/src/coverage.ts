@@ -5,6 +5,9 @@ import naming from '../../shared/naming.json' with {type: 'json'};
 // shared/dataset_coverage.json; services/shared/dataset_registry.py reads the
 // same file). Nothing here declares which utilities or dates a dataset covers.
 // "years" maps a calendar year to its row count; a year with no rows is absent.
+// Each entry measures the rows its default query reads (CAL FIRE's default
+// incident types); the other query definitions sit under "definitions", which
+// the workspace never queries.
 type Span = {first: string | null; last: string | null; rows: number; years?: Record<string, number>};
 type Entry = Span & {
   date_column: string | null;
@@ -75,7 +78,8 @@ export function coverageSummary(dataset: string, name: string) {
 
 /**
  * A period inside the window that the dataset still has no rows for in any
- * year it touches (CAL FIRE between its one 2009 row and 2013): a gap in the
+ * year it touches (CAL FIRE between its one 2009 row and its next year with
+ * rows): a gap in the
  * source, not a zero.
  */
 function emptyYearsReason(dataset: string, name: string, window: [string, string], start: string, end: string): string | null {
