@@ -63,6 +63,7 @@ RULE_TO_INTENT: dict[str, str] = {
     "undefined_spatial_scope": "spatial_context",
     "city_needs_place": "spatial_context",
     "unknown_county": "spatial_context",
+    "county_place_ambiguous": "spatial_context",
     "hftd_constraint_unavailable": "other",
     "undefined_region": "other",
     "ambiguous_relative_time": "other",

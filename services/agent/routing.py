@@ -588,8 +588,20 @@ _CITY_CUE_BEFORE = re.compile(
     r")\s+$",
     re.I,
 )
-# Orange is a county and a color. Bare "orange" is not the county.
-_COUNTY_REQUIRES_QUALIFIER = frozenset({"orange"})
+# Orange is a county and a color, and Kings, Lake, Mono, Trinity, Glenn, and
+# Alpine are ordinary words or parts of other place names. These need the word
+# County to count as the county.
+_COUNTY_REQUIRES_QUALIFIER = frozenset(
+    {"orange", "kings", "lake", "mono", "trinity", "glenn", "alpine"}
+)
+# A bare county name followed by a place noun is part of a longer place name
+# (Kings Canyon, Trinity Alps, Mono Basin, Lake Tahoe), not the county.
+_COUNTY_PLACE_NOUN_AFTER = re.compile(
+    r"\s+(?:canyon|river|creek|basin|alps|valley|peak|mountains?|forest|"
+    r"national\s+(?:park|forest)|park|tahoe|lake|reservoir|island|beach|"
+    r"pass|bay)\b",
+    re.I,
+)
 
 
 def _city_match(lower: str):
@@ -713,8 +725,23 @@ _PAST_FORECAST = re.compile(
     r"\b(?:forecast|predict)(?:ed|ion|ing|s)?\s+(?:was|were)\b",
     re.I,
 )
+# Advice: a utility or the CPUC is the subject of should or recommend
+# ("the CPUC should", "should PG&E", "recommend that SCE"), a strategy for a
+# utility, or the CPUC penalizing one. "Should I use", "would you recommend
+# for SCE", and "should I expect" are data questions.
+_ADVICE_SUBJECT = (
+    r"(?:the\s+)?(?:cpuc|commission|utilit(?:y|ies)|pge|pg\s*&\s*e|sce|sdge|"
+    r"sdg\s*&\s*e|pacificorp|liberty|bear\s+valley|bves|"
+    r"pacific\s+gas|southern\s+california\s+edison|san\s+diego\s+gas)"
+)
 _ADVICE = re.compile(
-    r"\b(?:should|recommend(?:s|ed)?|penali[sz]e[sd]?|best\s+strategy)\b",
+    rf"\b{_ADVICE_SUBJECT}\b(?:\s+\w+){{0,3}}?\s+(?:should|ought\s+to|must)\b"
+    r"(?!\s+(?:i|we|you|one)\b)|"
+    rf"\b(?:should|must)\s+{_ADVICE_SUBJECT}\b|"
+    rf"\brecommend(?:s|ed)?\s+(?:that\s+)?{_ADVICE_SUBJECT}\b|"
+    rf"\b(?:best|optimal|right)\s+strateg(?:y|ies)\s+for\s+{_ADVICE_SUBJECT}\b|"
+    rf"\bpenali[sz]e[sd]?\s+{_ADVICE_SUBJECT}\b|"
+    rf"\b{_ADVICE_SUBJECT}\b(?:\s+\w+){{0,3}}?\s+penali[sz]e[sd]?\b",
     re.I,
 )
 # The asked object is modeled risk. Predict and forecast alone are not risk
@@ -839,13 +866,61 @@ _BREAKDOWN = re.compile(
 )
 
 
-def _counties(text: str) -> list[str]:
-    """Every county named in the question, not just the first."""
-    lower = " ".join(text.lower().split())
+_COUNTY_PLACE_CUE = re.compile(
+    r"\b(?:in|at|near|around|for|within|inside|across|throughout|from)\s+$", re.I
+)
+
+
+def _qualified_counties(lower: str) -> list[str]:
+    """Counties named with the word County, or in an "X and Y counties" list."""
     found: list[str] = []
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
         if re.search(rf"\b{re.escape(name.lower())}\s+county\b", lower):
             found.append(name)
+    # "Lake and Napa counties": the plural qualifies every name before it.
+    for match in re.finditer(r"\bcounties\b", lower):
+        window = lower[max(0, match.start() - 80) : match.start()]
+        for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+            if name not in found and re.search(rf"\b{re.escape(name.lower())}\b", window):
+                found.append(name)
+    return found
+
+
+def _unresolved_county_place(text: str) -> str | None:
+    """A county word used as a different place, with no qualified county.
+
+    "Napa Valley", "Kern River", and "Shasta Lake" are places, not the county
+    of the same name. "In Trinity" without the word County is ambiguous. With
+    no county qualified anywhere in the question, ask which county was meant
+    instead of answering statewide or for a county the user did not name.
+    """
+    lower = " ".join(text.lower().split())
+    if _qualified_counties(lower):
+        return None
+    scrubbed = lower
+    for pattern in UTILITY_PATTERNS.values():
+        scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
+    scrubbed = " ".join(scrubbed.split())
+    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
+        for match in re.finditer(rf"\b{re.escape(name.lower())}\b", scrubbed):
+            after = scrubbed[match.end() :]
+            noun = _COUNTY_PLACE_NOUN_AFTER.match(after)
+            if noun:
+                return (name.lower() + noun.group(0)).strip()
+            if name.lower() in _COUNTY_REQUIRES_QUALIFIER and _COUNTY_PLACE_CUE.search(
+                scrubbed[: match.start()]
+            ):
+                return name.lower()
+    return None
+
+
+def _counties(text: str) -> list[str]:
+    """Every county named in the question, not just the first.
+
+    _county derives the single slot from this list, so the two always agree.
+    """
+    lower = " ".join(text.lower().split())
+    found = _qualified_counties(lower)
     # Keep scanning bare names: "Napa and Sonoma County" names two counties.
     if re.search(r"\b(?:near|around|close to)\b", lower):
         return found
@@ -856,8 +931,13 @@ def _counties(text: str) -> list[str]:
     for name in sorted(_CA_COUNTIES, key=len, reverse=True):
         if name.lower() in _COUNTY_REQUIRES_QUALIFIER:
             continue
-        if re.search(rf"\b{re.escape(name.lower())}\b", scrubbed) and name not in found:
+        if name in found:
+            continue
+        for match in re.finditer(rf"\b{re.escape(name.lower())}\b", scrubbed):
+            if _COUNTY_PLACE_NOUN_AFTER.match(scrubbed[match.end():]):
+                continue
             found.append(name)
+            break
     return found
 
 
@@ -938,28 +1018,13 @@ def _defer_collapsed(
 
 
 def _county(text: str) -> str | None:
-    """Extract a county / county-seat place constraint from the question."""
-    lower = " ".join(text.lower().split())
-    # Prefer explicit "X County" phrasing.
-    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
-        pattern = rf"\b{re.escape(name.lower())}\s+county\b"
-        if re.search(pattern, lower):
-            return name
-    # Bare county / seat name (e.g. "in sacramento") — skip vague spatial
-    # phrasing which has its own clarification path.
-    if re.search(r"\b(?:near|around|close to)\b", lower):
-        return None
-    # Strip IOU phrases so "San Diego Gas & Electric" is not a county hit.
-    scrubbed = lower
-    for pattern in UTILITY_PATTERNS.values():
-        scrubbed = re.sub(pattern, " ", scrubbed, flags=re.I)
-    scrubbed = " ".join(scrubbed.split())
-    for name in sorted(_CA_COUNTIES, key=len, reverse=True):
-        if name.lower() in _COUNTY_REQUIRES_QUALIFIER:
-            continue
-        if re.search(rf"\b{re.escape(name.lower())}\b", scrubbed):
-            return name
-    return None
+    """The one county the question names, from the same scan as _counties.
+
+    Several named counties give None, so no single-county hint is ever built
+    from a list.
+    """
+    counties = _counties(text)
+    return counties[0] if len(counties) == 1 else None
 
 
 def _time_filter_args(time_resolution) -> dict[str, Any]:
@@ -1224,19 +1289,32 @@ def _future_refusal_phrase(text: str, lower: str) -> str | None:
     return match.group(0) if match else None
 
 
+# Passive and object forms: a recommended strategy, penalties for a utility,
+# something required of a utility, whether it is advisable for a utility.
+_ADVICE_OBJECT = re.compile(
+    rf"\brecommend(?:s|ed|ation)?\b(?:\s+\w+){{0,4}}?\s+strateg(?:y|ies)\b|"
+    rf"\bpenalt(?:y|ies)\b(?:\s+\w+){{0,6}}?\s+(?:for|to|on|against)\s+{_ADVICE_SUBJECT}\b|"
+    rf"\bshould\s+apply\s+to\s+{_ADVICE_SUBJECT}\b|"
+    rf"\bshould\b(?:\s+\w+){{1,6}}?\s+(?:be\s+)?(?:required|mandated|imposed|ordered|expected)"
+    rf"\s+(?:of|for|on|by|from)\s+{_ADVICE_SUBJECT}\b|"
+    rf"\b(?:advisable|wise|prudent|appropriate)\s+for\s+{_ADVICE_SUBJECT}\b",
+    re.I,
+)
+_ADVICE_ANY_SUBJECT = re.compile(rf"\b{_ADVICE_SUBJECT}\b", re.I)
+
+
 def _asks_for_advice(text: str) -> bool:
-    """What a utility or the CPUC should do. Quoted 'should' does not count."""
+    """What a utility or the CPUC should do. Quoted 'should' does not count.
+
+    The utility or the CPUC must be the subject of should or recommend, or
+    the object of a recommended strategy, a penalty, a requirement, or an
+    advisability question. A question where the analyst is the subject
+    ("should I use", "would you recommend for SCE") is a data question.
+    """
     bare = _strip_quotes(text)
-    if not _ADVICE.search(bare):
-        return False
-    return bool(
-        re.search(
-            r"\b(?:cpuc|utilit(?:y|ies)|pge|pg\s*&\s*e|sce|sdge|pacificorp|"
-            r"liberty|bear valley|bves)\b",
-            bare,
-            re.I,
-        )
-    )
+    if _ADVICE.search(bare):
+        return True
+    return bool(_ADVICE_OBJECT.search(bare) and _ADVICE_ANY_SUBJECT.search(bare))
 
 
 def _forward_relative_phrase(lower: str) -> str | None:
@@ -1520,6 +1598,9 @@ def _asks_ranking(lower: str) -> bool:
     )
 
 
+_TIER_MENTION = re.compile(r"\bhftd\b|\bhigh fire threat|\btier\s*[23]\b", re.I)
+
+
 def _hftd_constraint_unavailable(lower: str) -> bool:
     """Circuit inventory crossed with a tier, or a request to measure HFTD area.
 
@@ -1591,7 +1672,17 @@ def _asks_spatial_containment(lower: str) -> bool:
 def _asks_territory_boundary(lower: str) -> bool:
     """True only when the user wants the polygon/boundary, not a count inside it."""
     if not re.search(r"\bterritor", lower):
-        return False
+        # Label rule G: a utility service-area outline, boundary, polygon, or
+        # footprint with no count and no dataset word is the territory map.
+        return bool(
+            re.search(r"\b(?:service[- ]area|outline|boundary|polygon|footprint)\b", lower)
+            and not _has_quantity_op(lower)
+            and not re.search(
+                r"\b(?:ignitions?|outages?|incidents?|events?|epss|psps|cal\s*fire|"
+                r"risk|compare|versus|trend|time series)\b",
+                lower,
+            )
+        )
     if _has_quantity_op(lower):
         return False
     if re.search(r"\b(?:compare|versus|\bvs\.?\b|trend|time series|forecast|predict)\b", lower):
@@ -1600,9 +1691,12 @@ def _asks_territory_boundary(lower: str) -> bool:
         r"\b(?:ignitions?|outages?|incidents?|epss|psps|cal\s*fire)\b", lower
     ):
         return False
-    # Boundary asks: territory alone, or "territory map/boundary/geometry".
-    if re.search(r"\b(?:boundary|polygon|geometry|footprint|service area|service-area|outline)\b", lower):
-        return True
+    # Boundary asks: "territory map", "show ... territory", "what is the
+    # territory", or a bare territory with no dataset word. A boundary noun
+    # (polygon, outline, service area) only ever appears here next to the
+    # word territory, and those questions already match the rules below, so
+    # a separate noun check was dead code (issue 32). Service-area phrasing
+    # without the word territory never reaches this function.
     if re.search(r"\b(?:map|show|display|draw)\b.*\bterritor|\bterritor\w*\b.*\b(?:map|layer)\b", lower):
         return True
     # "What is the SCE territory?" / "SCE utility territory"
@@ -1769,6 +1863,15 @@ def _route_ranking(
 
     group_by = _rank_dimension(lower)
     named = _datasets(text)
+    # "Tier 3 circuits" names the HFTD constraint, not the circuits table and
+    # not the grouping, so a tier ranking keeps its real dataset and dimension.
+    tier_constraint = bool(_TIER_MENTION.search(lower))
+    if tier_constraint:
+        # "Tier 3 circuits" and "HFTD Tier 2 areas" name the constraint, not
+        # the circuits or hftd tables.
+        named = [item for item in named if item not in {"circuits", "hftd"}]
+        if group_by is None:
+            group_by = _rank_dimension(re.sub(r"\bcircuits?\b", " ", lower))
     # "circuit" is the grouping dimension, not the circuits inventory table.
     if group_by == "circuit":
         named = [item for item in named if item != "circuits"]
@@ -1850,6 +1953,21 @@ def _route_ranking(
             "unsupported_ranking",
             "That dataset and grouping cannot be ranked",
             answer=UNSUPPORTED_ANSWERS["ranking"],
+            slots=slots,
+        )
+
+    # An allowed ranking restricted to an HFTD tier: no ranking tool takes a
+    # tier argument, so ask rather than rank statewide and drop it.
+    if tier_constraint:
+        return RouteDecision(
+            "clarification",
+            "hftd_constraint_unavailable",
+            "No tool restricts a ranking to an HFTD tier",
+            answer=(
+                f"I can rank {group_by} groups in that dataset statewide, but no "
+                "tool restricts a ranking to an HFTD tier. Rank statewide, or map "
+                "one HFTD tier?"
+            ),
             slots=slots,
         )
 
@@ -2060,6 +2178,19 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 "(for example 25 km) or a county/utility polygon to use."
             ),
         )
+    county_place = _unresolved_county_place(text)
+    if county_place:
+        county_word = county_place.split()[0].title()
+        return RouteDecision(
+            "clarification",
+            "county_place_ambiguous",
+            "A county word is used as a different place, or without the word County",
+            slots=slots,
+            answer=(
+                f"{county_place.title()} is not a county filter in this warehouse. "
+                f"Did you mean {county_word} County, or another county?"
+            ),
+        )
     named_county = _city_named_as_county(lower)
     if named_county:
         return RouteDecision(
@@ -2086,7 +2217,9 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
                 "should I use? I will not answer with a statewide or county layer."
             ),
         )
-    if _hftd_constraint_unavailable(lower):
+    # A ranking that mentions a tier reaches _route_ranking first, where an
+    # unsupported ranking is refused before the tier constraint is considered.
+    if _hftd_constraint_unavailable(lower) and not _asks_ranking(lower):
         return RouteDecision(
             "clarification",
             "hftd_constraint_unavailable",
