@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 
 import httpx
 import pytest
@@ -190,7 +191,7 @@ def test_a_both_null_period_comparison_names_the_reason_and_what_exists():
     assert REASON_SCE in text
     assert "no change can be computed" in text
     # Only what measured coverage has for SCE in both years.
-    assert "SCE's CPUC ignitions do exist" in text and "PSPS" not in text
+    assert "CPUC ignitions have records for SCE in 2020 and 2021" in text and "PSPS" not in text
 
 
 def test_a_one_null_period_comparison_keeps_the_known_value():
@@ -293,7 +294,7 @@ def test_pge_versus_sce_end_to_end_shows_pge_and_says_why_sce_is_missing():
     assert "None" not in text and "unavailable (" not in text
     assert "PG&E 1,024" in text
     assert f"SCE has no EPSS outage count: {REASON_SCE}" in text
-    assert "SCE's PSPS events and CPUC ignitions do exist" in text
+    assert "PSPS events and CPUC ignitions have records for SCE in 2022" in text
 
 
 def test_pge_only_period_comparison_end_to_end_states_both_years_and_the_change():
@@ -488,9 +489,10 @@ def test_the_free_model_path_paraphrase_clarifies_instead_of_reporting_zero(call
     assert response["status"] == "clarification", text
     assert "rows only for PG&E" in text and "absent, not zero" in text
     # CPUC has SCE rows in 2020 and 2021; PSPS is offered only for 2021, the
-    # year its measured SCE coverage includes (rows start 2021-10-11).
-    assert "SCE data that does exist in 2020" in text and "CPUC ignitions" in text
-    assert "exist in 2020: PSPS" not in text and "2020 and 2021: PSPS" not in text
+    # year SCE has measured PSPS rows (they start 2021-10-11).
+    assert "CPUC ignitions have records for SCE in 2020" in text
+    assert not re.search(r"PSPS[^.?]*records for SCE in 2020", text)
+    assert "PSPS events or CPUC ignitions in 2020" not in text
     assert " 0 " not in f" {text} " and "None" not in text
 
 

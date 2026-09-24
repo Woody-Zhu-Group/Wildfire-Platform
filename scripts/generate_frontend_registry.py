@@ -15,6 +15,7 @@ from services.shared.dataset_registry import (
     CALIFORNIA_COUNTIES,
     DATASETS,
     HFTD_TIER_NAMES,
+    UNTAGGED_UTILITY,
     UTILITY_CLARIFY_LABELS,
     UTILITY_CODES,
     UTILITY_DISPLAY_LABELS,
@@ -71,6 +72,8 @@ def naming_catalog() -> dict[str, object]:
         "utility_display_labels": dict(UTILITY_DISPLAY_LABELS),
         "utility_clarify_labels": dict(UTILITY_CLARIFY_LABELS),
         "workspace_utilities": list(WORKSPACE_UTILITIES),
+        # The utility filter value for rows with no utility.
+        "untagged_utility": UNTAGGED_UTILITY,
         "california_counties": list(CALIFORNIA_COUNTIES),
         "hftd_tiers": list(HFTD_TIER_NAMES),
     }

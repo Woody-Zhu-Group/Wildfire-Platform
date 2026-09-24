@@ -90,18 +90,60 @@ def call_dataset(tool: str, arguments: dict[str, Any]) -> str | None:
     return None
 
 
+def unmeasured_filters(tool: str, arguments: dict[str, Any]) -> list[str]:
+    """The call's filters that measured coverage does not break down by.
+
+    Coverage is measured per dataset, utility, and year only. An offer made
+    for a call that also names a county, tier, circuit, place, or area is an
+    offer for the utility and period without that filter, and must say so.
+    """
+    names: list[str] = []
+    county = arguments.get("county")
+    if county:
+        text = str(county).strip()
+        names.append(text if text.lower().endswith(" county") else f"{text} County")
+    for key in ("tier", "hftd_tier"):
+        tier = arguments.get(key)
+        if tier:
+            value = getattr(tier, "value", tier)
+            names.append(f"HFTD {value}")
+    if arguments.get("circuit_id"):
+        names.append(f"circuit {arguments['circuit_id']}")
+    if arguments.get("bbox"):
+        names.append("map area")
+    if arguments.get("lat") is not None and arguments.get("lon") is not None:
+        names.append("location")
+    if arguments.get("min_acres") is not None:
+        names.append(f"minimum {arguments['min_acres']} acres")
+    if tool == "comparison_run" and arguments.get("kind") == "regions":
+        names.extend(str(item) for item in arguments.get("regions") or [])
+    return list(dict.fromkeys(names))
+
+
+def _with_filters(
+    gap: dict[str, Any] | None, tool: str, arguments: dict[str, Any]
+) -> dict[str, Any] | None:
+    if gap is not None:
+        dropped = unmeasured_filters(tool, arguments)
+        if dropped:
+            gap["unmeasured_filters"] = dropped
+    return gap
+
+
 def call_coverage_gap(tool: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
     """The coverage gap a call would hit, or None when some part of it is covered.
 
     A comparison with one covered side (a utility or one of two periods) runs;
     the service returns the other side null with its reason. Only a call with
-    nothing covered is a gap.
+    nothing covered is a gap. The gap names the call's filters that coverage
+    does not measure, so an offer says it drops them.
     """
     dataset = call_dataset(tool, arguments)
     if not dataset:
         return None
     utilities = named_utilities(tool, arguments)
-    return dataset_coverage_gap(dataset, utilities, periods=call_periods(tool, arguments))
+    gap = dataset_coverage_gap(dataset, utilities, periods=call_periods(tool, arguments))
+    return _with_filters(gap, tool, arguments)
 
 
 def dataset_known(dataset: str) -> bool:
@@ -126,4 +168,4 @@ def count_coverage_gap(
         return None
     utilities = named_utilities(tool, arguments)
     (start, end), *_ = call_periods(tool, arguments)
-    return dataset_coverage_gap(dataset, utilities, start, end)
+    return _with_filters(dataset_coverage_gap(dataset, utilities, start, end), tool, arguments)

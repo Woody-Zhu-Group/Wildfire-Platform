@@ -209,10 +209,13 @@ counts and no computed change.
 for a utility or period its dataset does not cover, on every path (router,
 model, Jev templates, slot planner). Coverage is measured, never declared: the
 loaders write `shared/dataset_coverage.json` (which utilities each dataset has
-rows for, and each one's first and last date; see `db/README.md`), and the
-registry reads it (`dataset_coverage_gap`). A utility is covered from its first
-row to the dataset's last row; a read with no utility is checked against the
-dataset's own dates. For example, CPUC has rows for PacifiCorp (from
+rows for, each one's first and last date, and rows per calendar year; see
+`db/README.md`), and the registry reads it (`dataset_coverage_gap`). A utility
+is covered from its first row to the dataset's last row; a read with no utility
+is checked against the dataset's own dates. A period whose every year has no
+rows in the dataset at all is not covered either (CAL FIRE has one 2009 row and
+none from 2010 to 2012: "CAL FIRE incidents have no rows between 2009 and
+2013"). For example, CPUC has rows for PacifiCorp (from
 2025-04-24), PG&E, SCE, and SDG&E only; PSPS for PG&E, SCE, SDG&E, and Liberty
 from 2021-10-11; EPSS for PG&E from 2021-11-01.
 
@@ -235,14 +238,35 @@ at any date, since a year cannot help. The Jev templates and the slot planner
 read the same check (`not_covered_rule` gives the rule id); none of them names
 a utility.
 
-A clarification offers only data measured coverage has: an alternative
-dataset (the spec's `not_covered_alternatives`, in order) only where it covers
-every named utility in every asked period; another utility's rows only when
-the dataset covers exactly one in that period (EPSS: PG&E); and a named
-utility's own later dates ("PG&E's PSPS events from 2021-10-11 on"). So
-"Liberty CPUC ignitions in 2023" offers Liberty's CAL FIRE incidents but not
-PSPS (Liberty's PSPS rows start 2024-11-11), and "PacifiCorp vs PG&E PSPS in
+A clarification offers only data with measured rows: an alternative dataset
+(the spec's `not_covered_alternatives`, in order) only where it has rows for
+every named utility in every asked period (`rows_in_period`); another
+utility's rows only when the dataset covers exactly one and has its rows in
+that period (EPSS: PG&E); and a named utility's own later dates ("PG&E's PSPS
+events from 2021-10-11 on"). A window that merely overlaps the period is not
+enough. Rows are known to exist in a period that holds a whole calendar year
+with rows, or holds the utility's first or last row date; a period that only
+touches part of a year with rows is not offered. Each offer is first stated as
+the records it holds ("CPUC ignitions have records for SDG&E in 2022."), then
+asked. So "SDG&E EPSS outages in 2023" offers PG&E's EPSS outages and SDG&E's
+CPUC ignitions but not PSPS (SDG&E has no PSPS rows in 2022 or 2023),
+"Liberty CPUC ignitions in 2023" offers nothing (Liberty has no CAL FIRE rows
+in 2023 and its PSPS rows start 2024-11-11), and "PacifiCorp vs PG&E PSPS in
 2019" offers CAL FIRE only.
+
+Coverage is measured per dataset, utility, and year, so an offer cannot keep a
+county, HFTD tier, circuit, map area, location, minimum acreage, or region
+filter. `unmeasured_filters` in `coverage.py` names those on the gap, and the
+clarification says so ("That offer drops the Los Angeles County filter."). The
+model-path clarification is the same registry question (`not_covered_question`),
+so no offer is asked when there is none.
+
+The time resolver's first year (`DATA_YEAR_MIN` in `time_resolve.py`) is the
+first year any dataset has rows, from the same file (2009). A year before it is
+`time_out_of_coverage`; a year from it on resolves, and the asked dataset's own
+coverage decides: "How many CAL FIRE incidents were there in 2013?" answers,
+and "How many ignitions did SDG&E report in 2009?" is `dataset_not_covered`
+("CPUC ignitions for SDG&E start on 2020-01-29").
 
 Coverage also applies per number. One result can hold counts for several
 datasets (a spatial summary for SCE territory counts CPUC ignitions, EPSS
@@ -282,9 +306,10 @@ also read "not available" instead of 0.
 A comparison answer (`_render_comparison_answer` in `orchestrator.py`) is
 plain sentences on every comparison route. A null value is never shown as
 `None`: the sentence names the service's reason, says no change can be
-computed when either period is null, and names data that does exist (for
-EPSS, the utility's PSPS events and CPUC ignitions; for a county PSPS
-comparison, the datasets that carry a county).
+computed when either period is null, and names the data with records for
+that utility in that period (for EPSS in 2022, "PSPS events and CPUC ignitions
+have records for SCE in 2022"; for a county PSPS comparison, the datasets that
+carry a county).
 
 ## Views
 

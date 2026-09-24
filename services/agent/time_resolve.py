@@ -8,8 +8,14 @@ from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Any
 
-# Warehouse coverage used for out-of-range guards (inclusive).
-DATA_YEAR_MIN = 2014
+from services.shared.dataset_registry import warehouse_year_range
+
+# The first calendar year in which any dataset has rows, from the measured
+# coverage (shared/dataset_coverage.json); never declared here. A year before
+# it is outside the warehouse for every dataset. A year from it on resolves,
+# and the asked dataset's own measured coverage decides whether it is covered
+# (dataset_not_covered, with that dataset's dates).
+DATA_YEAR_MIN = warehouse_year_range()[0]
 
 WORD_NUMBERS = {
     "one": 1,

@@ -55,6 +55,8 @@ from services.shared.dataset_registry import (
     REASON_NO_COUNTY_AREA,
     UTILITY_DISPLAY_LABELS,
     UTILITY_POSSESSIVE_NAMES,
+    alternatives_records,
+    not_covered_question,
 )
 
 _shadow_log = logging.getLogger("services.agent.decisions")
@@ -2459,18 +2461,26 @@ def _ran_comparison(executions: list[ToolExecution]) -> bool:
 
 
 def _not_covered_answer(executions: list[ToolExecution]) -> str | None:
-    """The clarification for executor not-covered results, or None when there are none."""
+    """The clarification for executor not-covered results, or None when there are none.
+
+    The same registry question the router asks: the reason, then only the
+    offers with measured records, so no offer is made when none exists.
+    """
     messages: list[str] = []
     for item in executions:
         error = item.error or {}
         if item.ok or item.qualification_call or error.get("code") != "not_covered":
             continue
-        message = str(error.get("message") or "")
+        gap = error.get("not_covered")
+        if isinstance(gap, dict):
+            message = not_covered_question(gap, comparison=item.tool == "comparison_run")
+        else:
+            message = str(error.get("message") or "")
         if message and message not in messages:
             messages.append(message)
     if not messages:
         return None
-    return " ".join(messages) + " Do you want one of those instead?"
+    return " ".join(messages)
 
 
 def _user_facing_tool_failure(
@@ -3467,21 +3477,15 @@ def _comparison_reason(reason: Any) -> str:
 def _comparison_alternative(row: dict[str, Any], entity: str) -> str | None:
     """What the warehouse does hold when a comparison value is null.
 
-    For a value outside measured coverage, only the alternatives whose measured
-    coverage includes that utility and period (``row["not_covered"]``) are
+    For a value outside measured coverage, only the alternatives with measured
+    records for that utility in that period (``row["not_covered"]``) are
     offered, so no offer leads to another absent count.
     """
     reason = row.get("reason")
     gap = row.get("not_covered")
     if isinstance(gap, dict):
-        alternatives = [STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []]
-        if not alternatives:
-            return None
-        whose = f"{entity}'s " if gap.get("utilities") else ""
-        return (
-            f"{whose}{' and '.join(alternatives)} do exist in the warehouse for that "
-            "period and can be compared instead."
-        )
+        records = alternatives_records(gap)
+        return f"{records} and can be compared instead." if records else None
     if reason == REASON_CIRCUITS_SCOPE:
         return f"The unnormalized count for {entity} does exist; ask without per circuit."
     if reason == REASON_NO_COUNTY:

@@ -1,4 +1,5 @@
 import type { PanelId } from './PanelPicker';
+import { workspaceYears } from './coverage.ts';
 import type { Filters } from './data.ts';
 import type { PanelSettings } from './state';
 
@@ -10,7 +11,9 @@ export interface GlobalFilters {
 
 export const DEFAULT_GLOBAL_YEAR = 2024;
 export const DEFAULT_GLOBAL_FILTERS: GlobalFilters = { year: DEFAULT_GLOBAL_YEAR };
-export const WORKSPACE_YEARS = [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025] as const;
+// Years in which some dataset has measured rows (shared/dataset_coverage.json);
+// a panel whose own dataset has no rows in the chosen year says so.
+export const WORKSPACE_YEARS: readonly number[] = workspaceYears();
 export const GLOBAL_FILTERS_STORAGE_KEY = 'wildfire-workspace-global-v1';
 
 export function yearWindow(year: number): Pick<Filters, 'start' | 'end'> {

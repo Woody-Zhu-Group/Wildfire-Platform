@@ -112,8 +112,11 @@ Changing source clears only filters that the new dataset cannot support.
 Unavailable controls/options are disabled with a short reason underneath, such
 as `PG&E only` (from measured coverage, `src/coverage.ts`). A dataset, utility,
 and date range outside measured coverage (`shared/dataset_coverage.json`: for
-example PSPS before 2021-10-11, or Liberty in CPUC) shows the reason instead of
-fetching, never a zero. A mixed trend containing EPSS also restricts utility selection;
+example PSPS before 2021-10-11, Liberty in CPUC, untagged CPUC rows, or CAL FIRE
+in 2011, a year with no CAL FIRE rows) shows the reason instead of fetching,
+never a zero. The workspace year list (`WORKSPACE_YEARS`) is every year in which
+some dataset has rows, read from the same file (`workspaceYears` in
+`src/coverage.ts`). A mixed trend containing EPSS also restricts utility selection;
 EPSS cannot be enabled while an incompatible utility is selected. Cause breakdown
 disables datasets without cause fields. Request validation remains in place.
 Automatic names track the current view. The view

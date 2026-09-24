@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { coverageReason, coveredUtilities, soleUtilityLabel } from '../src/coverage.ts';
+import catalog from '../../shared/dataset_coverage.json' with {type: 'json'};
+import naming from '../../shared/naming.json' with {type: 'json'};
+import { coverageReason, coverageWindow, coveredUtilities, datasetYears, soleUtilityLabel, workspaceYears } from '../src/coverage.ts';
 import { DEFAULT_FILTERS, unavailableReason } from '../src/data.ts';
+import { WORKSPACE_YEARS } from '../src/globalFilters.ts';
 
 // Coverage is measured by the loaders (shared/dataset_coverage.json), never
 // declared in website code. These are the PR #93 re-review cases.
@@ -45,4 +48,36 @@ test('no website source hardcodes a utility for coverage', () => {
   const offenders = readdirSync(dir).filter(name => /\.(ts|tsx)$/.test(name))
     .filter(name => /PG&E|PG&amp;E|['"]PGE['"]|'pge'/.test(readFileSync(join(dir, name), 'utf8')));
   assert.deepEqual(offenders, []);
+});
+
+test('the untagged filter reads the untagged span, as the Python registry does', () => {
+  const untagged = naming.untagged_utility;
+  const calfire = catalog.datasets.calfire_incidents;
+  assert.deepEqual(coverageWindow('calfire_incidents', untagged), [calfire.untagged!.first, calfire.last]);
+  assert.equal(coverageReason('calfire_incidents', 'CAL FIRE', untagged, '2013-01-01', '2013-12-31'), null);
+  // CPUC has no rows without a utility: not covered, never "rows only for" a list.
+  assert.equal(
+    coverageReason('cpuc_ignitions', 'CPUC', untagged, '2023-01-01', '2023-12-31'),
+    'CPUC has no rows without a utility. There is no untagged CPUC data.',
+  );
+});
+
+test('the workspace years are the measured years with rows, not a hand-written list', () => {
+  const measured = new Set(Object.keys(catalog.datasets).flatMap(dataset => datasetYears(dataset)));
+  assert.deepEqual([...WORKSPACE_YEARS], [...measured].sort((a, b) => a - b));
+  assert.deepEqual(workspaceYears(), [...WORKSPACE_YEARS]);
+  // CAL FIRE has 141 rows in 2013, so 2013 is offered; no dataset has rows in 2011.
+  assert.ok(WORKSPACE_YEARS.includes(2013));
+  assert.ok(!WORKSPACE_YEARS.includes(2011));
+  const source = readFileSync(fileURLToPath(new URL('../src/globalFilters.ts', import.meta.url)), 'utf8');
+  assert.doesNotMatch(source, /WORKSPACE_YEARS\s*=\s*\[/);
+});
+
+test('a year with no rows in the dataset is unavailable, and a year with rows is not', () => {
+  assert.equal(unavailableReason('calfire', year(2013)), null);
+  assert.equal(
+    unavailableReason('calfire', year(2011)),
+    'CAL FIRE has no rows between 2009 and 2013. There is no CAL FIRE data for this period.',
+  );
+  assert.equal(unavailableReason('cpuc', year(2013)), 'CPUC starts on 2020-01-01. There is no CPUC data for this period.');
 });

@@ -789,8 +789,10 @@ def _load_coverage() -> dict[str, Any]:
     return payload["datasets"]
 
 
-# dataset key -> {"first", "last", "rows", "utility_dimension", "utilities":
-# {code: {"first", "last", "rows"}}}. Tests may swap entries (monkeypatch).
+# dataset key -> {"first", "last", "rows", "years", "utility_dimension",
+# "utilities": {code: {"first", "last", "rows", "years"}}, "untagged"}, where
+# "years" maps a calendar year to its row count (a year with no rows is
+# absent). Tests may swap entries (monkeypatch).
 DATASET_COVERAGE: dict[str, dict[str, Any]] = _load_coverage()
 
 
@@ -827,6 +829,91 @@ def coverage_window(dataset: str, utility: str | None = None) -> tuple[date, dat
         span = (entry.get("utilities") or {}).get(utility)
         first = _day(span.get("first")) if span else None
     return (first, last) if first and last else None
+
+
+def _utility_span(entry: dict[str, Any], utility: str | None) -> dict[str, Any] | None:
+    """The measured span (first, last, rows, years) for one utility, or the dataset's."""
+    if utility is None:
+        return entry
+    if utility == UNTAGGED_UTILITY:
+        return entry.get("untagged")
+    return (entry.get("utilities") or {}).get(utility)
+
+
+def dataset_years(dataset: str, utility: str | None = None) -> list[int]:
+    """Calendar years in which the dataset (or one utility in it) has rows, as measured."""
+    entry = _measured(dataset)
+    span = _utility_span(entry, utility) if entry else None
+    return sorted(int(year) for year, rows in ((span or {}).get("years") or {}).items() if rows)
+
+
+def warehouse_year_range() -> tuple[int, int]:
+    """The first and last calendar year in which any dataset has rows, as measured.
+
+    Time resolution refuses a year outside this range for every dataset; a year
+    inside it is checked against the asked dataset's own coverage.
+    """
+    years = [
+        int(year)
+        for entry in DATASET_COVERAGE.values()
+        for year, rows in (entry.get("years") or {}).items()
+        if rows
+    ]
+    return min(years), max(years)
+
+
+def rows_in_period(dataset: str, utility: str | None, start: Any, end: Any) -> bool:
+    """True only when measured rows are known to exist for the utility in the period.
+
+    Rows exist when the period holds a whole calendar year with rows, or holds
+    the utility's first or last row date. A period that only touches part of a
+    year with rows is not known to hold any, so this returns False: an offer
+    must never lead to a count that may be zero.
+    """
+    entry = _measured(dataset)
+    span = _utility_span(entry, utility) if entry else None
+    if not span or not span.get("rows"):
+        return False
+    start, end = _day(start), _day(end)
+    if start is None and end is None:
+        return True
+    years = {int(year): rows for year, rows in (span.get("years") or {}).items() if rows}
+    if not years:
+        return False
+    low = start or date(min(years), 1, 1)
+    high = end or date(max(years), 12, 31)
+    known = [_day(span.get("first")), _day(span.get("last"))]
+    if any(day is not None and low <= day <= high for day in known):
+        return True
+    return any(
+        years.get(year) and low <= date(year, 1, 1) and high >= date(year, 12, 31)
+        for year in range(low.year, high.year + 1)
+    )
+
+
+def _empty_years_reason(
+    dataset: str, window: tuple[date, date], start: date | None, end: date | None
+) -> str | None:
+    """Why a period inside the window is still not covered: the dataset has no
+    rows at all in any year the period touches (CAL FIRE between its one 2009
+    row and 2013).
+
+    A utility with no rows in a year the dataset reported is a real zero; a
+    year in which the dataset itself has no rows is a gap in the source.
+    """
+    years = dataset_years(dataset)
+    if not years:
+        return None
+    first = max(start or window[0], window[0]).year
+    last = min(end or window[1], window[1]).year
+    if any(first <= year <= last for year in years):
+        return None
+    label = STAT_LABELS.get(to_canonical(dataset), dataset)
+    before = max((year for year in years if year < first), default=None)
+    after = min((year for year in years if year > last), default=None)
+    if before is not None and after is not None:
+        return f"{label} have no rows between {before} and {after}"
+    return f"{label} have no rows from {first} to {last}"
 
 
 def covered_utilities(dataset: str) -> list[str]:
@@ -913,8 +1000,10 @@ def _uncovered_reason(
     if utility not in (None, UNTAGGED_UTILITY) and utility not in (entry.get("utilities") or {}):
         return coverage_summary(spec.key)
     window = coverage_window(spec.key, utility)
-    if window is None or _overlaps(window, start, end):
+    if window is None:
         return None
+    if _overlaps(window, start, end):
+        return _empty_years_reason(spec.key, window, start, end)
     who = f" for {_utility_name(utility)}" if utility else ""
     if end is not None and end < window[0]:
         return f"{label}{who} start on {window[0].isoformat()}"
@@ -948,9 +1037,17 @@ def partial_coverage_note(
 Period = tuple[Any, Any]
 
 
-def _covers_all(dataset: str, utilities: list[str], periods: list[tuple[date | None, date | None]]) -> bool:
+def _has_rows_all(
+    dataset: str, utilities: list[str], periods: list[tuple[date | None, date | None]]
+) -> bool:
+    """True when the dataset has measured rows for every utility in every period.
+
+    What an offer is held to: a window that merely overlaps the period is not
+    enough (SDG&E's PSPS window spans 2022, but it has no 2022 rows).
+    """
     return all(
         _uncovered_reason(dataset, utility, start, end) is None
+        and rows_in_period(dataset, utility, start, end)
         for utility in (utilities or [None])
         for start, end in periods
     )
@@ -972,7 +1069,8 @@ def dataset_coverage_gap(
     only a read with nothing covered is refused. A read with no utility is
     checked against the dataset's own dates. What the gap offers instead is
     held to more: an alternative dataset, or another utility, is offered only
-    where measured coverage includes every named utility in every period. An
+    where the dataset has measured rows for every named utility in every
+    period (``rows_in_period``), never where its window merely overlaps. An
     unknown dataset raises: a coverage check that cannot find its dataset must
     not pass.
     """
@@ -995,7 +1093,7 @@ def dataset_coverage_gap(
     others = [
         utility
         for utility in covered_utilities(spec.key)
-        if utility not in named and _covers_all(spec.key, [utility], windows_asked)
+        if utility not in named and _has_rows_all(spec.key, [utility], windows_asked)
     ]
     # A named utility with rows in the dataset at other dates: its own window.
     own = {utility: coverage_window(spec.key, utility) for utility in named}
@@ -1016,7 +1114,7 @@ def dataset_coverage_gap(
         "alternatives": [
             other
             for other in spec.not_covered_alternatives
-            if _covers_all(other, named, windows_asked)
+            if _has_rows_all(other, named, windows_asked)
         ],
     }
 
@@ -1039,14 +1137,41 @@ def _gap_parts(gap: dict[str, Any]) -> tuple[str, str, str, str]:
     return label, named, period, head
 
 
+def records_sentence(labels: list[str], named: str, period: str) -> str:
+    """'PSPS events and CPUC ignitions have records for SCE in 2020', no final stop."""
+    if not labels:
+        return ""
+    who = f" for {named}" if named else ""
+    return f"{_series(labels)} have records{who}{period}"
+
+
+def alternatives_records(gap: dict[str, Any]) -> str:
+    """The alternatives a gap offers, as the records they hold for its utilities and period."""
+    _label, named, period, _head = _gap_parts(gap)
+    labels = [STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []]
+    return records_sentence(labels, named, period)
+
+
+def dropped_filters_sentence(gap: dict[str, Any]) -> str:
+    """Says that an offer keeps the utilities and period but not the other filters.
+
+    Coverage is measured per dataset, utility, and year, so an offer cannot
+    promise rows inside a county, tier, or area; it drops those filters.
+    """
+    dropped = list(gap.get("unmeasured_filters") or [])
+    if not dropped:
+        return ""
+    noun = "filter" if len(dropped) == 1 else "filters"
+    return f" That offer drops the {_series(dropped)} {noun}."
+
+
 def not_covered_message(gap: dict[str, Any], *, subject: str = "result") -> str:
-    """The reason, that the result is absent rather than zero, and what data exists."""
-    _label, named, period, head = _gap_parts(gap)
+    """The reason, that the result is absent rather than zero, and what has records."""
+    head = _gap_parts(gap)[3]
     text = f"{head}: that {subject} would be absent, not zero."
-    alternatives = [STAT_LABELS.get(item, item) for item in gap.get("alternatives") or []]
-    if alternatives:
-        whose = f"{named} data" if named else "Data"
-        text += f" {whose} that does exist{period}: {' and '.join(alternatives)}."
+    records = alternatives_records(gap)
+    if records:
+        text += f" {records}.{dropped_filters_sentence(gap)}"
     return text
 
 
@@ -1062,6 +1187,12 @@ def not_covered_question(gap: dict[str, Any], *, comparison: bool = False) -> st
     # question about the named utility.
     others = list(gap.get("covered_utilities") or [])
     covered = _utility_names(others) if named and len(others) == 1 else ""
+    # Each offer is first stated as the records the data holds, in the order
+    # the question then offers them.
+    facts = [alternatives_records(gap)]
+    if covered:
+        other = records_sentence([label], covered, period)
+        facts = facts + [other] if comparison else [other] + facts
     whose = f"{_possessive(named)} " if named else ""
     offers: list[str] = []
     if comparison and alternatives:
@@ -1075,8 +1206,9 @@ def not_covered_question(gap: dict[str, Any], *, comparison: bool = False) -> st
         offers.append(f"{_possessive(_utility_name(utility))} {label} from {first} on")
     if not offers:
         return head
+    stated = "".join(f" {fact}." for fact in facts if fact) + dropped_filters_sentence(gap)
     verb = "Do you want to " if offers[0].startswith("compare ") else "Do you want "
-    return f"{head} {verb}{', or '.join(offers)}?"
+    return f"{head}{stated} {verb}{', or '.join(offers)}?"
 
 
 # comparison/metrics.py: the per-circuit denominator exists only for the
