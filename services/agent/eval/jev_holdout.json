@@ -306,14 +306,23 @@
     "id": "ho_021",
     "question": "Out of the sampled California wildfire ignitions in 2020, what fraction fell inside HFTD Tier 2 or Tier 3?",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "spatial_context",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "us_ignitions",
-    "expected_tool_pick": "data_query_spatial",
-    "expected_clarify_reason": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "unexpressable_county_filter",
     "expected_unsupported_topic": null,
-    "needs_human_review": true,
-    "label_rationale": "A fraction of the national sample inside HFTD is not a supported spatial summary."
+    "needs_human_review": false,
+    "label_rationale": "A fraction of the national sample inside HFTD is not a supported spatial summary.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "spatial_context",
+      "expected_tool_pick": "data_query_spatial",
+      "expected_clarify_reason": null,
+      "needs_human_review": true
+    },
+    "rule": "H",
+    "rule_text": "Rule H, written by Michael on 2026-09-23: a US-sample (us_ignitions) question restricted to a state is clarify / unexpressable_county_filter, matching rule F's label for hv3_005 and hv3_036, because the US ignitions endpoint cannot filter by state. Applied to hv2_011, ho_030, and ho_021. needs_human_review cleared on the rows rule H decided."
   },
   {
     "id": "ho_022",
@@ -429,14 +438,23 @@
     "id": "ho_030",
     "question": "How many sampled wildfire ignitions of all causes occurred in California in 2016?",
     "intended_category": "answerable",
-    "expected_disposition": "answer",
-    "expected_intent": "count",
+    "expected_disposition": "clarify",
+    "expected_intent": null,
     "expected_dataset": "us_ignitions",
-    "expected_tool_pick": "data_query_records",
-    "expected_clarify_reason": null,
+    "expected_tool_pick": null,
+    "expected_clarify_reason": "unexpressable_county_filter",
     "expected_unsupported_topic": null,
-    "needs_human_review": true,
-    "label_rationale": "A California-only count of the national sample may have no state filter."
+    "needs_human_review": false,
+    "label_rationale": "A California-only count of the national sample may have no state filter.",
+    "previous": {
+      "expected_disposition": "answer",
+      "expected_intent": "count",
+      "expected_tool_pick": "data_query_records",
+      "expected_clarify_reason": null,
+      "needs_human_review": true
+    },
+    "rule": "H",
+    "rule_text": "Rule H, written by Michael on 2026-09-23: a US-sample (us_ignitions) question restricted to a state is clarify / unexpressable_county_filter, matching rule F's label for hv3_005 and hv3_036, because the US ignitions endpoint cannot filter by state. Applied to hv2_011, ho_030, and ho_021. needs_human_review cleared on the rows rule H decided."
   },
   {
     "id": "ho_031",

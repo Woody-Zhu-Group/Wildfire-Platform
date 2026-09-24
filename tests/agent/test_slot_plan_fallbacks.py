@@ -124,14 +124,44 @@ def test_two_utilities_in_two_counties_plan_every_pair():
     assert all(a["year"] == 2023 and a["dataset"] == "cpuc_ignitions" for _, a in planned.tool_calls)
 
 
-def test_a_month_range_the_router_resolved_to_one_month_falls_back():
-    # The router resolves "from March to June 2023" to March only; June is named
-    # but outside the window, so a plan would answer a narrower question.
+def test_a_month_range_plans_one_series_over_the_full_window():
+    # Since PR #66 the router resolves "from March to June 2023" to the full
+    # window, so the plan is one monthly series that carries it.
     question = "How many PGE EPSS outages were there each month from March to June 2023?"
-    assert fallback_reason(question) == "the date window (a named month is outside it)"
     decision, planned = _slot_calls(question)
-    assert planned.rule != "slot_plan"
-    assert planned.path == decision.path
+    assert planned.rule == "slot_plan"
+    (name, args), = planned.tool_calls
+    assert name == "visualization_create"
+    assert (args["kind"], args["interval"], args["utility"]) == ("time_series", "monthly", "PGE")
+    assert (args["start_date"], args["end_date"]) == ("2023-03-01", "2023-06-30")
+
+
+def test_a_named_month_outside_the_resolved_window_is_refused():
+    # Before PR #66 the router truncated that range to March; the invariant
+    # must still refuse a plan whose window leaves a named month out.
+    from services.agent.eval.slot_plan import _unrepresented
+
+    question = "How many PGE EPSS outages were there each month from March to June 2023?"
+    slots = {
+        **route_question(question).slots,
+        "start_date": "2023-03-01",
+        "end_date": "2023-03-31",
+    }
+    march_only = [
+        (
+            "visualization_create",
+            {
+                "kind": "time_series",
+                "dataset": "epss",
+                "interval": "monthly",
+                "utility": "PGE",
+                "start_date": "2023-03-01",
+                "end_date": "2023-03-31",
+                "year": 2023,
+            },
+        )
+    ]
+    assert _unrepresented(question, slots, march_only) == "the date window (a named month is outside it)"
 
 
 def test_list_wording_is_not_answered_with_counts():
