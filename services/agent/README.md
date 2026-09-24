@@ -219,7 +219,30 @@ orchestrator turns a `not_covered` result into a clarification that names the
 reason and the data that does exist: the deterministic path, the Jev template
 path, and the model loop (which stops at the first one, so the model never
 answers that part) all do this. The router's earlier clarifications
-(`epss_non_pge_utility`, `us_sample_utility_filter`) still fire first.
+(`epss_non_pge_utility`, `us_sample_utility_filter`) still fire first. They,
+the Jev templates, and the slot planner read the same registry coverage
+(`utility_coverage_gap`, `NOT_COVERED_RULES` in `routing.py` for the rule id)
+and the registry's clarification text; none of them names a utility.
+
+Coverage also applies per number. One result can hold counts for several
+datasets (a spatial summary for SCE territory counts CPUC ignitions, EPSS
+outages, and CAL FIRE incidents inside it, and EPSS comes back 0 because it
+holds PG&E circuits only). After any tool returns, `mark_uncovered_counts`
+resolves each key of the result's `counts` to its dataset through the registry;
+a count whose dataset does not cover the named utility becomes `None`, with
+the reason under `summary.not_covered`. An unknown count key raises. Then:
+
+- the answer text says the count is not covered, once, on every path
+  (`_with_not_covered_notes`, the last step of `_ensure_readable_answer`); the
+  deterministic line reads `epss_outages=not covered`;
+- the stat card for that count has `value: null` and `not_covered_reason`
+  (`StatCardViewParams` allows no value only with a reason, and grounding
+  accepts it only when the cited result marked that count), and the website
+  shows "Not covered" with the reason instead of a number;
+- a synthesized answer that states a number beside that dataset's registry
+  names ("0 EPSS outages") fails grounding (`_uncovered_count_claims`), even
+  when the same number appears elsewhere in the evidence, and falls back to
+  the evidence.
 
 A comparison answer (`_render_comparison_answer` in `orchestrator.py`) is
 plain sentences on every comparison route. A null value is never shown as
