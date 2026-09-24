@@ -1,4 +1,4 @@
-import { configFor, filterError, unavailableReason, utilityCode, UTILITIES, recordsFromFeatures, type Bucket, type DatasetId, type Filters, type GroupBy, type Interval, type LayerResponse, type Boundary } from './data.ts';
+import { configFor, filterError, groupNames, unavailableReason, utilityCode, UTILITIES, recordsFromFeatures, type Bucket, type DatasetId, type Filters, type GroupBy, type Interval, type LayerResponse, type Boundary } from './data.ts';
 import type { AgentAnswer, AgentStreamEvent } from './agentContracts.ts';
 import { readSummary, type SummaryResponse } from './stats.ts';
 import type { RegionSeries } from './temporal.ts';
@@ -68,7 +68,10 @@ function aggregateParams(dataset: DatasetId, filters: Filters) {
   params.set('dataset', configFor(dataset).query);
   return params;
 }
-export interface GroupedCounts {rows: {key: string; value: number | null}[]; total: number; multi_county_incidents?: number; note?: string}
+// key is the service's group value; code and label come from the naming registry
+// (issue #89). Display the label.
+export interface GroupedRow {key: string; code: string; label: string; value: number | null}
+export interface GroupedCounts {rows: GroupedRow[]; total: number; multi_county_incidents?: number; note?: string}
 // A CAL FIRE incident that lists several counties ("Shasta, Tehama") counts in each
 // county it lists, so CAL FIRE county rows may sum above the incident total, and only
 // when the service reports such incidents.
@@ -82,10 +85,14 @@ export async function getGroupedCounts(dataset: DatasetId, filters: Filters, gro
   const params = aggregateParams(dataset, filters); params.set('group_by', groupBy);
   const result = await getJSON<GroupedCounts>(`${DATA_QUERY_URL}/grouped-counts?${params}`);
   if (!Number.isSafeInteger(result.total) || result.total < 0 || !Array.isArray(result.rows)
-    || result.rows.some(row => !row || typeof row.key !== 'string' || (row.value !== null && (!Number.isSafeInteger(row.value) || row.value < 0)))
+    || result.rows.some(row => !row || typeof row.key !== 'string' || (row.value !== null && (!Number.isSafeInteger(row.value) || row.value < 0))
+      || (row.code !== undefined && typeof row.code !== 'string') || (row.label !== undefined && typeof row.label !== 'string'))
     || new Set(result.rows.map(row => row.key)).size !== result.rows.length
     || !groupedRowsMatchTotal(result, dataset, groupBy)) throw new Error('Grouped counts do not match the complete dataset.');
-  return {...result, rows: [...result.rows].sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || a.key.localeCompare(b.key))};
+  // Deploy-order safeguard: if docs/ ships before the data query service is updated, rows
+  // arrive without code or label, so fill them from the registry with the same rule.
+  const rows = result.rows.map(row => ({...groupNames(groupBy, row.key), ...row}));
+  return {...result, rows: rows.sort((a, b) => (b.value ?? -1) - (a.value ?? -1) || a.key.localeCompare(b.key))};
 }
 export async function getSummary(dataset: DatasetId, filters: Filters) {
   const params = aggregateParams(dataset, filters);

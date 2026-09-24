@@ -150,7 +150,7 @@ def test_grouped_counts_with_a_county_filter_keep_only_that_county(db_conn):
         start_date=YEAR_2020[0],
         end_date=YEAR_2020[1],
     )
-    assert grouped["rows"] == [{"key": "Tehama", "value": 8}]
+    assert grouped["rows"] == [{"key": "Tehama", "code": "Tehama", "label": "Tehama", "value": 8}]
     assert grouped["total"] == 8
     assert grouped["multi_county_incidents"] == 4
 

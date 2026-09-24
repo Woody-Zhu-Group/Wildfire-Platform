@@ -45,7 +45,8 @@ test('EPSS uses nested outages and keeps unknown, missing and unavailable values
   assert.equal(causes.total, 3);
   assert.deepEqual(causes.rows.map(row => row.key).sort(), ['Not recorded', 'Unknown', 'Weather']);
   assert.deepEqual((await getGroupedCounts('epss', DEFAULT_FILTERS, 'utility')).rows, [
-    {key: 'PG&E', value: 3}, {key: 'SCE', value: null}, {key: 'SDG&E', value: null},
+    {key: 'PG&E', code: 'PGE', label: 'PG&E', value: 3}, {key: 'SCE', code: 'SCE', label: 'SCE', value: null},
+    {key: 'SDG&E', code: 'SDGE', label: 'SDG&E', value: null},
   ]);
   const metrics = await getSummary('epss', DEFAULT_FILTERS);
   assert.equal(metrics.find(metric => metric.id === 'circuits')?.value, 2);
@@ -150,7 +151,7 @@ test('browser aggregation counts a multi-county CAL FIRE incident in each county
     {incident_id: 'b', date_only_created: '2024-07-02', county: 'Shasta', incident_type: 'Wildfire'},
   ])));
   const result = await createWorkspaceAggregates(false).getGroupedCounts('calfire', DEFAULT_FILTERS, 'county');
-  assert.deepEqual(result.rows, [{key: 'Shasta', value: 2}, {key: 'Tehama', value: 1}]);
+  assert.deepEqual(result.rows, [{key: 'Shasta', code: 'Shasta', label: 'Shasta', value: 2}, {key: 'Tehama', code: 'Tehama', label: 'Tehama', value: 1}]);
   assert.equal(result.total, 2);
   assert.equal(result.multi_county_incidents, 1);
   assert.match(result.note ?? '', /more than the statewide total/);

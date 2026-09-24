@@ -110,9 +110,12 @@ def test_filters_apply_before_counting_and_preserve_attribute_definition(aggrega
         ])
     body = read(aggregate_client, "/summary", dataset="cpuc_ignitions", utility="PG&E", county="marin")
     assert metric_values(body) == {"events": (1, 0), "counties": (1, 0), "utilities": (1, 0)}
-    assert read(aggregate_client, "/summary", dataset="cpuc_ignitions", county="Marin' OR TRUE --")["total"] == 0
+    # PR #76: an unknown county is a 400 with close matches, never 0 rows and never a widened filter.
+    injected = aggregate_client.get("/summary", params={**SCOPE, "dataset": "cpuc_ignitions", "county": "Marin' OR TRUE --"})
+    assert injected.status_code == 400
+    assert "unknown county" in injected.json()["detail"] and "Did you mean Marin?" in injected.json()["detail"]
     groups = read(aggregate_client, "/grouped-counts", dataset="cpuc_ignitions", group_by="county", county="Marin")
-    assert groups["rows"] == [{"key": "Marin", "value": 2}]
+    assert groups["rows"] == [{"key": "Marin", "code": "Marin", "label": "Marin", "value": 2}]
 
 
 def test_calfire_default_types_missing_acres_and_distinct_split_counties(aggregate_db, aggregate_client):
@@ -125,7 +128,12 @@ def test_calfire_default_types_missing_acres_and_distinct_split_counties(aggrega
     body = read(aggregate_client, "/summary", dataset="calfire_incidents")
     assert metric_values(body) == {"events": (3, 0), "acres": (7, 1), "counties": (2, 1)}
     groups = read(aggregate_client, "/grouped-counts", dataset="calfire_incidents", group_by="county")
-    assert {row["key"] for row in groups["rows"]} == {"Los Angeles, Ventura", "Los Angeles", "Not recorded"}
+    # PR #81: a multi-county incident counts in every county it lists, so the rows
+    # sum above the incident total and the response says how many such incidents there are.
+    assert {row["key"]: row["value"] for row in groups["rows"]} == {"Los Angeles": 2, "Ventura": 1, "Not recorded": 1}
+    assert groups["total"] == 3
+    assert groups["multi_county_incidents"] == 1
+    assert "every county it lists" in groups["note"]
 
 
 def test_empty_populations_stay_zero_and_all_missing_fields_stay_null(aggregate_db, aggregate_client):
@@ -162,7 +170,7 @@ def test_upstream_missing_group_attribute_is_not_recorded(aggregate_db, aggregat
     total = aggregate_db.execute("SELECT COUNT(*) FROM wildfire.cpuc_ignitions").fetchone()[0]
     # PR #3 groups a dataset without a cause column under an explicit missing label.
     body = read(aggregate_client, "/grouped-counts", dataset="cpuc_ignitions", group_by="cause")
-    assert body == {"rows": [{"key": "Not recorded", "value": total}], "total": total}
+    assert body == {"rows": [{"key": "Not recorded", "code": "Not recorded", "label": "Not recorded", "value": total}], "total": total}
 
 
 def test_upstream_non_pge_epss_filter_matches_the_existing_record_api(aggregate_db, aggregate_client):
@@ -173,8 +181,28 @@ def test_upstream_non_pge_epss_filter_matches_the_existing_record_api(aggregate_
     body = read(aggregate_client, "/summary", dataset="epss_outages", utility="SCE")
     assert metric_values(body) == {"events": (0, 0), "circuits": (0, 0), "counties": (0, 0)}
     groups = read(aggregate_client, "/grouped-counts", dataset="epss_outages", utility="SCE", group_by="utility")
-    assert groups == {"rows": [{"key": "SCE", "value": None}], "total": 0}
+    assert groups == {"rows": [{"key": "SCE", "code": "SCE", "label": "SCE", "value": None}], "total": 0}
     assert read(aggregate_client, "/regional-series", interval="monthly", utility="SCE") == {"series": [], "total": 0}
+
+
+def test_rank_and_grouped_counts_add_registry_code_and_label_without_changing_keys(aggregate_db, aggregate_client):
+    # Issue #89: /rank keys stay codes and /grouped-counts keys stay labels; both gain code and label.
+    with aggregate_db.cursor() as cur:
+        cur.executemany(
+            "INSERT INTO wildfire.cpuc_ignitions (event_date,utility,county) VALUES ('2024-06-01',%s,%s)",
+            [("PGE", "Butte")] * 3 + [("SDGE", "San Diego")] * 2 + [("SCE", "Kern")],
+        )
+    ranked = read(aggregate_client, "/rank", dataset="cpuc_ignitions", group_by="utility")
+    expected = [("PGE", "PGE", "PG&E", 3), ("SDGE", "SDGE", "SDG&E", 2), ("SCE", "SCE", "SCE", 1)]
+    assert [(r["key"], r["code"], r["label"], r["value"]) for r in ranked["results"]] == expected
+    assert [(r["group_value"], r["code"], r["label"], r["metric_value"]) for r in ranked["data"]] == expected
+    grouped = read(aggregate_client, "/grouped-counts", dataset="cpuc_ignitions", group_by="utility")
+    assert [(r["key"], r["code"], r["label"], r["value"]) for r in grouped["rows"]] == [
+        ("PG&E", "PGE", "PG&E", 3), ("SDG&E", "SDGE", "SDG&E", 2), ("SCE", "SCE", "SCE", 1)]
+    counties = read(aggregate_client, "/rank", dataset="cpuc_ignitions", group_by="county")
+    assert [(r["key"], r["code"], r["label"]) for r in counties["results"]] == [(c, c, c) for c in ("Butte", "San Diego", "Kern")]
+    grouped_counties = read(aggregate_client, "/grouped-counts", dataset="cpuc_ignitions", group_by="county")
+    assert all(r["key"] == r["code"] == r["label"] for r in grouped_counties["rows"])
 
 
 def test_regional_counts_fill_empty_periods_and_keep_unknown_divisions(aggregate_db, aggregate_client):

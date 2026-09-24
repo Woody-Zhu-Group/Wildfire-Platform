@@ -17,7 +17,7 @@ Docs: http://127.0.0.1:8003/docs
 | Path | Purpose |
 |------|---------|
 | `GET /health` | DB ping + metric/definition notes |
-| `GET /compare-utilities` | Metric per utility. `utilities` (comma-separated), `metric`, `start_date`, `end_date` required |
+| `GET /compare-utilities` | Metric per utility. `utilities` (comma-separated), `metric`, `start_date`, `end_date` required. Each result keeps `key` as the utility code (`PGE`) and also carries `code` and `label` (`PG&E`) from `group_code_and_label` in the naming registry, as `/rank` and `/grouped-counts` rows do |
 | `GET /compare-regions` | Metric per county or HFTD tier. `region_type=county\|hftd`, `regions` (comma-separated), `metric`, `start_date`, `end_date` required |
 | `GET /compare-periods` | Same scope, two date ranges + delta. `scope_type=utility\|county\|hftd`, `scope`, `metric`, `period_a_start`, `period_a_end`, `period_b_start`, `period_b_end` required |
 

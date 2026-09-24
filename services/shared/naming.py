@@ -106,6 +106,22 @@ IOU_PUBLISHER_UTILITY_CODES: dict[str, str] = {
 UTILITY_DISPLAY_LABELS: dict[str, str] = {"PGE": "PG&E", "SDGE": "SDG&E"}
 # Utilities the workspace pads grouped-count rows with, as display labels.
 WORKSPACE_UTILITIES: tuple[str, ...] = ("PG&E", "SCE", "SDG&E")
+_UTILITY_CODE_BY_LABEL = {label: code for code, label in UTILITY_DISPLAY_LABELS.items()}
+
+
+def group_code_and_label(group_by: str, value: str) -> dict[str, str]:
+    """The ``code`` and ``label`` fields of one /rank or /grouped-counts row.
+
+    For ``group_by="utility"`` the value may be a code (``PGE``, as /rank
+    returns) or a display label (``PG&E``, as /grouped-counts returns); both
+    give ``{"code": "PGE", "label": "PG&E"}``. A utility value the registry
+    does not list, and a missing-value placeholder, is its own code and label.
+    Every other grouping (county, circuit, cause) uses the value as both.
+    """
+    if group_by != "utility":
+        return {"code": value, "label": value}
+    code = _UTILITY_CODE_BY_LABEL.get(value, value)
+    return {"code": code, "label": UTILITY_DISPLAY_LABELS.get(code, code)}
 # Short labels in clarification text ("PG&E territory"). Discrepancy: adds
 # PacifiCorp and "Bear Valley" beyond UTILITY_DISPLAY_LABELS; SCE and Liberty
 # fall through to the code.

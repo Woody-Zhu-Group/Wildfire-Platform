@@ -19,7 +19,11 @@ from services.data_query.filters import (
     validate_date_range,
 )
 from services.shared.calfire_county import MULTI_COUNTY_NOTE, multi_county_meta
-from services.shared.dataset_registry import CALFIRE_DEFAULT_INCIDENT_TYPES, HFTD_TIERS
+from services.shared.dataset_registry import (
+    CALFIRE_DEFAULT_INCIDENT_TYPES,
+    HFTD_TIERS,
+    group_code_and_label,
+)
 from shared.db import connect, get_settings
 
 _db_ok: Optional[str] = None
@@ -230,17 +234,22 @@ def compare_utilities(
     if not keys:
         raise HTTPException(status_code=400, detail="utilities must list at least one utility")
 
+    # key stays the utility code; code and label come from the naming registry
+    # (issue #89), as on /rank and /grouped-counts rows.
     results = [
-        _metric_for_scope(
-            conn,
-            metric=m,
-            scope="utility",
-            scope_id=u,
-            start=start,
-            end=end,
-            normalize=norm,
-            ignition_definition=ign_def,
-        )
+        {
+            **_metric_for_scope(
+                conn,
+                metric=m,
+                scope="utility",
+                scope_id=u,
+                start=start,
+                end=end,
+                normalize=norm,
+                ignition_definition=ign_def,
+            ),
+            **group_code_and_label("utility", u),
+        }
         for u in keys
     ]
     return {

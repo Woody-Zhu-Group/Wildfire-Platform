@@ -122,8 +122,8 @@ export function Comparison() {
   const visibleRows = expanded ? rows : rows.slice(0, capacity);
   const max = Math.max(1, ...rows.map(row => row.value ?? 0));
   return <div className="analysis-chart comparison-panel">
-    <ExportActions datasets={[dataset]} disabled={Boolean(error||remote.loading||!total)} rows={()=>rows.map(row=>({dataset:config.name,group_by:groupBy,category:row.key,count:row.value,share_percent:row.value===null?null:row.value/total*100,period_start:filters.start,period_end:filters.end,utility:filters.utility,county:filters.county,unavailable_reason:row.value===null?'EPSS is PG&E-only':''}))}
-      svg={()=>barSvg(title,`${config.name}; ${filters.start} – ${filters.end}; ${filters.utility||'All utilities'}; ${filters.county||'All counties'}; ${groupBy}; ${measure==='share'?'percent of selected records':'event count'}; ${total} records. ${datasetNote(dataset)}${remote.data?.note ? ` ${remote.data.note}` : ''}`,rows,total,config.color,measure==='share')} />
+    <ExportActions datasets={[dataset]} disabled={Boolean(error||remote.loading||!total)} rows={()=>rows.map(row=>({dataset:config.name,group_by:groupBy,category:row.label,count:row.value,share_percent:row.value===null?null:row.value/total*100,period_start:filters.start,period_end:filters.end,utility:filters.utility,county:filters.county,unavailable_reason:row.value===null?'EPSS is PG&E-only':''}))}
+      svg={()=>barSvg(title,`${config.name}; ${filters.start} – ${filters.end}; ${filters.utility||'All utilities'}; ${filters.county||'All counties'}; ${groupBy}; ${measure==='share'?'percent of selected records':'event count'}; ${total} records. ${datasetNote(dataset)}${remote.data?.note ? ` ${remote.data.note}` : ''}`,rows.map(row=>({key:row.label,value:row.value})),total,config.color,measure==='share')} />
     <div className="comparison-toolbar">
     <div className="comparison-context">
       <label>Dataset<select aria-label="Comparison dataset" value={dataset} onChange={event => setDataset(event.target.value as DatasetId)}>{DATASETS.map(item => <option key={item.id} value={item.id} disabled={groupBy === 'cause' && !item.hasCause}>{item.name}</option>)}</select>
@@ -140,7 +140,7 @@ export function Comparison() {
         {visibleRows.map(row => {
           const share = (row.value ?? 0) / total * 100;
           return <div key={row.key} className="analysis-bar-row" role="listitem">
-            <span className="bar-label" title={row.key}>{row.key}</span>
+            <span className="bar-label" title={row.label}>{row.label}</span>
             <div className="bar-track">{row.value === null ? <span className="missing-bar" title="EPSS is PG&E-only">No data</span> : <div className="value-bar" style={{ background: row.key === "Not recorded" ? "#777" : config.color, width: `${measure === "count" ? row.value / max * 100 : share}%` }} />}</div>
             <span className="bar-value">{row.value === null ? "—" : <><strong>{measure === "count" ? row.value : `${share.toFixed(1)}%`}</strong><small>{measure === "count" ? `${share.toFixed(1)}%` : `${row.value} events`}</small></>}</span>
           </div>;

@@ -82,7 +82,7 @@ After each merge, rebase the next branch onto `platform/main`, rerun `pytest tes
 
 ## Deployment (EC2, reached by Michael through SSM, not SSH)
 
-- Backend host `ip-172-31-2-9`, repo `/home/ubuntu/Wildfire-Services` (origin there is the platform repo), service `wildfire-agent` on port 8004. Production is still at PR #15.
+- Backend host `ip-172-31-2-9`, repo `/home/ubuntu/Wildfire-Services` (origin there is the platform repo), service `wildfire-agent` on port 8004. Production runs `main` at `6b691a8` (the PR #92 merge), deployed 2026-09-24.
 - Model tier is OpenRouter (GPT-6 Luna, Sol on retries) since 2026-09-24. The CPU model instance 172.31.6.133 and the old GPU instance are retired.
 - Eval worktree `/home/ubuntu/jev-eval`.
 - Open items: lock port 8004 to CloudFront, revoke the old TypeSafe key.
