@@ -405,3 +405,4 @@ Historical dates only for years with local covariate files. No live HRRR ingesti
 | [`services/agent/eval/HARNESS_GUARDS.md`](services/agent/eval/HARNESS_GUARDS.md), [`services/agent/eval/ROUTING_EXPERIMENT.md`](services/agent/eval/ROUTING_EXPERIMENT.md) | Harness guards and the routing experiment |
 | [`docs/OPENROUTER.md`](docs/OPENROUTER.md) | OpenRouter LLM and Jev backends, prices, measurements, and the production switch |
 | [`docs/JEV_SHADOW.md`](docs/JEV_SHADOW.md), [`docs/JEV_DECIDE.md`](docs/JEV_DECIDE.md), [`docs/JEV_MULTI_TOOL.md`](docs/JEV_MULTI_TOOL.md), [`docs/JEV_DETERMINISM.md`](docs/JEV_DETERMINISM.md), [`docs/JEV_BACKLOG.md`](docs/JEV_BACKLOG.md) | Jev modes and flags, decide mode, the slot planner, determinism, and deferred Jev work |
+| [`docs/HANDOFF_SINCE_PR4.md`](docs/HANDOFF_SINCE_PR4.md) | Handoff: every PR, rule, tool, caveat, endpoint, env var, view, eval set, and open item since PR #4 |
