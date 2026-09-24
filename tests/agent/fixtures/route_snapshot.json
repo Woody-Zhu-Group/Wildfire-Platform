@@ -508,8 +508,8 @@
   "map"
  ],
  "jev_holdout.json:ho_021": [
-  "model",
-  "open_ended"
+  "clarification",
+  "unexpressable_county_filter"
  ],
  "jev_holdout.json:ho_022": [
   "model",
@@ -544,8 +544,8 @@
   "hftd_constraint_unavailable"
  ],
  "jev_holdout.json:ho_030": [
-  "deterministic",
-  "filtered_records"
+  "clarification",
+  "unexpressable_county_filter"
  ],
  "jev_holdout.json:ho_031": [
   "model",
@@ -736,8 +736,8 @@
   "open_ended"
  ],
  "jev_holdout.json:ho_078": [
-  "deterministic",
-  "filtered_records"
+  "unsupported",
+  "unexpressable_county_filter"
  ],
  "jev_holdout.json:ho_079": [
   "deterministic",

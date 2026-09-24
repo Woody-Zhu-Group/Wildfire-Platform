@@ -247,14 +247,15 @@ def test_a_us_sample_question_restricted_to_a_state_falls_back():
     assert [a["year"] for _, a in slot_tool_calls(national)] == [2021, 2022]
 
 
-def test_hv2_011_falls_back_even_though_the_router_picks_cpuc():
-    # The router resolves 'sampled ignitions of all causes' to cpuc_ignitions, so
-    # the planner treats US-sample wording as a dataset the calls must read.
+def test_hv2_011_never_plans_a_state_restricted_us_sample_count():
+    # The router now resolves 'sampled ignitions of all causes' to us_ignitions
+    # and clarifies the state restriction (rule H). The planner's own check still
+    # refuses it, and still refuses US-sample wording that resolves elsewhere.
     question = (
         "Take 2021 and 2022 separately: how many sampled wildfire ignitions of all "
         "causes occurred in California in each year?"
     )
-    assert route_question(question).slots["dataset"] == "cpuc_ignitions"
-    assert fallback_reason(question) == "dataset (US-sample wording resolved to another dataset)"
+    assert route_question(question).slots["dataset"] == "us_ignitions"
+    assert fallback_reason(question) == "a state (the US sample cannot filter by state)"
     decision, planned = _slot_calls(question)
     assert planned.rule != "slot_plan"
