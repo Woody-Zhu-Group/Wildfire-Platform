@@ -53,6 +53,19 @@ Forced-model eval requests (`force_model=True`) skip decide mode.
      that a dataset or grouping is missing), Jev's rule and text are shown instead,
      composed with the router's slots through `complete_clarification` (`wording: "jev"`).
      Every other both-clarify case keeps the router's wording as above.
+   - **Every shown clarification asks for every missing item, whichever rule's text is the
+     base.** `complete_clarification` reads the missing items (a year or date, a dataset, a
+     ranking grouping, a place) from the question and the router's slots only
+     (`clarify_missing.missing_items`); the rule contributes only the item its own text asks
+     for, and whether a text already asks for an item is read from its words. So when Jev's
+     `ranking_missing_year` replaces the router's `ranking_missing_slots` on "Which one had
+     the most ignitions?", the grouping is still asked. The options come from the registry
+     for the task: a ranking lists the datasets `RANK_MEASURES` has for the grouping (a county
+     ranking offers CPUC ignitions or CAL FIRE incidents, never PSPS) or the groupings it has
+     for the dataset, and a comparison of named places lists the datasets
+     `COMPARE_MEASURES` has for that scope. `tests/agent/test_clarify_asks_every_missing_item.py`
+     asserts this for every clarification rule on questions missing different combinations
+     of year, dataset, grouping, and place, and on the stored `ho_094` and `hv3_077` answers.
    - **A Jev decline never contradicts a slot the router resolved.** A Jev clarification
      about the time (`*_missing_year`, `ambiguous_relative_time`, `forecast_missing_date`)
      is ignored when the router resolved the time, and one about the place
@@ -365,8 +378,10 @@ store (no Jev call made; stored answers and confidences unchanged), every change
 - `ho_094` (v1, "what counties had the most utility-caused ignitions?") and `hv3_077` (v3,
   "Rank the counties by wildfire incidents."): the router's `ranking_missing_slots` text is
   replaced by Jev's `ranking_missing_year` (both at the gate). These are the two rows PR #72
-  moved the other way. `hv3_077` also asks for a dataset, from the router's slots; `ho_094`
-  asks only for the year, since its dataset is resolved. Disposition unchanged.
+  moved the other way. `hv3_077` also asks for a dataset, from the router's slots, offering
+  only CPUC ignitions or CAL FIRE incidents (the datasets `RANK_MEASURES` ranks counties by);
+  `ho_094` asks only for the year, since its dataset and grouping are resolved. Disposition
+  unchanged.
 
 Jev alone (not decisions) moved on seven more rows, all below the gate or on exempt routes:
 `amb_big_utilities`, `ho_041`, `hv3_035`, and `hv3_071` toward their `clarify` labels, and

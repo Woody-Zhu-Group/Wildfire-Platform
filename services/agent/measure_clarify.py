@@ -123,9 +123,11 @@ def measure_clarification(
         parts.append(f"{prefix} {verb} {'; '.join(by_group)}.")
     not_in_data = _join(list(MEASURES_NOT_IN_DATA), "and")
     parts.append(f"{not_in_data[:1].upper()}{not_in_data[1:]} are not in the data.")
+    # A ranking with no grouping asks for one too.
+    what = "grouping and measure" if kind == "rank" and group not in RANK_MEASURES else "measure"
     parts.append(
-        "Which measure should I use?"
+        f"Which {what} should I use?"
         if period
-        else "Which measure should I use, and for which year or date range?"
+        else f"Which {what} should I use, and for which year or date range?"
     )
     return " ".join(parts)

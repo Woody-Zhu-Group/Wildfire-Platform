@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from services.agent.clarify_missing import complete_clarification
+from services.agent.clarify_missing import complete_clarification, rank_slots_question
 from services.agent.places import (
     GAZETTEER_VINTAGE,
     CityPoint,
@@ -2087,11 +2087,7 @@ def _route_ranking(
             "clarification",
             "ranking_missing_slots",
             "Ranking needs one dataset and one grouping dimension",
-            answer=(
-                "Which dataset and grouping should I rank? I can rank counties "
-                "or utilities in CPUC ignitions, counties in CAL FIRE incidents, "
-                "or circuits in EPSS outages, for one year or date range."
-            ),
+            answer=rank_slots_question(),
             slots=slots,
         )
 

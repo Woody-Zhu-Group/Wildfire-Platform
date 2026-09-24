@@ -303,7 +303,7 @@ Rule ids that live in tables outside `routing.py`:
 
 ### 4.2 Clarifications
 
-The text of every clarification is completed by `services/agent/clarify_missing.py` (`complete_clarification`, PR #51): when the slots show more than one thing missing, one message asks for all of them and ends with an example rephrasing built only from what the question named. The rule id never changes.
+The text of every clarification is completed by `services/agent/clarify_missing.py` (`complete_clarification`, PR #51): when the slots show more than one thing missing, one message asks for all of them and ends with an example rephrasing built only from what the question named. The rule id never changes. Since PR #94 the missing items (year or date, dataset, ranking grouping, place) are read from the question and the router's slots only, never from the rule, so decide mode showing Jev's text instead of the router's cannot drop one; the options offered come from the registry (`RANK_MEASURES` for rankings, `COMPARE_MEASURES` for comparisons), and the `ranking_missing_slots` text is built from `RANK_MEASURES`.
 
 | Rule id | Triggers | Example | What it asks |
 |---|---|---|---|

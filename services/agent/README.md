@@ -46,10 +46,13 @@ dataset/metric, scope, and required time/location slots are explicit:
   personnel, satellite imagery, leadership, optimization, damage, live web,
   future predictions) → refusal
 - missing risk metric, location, region definition, or time → clarification.
-  When a question is missing more than one item (year, place, dataset), one
-  clarification asks for all of them and ends with an example rephrasing built
-  from what the question already named (`clarify_missing.py`). The rule id does
-  not change.
+  When a question is missing more than one item (year, place, dataset, ranking
+  grouping), one clarification asks for all of them and ends with an example
+  rephrasing built from what the question already named (`clarify_missing.py`).
+  The missing items come from the question and the router's slots, not the
+  rule, so any rule's text (the router's or, in decide mode, Jev's) asks for
+  all of them, with options from the registry (`RANK_MEASURES`,
+  `COMPARE_MEASURES`). The rule id does not change.
 
 Compositions, cross-dataset questions, and requests not matching those strict
 rules go to the model. Every response logs `path`, `rule`, and tool trajectory.
