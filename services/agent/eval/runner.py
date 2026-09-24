@@ -273,6 +273,10 @@ def score_case(
     if case.get("force_model"):
         route_pass = route_path == "model"
     tools_pass = actual_tools == expected_tools
+    # A case may list other correct tool sequences (with the reason recorded
+    # in its expectation_note), for example a count call plus a records call.
+    accepted = [list(item) for item in case.get("accepted_tool_sequences") or []]
+    tools_pass = tools_pass or actual_tools in accepted
     if (
         disable_deterministic
         and expected_route == "deterministic"

@@ -89,6 +89,14 @@ distinct stored qwen3:4b model-path calls in `services/agent/eval/runs/` drops 1
 invented (`county: ""` 9, `circuit_id: ""` 4, `Tier 2` with no tier in the question 5);
 grounded values pass unchanged.
 
+Enum rule (2026-09-24): a schema-valid enum value is still an invented filter when the question
+never asked for it. `utility=untagged` is dropped unless the question mentions untagged,
+unattributed, or non-utility records, and `incident_type_mode` `all` or `untyped` is dropped unless
+the question asks for every incident type or for records with no type. Luna sent
+`utility=untagged` on its own for `recover_503` ("Show a weekly CPUC ignition time series for
+2024.") in one rerun; the executor already stripped it, but an injected fault recorded the raw
+payload, so the audit flagged it. Faults now record the arguments that would have run.
+
 Tier rule: a question that names tiers by number keeps only those ("tier 2 or 3" keeps both).
 A question that asks across tiers without a number ("which hftd tier covered the most
 circuits") keeps Tier 2 and Tier 3. HFTD alone with no tier word keeps neither.

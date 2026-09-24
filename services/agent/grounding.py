@@ -21,6 +21,31 @@ COORD_FIELDS = ("lat", "lon")
 # Fields that are filters. Structural fields (dataset, kind, metric, interval) are not.
 FILTER_FIELDS = ("circuit_id", "county", *TIER_FIELDS, *COORD_FIELDS)
 
+# Enum values that are valid for the tool but change what is counted. Each is
+# grounded only when the question asks for it in words; a model that picks
+# one on its own is inventing a filter even though the schema accepts it.
+UNTAGGED = "untagged"
+_UNTAGGED_RE = re.compile(
+    r"\b(?:untagged|un-?attributed|not attributed|unassigned|no utility|"
+    r"without (?:a |an |any )?utility|non-?utility|not tagged|missing (?:a |the )?utility|"
+    r"unknown utility|no (?:known |named )?utility)\b",
+    re.IGNORECASE,
+)
+_ALL_TYPES_RE = re.compile(
+    r"\b(?:all (?:calfire |cal fire )?(?:incident |record )?types|every (?:incident |record )?type|"
+    r"any (?:incident |record )?type|regardless of (?:incident |record )?type|"
+    r"all (?:calfire |cal fire )?records|including non-?wildfire|non-?wildfire|"
+    r"all incidents(?: of any type)?|not (?:just|only) wildfires?)\b",
+    re.IGNORECASE,
+)
+_UNTYPED_RE = re.compile(
+    r"\b(?:untyped|no incident type|without (?:an |any )?incident type|"
+    r"missing (?:an |the |their )?(?:incident )?type|unknown (?:incident )?type|"
+    r"null (?:incident )?type|no type)\b",
+    re.IGNORECASE,
+)
+DEFAULT_INCIDENT_TYPE_MODE = "wildfire_default"
+
 # "tier 2", "tier 2 or 3", "tiers 2 and 3", "tier 2/tier 3".
 _TIER_RE = re.compile(
     r"\btiers?\s*([23])(?:\s*(?:,|and|or|&|/)\s*(?:tier\s*)?([23]))?\b",
@@ -70,6 +95,37 @@ def _is_sentinel(value: Any) -> bool:
     return False
 
 
+def question_allows_untagged(question: str) -> bool:
+    """True when the question asks about untagged, unattributed, or non-utility records."""
+    return _UNTAGGED_RE.search(question or "") is not None
+
+
+def question_incident_type_modes(question: str) -> set[str]:
+    """CAL FIRE incident_type_mode values the question supports.
+
+    The default (Wildfire and Fire types) is always allowed. "all" needs the
+    question to ask for every type or non-wildfire records; "untyped" needs it
+    to ask for records with no incident type.
+    """
+    modes = {DEFAULT_INCIDENT_TYPE_MODE}
+    text = question or ""
+    if _ALL_TYPES_RE.search(text):
+        modes.add("all")
+    if _UNTYPED_RE.search(text):
+        modes.add("untyped")
+    return modes
+
+
+def utility_grounded(value: str, *, question: str, utilities: list[str] | None) -> bool:
+    """A utility filter is grounded by the router slots, or by untagged wording."""
+    name = value.strip()
+    if not name:
+        return False
+    if name == UNTAGGED:
+        return question_allows_untagged(question)
+    return name in set(utilities or [])
+
+
 def _county_grounded(value: str, question: str, county_slot: str | None) -> bool:
     name = _norm(value).removesuffix(" county")
     if county_slot and _norm(county_slot).removesuffix(" county") == name:
@@ -111,6 +167,20 @@ def ground_model_filters(
     if value is not None and not _county_grounded(str(value), question, county):
         drop("county", "not_in_question")
 
+    # A valid enum value the question never asked for is still an invented
+    # filter: "untyped" counts only records with no type, "all" adds
+    # non-wildfire records. Dropping it returns the tool to its default.
+    value = filled.get("incident_type_mode")
+    if value is not None and str(value) not in question_incident_type_modes(question):
+        drop("incident_type_mode", "not_in_question")
+
+    # "untagged" is a utility value that means no utility; only a question
+    # about untagged or unattributed records grounds it. Named IOUs stay with
+    # the executor rule and its caveat.
+    value = filled.get("utility")
+    if isinstance(value, str) and value.strip() == UNTAGGED and not question_allows_untagged(question):
+        drop("utility", "not_in_question")
+
     coords = [filled.get(field) for field in COORD_FIELDS]
     if any(item is not None for item in coords):
         numbers = _question_numbers(question)
@@ -139,12 +209,14 @@ def audit_executed_filters(
     Covers the fields above plus utility, which the executor strips at run time.
     """
     _grounded, drops = ground_model_filters(arguments, question=question, county=county)
-    allowed = set(utilities or [])
+    drops = [d for d in drops if not (d["field"] == "utility" and d["value"] == UNTAGGED)]
     value = arguments.get("utility")
-    if isinstance(value, str) and value.strip() and value.strip() not in allowed:
+    if isinstance(value, str) and value.strip() and not utility_grounded(
+        value, question=question, utilities=utilities
+    ):
         drops.append({"field": "utility", "value": value, "reason": "not_in_slots"})
     for item in arguments.get("utilities") or []:
-        if isinstance(item, str) and item not in allowed:
+        if isinstance(item, str) and not utility_grounded(item, question=question, utilities=utilities):
             drops.append({"field": "utilities", "value": item, "reason": "not_in_slots"})
     for drop in drops:
         drop["tool"] = tool
