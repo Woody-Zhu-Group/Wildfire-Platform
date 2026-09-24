@@ -426,14 +426,26 @@
   {
     "id": "holdout_compare_epss_sce_sdge_2023",
     "question": "Compare EPSS outage counts for SCE versus SDGE in 2023.",
-    "expected_route": "deterministic",
-    "expected_tools": [
-      "comparison_run"
-    ],
-    "required_caveats": [
-      "epss_pge_only"
-    ],
-    "expected_status": "answer"
+    "expected_route": "clarification",
+    "expected_tools": [],
+    "required_caveats": [],
+    "expected_status": "clarification",
+    "label_rule": {
+      "id": "I",
+      "date": "2026-09-24",
+      "written_by": "Michael",
+      "text": "Extension of rule I: a comparison on an EPSS metric (epss_outage_count or epss_to_ignition_ratio) that names no PG&E utility is clarify / epss_non_pge_utility, because EPSS covers PG&E only and every side of the comparison would be absent, not zero. A comparison that names PG&E still answers, with the non-PG&E side null and its reason. Applies to holdout_compare_epss_sce_sdge_2023 (cases.json).",
+      "previous": {
+        "expected_route": "deterministic",
+        "expected_tools": [
+          "comparison_run"
+        ],
+        "required_caveats": [
+          "epss_pge_only"
+        ],
+        "expected_status": "answer"
+      }
+    }
   },
   {
     "id": "holdout_count_trend_sce_2023",
