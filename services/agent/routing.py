@@ -2310,12 +2310,37 @@ _MODEL_PERFORMANCE = re.compile(
 _MODEL_PERFORMANCE_BLOCKERS = re.compile(r"\b(?:cells?|grid|tiers?|hftd|circuits?|territor\w*)\b")
 
 
+# "the model predict", "the model's predictions": a bare "model" is the risk
+# model only beside a predict word (elsewhere it can mean the chat model).
+_PREDICT_WORD = re.compile(r"\bpredict(?:ed|ions?|ing|s)?\b")
+_BARE_MODEL = re.compile(r"\b(?:the|this|your)\s+model(?:'s|s)?\b")
+
+
 def _asks_model_performance(lower: str) -> bool:
     if _MODEL_PERFORMANCE_BLOCKERS.search(lower):
         return False
     if len(set(_MODEL_NAMES.findall(lower))) >= 2:
         return True
-    return bool(_RISK_MODEL_SUBJECT.search(lower) and _MODEL_PERFORMANCE.search(lower))
+    if not _MODEL_PERFORMANCE.search(lower):
+        return False
+    if _RISK_MODEL_SUBJECT.search(lower):
+        return True
+    return bool(_PREDICT_WORD.search(lower) and _BARE_MODEL.search(lower))
+
+
+def _predict_word_is_model_skill(text: str, lower: str) -> bool:
+    """True when the only forward token is a predict word in a question about
+    how well the model predicts: no forward phrase, will, forecast, or year
+    after coverage. Such a question is about skill, not a future prediction.
+    """
+    if any(int(year) > date.today().year for year in re.findall(r"\b(20\d{2})\b", text)):
+        return False
+    tokens = [match.group(0) for match in _FUTURE_DATE.finditer(lower)]
+    return (
+        bool(tokens)
+        and all(_PREDICT_WORD.fullmatch(token) for token in tokens)
+        and _asks_model_performance(lower)
+    )
 
 
 def _route_question(question: str, *, force_model: bool = False) -> RouteDecision:
@@ -2374,6 +2399,8 @@ def _route_question(question: str, *, force_model: bool = False) -> RouteDecisio
             ),
         )
     future_phrase = _future_refusal_phrase(text, lower)
+    if future_phrase and _predict_word_is_model_skill(text, lower):
+        future_phrase = None
     if future_phrase and _RISK_OBJECT.search(lower):
         return RouteDecision(
             "clarification",

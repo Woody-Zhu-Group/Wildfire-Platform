@@ -101,8 +101,8 @@ UNCHANGED_ROUTES = [
     ("How accurate was the risk model in 2022?", "risk_missing_place"),
     ("risk model precision in Tier 3", "risk_missing_place"),
     ("How reliable is the risk model for CAL FIRE data?", "risk_missing_place"),
-    # The future-date backstop still fires first.
-    ("How accurate is the risk model at predicting ignitions?", "risk_future_date"),
+    # A real future date keeps the future-date backstop.
+    ("How accurate is the risk model at predicting ignitions in 2027?", "risk_future_date"),
 ]
 
 
@@ -332,3 +332,52 @@ def test_the_model_cannot_call_the_router_only_metrics_tool():
         assert refused and all((step.get("error") or {}).get("code") == "unknown_tool" for step in refused)
 
     asyncio.run(run())
+
+
+# ---------------------------------------------------------------- predict wording
+
+PREDICT_SKILL_QUESTIONS = [
+    "How accurate is the risk model at predicting ignitions?",
+    "How well does the model predict fires?",
+    "How good are the model's predictions?",
+]
+
+# (question, path, rule) exactly as on main: a forward phrase, will, or a year
+# after coverage keeps the future backstop.
+FUTURE_PREDICTIONS = [
+    ("Predict ignitions for next summer", "unsupported", "unsupported_future_prediction"),
+    ("Will the model predict more fires in 2027?", "unsupported", "unsupported_future_prediction"),
+    ("What will the ignition risk be tomorrow?", "clarification", "risk_future_date"),
+    ("How accurate is the risk model's prediction for next summer?", "clarification", "risk_future_date"),
+    ("How accurate is the risk model at predicting ignitions in 2027?", "clarification", "risk_future_date"),
+    ("How well will the model predict fires?", "unsupported", "unsupported_future_prediction"),
+    ("Can the model predict fires in Butte County?", "unsupported", "unsupported_future_prediction"),
+    ("Predict fire risk for Butte County", "clarification", "risk_future_date"),
+]
+
+
+@pytest.mark.parametrize("question", PREDICT_SKILL_QUESTIONS)
+def test_a_question_about_how_well_the_model_predicts_reaches_the_card(question):
+    decision = route_question(question)
+    assert (decision.path, decision.rule) == ("deterministic", "risk_model_metrics"), question
+    assert decision.tool_calls == [("risk_metrics", {})]
+
+
+@pytest.mark.parametrize("question,path,rule", FUTURE_PREDICTIONS)
+def test_future_predictions_refuse_or_clarify_exactly_as_before(monkeypatch, question, path, rule):
+    from services.agent import routing
+
+    decision = route_question(question)
+    assert (decision.path, decision.rule) == (path, rule), question
+    assert decision.tool_calls == []
+    # The same decision, answer text included, with the model-skill exception off.
+    monkeypatch.setattr(routing, "_predict_word_is_model_skill", lambda text, lower: False)
+    before = route_question(question)
+    assert (before.path, before.rule, before.answer, before.slots) == (
+        decision.path, decision.rule, decision.answer, decision.slots
+    )
+
+
+def test_a_bare_model_needs_a_predict_word_to_be_the_risk_model():
+    assert route_question("How good is the model?").rule == "open_ended"
+    assert route_question("Which model performs best?").rule == "open_ended"
