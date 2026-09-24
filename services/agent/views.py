@@ -25,6 +25,7 @@ from services.shared.dataset_registry import (
     COUNT_MAP_DATASETS as _COUNT_MAP_DATASETS,
     DQ_TO_VIZ as _DQ_TO_VIZ,
     HDW_YEARS as _HDW_YEARS,
+    INCIDENT_TYPE_MODES,
     STAT_LABELS as _STAT_LABELS,
 )
 
@@ -39,9 +40,7 @@ ComponentType = Literal[
 ]
 
 _SPATIAL_COUNT_LABELS = {
-    "ignitions": "CPUC ignitions",
-    "epss_outages": "EPSS outages",
-    "calfire_incidents": "CAL FIRE incidents",
+    key: _STAT_LABELS[key] for key in ("ignitions", "epss_outages", "calfire_incidents")
 }
 # California event layers the HDW grid can play under (not the CONUS sample).
 _HDW_EVENT_LAYERS = frozenset({"ignitions", "epss", "psps", "calfire"})
@@ -125,7 +124,7 @@ class TimeSeriesViewParams(StrictModel):
     end_date: str | None = None
     utility: str | None = None
     county: str | None = None
-    incident_type_mode: Literal["wildfire_default", "all", "untyped"] | None = None
+    incident_type_mode: Literal[INCIDENT_TYPE_MODES] | None = None
     series_mode: SeriesMode | None = None
     datasets: list[str] | None = None
 

@@ -12,7 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from services.comparison import metrics, queries
 from services.data_query.filters import (
-    HFTD_TIERS,
     parse_county,
     parse_date_param,
     parse_tier,
@@ -20,6 +19,7 @@ from services.data_query.filters import (
     validate_date_range,
 )
 from services.shared.calfire_county import MULTI_COUNTY_NOTE, multi_county_meta
+from services.shared.dataset_registry import CALFIRE_DEFAULT_INCIDENT_TYPES, HFTD_TIERS
 from shared.db import connect, get_settings
 
 _db_ok: Optional[str] = None
@@ -172,7 +172,7 @@ def _base_meta(
         "metric": metric,
         "normalize": normalize,
         "ignition_definition": ignition_definition,
-        "calfire_incident_types": ["Wildfire", "Fire"],
+        "calfire_incident_types": list(CALFIRE_DEFAULT_INCIDENT_TYPES),
         "epss_scope": "PGE-only",
         "area_method": "ST_Area(geom::geography)/1e6 km2",
         "filters": filters,

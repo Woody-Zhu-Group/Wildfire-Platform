@@ -15,6 +15,11 @@ from services.shared.dataset_registry import (
     AGENT_DATASET_VALUES,
     ALLOWED_RANK_PAIRS,
     DATASETS,
+    HFTD_TIER_NAMES,
+    INCIDENT_TYPE_MODES,
+    RISK_MODEL_UTILITIES,
+    UNTAGGED_UTILITY,
+    UTILITY_CODES,
 )
 
 
@@ -22,14 +27,13 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class Utility(str, Enum):
-    PGE = "PGE"
-    SCE = "SCE"
-    SDGE = "SDGE"
-    PACIFICORP = "PACIFICORP"
-    LIBERTY = "Liberty"
-    BVES = "BVES"
-    UNTAGGED = "untagged"
+# Warehouse utility codes plus the untagged keyword; member names are upper case.
+Utility = Enum(
+    "Utility",
+    {value.upper(): value for value in (*UTILITY_CODES, UNTAGGED_UTILITY)},
+    type=str,
+    module=__name__,
+)
 
 
 class Dataset(str, Enum):
@@ -47,9 +51,13 @@ class Dataset(str, Enum):
 assert {member.value for member in Dataset} == set(AGENT_DATASET_VALUES)
 
 
-class HftdTier(str, Enum):
-    TIER_2 = "Tier 2"
-    TIER_3 = "Tier 3"
+# Stored HFTD tier values (TIER_2, TIER_3).
+HftdTier = Enum(
+    "HftdTier",
+    {value.upper().replace(" ", "_"): value for value in HFTD_TIER_NAMES},
+    type=str,
+    module=__name__,
+)
 
 
 class DataQueryRecordsArgs(StrictModel):
@@ -66,7 +74,7 @@ class DataQueryRecordsArgs(StrictModel):
     tier: HftdTier | None = None
     circuit_id: str | None = Field(None, pattern=r"^\d{9}$")
     min_acres: float | None = Field(None, ge=0)
-    incident_type_mode: Literal["wildfire_default", "all", "untyped"] | None = None
+    incident_type_mode: Literal[INCIDENT_TYPE_MODES] | None = None
     limit: int = Field(10, ge=1, le=25)
 
     @model_validator(mode="after")
@@ -99,7 +107,7 @@ class DataQueryRankArgs(StrictModel):
     start_date: date | None = None
     end_date: date | None = None
     county: str | None = None
-    incident_type_mode: Literal["wildfire_default", "all", "untyped"] | None = None
+    incident_type_mode: Literal[INCIDENT_TYPE_MODES] | None = None
     limit: int = Field(10, ge=1, le=25)
 
     @model_validator(mode="after")
@@ -164,7 +172,7 @@ class VisualizationCreateArgs(StrictModel):
     county: str | None = None
     tier: HftdTier | None = None
     interval: Literal["daily", "weekly", "monthly"] | None = None
-    incident_type_mode: Literal["wildfire_default", "all", "untyped"] | None = None
+    incident_type_mode: Literal[INCIDENT_TYPE_MODES] | None = None
 
     @model_validator(mode="after")
     def validate_kind(self) -> "VisualizationCreateArgs":
@@ -223,7 +231,7 @@ class RiskForecastArgs(StrictModel):
         if self.county:
             groups.append("county")
         if self.utility is not None:
-            if self.utility.value not in {"PGE", "SCE", "SDGE"}:
+            if self.utility.value not in RISK_MODEL_UTILITIES:
                 raise ValueError("utility must be PGE, SCE, or SDGE")
             groups.append("utility")
         if len(groups) != 1:

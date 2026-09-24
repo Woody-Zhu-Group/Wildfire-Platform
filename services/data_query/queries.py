@@ -18,12 +18,18 @@ from services.shared.calfire_county import (
 from services.shared.epss_causes import cause_display_sql, cause_filter_sql, cause_variants
 from services.shared.dataset_registry import (
     ALLOWED_RANK_PAIRS,
+    CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
     GROUP_BY_FIELDS,
     GROUPED_DATASETS,
+    MISSING_LABEL_RANK,
     NOT_RECORDED,
     SUMMARY_METRIC_IDS,
+    UTILITY_DISPLAY_LABELS,
     WORKSPACE_UTILITIES,
+    calfire_default_type_sql,
 )
+
+_CALFIRE_DEFAULT_TYPE_SQL = calfire_default_type_sql("c.incident_type")
 
 
 def _fetch_page(
@@ -335,7 +341,7 @@ def query_calfire(
     type_mode = "default_wildfire"
 
     if incident_type is None or incident_type.strip() == "":
-        where.append("c.incident_type IN ('Wildfire', 'Fire')")
+        where.append(_CALFIRE_DEFAULT_TYPE_SQL)
         type_mode = "default_wildfire"
     elif incident_type.strip().lower() == "all":
         type_mode = "all"
@@ -688,7 +694,7 @@ def spatial_summary(
               (SELECT count(*) FROM wildfire.calfire_incidents c, region r
                  WHERE ST_Within(c.geom, r.geom)
                    AND c.date_only_created BETWEEN %s AND %s
-                   AND c.incident_type IN ('Wildfire', 'Fire')) AS calfire_incidents
+                   AND {_CALFIRE_DEFAULT_TYPE_SQL}) AS calfire_incidents
             """,
             (
                 region_param,
@@ -712,7 +718,7 @@ def spatial_summary(
             "calfire_incidents": int(counts.get("calfire_incidents") or 0),
         },
         "meta": {
-            "calfire_incident_type_default": "Wildfire,Fire",
+            "calfire_incident_type_default": CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
             "calfire_counts_use_spatial_containment": True,
             "null_incident_type_count": null_incident_type_count(conn),
             "null_utility_records_in_table": null_utility_count(conn),
@@ -723,7 +729,7 @@ def spatial_summary(
 # ---- Ranking (single-dataset GROUP BY / top-N) ----
 
 RANK_HARD_CAP = 25
-_UNKNOWN_GROUP = "(unknown)"
+_UNKNOWN_GROUP = MISSING_LABEL_RANK
 
 
 class RankQueryError(ValueError):
@@ -943,7 +949,7 @@ def _rank_calfire_sql(
     params: list[Any] = []
     type_mode = "default_wildfire"
     if incident_type is None or incident_type.strip() == "":
-        where.append("c.incident_type IN ('Wildfire', 'Fire')")
+        where.append(_CALFIRE_DEFAULT_TYPE_SQL)
     elif incident_type.strip().lower() == "all":
         type_mode = "all"
     elif incident_type.strip().lower() == "untyped":
@@ -1067,11 +1073,13 @@ class AggregateQueryError(ValueError):
 
 
 def _utility_display_expr(col: str) -> str:
+    whens = "".join(
+        f"WHEN '{code}' THEN '{label}' " for code, label in UTILITY_DISPLAY_LABELS.items()
+    )
     return (
         "COALESCE("
         f"CASE NULLIF(BTRIM({col}), '') "
-        "WHEN 'PGE' THEN 'PG&E' "
-        "WHEN 'SDGE' THEN 'SDG&E' "
+        f"{whens}"
         f"ELSE NULLIF(BTRIM({col}), '') END, "
         f"'{NOT_RECORDED}')"
     )
@@ -1115,7 +1123,7 @@ def _pad_utility_rows(
     keys = list(dict.fromkeys([*seed, *sorted(counts)]))
     rows: list[dict[str, Any]] = []
     for key in keys:
-        if dataset == "epss_outages" and key != "PG&E":
+        if dataset == "epss_outages" and key != UTILITY_DISPLAY_LABELS["PGE"]:
             rows.append({"key": key, "value": None})
         else:
             rows.append({"key": key, "value": int(counts.get(key, 0))})
@@ -1123,7 +1131,7 @@ def _pad_utility_rows(
 
 
 def _utility_display_label(code: str) -> str:
-    return {"PGE": "PG&E", "SDGE": "SDG&E"}.get(code, code)
+    return UTILITY_DISPLAY_LABELS.get(code, code)
 
 
 def _cpuc_aggregate_where(
@@ -1159,7 +1167,7 @@ def _calfire_aggregate_where(
     start_date: date | None,
     end_date: date | None,
 ) -> tuple[str, list[Any]]:
-    where = ["c.incident_type IN ('Wildfire', 'Fire')"]
+    where = [_CALFIRE_DEFAULT_TYPE_SQL]
     params: list[Any] = []
     if utility == "untagged":
         where.append("c.utility IS NULL")
@@ -1370,7 +1378,7 @@ def query_grouped_counts(
 
     if group_by == "utility":
         if dataset == "epss_outages":
-            counts = {"PG&E": total} if total and not empty_epss else {}
+            counts = {UTILITY_DISPLAY_LABELS["PGE"]: total} if total and not empty_epss else {}
         else:
             counts = dict(grouped)
         rows = _pad_utility_rows(

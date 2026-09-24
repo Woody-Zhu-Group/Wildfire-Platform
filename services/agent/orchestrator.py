@@ -45,6 +45,7 @@ from services.agent.schemas import (
 from services.agent.streaming import ProgressCallback
 from services.agent.tools import ToolExecution, ToolExecutor
 from services.agent.views import dump_planned, empty_views_payload, plan_views
+from services.shared.dataset_registry import EVENT_DATASET_WORDS, UTILITY_POSSESSIVE_NAMES
 
 _shadow_log = logging.getLogger("services.agent.decisions")
 
@@ -2545,7 +2546,7 @@ def _slot_grounded_utility_ignition_args(
         return None
     if not re.search(r"\bignitions?\b", lower):
         return None
-    if re.search(r"\b(?:epss|psps|cal\s*fire|acres?)\b", lower):
+    if re.search(rf"\b(?:{EVENT_DATASET_WORDS}|acres?)\b", lower):
         return None
     start = slots.get("start_date") or f"{int(year)}-01-01"
     end = slots.get("end_date") or f"{int(year)}-12-31"
@@ -2933,14 +2934,7 @@ def _city_point_outside_coverage(
 
 
 # Possessive utility names for the point-context sentence.
-_UTILITY_POSSESSIVE = {
-    "PGE": "Pacific Gas & Electric's",
-    "SCE": "Southern California Edison's",
-    "SDGE": "San Diego Gas & Electric's",
-    "PACIFICORP": "PacifiCorp's",
-    "Liberty": "Liberty Utilities'",
-    "BVES": "Bear Valley Electric Service's",
-}
+_UTILITY_POSSESSIVE = UTILITY_POSSESSIVE_NAMES
 
 
 def _point_context_sentence(
