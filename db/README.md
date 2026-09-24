@@ -58,6 +58,16 @@ National ignitions: place `data/north_america/Wildfire_Dataset.csv` locally, the
 
 All geometries are EPSG:4326 with GIST indexes. Circuit IDs are `TEXT` (9 digits, leading zeros preserved). There are **no FKs** from outages/PSPS links to `circuits`; orphans are reported at load and in the final validation step.
 
+## Measured dataset coverage
+
+After validation, `load_all` measures what was just loaded and writes `shared/dataset_coverage.json` (`db/loaders/coverage.py`): for each dataset, its first and last row date, row count, which utilities it has rows for with each one's first and last date and row count, and its rows with no utility (what an `untagged` filter can count). EPSS outages and circuits have no utility column; their loaders read PG&E's published files, so their rows are attributed to that source utility (`SOURCE_UTILITY` in `load_epss.py` and `load_circuits.py`) and their dates and counts are measured. The file is committed and generated: never edit it by hand. Regenerate it against the current warehouse, without reloading, with:
+
+```bash
+python -m db.loaders.coverage
+```
+
+The registry (`services/shared/dataset_registry.py`), every service, the agent, and the website read this file; none declares coverage. `tests/agent/test_measured_coverage.py` re-measures the warehouse (skipped when it is not reachable) and fails if the committed file differs, so a reload that changes coverage must be committed with its regenerated file. As loaded on 2026-09-24: CPUC ignitions have rows for PacifiCorp (from 2025-04-24), PG&E, SCE, and SDG&E, 2020-01-01 to 2025-12-24; PSPS events for PG&E, SCE, SDG&E, and Liberty (from 2024-11-11), 2021-10-11 to 2025-11-09; EPSS outages for PG&E, 2021-11-01 to 2025-11-15; circuits for PG&E.
+
 ## Idempotency
 
 Each loader runs `TRUNCATE … RESTART IDENTITY CASCADE` then re-inserts inside a transaction. Safe to re-run.
