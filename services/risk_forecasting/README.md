@@ -128,7 +128,7 @@ Covariate order is TMP, SPFH, wind_speed, NDVI, fm100, after the intercept.
 | `TRAIN_YEARS` | `2020,2021,2022,2023` | `config.py`, used by `fit_model` |
 | `VAL_YEAR` | `2024` | `fit_model.py` |
 
-The path variables are read from the process environment when `config.py` is imported. The repo `.env` is loaded later, by `shared/db.py` on the first database call, so set path overrides in the shell rather than in `.env`. Relative paths resolve against the current working directory. Database settings (`POSTGRES_*`, `DATABASE_URL`) come from `shared/db.py` as for the other services.
+The path variables are read when `config.py` is imported, after `shared/paths.py` loads the repo `.env`, so they can be set in `.env` or the process environment (the process wins). Relative paths resolve from the repo root, not the working directory. Database settings (`POSTGRES_*`, `DATABASE_URL`) come from `shared/db.py` as for the other services.
 
 ## Rebuild adjacency
 

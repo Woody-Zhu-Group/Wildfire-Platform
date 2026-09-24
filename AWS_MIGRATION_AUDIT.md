@@ -77,6 +77,7 @@ Defaults from `shared/paths.py` / `services/risk_forecasting/config.py`:
 
 - `DATA_DIR` = `RISK_FORECASTING_DATA_DIR` or `{RISK_FORECASTING_ROOT}/data` or `services/risk_forecasting/data`
 - `ARTIFACTS_DIR` = `RISK_FORECASTING_ARTIFACTS_DIR` or `{root}/artifacts`
+- These are read after `shared/paths.py` loads the repo `.env` (the process environment wins); relative values resolve from the repo root.
 - `GRID_CSV` = `DATA_DIR / "grid_cells.csv"` (`config.py` 14)
 - `GRID_W_PKL` = `DATA_DIR / "grid_W.pkl"` (`config.py` 15)
 - `PARAMS_PATH` = `ARTIFACTS_DIR / "cnhpp_params.npz"` (`config.py` 16)
@@ -435,10 +436,10 @@ If 8004 were somehow up with a dead model: `GET /health` returns `model.availabl
 | `POSTGRES_PASSWORD` | `shared/db.py` 88 | `wildfire` |
 | `DATABASE_URL` | `shared/db.py` 89 | unset (build DSN from parts) |
 | `DATASET_DEMO_DATA_DIR` | `shared/db.py` 72 | `{repo.parent}/dataset_demo/assets/data` |
-| `RISK_FORECASTING_DATA_DIR` | `shared/db.py` 73; `shared/paths.py` 20–22 | `services/risk_forecasting/data` |
+| `RISK_FORECASTING_DATA_DIR` | `shared/db.py` 73; `shared/paths.py` 36 | `services/risk_forecasting/data` |
 | `GRID_CELL_SPACING_DEG` | `shared/db.py` 92 | `0.24` |
-| `RISK_FORECASTING_ROOT` | `shared/paths.py` 14 | `services/risk_forecasting` |
-| `RISK_FORECASTING_ARTIFACTS_DIR` | `shared/paths.py` 29–31 | `{root}/artifacts` |
+| `RISK_FORECASTING_ROOT` | `shared/paths.py` 32 | `services/risk_forecasting` |
+| `RISK_FORECASTING_ARTIFACTS_DIR` | `shared/paths.py` 40 | `{root}/artifacts` |
 | `TRAIN_YEARS` | `services/risk_forecasting/config.py` 24 | `2020,2021,2022,2023` (empty → that list) |
 | `LOOKBACK_DAYS` | `config.py` 31 | `90` |
 | `VAL_YEAR` | `fit_model.py` 54 | `2024` |
