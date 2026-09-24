@@ -5,7 +5,8 @@ decide mode already stores in the slots. It never carries Jev's raw payload:
 the Jev fields are the disposition and one confidence number.
 
 source:
-  backstop  a router hard backstop fired (decide_mode.BACKSTOP_RULES); rule is its id
+  backstop  a router hard backstop fired (decide_mode.BACKSTOP_RULES, or outside decide
+            mode a topic keyword rule, routing.TOPIC_JUDGMENT_RULES); rule is its id
   jev       decide mode applied Jev's disposition; disposition and confidence
   router    the router's decision stands; why says why Jev did not decide
 mode: the AGENT_JEV_MODE in force (off, shadow, tool_pick, tool_pick_template, decide).
@@ -16,6 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from services.agent.decisions.decide_mode import BACKSTOP_RULES, ROUTER_DISPOSITION
+from services.agent.routing import TOPIC_JUDGMENT_RULES
 
 # decide_mode.DecideResult.why -> the router "why" shown to users.
 _DECIDE_WHY: dict[str, str] = {
@@ -55,7 +57,12 @@ def decision_source(
     mode = jev_mode or "off"
     decide = slots.get("jev_decide") if isinstance(slots.get("jev_decide"), dict) else None
     router_rule = (decide or {}).get("router_rule") or rule
-    if router_rule in BACKSTOP_RULES and (decide is None or decide.get("winner") != "jev"):
+    if decide is None:
+        # Outside decide mode a topic keyword refusal is still a backstop (#97).
+        backstop = router_rule in BACKSTOP_RULES or router_rule in TOPIC_JUDGMENT_RULES
+    else:
+        backstop = decide.get("why") == "backstop" and decide.get("winner") != "jev"
+    if backstop:
         return {"source": "backstop", "rule": router_rule, "mode": mode}
     if decide is not None:
         if decide.get("winner") == "jev":

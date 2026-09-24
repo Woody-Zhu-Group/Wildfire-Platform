@@ -218,7 +218,7 @@ def capture(args: argparse.Namespace) -> int:
                 "question": item["question"],
                 "answers": {name: answer_to_json(answer) for name, answer in answers.items()} or None,
                 "error": error,
-                "exempt": exemption(decision),
+                "exempt": exemption(decision, item["question"]),
             }
             if settings.jev_backend != store.get("backend") or settings.jev_model != store.get("model_request"):
                 # A row captured through a different backend or model than the store's

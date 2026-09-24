@@ -16,7 +16,7 @@ from services.agent.decisions.decide_mode import (
     decide_live,
     exemption,
 )
-from services.agent.routing import UNSUPPORTED, route_question
+from services.agent.routing import TOPIC_JUDGMENT_RULES, UNSUPPORTED, route_question
 
 COUNT_Q = "How many PG&E utility-attributed ignitions were there in 2024?"
 
@@ -80,15 +80,17 @@ def test_backstop_set_is_exact():
         "unsupported_future_prediction",
         "city_needs_place",
         "hftd_constraint_unavailable",
-        *(f"unsupported_{key}" for key in UNSUPPORTED),
     }
     assert BACKSTOP_RULES == expected
+    # Every unsupported-topic keyword except live wording is a topic judgment (#97).
+    assert TOPIC_JUDGMENT_RULES == {f"unsupported_{key}" for key in UNSUPPORTED if key != "live_web"}
+    assert not BACKSTOP_RULES & TOPIC_JUDGMENT_RULES
 
 
 @pytest.mark.parametrize(
     "question,rule",
     [
-        ("Who is the CEO of PG&E?", "unsupported_leadership"),
+        ("What wildfires are burning right now?", "unsupported_live_web"),
         ("Predict which utility will have the most wildfire ignitions in 2027.", "unsupported_future_prediction"),
         ("Was a distribution circuit serving Auburn, California, in Tier 2 or Tier 3 HFTD in 2021?", "city_needs_place"),
         ("Display Bear Valley distribution circuits that intersect Tier 2 or Tier 3 HFTD areas.", "hftd_constraint_unavailable"),

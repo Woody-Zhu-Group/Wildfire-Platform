@@ -69,7 +69,7 @@ flowchart TD
     Ask["Ask panel<br>POST /ask/stream"] --> BS
 
     subgraph Router["Router: routing.py"]
-        BS["Hard backstops<br>live, future, advice, city,<br>HFTD constraint, off-topic"]
+        BS["Hard backstops<br>live, future, advice, city,<br>HFTD constraint, off-topic keywords<br>(Jev decides these in decide mode)"]
         Slots["Slot extraction and<br>time resolution<br>time_resolve.py"]
         Rule["Router decision:<br>exact calls, clarify,<br>refuse, or model path"]
         BS -->|"none fired"| Slots --> Rule

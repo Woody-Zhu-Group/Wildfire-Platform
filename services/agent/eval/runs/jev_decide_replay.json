@@ -10,7 +10,7 @@
    "decide": 133,
    "jev_errors": 0,
    "exempt": 24,
-   "jev_won": 7,
+   "jev_won": 18,
    "overrides_right": 5,
    "overrides_wrong": 0,
    "router_acc": 0.934,
@@ -40,7 +40,7 @@
    "decide": 39,
    "jev_errors": 0,
    "exempt": 12,
-   "jev_won": 3,
+   "jev_won": 4,
    "overrides_right": 2,
    "overrides_wrong": 0,
    "router_acc": 0.881,
@@ -55,7 +55,7 @@
    "decide": 53,
    "jev_errors": 0,
    "exempt": 15,
-   "jev_won": 9,
+   "jev_won": 10,
    "overrides_right": 6,
    "overrides_wrong": 0,
    "router_acc": 0.723,
@@ -511,14 +511,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cpz",
+    0.96
    ],
    "decide": [
     "unsupported",
     "unsupported_cpz",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "dev|cases:unsupported_cost": {
@@ -532,14 +532,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cost",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "dev|cases:unsupported_optimize": {
@@ -553,14 +553,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_optimization",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_optimization",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "dev|cases:unsupported_damage": {
@@ -574,14 +574,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_damage",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_damage",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "dev|cases:unsupported_live_web": {
@@ -763,14 +763,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_optimization",
+    0.74
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "below_gate"
    ]
   },
   "dev|cases:collision_count_inside_sce_territory": {
@@ -1457,14 +1457,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cost",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "dev|cases:router_air_quality": {
@@ -1478,14 +1478,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_air_quality",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|cases:router_leadership": {
@@ -1499,14 +1499,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_leadership",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|cases:router_evacuation": {
@@ -1520,14 +1520,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_evacuation",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|cases:router_translation": {
@@ -1541,14 +1541,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "prompt_injection",
+    0.5
    ],
    "decide": [
     "unsupported",
     "unsupported_translation",
     "router",
-    "backstop"
+    "below_gate"
    ]
   },
   "dev|cases:router_personnel": {
@@ -1562,14 +1562,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_personnel",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|cases:router_satellite": {
@@ -1583,14 +1583,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_satellite",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|cases:router_pg_and_e_tally": {
@@ -2361,14 +2361,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cost",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "dev|paraphrases:fp_orange_glow": {
@@ -2529,14 +2529,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_air_quality",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|paraphrases:oos_ceo": {
@@ -2550,14 +2550,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_leadership",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|paraphrases:oos_evacuation": {
@@ -2571,14 +2571,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_evacuation",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|paraphrases:oos_translate": {
@@ -2592,14 +2592,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_translation",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|paraphrases:oos_insurance_premium": {
@@ -2613,14 +2613,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cost",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "dev|paraphrases:oos_personnel": {
@@ -2634,14 +2634,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    0.99
    ],
    "decide": [
     "unsupported",
     "unsupported_personnel",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|paraphrases:oos_satellite": {
@@ -2655,14 +2655,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_satellite",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "dev|paraphrases:oos_twitter": {
@@ -3768,14 +3768,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cost",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "v1|ho_058": {
@@ -3810,14 +3810,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cost",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "v1|ho_064": {
@@ -3831,14 +3831,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_damage",
+    0.98
    ],
    "decide": [
     "unsupported",
     "unsupported_damage",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "v1|ho_067": {
@@ -4986,14 +4986,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cost",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "v2|hv2_056": {
@@ -5049,14 +5049,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cost",
+    1.0
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "v2|hv2_060": {
@@ -5112,14 +5112,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_damage",
+    0.8
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "v2|hv2_064": {
@@ -5133,14 +5133,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_cost",
+    0.81
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "agree"
    ]
   },
   "v2|hv2_065": {
@@ -5952,14 +5952,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "other_off_topic",
+    0.81
    ],
    "decide": [
     "unsupported",
     "unsupported_evacuation",
-    "router",
-    "backstop"
+    "jev",
+    "gate"
    ]
   },
   "v3|hv3_047": {
@@ -6078,14 +6078,14 @@
    ],
    "jev": [
     "unsupported",
-    null,
-    null
+    "unsupported_damage",
+    0.79
    ],
    "decide": [
     "unsupported",
     "unsupported_cost",
     "router",
-    "backstop"
+    "below_gate"
    ]
   },
   "v3|hv3_053": {
@@ -6211,7 +6211,7 @@
     "unsupported",
     "unsupported_optimization",
     "router",
-    "backstop"
+    "regex_only"
    ]
   },
   "v3|hv3_059": {
@@ -6400,7 +6400,7 @@
     "unsupported",
     "unsupported_optimization",
     "router",
-    "backstop"
+    "regex_only"
    ]
   },
   "v3|hv3_071": {

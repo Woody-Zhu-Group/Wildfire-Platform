@@ -1,7 +1,23 @@
 """AGENT_JEV_MODE=decide: router backstops first, then Jev's derived disposition.
 
 Order for one question:
-1. Router hard backstops (BACKSTOP_RULES) decide. Jev is not called.
+1. Router hard backstops (BACKSTOP_RULES) decide. Jev is not called. These are
+   the hard safety rules (live or real-time data, future prediction) and the
+   non-topic backstops (city_needs_place, hftd_constraint_unavailable).
+   An unsupported-topic keyword refusal (routing.TOPIC_JUDGMENT_RULES: cost,
+   leadership, optimization, damage, and the others) is a topic judgment, not
+   a backstop (issue #97). Jev's off_topic fact decides it:
+   - an off-topic option at or above the decline gate refuses, through the
+     same policy as any other Jev refusal (step 3);
+   - on_topic at or above the decline gate sets the keyword aside: the question
+     is routed again with routing.route_question(skip_topic_judgments=True), and
+     that route goes through this same order (live or future wording still hits
+     its backstop). Recorded as why "on_topic" when Jev's reading is what
+     changed the outcome;
+   - below the gate, on an error, or with decide off, the keyword refusal stands.
+   The advice rule (routing._asks_for_advice, also unsupported_optimization) is
+   decided by the router (why regex_only): off_topic has no advice option, so
+   Jev reads "which utility should the CPUC penalize" as on_topic.
 2. Routes Jev cannot express (router_only) are decided by the router. Jev is not called.
 3. Otherwise Jev's v3_hybrid facts go through derive_outcome (the same policy,
    including the measure gate, that the offline combined decider scored).
@@ -63,16 +79,20 @@ from services.agent.decisions.jev_policy import (
 )
 from services.agent.routing import (
     _RISK_COVERAGE_LIMIT,
-    UNSUPPORTED,
+    TOPIC_JUDGMENT_RULES,
     UNSUPPORTED_ANSWERS,
     RouteDecision,
+    route_question,
 )
 from services.agent.schemas import TOOL_MODELS
 from services.shared.dataset_registry import MEASURE_DATASETS, RANK_MEASURES
 
 logger = logging.getLogger("services.agent.decisions")
 
-# Router hard backstops. These fire before Jev is asked anything.
+# Router hard backstops. These fire before Jev is asked anything. Topic
+# judgments (routing.TOPIC_JUDGMENT_RULES) are not here: Jev's off_topic decides
+# them (issue #97). unsupported_live_web is a backstop when live wording made
+# it; web-search wording alone is a topic judgment (is_topic_judgment).
 BACKSTOP_RULES: frozenset[str] = frozenset(
     {
         "unsupported_live_web",
@@ -80,10 +100,25 @@ BACKSTOP_RULES: frozenset[str] = frozenset(
         "unsupported_future_prediction",
         "city_needs_place",
         "hftd_constraint_unavailable",
-        # Explicit unsupported topics: every routing.UNSUPPORTED key.
-        *(f"unsupported_{key}" for key in UNSUPPORTED),
     }
 )
+
+
+def is_topic_judgment(decision: RouteDecision, question: str | None) -> bool:
+    """True when the router refused on a topic keyword, not on a hard safety rule.
+
+    The refusal is a topic judgment when its rule is a topic rule (or
+    unsupported_live_web) and routing without topic keywords gives a different
+    route. The same rule again means something other than a keyword made it:
+    live wording for unsupported_live_web, the advice rule for
+    unsupported_optimization. Without the question text nothing is a topic
+    judgment, so the keyword refusal keeps its backstop behavior.
+    """
+    if decision.path != "unsupported" or not question:
+        return False
+    if decision.rule not in TOPIC_JUDGMENT_RULES and decision.rule != "unsupported_live_web":
+        return False
+    return route_question(question, skip_topic_judgments=True).rule != decision.rule
 
 # Tools the router calls that are not in Jev's tool vocabulary (schemas.TOOL_MODELS),
 # for example risk_surface. A route that uses one is decided by the router, so Jev
@@ -92,8 +127,17 @@ def router_only_tools(decision: RouteDecision) -> list[str]:
     return sorted({tool for tool, _args in decision.tool_calls if tool not in TOOL_MODELS})
 
 
-def exemption(decision: RouteDecision) -> str | None:
-    """Why the router decides this question alone, or None when Jev is asked."""
+def exemption(decision: RouteDecision, question: str | None = None) -> str | None:
+    """Why the router decides this question alone, or None when Jev is asked.
+
+    Pass the question: without it a topic keyword refusal is exempt as a
+    backstop, as before issue #97 (the keyword rule is the safe fallback). With
+    it, a topic rule that no keyword made (the advice rule) is regex_only.
+    """
+    if is_topic_judgment(decision, question):
+        return None
+    if decision.path == "unsupported" and decision.rule in TOPIC_JUDGMENT_RULES:
+        return "regex_only" if question else "backstop"
     if decision.rule in BACKSTOP_RULES:
         return "backstop"
     if decision.rule in REGEX_ONLY:
@@ -344,6 +388,8 @@ class DecideResult:
     latency_ms: float | None = None
     input_tokens: int = 0
     extra: dict[str, Any] = field(default_factory=dict)
+    # The router's topic keyword rule that Jev set aside as on_topic (issue #97).
+    topic_keyword_rule: str | None = None
 
     @property
     def disposition(self) -> str:
@@ -376,6 +422,7 @@ class DecideResult:
             "why": self.why,
             "wording": self.wording,
             "final": {"path": self.decision.path, "rule": self.decision.rule},
+            "topic_keyword_rule": self.topic_keyword_rule,
             "error": self.error,
             "latency_ms": self.latency_ms,
         }
@@ -501,13 +548,19 @@ def decide_from_answers(
     answer_gate: a Jev answer over a router decline needs this (higher) confidence.
     """
     base = {"router_path": decision.path, "router_rule": decision.rule}
-    exempt = exemption(decision)
+    exempt = exemption(decision, question)
     if exempt:
         return DecideResult("router", exempt, decision, **base)
     if error or not answers:
         return DecideResult("router", "error", decision, error=error or "no answers", **base)
 
     facts = facts_from_answers(answers)
+    if is_topic_judgment(decision, question):
+        topic = _topic_judgment(
+            question, decision, answers, facts, gate=gate, answer_gate=answer_gate, today=today
+        )
+        if topic is not None:
+            return topic
     outcome = derive_outcome(facts, question=question, today=today)
     jev_disposition = outcome.disposition
     jev_rule = _jev_rule(outcome)
@@ -568,6 +621,56 @@ def decide_from_answers(
         )
         return DecideResult("jev", "gate", answered, **info, **base)
     return DecideResult("router", "below_gate", decision, **info, **base)
+
+
+def _topic_judgment(
+    question: str,
+    decision: RouteDecision,
+    answers: dict[str, Any],
+    facts: JevFacts,
+    *,
+    gate: float,
+    answer_gate: float,
+    today: date | None,
+) -> DecideResult | None:
+    """Jev's off_topic on a router topic keyword refusal.
+
+    None when Jev reads an off-topic option at or above the gate: the usual
+    decline policy refuses. Otherwise a result: the keyword refusal when Jev is
+    below the gate, or the question routed again without topic keywords when
+    Jev reads on_topic at or above the gate.
+    """
+    base = {"router_path": decision.path, "router_rule": decision.rule}
+    confidence = _answer_confidence(answers.get("off_topic"))
+    if confidence is None or confidence < gate:
+        # Below the gate: the keyword rule stands.
+        on_topic = facts.off_topic == "on_topic"
+        return DecideResult(
+            "router",
+            "below_gate",
+            decision,
+            jev_disposition="answer" if on_topic else "unsupported",
+            jev_rule="answer" if on_topic else OFF_TOPIC_RULES.get(facts.off_topic or "", "other_off_topic"),
+            jev_confidence=confidence,
+            **base,
+        )
+    if facts.off_topic != "on_topic":
+        return None
+    rerouted = route_question(question, skip_topic_judgments=True)
+    result = decide_from_answers(
+        question, rerouted, answers, gate=gate, answer_gate=answer_gate, today=today
+    )
+    result.topic_keyword_rule = decision.rule
+    if result.why in {"backstop", "regex_only", "router_only_tool"}:
+        # The route without the keyword is a hard backstop or a router-only
+        # route: the router decides it, and provenance reads that route's rule.
+        return result
+    result.router_path, result.router_rule = decision.path, decision.rule
+    if result.winner == "router" and result.why in {"agree", "below_gate"}:
+        # That route stands only because Jev read the question as on topic.
+        result.winner, result.why = "jev", "on_topic"
+        result.jev_confidence = confidence
+    return result
 
 
 def jev_calls(question: str, today: str) -> list[dict[str, Any]]:
@@ -652,7 +755,7 @@ def decide_live(
     is sent; when they do not fit, Jev is not asked and the router stands with
     why "daily_cap".
     """
-    if exemption(decision):
+    if exemption(decision, question):
         return decide_from_answers(question, decision, None, gate=gate, answer_gate=answer_gate)
     day = today or date.today()
     if budget is not None and not budget.reserve(len(jev_calls(question, day.isoformat()))):

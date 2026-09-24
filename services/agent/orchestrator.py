@@ -262,7 +262,7 @@ class AgentOrchestrator:
 
         gate = self.settings.jev_decide_min_confidence
         answer_gate = self.settings.jev_decide_answer_confidence
-        if exemption(decision):
+        if exemption(decision, question):
             result = decide_from_answers(
                 question, decision, None, gate=gate, answer_gate=answer_gate
             )
