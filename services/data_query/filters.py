@@ -9,7 +9,7 @@ from fastapi import HTTPException, Query
 
 from services.shared.counties import UnknownCountyError, normalize_county
 from services.shared.dataset_registry import (
-    CALFIRE_DEFAULT_INCIDENT_TYPES,
+    CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
     CALFIRE_INCIDENT_TYPE_KEYWORDS,
     HFTD_TIER_BY_NUMBER,
     KNOWN_UTILITIES,
@@ -212,27 +212,30 @@ def parse_cause(conn: Any, value: str | None) -> str | None:
         raise HTTPException(status_code=400, detail=str(folded)) from exc
 
 
-_CALFIRE_DEFAULT_TYPES = frozenset(value.casefold() for value in CALFIRE_DEFAULT_INCIDENT_TYPES)
+_CALFIRE_DEFAULT_KEY = CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM.casefold()
 
 
 def parse_incident_type(conn: Any, value: str | None) -> str | None:
     """Resolve a CAL FIRE incident_type filter.
 
-    None or empty is the Wildfire/Fire default, and so is the default spelled
-    out ("Wildfire,Fire"). "all" and "untyped" are keywords, returned
-    lowercase. Anything else must match one stored incident type, ignoring
-    case; an unmatched value is a 400 with the closest stored types, never a
-    0-row answer.
+    None or empty is the registry default (every incident except the
+    non-wildfire types), and so is the default as meta echoes it
+    ("not Earthquake,Flood,Hazmat"). "all" and "untyped" are keywords,
+    returned lowercase. Anything else is one or more stored incident types,
+    comma separated ("Wildfire,Fire" is the default before 2026-09-24), each
+    matched ignoring case and returned in its stored spelling; an unmatched
+    value is a 400 with the closest stored types, never a 0-row answer.
     """
     if value is None or value.strip() == "":
         return None
     key = " ".join(value.split()).casefold()
     if key in CALFIRE_INCIDENT_TYPE_KEYWORDS:
         return key
-    parts = {part.strip() for part in key.split(",")}
-    if "," in key and parts == _CALFIRE_DEFAULT_TYPES:
+    if key.replace(", ", ",") == _CALFIRE_DEFAULT_KEY:
         return None
-    return _parse_stored(conn, "incident_type", value)
+    parts = [part for part in value.split(",") if part.strip()]
+    resolved = [_parse_stored(conn, "incident_type", part) for part in parts]
+    return ",".join(dict.fromkeys(item for item in resolved if item)) or None
 
 
 def parse_pagination(

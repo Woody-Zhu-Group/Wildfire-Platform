@@ -65,7 +65,7 @@ Working reference for the agent-driven left surface (six components, planner, gr
 window.WILDFIRE_API_BASE = "http://127.0.0.1:8002";
 window.WILDFIRE_AGENT_BASE = "http://127.0.0.1:8004";
 window.WILDFIRE_DATA_QUERY_BASE = "http://127.0.0.1:8000"; // record-table stale refetch
-window.WILDFIRE_CALFIRE_INCIDENT_TYPE = ""; // Wildfire/Fire default; "all" was used only during verification
+window.WILDFIRE_CALFIRE_INCIDENT_TYPE = ""; // API default (every incident except non-wildfire types); "all" was used only during verification
 ```
 
 ## US Ignitions layer

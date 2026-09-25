@@ -55,7 +55,7 @@ both dates and `interval`. These routes use the implementation merged in upstrea
 PR #3; each path is registered once. Missing group attributes are returned as
 `Not recorded`.
 
-CAL FIRE aggregates use the existing Wildfire/Fire definition. Utility filtering
+CAL FIRE aggregates use the registry default (every incident except the non-wildfire types, so untyped incidents are counted) and report `untyped_incidents_counted` and `untagged_incidents_counted`. `/calfire/incidents` and `/rank` with one named utility (untagged not included) also report `untagged_incidents_excluded`: the untagged incidents in the same period and scope. Utility filtering
 is attribute-based. Unsupported geographic filters return 400. EPSS utility
 comparisons return null for SCE/SDG&E, never zero. Summary `metrics` contain
 `id`, `value`, and `missing`; labels and units stay in the frontend. Empty

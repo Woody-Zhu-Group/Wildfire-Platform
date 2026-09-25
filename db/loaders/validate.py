@@ -6,7 +6,8 @@ import psycopg
 
 from db.loaders.util import print_step, table_count
 from services.shared.dataset_registry import (
-    CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
+    CALFIRE_NON_WILDFIRE_INCIDENT_TYPES,
+    CALFIRE_REVIEWED_WILDFIRE_INCIDENT_TYPES,
     calfire_default_type_sql,
 )
 
@@ -141,21 +142,34 @@ def run_validation(conn: psycopg.Connection) -> None:
         )
         cpuc_county_tagged, cpuc_county_untagged = cur.fetchone()
 
-        # CAL FIRE quick health. Typed rows outside the registry's default
-        # incident types (Wildfire and Fire), the same default every service uses.
+        # CAL FIRE quick health. Rows the registry default excludes (the
+        # non-wildfire types), the same default every service uses.
         cur.execute(
             f"""
             SELECT
               count(*) FILTER (WHERE utility IS NULL) AS null_utility,
               count(*) FILTER (WHERE date_only_created IS NULL) AS null_created_date,
-              count(*) FILTER (WHERE incident_type IS NOT NULL
-                                   AND NOT {calfire_default_type_sql("incident_type")})
-                AS non_default_typed,
+              count(*) FILTER (WHERE NOT {calfire_default_type_sql("incident_type")})
+                AS excluded_by_default,
               count(*) FILTER (WHERE incident_type IS NULL) AS null_type
             FROM wildfire.calfire_incidents
             """
         )
         null_util, null_created, non_wf, null_type = cur.fetchone()
+        # Stored types in neither registry list are counted by the default
+        # without review; print them so a new feed type gets a decision.
+        cur.execute(
+            """
+            SELECT DISTINCT incident_type FROM wildfire.calfire_incidents
+            WHERE incident_type IS NOT NULL AND incident_type <> ALL(%s)
+            ORDER BY 1
+            """,
+            (
+                list(CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
+                + list(CALFIRE_REVIEWED_WILDFIRE_INCIDENT_TYPES),
+            ),
+        )
+        unreviewed_types = [row[0] for row in cur.fetchall()]
 
         # Invalid circuit_id lengths (should be impossible given CHECKs)
         cur.execute(
@@ -218,10 +232,13 @@ def run_validation(conn: psycopg.Connection) -> None:
     print("  CAL FIRE notes:")
     print(f"    null utility: {null_util}")
     print(f"    null date_only_created (includes nulled 1970 sentinels): {null_created}")
+    excluded = ", ".join(CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
+    print(f"    incident_type excluded by the default ({excluded}): {non_wf}")
+    print(f"    null incident_type (counted by the default): {null_type}")
     print(
-        f"    incident_type outside the {CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM} default: {non_wf}"
+        "    incident types not yet reviewed (counted by the default): "
+        + (", ".join(unreviewed_types) if unreviewed_types else "none")
     )
-    print(f"    null incident_type: {null_type}")
 
     print()
     print("  Circuit ID integrity:")

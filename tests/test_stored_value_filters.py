@@ -119,8 +119,13 @@ def test_values_differing_only_by_case_are_refused_not_guessed():
     [
         (None, None),
         ("", None),
-        ("Wildfire,Fire", None),
-        ("fire, wildfire", None),
+        # The default as meta echoes it is the default.
+        ("not Earthquake,Flood,Hazmat", None),
+        ("NOT earthquake, flood, hazmat", None),
+        # The old default is now an explicit list of stored types.
+        ("Wildfire,Fire", "Wildfire,Fire"),
+        ("fire, wildfire", "Fire,Wildfire"),
+        ("Wildfire,Flood", "Wildfire,Flood"),
         ("ALL", "all"),
         ("Untyped", "untyped"),
         ("wildfire", "Wildfire"),
@@ -132,7 +137,7 @@ def test_incident_type_keywords_default_and_stored_values(value, expected):
     assert parse_incident_type(NO_DB, value) == expected
 
 
-@pytest.mark.parametrize("value", ["wildfires", "Wildfire,Flood", "brush fire", "structure"])
+@pytest.mark.parametrize("value", ["wildfires", "Wildfire,Floods", "brush fire", "structure"])
 def test_unknown_incident_type_is_400(value):
     with pytest.raises(HTTPException) as info:
         parse_incident_type(NO_DB, value)
@@ -258,6 +263,7 @@ def test_visualization_map_and_time_series_use_the_same_parsers(monkeypatch):
         monkeypatch.setattr(viz.queries, "map_epss_circuits", fake_epss)
         monkeypatch.setattr(viz.queries, "map_calfire", fake_calfire)
         monkeypatch.setattr(viz.queries, "time_series_dates", fake_dates)
+        monkeypatch.setattr(viz.queries, "calfire_missing_counts", lambda conn, **kwargs: {})
 
         ok = client.get("/map-layer", params={"dataset": "epss", "year": 2024, "cause": "animal", "outage_type": "hlt"})
         assert ok.status_code == 200, ok.text

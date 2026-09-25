@@ -60,14 +60,14 @@ def test_unfiltered_totals_match_tables(data_client: httpx.Client, db_conn: psyc
         assert got == exp, f"{path}: expected {exp}, got {got}"
 
 
-def test_calfire_default_matches_sql_wildfire_fire(
+def test_calfire_default_matches_sql_excluding_non_wildfire(
     data_client: httpx.Client, db_conn: psycopg.Connection
 ):
     expected = sql_count(
         db_conn,
         """
         SELECT count(*) FROM wildfire.calfire_incidents
-        WHERE incident_type IN ('Wildfire', 'Fire')
+        WHERE (incident_type IS NULL OR incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat'))
         """,
     )
     r = data_client.get("/calfire/incidents", params={"limit": 1, "geometry": False})
@@ -75,8 +75,12 @@ def test_calfire_default_matches_sql_wildfire_fire(
     got = r.json()["meta"]["total"]
     null_types = r.json()["meta"]["null_incident_type_count"]
     assert null_types == 1234
+    # The default counts every untyped incident and says so in meta.
+    assert r.json()["meta"]["untyped_incidents_counted"] == 1234
+    assert r.json()["meta"]["filters"]["incident_type"] == "not Earthquake,Flood,Hazmat"
+    assert got == 3743
     assert got == expected, (
-        f"CAL FIRE default total API={got} SQL(Wildfire|Fire)={expected} "
+        f"CAL FIRE default total API={got} SQL(not Earthquake/Flood/Hazmat)={expected} "
         f"(null_incident_type_count={null_types})"
     )
 

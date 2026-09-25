@@ -1,5 +1,7 @@
 # CPUC, CAL FIRE, and US ignitions: what we can (and cannot) claim
 
+> **Default changed 2026-09-24.** Counts in this document use the CAL FIRE default of its time, `incident_type IN ('Wildfire', 'Fire')`. The default is now every incident except the non-wildfire types (Earthquake, Flood, Hazmat), so untyped incidents are counted; see [`DATA_CHANGE_CALFIRE_DEFAULT.md`](DATA_CHANGE_CALFIRE_DEFAULT.md) for every count that changes.
+
 **Warehouse snapshot:** PostGIS `localhost:5433/wildfire`, queried 2026-08-13.  
 **Reproducible via:** `analysis/compare_cpuc_calfire_us.py` (repo-root `PYTHONPATH`, `PYTHONIOENCODING=utf-8`).  
 **This is a findings memo, not a product spec.**

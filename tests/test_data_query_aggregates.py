@@ -196,7 +196,7 @@ def test_summary_calfire_acres_and_metrics(
             """
             WITH filtered AS (
               SELECT * FROM wildfire.calfire_incidents
-              WHERE incident_type IN ('Wildfire', 'Fire')
+              WHERE (incident_type IS NULL OR incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat'))
                 AND date_only_created BETWEEN DATE '2024-01-01' AND DATE '2024-12-31'
             )
             SELECT COUNT(*)::bigint AS total,

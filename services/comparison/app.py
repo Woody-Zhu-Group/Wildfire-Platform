@@ -20,7 +20,10 @@ from services.data_query.filters import (
 )
 from services.shared.calfire_county import MULTI_COUNTY_NOTE, multi_county_meta
 from services.shared.dataset_registry import (
-    CALFIRE_DEFAULT_INCIDENT_TYPES,
+    CALFIRE_DEFAULT_DESCRIPTION,
+    CALFIRE_NON_WILDFIRE_INCIDENT_TYPES,
+    CALFIRE_UNTAGGED_COUNTED_KEY,
+    CALFIRE_UNTYPED_COUNTED_KEY,
     DATASET_COVERAGE,
     HFTD_TIERS,
     group_code_and_label,
@@ -175,6 +178,34 @@ def _calfire_multi_county_meta(
     return multi_county_meta(count)
 
 
+def _calfire_missing_meta(
+    conn: psycopg.Connection,
+    *,
+    metric: str,
+    scope: queries.ScopeKind,
+    scope_ids: list[str],
+    ranges: list[tuple[date, date]],
+    definition: str,
+) -> dict[str, Any]:
+    """Counted incidents with no type recorded and with no utility tag, for a
+    CAL FIRE compare, else empty.
+
+    Summed over the compared groups and periods, so an incident counted in
+    two groups is counted twice here too, as it is in the values.
+    """
+    if metric not in CALFIRE_METRICS:
+        return {}
+    totals = {CALFIRE_UNTYPED_COUNTED_KEY: 0, CALFIRE_UNTAGGED_COUNTED_KEY: 0}
+    for scope_id in scope_ids:
+        for start, end in ranges:
+            counts = queries.calfire_missing_counts(
+                conn, scope=scope, scope_id=scope_id, start=start, end=end, definition=definition
+            )
+            for key in totals:
+                totals[key] += counts[key]
+    return totals
+
+
 def _base_meta(
     *,
     metric: str,
@@ -187,7 +218,8 @@ def _base_meta(
         "metric": metric,
         "normalize": normalize,
         "ignition_definition": ignition_definition,
-        "calfire_incident_types": list(CALFIRE_DEFAULT_INCIDENT_TYPES),
+        "calfire_incident_type_default": CALFIRE_DEFAULT_DESCRIPTION,
+        "calfire_excluded_incident_types": list(CALFIRE_NON_WILDFIRE_INCIDENT_TYPES),
         # Measured coverage of the metric's dataset (shared/dataset_coverage.json).
         "coverage": DATASET_COVERAGE.get(metrics.METRIC_DATASETS[metric]),
         "area_method": "ST_Area(geom::geography)/1e6 km2",
@@ -212,7 +244,7 @@ def health(conn: psycopg.Connection = Depends(get_conn)) -> dict[str, Any]:
                 "Measured by the loaders: a utility or period a dataset has no rows "
                 "for returns null with reason, not zero."
             ),
-            "calfire": "Default incident_type IN (Wildfire, Fire); untyped excluded.",
+            "calfire": f"Default: {CALFIRE_DEFAULT_DESCRIPTION}.",
             "no_cpz": "No Circuit Protection Zone polygons in this warehouse.",
         },
     }
@@ -280,6 +312,9 @@ def compare_utilities(
                 "start_date": start.isoformat(),
                 "end_date": end.isoformat(),
             },
+        )
+        | _calfire_missing_meta(
+            conn, metric=m, scope="utility", scope_ids=keys, ranges=[(start, end)], definition=ign_def
         ),
     }
 
@@ -369,7 +404,10 @@ def compare_regions(
             ]
             + ([MULTI_COUNTY_NOTE] if multi_meta else []),
         )
-        | multi_meta,
+        | multi_meta
+        | _calfire_missing_meta(
+            conn, metric=m, scope=scope, scope_ids=keys, ranges=[(start, end)], definition=ign_def
+        ),
     }
 
 
@@ -489,5 +527,13 @@ def compare_periods(
             },
             notes=[MULTI_COUNTY_NOTE] if multi_meta else None,
         )
-        | multi_meta,
+        | multi_meta
+        | _calfire_missing_meta(
+            conn,
+            metric=m,
+            scope=qscope,
+            scope_ids=[scope_id],
+            ranges=[(a_start, a_end), (b_start, b_end)],
+            definition=ign_def,
+        ),
     }

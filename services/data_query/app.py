@@ -30,6 +30,7 @@ from services.data_query.filters import (
 from services.data_query.filters import parse_bbox as parse_bbox_filter
 from services.data_query.geo import respond
 from services.shared.dataset_registry import (
+    CALFIRE_DEFAULT_DESCRIPTION,
     CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
     US_IGNITIONS_META_DATA_QUERY,
     coverage_summary,
@@ -128,7 +129,7 @@ def rank(
     end_date: Optional[str] = Query(None),
     incident_type: Optional[str] = Query(
         None,
-        description="CAL FIRE only. Default Wildfire|Fire. untyped | all.",
+        description=f"CAL FIRE only. Default: {CALFIRE_DEFAULT_DESCRIPTION}. untyped | all | stored types, comma separated.",
     ),
     limit: int = Query(RANK_DEFAULT_LIMIT, ge=1, le=RANK_MAX_LIMIT),
     conn: psycopg.Connection = Depends(get_conn),
@@ -596,7 +597,10 @@ def calfire_incidents(
     min_acres: Optional[float] = Query(None, ge=0),
     incident_type: Optional[str] = Query(
         None,
-        description="Default Wildfire|Fire only. Use 'untyped' for NULL types, 'all' for no filter.",
+        description=(
+            f"Default: {CALFIRE_DEFAULT_DESCRIPTION}. Use 'untyped' for NULL types only, "
+            "'all' for no filter, or stored types, comma separated (e.g. 'Wildfire,Fire')."
+        ),
     ),
     format: str = Query("json"),
     geometry: bool = Query(True),

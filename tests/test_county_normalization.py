@@ -235,6 +235,7 @@ def test_visualization_endpoints_normalize_and_reject_counties(monkeypatch):
 
         monkeypatch.setattr(viz.queries, "time_series_dates", fake_dates)
         monkeypatch.setattr(viz.queries, "calfire_multi_county_count", lambda conn, **kwargs: 0)
+        monkeypatch.setattr(viz.queries, "calfire_missing_counts", lambda conn, **kwargs: {})
         ok = client.get("/time-series", params={"dataset": "calfire", "interval": "monthly", "year": 2024, "county": "Butte County"})
         assert ok.status_code == 200, ok.text
         assert seen["county"] == "Butte"
@@ -260,6 +261,7 @@ def test_comparison_regions_normalize_and_reject_counties(monkeypatch):
 
         monkeypatch.setattr(cmp, "_metric_for_scope", fake_metric)
         monkeypatch.setattr(cmp, "_calfire_multi_county_meta", lambda conn, **kwargs: {})
+        monkeypatch.setattr(cmp, "_calfire_missing_meta", lambda conn, **kwargs: {})
         ok = client.get(
             "/compare-regions",
             params={"region_type": "county", "regions": "Butte County,shasta", "metric": "calfire_incident_count",

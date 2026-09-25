@@ -12,7 +12,7 @@ import pytest
 def _calfire_execution(multi: int | None, *, qualification_call: bool = False):
     from services.agent.tools import ToolExecution
 
-    metadata: dict[str, Any] = {"null_incident_type_count": 1234, "null_utility_records_in_table": 282}
+    metadata: dict[str, Any] = {"null_incident_type_count": 1234, "null_utility_records_in_table": 282, "untyped_incidents_counted": 0}
     if multi is not None:
         metadata["multi_county_incidents"] = multi
     return ToolExecution(

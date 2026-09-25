@@ -15,6 +15,8 @@ from services.shared.calfire_county import (
 )
 from services.shared.dataset_registry import (
     calfire_default_type_sql,
+    calfire_missing_counts_meta,
+    calfire_missing_counts_sql,
     covered_utilities,
     dataset_coverage_gap,
 )
@@ -169,6 +171,52 @@ def epss_outage_count(
         return int(cur.fetchone()[0]), None
 
 
+def _calfire_scope_sql(scope: ScopeKind, definition: str) -> tuple[str, str]:
+    """FROM and WHERE (alias c) for CAL FIRE rows in one comparison scope.
+
+    The WHERE binds ``scope_id`` first. A county matches every county an
+    incident lists; a utility is the attribute tag or, spatially, its IOU
+    territory; an HFTD tier is always spatial.
+    """
+    if scope == "county":
+        return "wildfire.calfire_incidents c", county_match_sql("c.county")
+    if scope == "utility" and definition == "attribute":
+        return "wildfire.calfire_incidents c", "c.utility = %s"
+    if scope == "utility":
+        region_sql = "SELECT geom FROM wildfire.iou_territories WHERE utility = %s"
+    else:
+        region_sql = "SELECT geom FROM wildfire.hftd_tiers WHERE tier = %s"
+    return (
+        f"wildfire.calfire_incidents c, ({region_sql}) r",
+        "ST_Within(c.geom, r.geom)",
+    )
+
+
+def _calfire_scope_value(
+    conn: psycopg.Connection,
+    select_sql: str,
+    *,
+    scope: ScopeKind,
+    scope_id: str,
+    start: date,
+    end: date,
+    definition: str,
+) -> Any:
+    """One aggregate over the default-type CAL FIRE rows in a scope and period."""
+    from_sql, scope_sql = _calfire_scope_sql(scope, definition)
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT {select_sql} FROM {from_sql}
+            WHERE {scope_sql}
+              AND c.date_only_created BETWEEN %s AND %s
+              AND {_calfire_type_sql()}
+            """,
+            (scope_id, start, end),
+        )
+        return cur.fetchone()[0]
+
+
 def calfire_incident_count(
     conn: psycopg.Connection,
     *,
@@ -178,44 +226,36 @@ def calfire_incident_count(
     end: date,
     definition: str,
 ) -> tuple[int | None, str | None]:
+    value = _calfire_scope_value(
+        conn, "count(*)", scope=scope, scope_id=scope_id, start=start, end=end, definition=definition
+    )
+    return int(value), None
+
+
+def calfire_missing_counts(
+    conn: psycopg.Connection,
+    *,
+    scope: ScopeKind,
+    scope_id: str,
+    start: date,
+    end: date,
+    definition: str,
+) -> dict[str, int]:
+    """Incidents in a scope and period, counted by the default, with no type
+    recorded and with no utility tag (meta keys from the registry)."""
+    from_sql, scope_sql = _calfire_scope_sql(scope, definition)
     with conn.cursor() as cur:
-        if scope == "county":
-            cur.execute(
-                f"""
-                SELECT count(*) FROM wildfire.calfire_incidents c
-                WHERE {county_match_sql("c.county")}
-                  AND c.date_only_created BETWEEN %s AND %s
-                  AND {_calfire_type_sql()}
-                """,
-                (scope_id, start, end),
-            )
-            return int(cur.fetchone()[0]), None
-        if scope == "utility" and definition == "attribute":
-            cur.execute(
-                f"""
-                SELECT count(*) FROM wildfire.calfire_incidents c
-                WHERE c.utility = %s
-                  AND c.date_only_created BETWEEN %s AND %s
-                  AND {_calfire_type_sql()}
-                """,
-                (scope_id, start, end),
-            )
-            return int(cur.fetchone()[0]), None
-        if scope == "utility":
-            region_sql = "SELECT geom FROM wildfire.iou_territories WHERE utility = %s"
-        else:
-            region_sql = "SELECT geom FROM wildfire.hftd_tiers WHERE tier = %s"
         cur.execute(
             f"""
-            WITH region AS ({region_sql})
-            SELECT count(*) FROM wildfire.calfire_incidents c, region r
-            WHERE ST_Within(c.geom, r.geom)
+            SELECT {calfire_missing_counts_sql("c")} FROM {from_sql}
+            WHERE {scope_sql}
               AND c.date_only_created BETWEEN %s AND %s
               AND {_calfire_type_sql()}
             """,
             (scope_id, start, end),
         )
-        return int(cur.fetchone()[0]), None
+        untyped, untagged = cur.fetchone()
+    return calfire_missing_counts_meta(untyped, untagged)
 
 
 def calfire_multi_county_count(
@@ -255,46 +295,16 @@ def acres_burned(
     end: date,
     definition: str,
 ) -> tuple[float | None, str | None]:
-    with conn.cursor() as cur:
-        if scope == "county":
-            cur.execute(
-                f"""
-                SELECT COALESCE(SUM(c.acres_burned), 0) FROM wildfire.calfire_incidents c
-                WHERE {county_match_sql("c.county")}
-                  AND c.date_only_created BETWEEN %s AND %s
-                  AND {_calfire_type_sql()}
-                """,
-                (scope_id, start, end),
-            )
-            return float(cur.fetchone()[0]), None
-        if scope == "utility" and definition == "attribute":
-            cur.execute(
-                f"""
-                SELECT COALESCE(SUM(c.acres_burned), 0) FROM wildfire.calfire_incidents c
-                WHERE c.utility = %s
-                  AND c.date_only_created BETWEEN %s AND %s
-                  AND {_calfire_type_sql()}
-                """,
-                (scope_id, start, end),
-            )
-            return float(cur.fetchone()[0]), None
-        if scope == "utility":
-            region_sql = "SELECT geom FROM wildfire.iou_territories WHERE utility = %s"
-        else:
-            region_sql = "SELECT geom FROM wildfire.hftd_tiers WHERE tier = %s"
-        cur.execute(
-            f"""
-            WITH region AS ({region_sql})
-            SELECT COALESCE(SUM(c.acres_burned), 0)
-            FROM wildfire.calfire_incidents c, region r
-            WHERE ST_Within(c.geom, r.geom)
-              AND c.date_only_created BETWEEN %s AND %s
-              AND {_calfire_type_sql()}
-            """,
-            (scope_id, start, end),
-        )
-        return float(cur.fetchone()[0]), None
-
+    value = _calfire_scope_value(
+        conn,
+        "COALESCE(SUM(c.acres_burned), 0)",
+        scope=scope,
+        scope_id=scope_id,
+        start=start,
+        end=end,
+        definition=definition,
+    )
+    return float(value), None
 
 def psps_event_count(
     conn: psycopg.Connection,

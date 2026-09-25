@@ -27,7 +27,7 @@ YEAR_2020 = (date(2020, 1, 1), date(2020, 12, 31))
 # Independent of services.shared.calfire_county: plain string_to_array + TRIM.
 SPLIT_COUNT_SQL = """
     SELECT COUNT(*) FROM wildfire.calfire_incidents c
-    WHERE c.incident_type IN ('Wildfire', 'Fire')
+    WHERE (c.incident_type IS NULL OR c.incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat'))
       AND EXTRACT(YEAR FROM c.date_only_created) = %s
       AND EXISTS (
         SELECT 1 FROM unnest(string_to_array(c.county, ',')) AS part
@@ -77,7 +77,7 @@ def test_every_county_year_with_a_multi_county_incident_matches_split_sql(db_con
             SELECT DISTINCT TRIM(part), EXTRACT(YEAR FROM date_only_created)::int
             FROM wildfire.calfire_incidents,
                  LATERAL unnest(string_to_array(county, ',')) AS part
-            WHERE county LIKE '%,%' AND incident_type IN ('Wildfire', 'Fire')
+            WHERE county LIKE '%,%' AND (incident_type IS NULL OR incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat'))
             """
         )
         pairs = [(name, year) for name, year in cur.fetchall() if name != "Mexico"]
@@ -92,7 +92,7 @@ def test_statewide_count_is_unchanged_and_carries_no_multi_county_meta(db_conn):
     _rows, total, extra = _records(db_conn, None, 2020)
     expected = _scalar(
         db_conn,
-        "SELECT COUNT(*) FROM wildfire.calfire_incidents WHERE incident_type IN ('Wildfire', 'Fire') "
+        "SELECT COUNT(*) FROM wildfire.calfire_incidents WHERE (incident_type IS NULL OR incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat')) "
         "AND EXTRACT(YEAR FROM date_only_created) = 2020",
     )
     assert total == expected
@@ -234,7 +234,7 @@ def test_comparison_county_metrics_include_multi_county_incidents(db_conn):
         db_conn,
         """
         SELECT COALESCE(SUM(acres_burned), 0)::bigint FROM wildfire.calfire_incidents
-        WHERE incident_type IN ('Wildfire', 'Fire')
+        WHERE (incident_type IS NULL OR incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat'))
           AND EXTRACT(YEAR FROM date_only_created) = 2020
           AND 'Shasta' = ANY(string_to_array(replace(county, ', ', ','), ','))
         """,
@@ -265,6 +265,12 @@ def _comparison_client(monkeypatch, seen: dict[str, Any]):
         return 3
 
     monkeypatch.setattr(cmp.queries, "calfire_multi_county_count", fake_count)
+
+    def fake_missing(conn, *, scope, scope_id, start, end, definition):
+        seen.setdefault("untyped_calls", []).append((scope, scope_id, start, end))
+        return {"untyped_incidents_counted": 2, "untagged_incidents_counted": 1}
+
+    monkeypatch.setattr(cmp.queries, "calfire_missing_counts", fake_missing)
     return cmp, TestClient(cmp.app)
 
 
@@ -277,9 +283,14 @@ def test_compare_regions_reports_multi_county_for_calfire_county_scopes(monkeypa
         assert body["meta"]["multi_county_incidents"] == 3
         assert MULTI_COUNTY_NOTE in body["meta"]["notes"]
         assert seen["counties"] == ["Shasta", "Tehama"]
+        # Untyped incidents counted: 2 per county, summed over both counties.
+        assert body["meta"]["untyped_incidents_counted"] == 4
+        assert body["meta"]["untagged_incidents_counted"] == 2
+        assert [call[1] for call in seen["untyped_calls"]] == ["Shasta", "Tehama"]
         seen.clear()
         body = client.get("/compare-regions", params={**params, "metric": "ignition_count"}).json()
         assert "multi_county_incidents" not in body["meta"]
+        assert "untyped_incidents_counted" not in body["meta"]
         assert seen == {}
     finally:
         cmp.app.dependency_overrides.clear()
@@ -300,5 +311,10 @@ def test_compare_periods_reports_multi_county_across_both_periods(monkeypatch):
         assert body["meta"]["multi_county_incidents"] == 3
         assert seen["counties"] == ["Shasta"]
         assert seen["ranges"] == [YEAR_2020, (date(2021, 1, 1), date(2021, 12, 31))]
+        # Both periods count, so both periods' untyped incidents are reported.
+        assert body["meta"]["untyped_incidents_counted"] == 4
+        assert [call[2:] for call in seen["untyped_calls"]] == [
+            YEAR_2020, (date(2021, 1, 1), date(2021, 12, 31))
+        ]
     finally:
         cmp.app.dependency_overrides.clear()

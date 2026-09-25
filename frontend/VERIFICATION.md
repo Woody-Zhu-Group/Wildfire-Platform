@@ -1,5 +1,7 @@
 # Frontend ↔ visualization API verification
 
+> **Default changed 2026-09-24.** Counts in this document use the CAL FIRE default of its time, `incident_type IN ('Wildfire', 'Fire')`. The default is now every incident except the non-wildfire types (Earthquake, Flood, Hazmat), so untyped incidents are counted; see [`../docs/DATA_CHANGE_CALFIRE_DEFAULT.md`](../docs/DATA_CHANGE_CALFIRE_DEFAULT.md) for every count that changes.
+
 Compared static files in `frontend/assets/data/` (copied from `dataset_demo`) against `http://127.0.0.1:8002` for **year=2024**, `limit=20000`.
 
 ## Results

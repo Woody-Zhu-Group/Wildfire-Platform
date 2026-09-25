@@ -12,7 +12,7 @@ JUNIT = REPO_ROOT / "tests" / "_results.xml"
 
 CASE_LABELS = {
     "test_unfiltered_totals_match_tables": "Unfiltered totals match table counts",
-    "test_calfire_default_matches_sql_wildfire_fire": "CAL FIRE default == SQL Wildfire|Fire",
+    "test_calfire_default_matches_sql_excluding_non_wildfire": "CAL FIRE default == SQL excluding non-wildfire types",
     "test_calfire_all_matches_table": "CAL FIRE incident_type=all == table count",
     "test_epss_api_matches_deduped_csv_and_db": "EPSS by year: API == deduped CSV/DB",
     "test_epss_inventory_year_totals_vs_api": "EPSS by year: inventory (incl. dupe) vs API",

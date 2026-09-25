@@ -27,6 +27,7 @@ from services.agent.time_resolve import (
     resolve_time,
 )
 from services.shared.dataset_registry import (
+    DEFAULT_INCIDENT_TYPE_MODE,
     SERIES_DATASETS,
     ALLOWED_RANK_PAIRS,
     ALL_CAUSES_AFTER_IGNITIONS_PATTERN,
@@ -2099,7 +2100,7 @@ def compile_selected_tools(
             if utilities and dataset != "us_ignitions":
                 arguments["utility"] = utilities[0]
             if dataset == "calfire_incidents":
-                arguments["incident_type_mode"] = "wildfire_default"
+                arguments["incident_type_mode"] = DEFAULT_INCIDENT_TYPE_MODE
             calls.append(("data_query_records", arguments))
 
     if "data_query_spatial" in selected:
@@ -2364,7 +2365,7 @@ def _route_ranking(
     if county and dataset == "cpuc_ignitions" and group_by == "utility":
         args["county"] = county
     if dataset == "calfire_incidents":
-        args["incident_type_mode"] = "wildfire_default"
+        args["incident_type_mode"] = DEFAULT_INCIDENT_TYPE_MODE
 
     tool_calls = [("data_query_rank", args)]
     blocked = _block_unexpressed_constraints(

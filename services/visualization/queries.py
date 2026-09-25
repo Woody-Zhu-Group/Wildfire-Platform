@@ -11,7 +11,11 @@ from psycopg.rows import dict_row
 
 from services.shared.calfire_county import county_match_sql, multi_county_count_sql
 from services.shared.dataset_registry import (
+    CALFIRE_UNTAGGED_EXCLUDED_KEY,
     calfire_default_type_sql,
+    calfire_incident_type_filter,
+    calfire_missing_counts_meta,
+    calfire_missing_counts_sql,
     coverage_summary,
     covered_utilities,
 )
@@ -379,20 +383,11 @@ def _calfire_where(
 ) -> tuple[str, list[Any]]:
     """CAL FIRE WHERE clause (alias c) shared by the map, time series, and meta.
 
-    incident_type is None for the Wildfire/Fire default, "all", "untyped", or
-    a stored value the route already resolved.
+    incident_type is None for the registry default, "all", "untyped", or
+    stored values the route already resolved.
     """
-    where = ["TRUE"]
-    params: list[Any] = []
-    if incident_type is None or incident_type.strip() == "":
-        where.append(calfire_default_type_sql("c.incident_type"))
-    elif incident_type.strip().lower() == "all":
-        pass
-    elif incident_type.strip().lower() == "untyped":
-        where.append("c.incident_type IS NULL")
-    else:
-        where.append("c.incident_type = %s")
-        params.append(incident_type.strip())
+    type_sql, params, _mode = calfire_incident_type_filter("c.incident_type", incident_type)
+    where = [type_sql]
 
     if utility == "untagged":
         where.append("c.utility IS NULL")
@@ -427,6 +422,47 @@ def calfire_multi_county_count(conn: psycopg.Connection, **filters: Any) -> int:
             params,
         )
         return int(cur.fetchone()[0] or 0)
+
+
+def calfire_untagged_excluded(
+    conn: psycopg.Connection, *, dated_only: bool = False, **filters: Any
+) -> dict[str, int]:
+    """For a filter to one named utility: how many incidents in the same period
+    and scope have no utility tag, and so count toward no utility. Empty for no
+    utility filter or ``untagged``.
+
+    ``dated_only`` matches a time series, which bins only dated incidents.
+    """
+    utility = filters.get("utility")
+    if utility is None or utility == "untagged":
+        return {}
+    where_sql, params = _calfire_where(**{**filters, "utility": "untagged"})
+    if dated_only:
+        where_sql += " AND c.date_only_created IS NOT NULL"
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT count(*) FROM wildfire.calfire_incidents c WHERE {where_sql}", params)
+        return {CALFIRE_UNTAGGED_EXCLUDED_KEY: int(cur.fetchone()[0] or 0)}
+
+
+def calfire_missing_counts(
+    conn: psycopg.Connection, *, dated_only: bool = False, **filters: Any
+) -> dict[str, int]:
+    """Meta for the CAL FIRE incidents matching ``filters``: how many have no
+    type recorded and how many have no utility tag.
+
+    ``dated_only`` matches a time series, which bins only dated incidents.
+    """
+    where_sql, params = _calfire_where(**filters)
+    if dated_only:
+        where_sql += " AND c.date_only_created IS NOT NULL"
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT {calfire_missing_counts_sql('c')} "
+            f"FROM wildfire.calfire_incidents c WHERE {where_sql}",
+            params,
+        )
+        untyped, untagged = cur.fetchone()
+    return calfire_missing_counts_meta(untyped, untagged)
 
 
 # Map display only: the stored HFTD and IOU polygons are full resolution for

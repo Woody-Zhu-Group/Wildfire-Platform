@@ -326,6 +326,7 @@ def _calfire_count(
     period_a_end: str | None = None,
     period_b_start: str | None = None,
     period_b_end: str | None = None,
+    untyped: int = 0,
 ) -> ToolExecution:
     arguments: dict = {"dataset": "calfire_incidents", "result_mode": "count"}
     filters: dict = {}
@@ -339,6 +340,7 @@ def _calfire_count(
         "metadata": {
             "null_incident_type_count": 1234,
             "null_utility_records_in_table": 282,
+            "untyped_incidents_counted": untyped,
         },
     }
     if year is not None:
@@ -523,12 +525,13 @@ def test_calfire_map_feed_caveat_attaches_on_span_not_single_year():
         assert error is None
         return {item["id"] for item in quals}
 
+    # 2023 and 2024 have no untyped incidents, so no untyped caveat.
     single = asyncio.run(_ids(_calfire_count(year=2024)))
-    assert "calfire_missingness" in single
+    assert "calfire_missingness" not in single
     assert "calfire_map_feed_counts" not in single
 
     spanned = asyncio.run(
         _ids(_calfire_count(start_date="2023-01-01", end_date="2024-12-31"))
     )
-    assert "calfire_missingness" in spanned
+    assert "calfire_missingness" not in spanned
     assert "calfire_map_feed_counts" in spanned

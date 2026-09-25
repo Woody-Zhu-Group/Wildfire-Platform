@@ -45,6 +45,21 @@ Do not skip ahead. Shadow mode on a commit without `jev-shadow` does nothing,
 and a shadow report on a router without PR #22 measures disagreements that
 are already fixed.
 
+### CAL FIRE default change (branch `calfire-default`)
+
+- **Services and the agent deploy together.** From this change on, the agent
+  suppresses a CAL FIRE answer when the service result lacks
+  `untyped_incidents_counted` (or, on a utility-scoped result,
+  `untagged_incidents_counted`, and on a plain utility filter,
+  `untagged_incidents_excluded`). Deploy one commit to every service and
+  restart all of them in section 3; never restart only `wildfire-agent` on a
+  commit newer than the running services.
+- **If PR #93 merges first**, `shared/dataset_coverage.json` must be
+  regenerated with `python -m db.loaders.coverage` and committed on the
+  rebased `calfire-default` branch before merge, because PR #93's CAL FIRE
+  default query definition changes with this branch. Details:
+  `docs/DATA_CHANGE_CALFIRE_DEFAULT.md`, section "Deploying".
+
 ## 0. Get a shell as ubuntu
 
 Start a Session Manager session to the backend instance (EC2 console, select
