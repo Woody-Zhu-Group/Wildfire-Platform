@@ -1,0 +1,101 @@
+report_id,field,extractor,extracted,extracted_page,gold,gold_pages,correct,gold_certain,jev_confidence,pages_shown,gold_page_shown,llm_page_ok,note
+pge_2020_10_21,mbl_advance_notice,jev,some_not_notified,,some_not_notified,33;35,1,yes,0.98,25;30;34;35;42,1,,One de-energized MBL customer had no notification attempted (Table 3 and false negative text).
+pge_2020_10_21,wind_threshold_cited,jev,true,,false,8;54,0,no,0.7,6;9;16;55;63,0,,Cites gusts up to 56 mph and model guidance exceeded; never states wind met a de-energization threshold.
+pge_2020_10_21,complaints_reported,jev,not_stated,,not_stated,47,1,yes,0.92,3;47,1,,Complaints deferred to the October 25 event report.
+pge_2020_10_21,claims_reported,jev,one_or_more,,one_or_more,47,1,yes,1.0,3;47,1,,6 claims.
+pge_2020_10_21,canceled_after_notice,jev,yes,,yes,8;29,1,yes,1.0,8;29;32;34;46,1,,De-energization cancelled for TPs as conditions waned (about 5900 customers); cancellation notices sent.
+pge_2020_10_21,customers_deenergized,luna,30154,4,30154,4;25,1,yes,,,,yes,
+pge_2020_10_21,first_deenergization,luna,2020-10-21 17:33,73,2020-10-21 17:33,73,1,yes,,,,yes,Minimum de-energization time in Appendix A.
+pge_2020_10_21,last_restoration,luna,2020-10-23 15:56,74,2020-10-23 15:56,74,1,yes,,,,yes,Maximum restoration time in Appendix A.
+pge_2020_10_21,counties_deenergized,luna,7,69,7,4;24;69,1,yes,,,,yes,Cited page 69 lists the 7 impacted counties.
+pge_2020_10_21,event_duration_hours,code (from Luna timestamps),46.38,,46.38,,1,yes,,,,,"First de-energization to last restoration, computed in code."
+pge_2021_10_11,mbl_advance_notice,jev,some_not_notified,,some_not_notified,53,1,yes,0.94,6;39;50;51;52,0,,54 de-energized MBL customers had no notification attempted (Table 6).
+pge_2021_10_11,wind_threshold_cited,jev,false,,false,12;14;89,1,no,0.57,9;15;34;89;91,1,,PG&E threshold is composite CFPD guidance; wind is only a minimum condition and is not stated as met for this event.
+pge_2021_10_11,complaints_reported,jev,one_or_more,,one_or_more,78,1,yes,0.99,3;78,1,,389 complaints.
+pge_2021_10_11,claims_reported,jev,one_or_more,,one_or_more,79,1,yes,1.0,3;78;79,1,,13 claims.
+pge_2021_10_11,canceled_after_notice,jev,yes,,yes,6,1,yes,1.0,6;49;62;109;170,1,,Table 1: 22428 cancelled.
+pge_2021_10_11,customers_deenergized,luna,23504,39,23504,6;39,1,yes,,,,yes,
+pge_2021_10_11,first_deenergization,luna,2021-10-11 01:34,102,2021-10-11 01:34,102,1,no,,,,yes,Appendix B circuit table (Corning 1102). The narrative on page 4 says de-energization began at 06:00; the report is internally inconsistent.
+pge_2021_10_11,last_restoration,luna,2021-10-14 15:22,102,2021-10-14 15:22,102,1,yes,,,,yes,Calpine 1144 was not restored until after the next event (page 82).
+pge_2021_10_11,counties_deenergized,luna,23,39,23,6;39,1,yes,,,,yes,
+pge_2021_10_11,event_duration_hours,code (from Luna timestamps),85.8,,85.8,,1,no,,,,,"First de-energization to last restoration, computed in code."
+pge_2023_09_20,mbl_advance_notice,jev,some_not_notified,,all_notified,48,0,no,0.96,6;29;46;47;54,0,,All 127 de-energized MBL customers had a delivered notification (0 not attempted and 0 not delivered); 1 did not confirm receipt. The question option wording 'not reached' overlaps with unconfirmed receipt.
+pge_2023_09_20,wind_threshold_cited,jev,true,,false,9;16,0,no,0.51,7;8;9;11;81,1,,mFPC includes sustained wind above 19 mph; the report implies but does not state that the de-energized TPs met it.
+pge_2023_09_20,complaints_reported,jev,one_or_more,,one_or_more,72,1,yes,1.0,3;72;73,1,,Table 17.
+pge_2023_09_20,claims_reported,jev,zero,,zero,72,1,yes,1.0,3;72,1,,No claims as of September 27 2023.
+pge_2023_09_20,canceled_after_notice,jev,yes,,yes,6;16,1,yes,1.0,16;39;43;44;45,1,,Table 1: 4187 cancelled.
+pge_2023_09_20,customers_deenergized,luna,1171,4,1171,4;6;29,1,yes,,,,yes,
+pge_2023_09_20,first_deenergization,luna,2023-09-20 23:19,29,2023-09-20 23:19,4;29;94,1,yes,,,,yes,
+pge_2023_09_20,last_restoration,luna,2023-09-21 17:05,29,2023-09-21 17:05,29;94,1,yes,,,,yes,
+pge_2023_09_20,counties_deenergized,luna,3,29,3,6;29,1,yes,,,,yes,
+pge_2023_09_20,event_duration_hours,code (from Luna timestamps),17.77,,17.77,,1,yes,,,,,"First de-energization to last restoration, computed in code."
+pge_2025_01_20,mbl_advance_notice,jev,all_notified,,all_notified,38,1,yes,0.92,8;26;34;38;97,1,,26 of 26 MBL customers had successful positive notification (Table 5).
+pge_2025_01_20,wind_threshold_cited,jev,false,,false,7,1,no,0.52,11;14;21;61;63,0,,Gusts up to nearly 45 mph recorded; no statement that wind met a threshold.
+pge_2025_01_20,complaints_reported,jev,one_or_more,,one_or_more,52,1,yes,1.0,6;52,1,,13 complaints.
+pge_2025_01_20,claims_reported,jev,one_or_more,,one_or_more,53,1,yes,1.0,6;52;53,1,,1 claim.
+pge_2025_01_20,canceled_after_notice,jev,not_stated,,no,9;40,0,yes,0.43,41;84;87;97;187,0,,Table 1: notified 583; de-energized 583; cancelled 0.
+pge_2025_01_20,customers_deenergized,luna,583,26,583,7;9;26,1,yes,,,,yes,
+pge_2025_01_20,first_deenergization,luna,2025-01-20 13:14,7,2025-01-20 13:14,7;75,1,yes,,,,yes,
+pge_2025_01_20,last_restoration,luna,2025-01-21 14:17,75,2025-01-21 14:17,75,1,no,,,,yes,Appendix B maximum. Page 37 says SCE shared customers were not restored until after the next PSPS (restore notice 1/24 16:12).
+pge_2025_01_20,counties_deenergized,luna,1,9,1,9,1,yes,,,,yes,
+pge_2025_01_20,event_duration_hours,code (from Luna timestamps),25.05,,25.05,,1,no,,,,,"First de-energization to last restoration, computed in code."
+sce_2021_11_24,mbl_advance_notice,jev,all_notified,,all_notified,30,1,yes,0.5,10;22;23;30;39,1,,9035 of 9035 successful positive notification (Table 9).
+sce_2021_11_24,wind_threshold_cited,jev,true,,true,9,1,yes,0.99,14;15;16;17;50,0,,Actual fire weather conditions met or exceeded SCE PSPS thresholds.
+sce_2021_11_24,complaints_reported,jev,one_or_more,,one_or_more,39,1,yes,1.0,7;39;50,1,,3591 complaints.
+sce_2021_11_24,claims_reported,jev,one_or_more,,one_or_more,39,1,yes,1.0,7;19;39;40,1,,477 claims.
+sce_2021_11_24,canceled_after_notice,jev,yes,,yes,22,1,yes,1.0,10;21;22;30;35,1,,283454 in scope; 78514 de-energized; Kern in scope but not de-energized.
+sce_2021_11_24,customers_deenergized,luna,78514,22,78514,8;22,1,yes,,,,yes,
+sce_2021_11_24,first_deenergization,luna,2021-11-24 11:58,22,2021-11-24 11:58,22,1,yes,,,,yes,
+sce_2021_11_24,last_restoration,luna,2021-11-26 19:48,22,2021-11-26 19:48,8;22,1,yes,,,,yes,
+sce_2021_11_24,counties_deenergized,luna,5,22,5,22,1,no,,,,yes,Section 3 lists 5 counties; the introduction on page 8 lists 6 including Kern which was in scope only.
+sce_2021_11_24,event_duration_hours,code (from Luna timestamps),55.83,,55.83,,1,yes,,,,,"First de-energization to last restoration, computed in code."
+sce_2023_11_20,mbl_advance_notice,jev,all_notified,,all_notified,29,1,yes,0.43,8;9;21;22;29,1,,The one MBL customer not contacted was not de-energized.
+sce_2023_11_20,wind_threshold_cited,jev,true,,true,20,1,yes,0.98,11;12;13;14;20,1,,5 circuits met FPI criteria when sustained or gust wind de-energization thresholds were exceeded.
+sce_2023_11_20,complaints_reported,jev,one_or_more,,one_or_more,38,1,yes,1.0,6;38,1,,53 complaints.
+sce_2023_11_20,claims_reported,jev,one_or_more,,one_or_more,38,1,yes,1.0,6;38,1,,7 claims.
+sce_2023_11_20,canceled_after_notice,jev,yes,,yes,9,1,yes,1.0,9;20;21;27;34,1,,Table 1: 38277 cancelled.
+sce_2023_11_20,customers_deenergized,luna,2780,8,2780,7;8;9,1,yes,,,,yes,
+sce_2023_11_20,first_deenergization,luna,2023-11-20 06:18,22,2023-11-20 06:18,22,1,yes,,,,yes,Taiwan circuit in Table 5.
+sce_2023_11_20,last_restoration,luna,2023-11-21 10:14,22,2023-11-21 10:14,20;22,1,yes,,,,yes,
+sce_2023_11_20,counties_deenergized,luna,3,8,3,8;9,1,yes,,,,yes,
+sce_2023_11_20,event_duration_hours,code (from Luna timestamps),27.93,,27.93,,1,yes,,,,,"First de-energization to last restoration, computed in code."
+sce_2025_09_02,mbl_advance_notice,jev,some_not_notified,,some_not_notified,24;25,1,yes,0.91,9;20;24;25;39,1,,MBL customers not contacted were due to emergent weather requiring immediate de-energization; the sentence spans pages 24 and 25.
+sce_2025_09_02,wind_threshold_cited,jev,true,,true,10;14,1,yes,0.88,12;14;19;36;37,1,,Observed wind and FPI no longer met de-energization threshold criteria as of 7:53 on September 10.
+sce_2025_09_02,complaints_reported,jev,one_or_more,,one_or_more,31,1,yes,1.0,6;31;58;83,1,,15 complaints.
+sce_2025_09_02,claims_reported,jev,zero,,zero,31,1,yes,1.0,6;16;31;58;83,1,,Zero claims.
+sce_2025_09_02,canceled_after_notice,jev,yes,,yes,9,1,yes,1.0,9;20;28;39;43,1,,Table 1: 12501 cancelled.
+sce_2025_09_02,customers_deenergized,luna,1223,8,1223,7;8,1,yes,,,,yes,
+sce_2025_09_02,first_deenergization,luna,2025-09-02 11:10,62,2025-09-02 11:10,62,1,yes,,,,yes,Rankin circuit in the Section 3 table.
+sce_2025_09_02,last_restoration,luna,2025-09-10 12:49,62,2025-09-10 12:49,62,1,yes,,,,yes,The 16:00 end time on page 19 is event close not restoration.
+sce_2025_09_02,counties_deenergized,luna,4,8,4,8,1,yes,,,,yes,
+sce_2025_09_02,event_duration_hours,code (from Luna timestamps),193.65,,193.65,,1,yes,,,,,"First de-energization to last restoration, computed in code."
+sdge_2020_09_08,mbl_advance_notice,jev,some_not_notified,,all_notified,13,0,yes,0.39,10;13;79;90;96,1,,Affirmative notifications made to MBL customers not reached by phone.
+sdge_2020_09_08,wind_threshold_cited,jev,true,,false,6;12,0,yes,0.89,6;12,1,,Lists potential gusts above 50 mph; the only threshold mention (page 12) is circuit 157 meeting the notification threshold.
+sdge_2020_09_08,complaints_reported,jev,one_or_more,,one_or_more,17,1,yes,1.0,17,1,,2 complaints.
+sdge_2020_09_08,claims_reported,jev,one_or_more,,one_or_more,17,1,yes,1.0,17,1,,2 claims.
+sdge_2020_09_08,canceled_after_notice,jev,not_stated,,yes,12;29,0,no,,,0,,Implicit only: about 16700 customers notified and 49 de-energized; no cancellation wording.
+sdge_2020_09_08,customers_deenergized,luna,49,83,49,10,1,yes,,,,yes,
+sdge_2020_09_08,first_deenergization,luna,2020-09-08 20:56,8,2020-09-08 20:56,8,1,yes,,,,yes,
+sdge_2020_09_08,last_restoration,luna,2020-09-09 10:26,8,2020-09-09 10:26,8,1,yes,,,,yes,
+sdge_2020_09_08,counties_deenergized,luna,1,8,1,8,1,yes,,,,yes,
+sdge_2020_09_08,event_duration_hours,code (from Luna timestamps),13.5,,13.5,,1,yes,,,,,"First de-energization to last restoration, computed in code."
+sdge_2021_11_24,mbl_advance_notice,jev,not_stated,,all_notified,23,0,yes,1.0,59;96;97;98;99,0,,47 of 47 successful positive notification (Table 4).
+sdge_2021_11_24,wind_threshold_cited,jev,true,,true,16,1,yes,0.79,8;9;40,0,,PSPS implemented in real time once alert speeds were reached.
+sdge_2021_11_24,complaints_reported,jev,one_or_more,,one_or_more,34,1,yes,1.0,5;33;34;122;228,1,,39 complaints.
+sdge_2021_11_24,claims_reported,jev,one_or_more,,one_or_more,34,1,yes,1.0,5;33;34;122;229,1,,18 claims.
+sdge_2021_11_24,canceled_after_notice,jev,yes,,yes,7,1,yes,0.97,7;20;24;25;125,1,,Table 1: 48669 cancelled.
+sdge_2021_11_24,customers_deenergized,luna,5858,7,5858,7,1,yes,,,,yes,
+sdge_2021_11_24,first_deenergization,luna,2021-11-24 21:53,124,2021-11-24 21:53,124,1,no,,,,yes,Circuit table minimum. Section 3 (page 20) says the event began at 11:47 and page 6 says PSPS activation began at 18:00.
+sdge_2021_11_24,last_restoration,luna,2021-11-26 16:37,100,2021-11-26 16:37,6;20;124,1,yes,,,,yes,
+sdge_2021_11_24,counties_deenergized,luna,1,7,1,7,1,yes,,,,yes,
+sdge_2021_11_24,event_duration_hours,code (from Luna timestamps),42.73,,42.73,,1,no,,,,,"First de-energization to last restoration, computed in code."
+sdge_2024_11_06,mbl_advance_notice,jev,all_notified,,all_notified,25,1,yes,0.89,7;22;25;33;119,1,,1879 of 1879 successful positive notification (Table 5).
+sdge_2024_11_06,wind_threshold_cited,jev,true,,true,12,1,yes,0.98,9;12;13;21;55,1,,Alert speed criteria were met for all but three of the 21 devices.
+sdge_2024_11_06,complaints_reported,jev,one_or_more,,one_or_more,40,1,yes,1.0,5;40;137;161,1,,20 complaints.
+sdge_2024_11_06,claims_reported,jev,zero,,zero,41,1,yes,1.0,5;40;41;137;162,1,,Zero claims.
+sdge_2024_11_06,canceled_after_notice,jev,yes,,yes,7,1,yes,1.0,7;21;27;28;52,1,,Table 1: 23477 cancelled.
+sdge_2024_11_06,customers_deenergized,luna,1263,6,1263,6;7,1,yes,,,,yes,
+sdge_2024_11_06,first_deenergization,luna,2024-11-06 08:47,139,2024-11-06 08:47,139,1,yes,,,,yes,
+sdge_2024_11_06,last_restoration,luna,2024-11-08 08:18,41,2024-11-08 08:18,41;139,1,yes,,,,yes,
+sdge_2024_11_06,counties_deenergized,luna,1,7,1,7,1,yes,,,,yes,
+sdge_2024_11_06,event_duration_hours,code (from Luna timestamps),47.52,,47.52,,1,yes,,,,,"First de-energization to last restoration, computed in code."
