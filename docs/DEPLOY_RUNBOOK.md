@@ -54,10 +54,11 @@ are already fixed.
   `untagged_incidents_excluded`). Deploy one commit to every service and
   restart all of them in section 3; never restart only `wildfire-agent` on a
   commit newer than the running services.
-- **If PR #93 merges first**, `shared/dataset_coverage.json` must be
-  regenerated with `python -m db.loaders.coverage` and committed on the
-  rebased `calfire-default` branch before merge, because PR #93's CAL FIRE
-  default query definition changes with this branch. Details:
+- **Coverage file.** PR #93 merged first; `calfire-default` was rebased
+  onto it and carries a regenerated `shared/dataset_coverage.json`, because
+  PR #93's CAL FIRE default query definition changes with this branch. The
+  deploy needs no extra step, but any later change to the CAL FIRE default
+  needs `python -m db.loaders.coverage` and a commit of the file. Details:
   `docs/DATA_CHANGE_CALFIRE_DEFAULT.md`, section "Deploying".
 
 ## 0. Get a shell as ubuntu

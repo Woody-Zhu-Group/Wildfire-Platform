@@ -214,11 +214,13 @@ rows for, each one's first and last date, and rows per calendar year; see
 is covered from its first row to the dataset's last row; a read with no utility
 is checked against the dataset's own dates. A period whose every year has no
 rows in the dataset at all is not covered either (CAL FIRE's default count has
-one 2009 row and none from 2010 to 2013: "CAL FIRE incidents of the default
-incident types (...) have no rows between 2009 and 2014"). Coverage is that of
+one 2009 row and none from 2010 to 2012: "CAL FIRE incidents of the default
+incident types (...) have no rows between 2009 and 2013"). Coverage is that of
 the rows the call counts: a CAL FIRE call's `incident_type_mode` picks the
-measured definition (`call_definition`), so a 2013 count answers for `all` or
-`untyped` and is not covered for the default. The router and the Jev templates
+measured definition (`call_definition`). Under the old Wildfire/Fire default a
+2013 count answered only for `all` or `untyped`; the default now counts untyped
+incidents, so 2013 is covered for every definition
+(`docs/DATA_CHANGE_CALFIRE_DEFAULT.md`). The router and the Jev templates
 give a call the definition its question asks for, in the registry's wording
 (`carry_question_definition` in `services/agent/coverage.py`), and a call that
 cannot carry it (a comparison) is `unexpressed_filter_constraints`. For example, CPUC has rows for PacifiCorp (from

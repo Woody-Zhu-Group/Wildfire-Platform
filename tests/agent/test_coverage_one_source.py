@@ -72,7 +72,9 @@ def _backend(request: httpx.Request) -> httpx.Response:
                 "start_date": params.get("start_date"),
                 "end_date": params.get("end_date"),
                 "counts": dict(TERRITORY_COUNTS),
-                "meta": {},
+                # As the real service reports for its CAL FIRE count; zero
+                # adds no CAL FIRE caveat to the answers these tests read.
+                "meta": {"untyped_incidents_counted": 0, "untagged_incidents_counted": 0},
             },
         )
     # The attribute companion of a utility ignition count.

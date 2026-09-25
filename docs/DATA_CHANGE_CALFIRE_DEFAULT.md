@@ -82,19 +82,48 @@ documented here. The code does not special-case them.
   Restart all of `wildfire-data-query`, `wildfire-visualization`,
   `wildfire-comparison`, and `wildfire-agent` from the same commit
   (`docs/DEPLOY_RUNBOOK.md`, section 3).
-- **If PR #93 merges first, regenerate `shared/dataset_coverage.json`.**
-  PR #93 measures coverage per registry query definition, and CAL FIRE's
-  default definition there reads `CALFIRE_DEFAULT_INCIDENT_TYPES`, which
-  this change removes. After rebasing this branch onto a `main` that has
-  PR #93, point that definition at `calfire_default_type_sql`, then run
-  `python -m db.loaders.coverage` against the warehouse and commit the
-  regenerated file. Until then the registry refuses coverage measured for
-  the old definition, and `tests/agent/test_measured_coverage.py` fails. The
-  regenerated coverage differs in substance: under the old default CAL FIRE
-  has no rows in 2013 or 2016, so PR #93 treats a default CAL FIRE count for
-  those years as `dataset_not_covered`; under this default they have 141 and
-  155 rows and are covered. Any eval row PR #93 decides with that 2013 or 2016
-  gap must be rechecked (and reported, not relabeled) after the rebase.
+- **PR #93 merged first (2026-09-24), so this branch was rebased onto it.**
+  PR #93's CAL FIRE default query definition already calls
+  `calfire_default_type_sql`, so it measures the new default; only its
+  reason wording read the removed `CALFIRE_DEFAULT_INCIDENT_TYPES` and now
+  reads "of the default incident types (every type except Earthquake, Flood,
+  Hazmat)". `shared/dataset_coverage.json` was regenerated with
+  `python -m db.loaders.coverage`. Only the CAL FIRE default entry changed:
+  3,743 rows instead of 2,509, 2013 (141) and 2016 (155) now have rows, and
+  BVES now has default rows (2013: 2, 2015: 1) as does Liberty from 2014.
+
+### What the coverage change changes
+
+Compared with `platform/main` at the PR #93 merge (`f0aa04b`):
+
+- **Eval rows, probes, and smoke questions:** none. Router path, rule,
+  answer text, tool arguments, and the executor's coverage gap for every
+  planned call are identical for all 426 questions (cases.json 107,
+  jev_paraphrases.json 41, holdouts v1 97, v2 65, v3 88, issue #97 probes 22,
+  smoke 6). The decide replay report is byte-identical. No label changes.
+- **Tests:** every test still passes, but these PR #93 cases read the
+  measured file and now take the other branch:
+  - `test_cal_fire_2013_is_answered_from_the_rows_the_default_count_reads`
+    (4 questions): was the not-covered clarification ("no rows between 2009
+    and 2014"), now the deterministic count (141).
+  - `test_bear_valley_cal_fire_years_are_measured_on_the_default_count`, 2013 and 2015 (4 questions):
+    was not covered for Bear Valley, now answered (2 and 1). Three of the four
+    route deterministically ("Count BVES CAL FIRE incidents for 2013", "How
+    many CAL FIRE incidents did Bear Valley have in 2013?", "How many CAL
+    FIRE fires were tagged to Bear Valley in 2015?" moved from clarification
+    to `filtered_records`); the fourth goes to the model path on both.
+  - `test_bear_valley_psps_and_cpuc_are_not_covered`, the two questions with
+    no year: the clarification now also offers "Bear Valley's CAL FIRE
+    incidents" (the PSPS and CPUC not-covered sentence is unchanged).
+  - `test_liberty_cal_fire_is_offered_only_where_the_default_count_has_rows`, 2014 to 2017: the
+    clarification now offers "Liberty's CAL FIRE incidents in <year>" (2016
+    routes to the model path on both, where the executor makes the offer).
+  - `test_a_year_between_measured_rows_is_not_covered`: now checks 2010 to
+    2012 with "between 2009 and 2013" (was 2010 to 2013, "and 2014").
+  - Unrelated to coverage: `tests/agent/test_coverage_one_source.py` faked a
+    spatial summary without the CAL FIRE figures the real service now
+    reports; the fake now returns them (both 0), and its answers are
+    unchanged.
 
 ## What does not change
 
