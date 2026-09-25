@@ -12,8 +12,10 @@ import { updatePanelSettings, viewSettings, type PanelView } from './panelViews.
 import { movePanel } from './panelOrder.ts';
 import { ThemeToggle } from './ThemeToggle.tsx';
 import { GLOBAL_FILTERS_STORAGE_KEY, parseStoredGlobalFilters } from './globalFilters.ts';
+import { initialInlineViews, selectInlineViews, snapshotInlinePanel, type InlineAnswerView } from './inlineViews.ts';
+import { InlineAnswerViews } from './InlineAnswerViews.tsx';
 
-interface Message { id: string; role: 'user' | 'assistant'; content: string; error?: boolean; response?: AgentAnswer; events?: AgentStreamEvent[] }
+interface Message { id: string; role: 'user' | 'assistant'; content: string; error?: boolean; response?: AgentAnswer; events?: AgentStreamEvent[]; inlineViews?: InlineAnswerView[] }
 const STORAGE_KEY = 'wildfire-workspace-v1';
 function initialPanels(): PanelInstance[] {
   try {
@@ -69,6 +71,7 @@ export default function App() {
   const chatRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const focusedViews = useRef(initialInlineViews(panels, globalFilters));
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(panels.filter(p => !p.settings.answerStat))); setStorageError(false); }
     catch { setStorageError(true); }
@@ -98,12 +101,18 @@ export default function App() {
     const element = document.getElementById(`panel-${id}`);
     element?.focus({ preventScroll: true }); element?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
   }
+  function openInlinePanel(panel: PanelInstance) {
+    if (panels.some(item => item.id === panel.id)) { locatePanel(panel.id); return; }
+    setPanels(current => current.some(item => item.id === panel.id) ? current : [...current, panel]);
+    requestAnimationFrame(() => locatePanel(panel.id));
+  }
   function applyAnswer(answer: AgentAnswer) {
     const added = panelsFromAnswer(answer).map(spec => {
       const panel = newPanel(nextId.current++, spec.type);
       return { ...panel, name: spec.name, settings: { ...panel.settings, ...spec.settings } };
     });
     if (added.length) setPanels(current => [...current, ...added]);
+    return added;
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault(); if (!query.trim() || busy) return;
@@ -116,8 +125,10 @@ export default function App() {
     try {
       const answer = await askAgent(question, abort.signal, setProgress, event => { events.push(event); setStreamEvents([...events]); });
       const qualifications = (answer.qualifications ?? []).map(q => q.text).filter(t => !answer.answer_text.includes(t));
-      setMessages(current => [...current, { id: crypto.randomUUID(), role: 'assistant', content: [answer.answer_text, ...qualifications].join('\n\n'), error: answer.status === 'error', response: answer, events }]);
-      if (answer.status !== 'error') applyAnswer(answer);
+      const added = answer.status === 'error' ? [] : applyAnswer(answer);
+      const inlineViews = answer.status === 'answer' ? selectInlineViews(focusedViews.current, added.map(panel => snapshotInlinePanel(panel, globalFilters))) : undefined;
+      if (inlineViews) focusedViews.current = inlineViews.map(view => view.panel);
+      setMessages(current => [...current, { id: crypto.randomUUID(), role: 'assistant', content: [answer.answer_text, ...qualifications].join('\n\n'), error: answer.status === 'error', response: answer, events, inlineViews }]);
     } catch (error) {
       const reason = abort.signal.aborted ? abort.signal.reason : error;
       setMessages(current => [...current, { id: crypto.randomUUID(), role: 'assistant', content: reason instanceof Error ? reason.message : 'Agent unavailable. You can still use the data panels.', error: true, events }]);
@@ -132,7 +143,7 @@ export default function App() {
       </header>
       <section id="workspace-top" className="workspace-intro" aria-label="Ask and choose panels">
         <div ref={stageRef} className="conversation-stage">
-          {messages.length > 0 && <div ref={chatRef} className="chat-messages" aria-label="Conversation" aria-live="polite">{messages.map(message => <div key={message.id} className={`chat-message ${message.role} ${message.error ? 'message-error' : ''}`}><Markdown text={message.content} />{message.role === 'assistant' && <><AnswerViewNotice answer={message.response}/><ToolTrace answer={message.response} events={message.events ?? []} finished /></>}</div>)}{busy && <div><p className="panel-note">{progress}</p><ToolTrace events={streamEvents} finished={false} /></div>}</div>}
+          {messages.length > 0 && <div ref={chatRef} className="chat-messages" aria-label="Conversation" aria-live="polite">{messages.map(message => <div key={message.id} className={`chat-message ${message.role} ${message.error ? 'message-error' : ''}`}><div className="chat-message-copy"><Markdown text={message.content} /></div>{message.role === 'assistant' && <><AnswerViewNotice answer={message.response}/>{message.inlineViews && <InlineAnswerViews views={message.inlineViews} onOpen={openInlinePanel} />}<ToolTrace answer={message.response} events={message.events ?? []} finished /></>}</div>)}{busy && <div><p className="panel-note">{progress}</p><ToolTrace events={streamEvents} finished={false} /></div>}</div>}
           <form onSubmit={submit} className="search-form"><input aria-label="Ask a question" value={query} onChange={e => setQuery(e.target.value)} placeholder="What do you want to know today~" />
             {busy ? <button type="button" aria-label="Cancel request" onClick={() => controller.current?.abort(new Error('Request cancelled.'))}>■</button> : query.trim() && <button type="submit" aria-label="Send message">↑</button>}
           </form>
