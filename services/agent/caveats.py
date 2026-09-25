@@ -20,6 +20,8 @@ from services.shared.dataset_registry import (
     CALFIRE_UNTAGGED_EXCLUDED_KEY,
     CALFIRE_UNTYPED_COUNTED_KEY,
     DATASETS,
+    DEFAULT_INCIDENT_TYPE_MODE,
+    INCIDENT_TYPE_MODES,
     coverage_summary,
     coverage_window,
 )
@@ -549,41 +551,85 @@ def _is_us_ignitions(execution: ToolExecution) -> bool:
     return execution.summary.get("dataset") == "us_ignitions"
 
 
-def _calfire_untyped_counts(executions: list[ToolExecution]) -> list[int]:
-    """Non-zero counts of untyped incidents from counted CAL FIRE results.
+def _incident_type_mode_used(execution: ToolExecution) -> str:
+    """The incident_type_mode a CAL FIRE result counted with.
+
+    The call's own ``incident_type_mode`` when it set one; otherwise the mode
+    the service reports in meta (``default_wildfire``, ``all``, ``untyped``,
+    ``explicit``); otherwise the default (comparisons and spatial summaries
+    always count the default).
+    """
+    mode = (execution.arguments or {}).get("incident_type_mode")
+    if mode in INCIDENT_TYPE_MODES:
+        return mode
+    reported = (execution.summary.get("metadata") or {}).get("incident_type_mode")
+    return {
+        "default_wildfire": DEFAULT_INCIDENT_TYPE_MODE,
+        "all": "all",
+        "untyped": "untyped",
+        "explicit": "explicit",
+    }.get(reported, DEFAULT_INCIDENT_TYPE_MODE)
+
+
+def _calfire_untyped_counts(executions: list[ToolExecution]) -> list[tuple[str, int]]:
+    """Non-zero counts of untyped incidents from counted CAL FIRE results, with
+    the incident_type_mode each result counted with.
 
     Read from any primary result that reports the figure, so a spatial
     summary's CAL FIRE count is covered as well as CAL FIRE reads.
     """
-    counts: list[int] = []
+    counts: list[tuple[str, int]] = []
     for item in executions:
         if item.qualification_call:
             continue
         value = (item.summary.get("metadata") or {}).get(CALFIRE_UNTYPED_COUNTED_KEY)
         if isinstance(value, int) and not isinstance(value, bool) and value > 0:
-            counts.append(value)
+            counts.append((_incident_type_mode_used(item), value))
     return counts
 
 
-def _untyped_text(counts: list[int]) -> str:
-    if len(counts) == 1:
-        n = counts[0]
-        lead = (
-            f"{n:,} of the counted CAL FIRE incidents has no incident type recorded"
-            if n == 1
-            else f"{n:,} of the counted CAL FIRE incidents have no incident type recorded"
-        )
-    else:
-        lead = (
-            "Counted CAL FIRE incidents with no incident type recorded: "
-            + ", ".join(f"{n:,}" for n in counts)
-            + " across these results"
-        )
-    excluded = ", ".join(CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
-    return (
-        f"{lead}. CAL FIRE counts include every incident except the known "
-        f"non-wildfire types ({excluded}), so incidents with no type are counted."
-    )
+def _untyped_text(counts: list[tuple[str, int]]) -> str:
+    """One sentence pair per incident_type_mode, each saying what that count read.
+
+    Only a default count excluded the non-wildfire types, so only its text
+    names them; an all-types count includes them and an untyped-only count
+    reads no typed incident at all.
+    """
+    by_mode: dict[str, list[int]] = {}
+    for mode, n in counts:
+        by_mode.setdefault(mode, []).append(n)
+    parts: list[str] = []
+    for mode, values in by_mode.items():
+        if len(values) == 1:
+            n = values[0]
+            lead = (
+                f"{n:,} of the counted CAL FIRE incidents has no incident type recorded"
+                if n == 1
+                else f"{n:,} of the counted CAL FIRE incidents have no incident type recorded"
+            )
+        else:
+            lead = (
+                "Counted CAL FIRE incidents with no incident type recorded: "
+                + ", ".join(f"{n:,}" for n in values)
+                + " across these results"
+            )
+        if mode == DEFAULT_INCIDENT_TYPE_MODE:
+            excluded = ", ".join(CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
+            tail = (
+                "CAL FIRE counts include every incident except the known "
+                f"non-wildfire types ({excluded}), so incidents with no type are counted."
+            )
+        elif mode == "all":
+            tail = (
+                "This count includes every incident type, non-wildfire types too, "
+                "so incidents with no type are counted."
+            )
+        elif mode == "untyped":
+            tail = "This count is of incidents with no type recorded only."
+        else:
+            tail = ""
+        parts.append(f"{lead}. {tail}".strip())
+    return " ".join(parts)
 
 
 def _counts_calfire(execution: ToolExecution) -> bool:
@@ -613,13 +659,19 @@ _PLAIN_FILTER_TOOLS = frozenset({"data_query_records", "data_query_rank", "visua
 
 
 def _plain_utility_filter(execution: ToolExecution) -> bool:
-    """A filter to one named utility by its tag, untagged incidents not included.
+    """A count of named utilities by their tag, untagged incidents not included.
 
-    Such a result counts no untagged incident, so the caveat states how many in
-    the same period and scope it leaves out. Territory summaries and
-    comparisons are not plain filters.
+    A utility filter, a utility comparison, or a period comparison scoped to
+    one utility, counted by the tag (``ignition_definition`` attribute, the
+    comparison default for utilities). Such a result counts no untagged
+    incident, so the caveat states how many in the same period and scope it
+    leaves out. Territory summaries and spatial comparisons count by territory
+    and are not plain filters.
     """
     args = execution.arguments or {}
+    if execution.tool == "comparison_run":
+        utility_scope = args.get("kind") == "utilities" or args.get("scope_type") == "utility"
+        return utility_scope and args.get("ignition_definition") != "spatial"
     utility = args.get("utility")
     return (
         execution.tool in _PLAIN_FILTER_TOOLS

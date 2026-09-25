@@ -332,3 +332,124 @@ def test_other_utility_scopes_do_not_report_an_excluded_figure(db_conn):
     )
     assert "untagged_incidents_excluded" not in extra
     assert extra["untagged_incidents_counted"] == 26
+
+
+# ------------------------------------------------ router to service to caveat, on the warehouse
+
+
+def _run_planned_call(question: str, app):
+    """Ask the question through the agent with no model: the router's planned
+    call reaches ``app`` (the real service, on the warehouse) in process.
+
+    Returns the planned call, the service's JSON body for it, and the answer's
+    caveats by id.
+    """
+    import asyncio
+
+    import httpx
+    from fastapi.testclient import TestClient
+
+    from services.agent.artifacts import ArtifactStore
+    from services.agent.config import AgentSettings
+    from services.agent.orchestrator import AgentOrchestrator
+    from services.agent.routing import route_question
+    from services.agent.tools import ToolExecutor
+
+    decision = route_question(question)
+    assert decision.path == "deterministic", (decision.path, decision.rule, decision.answer)
+    assert len(decision.tool_calls) == 1, decision.tool_calls
+    tool, arguments = decision.tool_calls[0]
+
+    service = TestClient(app)
+    bodies: list[dict] = []
+
+    def forward(request: httpx.Request) -> httpx.Response:
+        reply = service.get(request.url.path, params=list(request.url.params.multi_items()))
+        bodies.append(reply.json())
+        return httpx.Response(reply.status_code, json=reply.json())
+
+    class _NoModel:
+        async def complete(self, **kwargs):
+            raise AssertionError("a deterministic route must not call the model")
+
+    settings = AgentSettings(max_tool_steps=3)
+    executor = ToolExecutor(settings, ArtifactStore(60), transport=httpx.MockTransport(forward))
+
+    async def run():
+        try:
+            orchestrator = AgentOrchestrator(settings, _NoModel(), executor)
+            return (await orchestrator.ask(question)).response
+        finally:
+            await executor.close()
+
+    response = asyncio.run(run())
+    assert response["status"] == "answer", response["answer_text"]
+    assert len(bodies) == 1, bodies
+    quals = {item["id"]: item["text"] for item in response["qualifications"]}
+    return tool, arguments, bodies[0], quals
+
+
+def test_all_types_in_butte_2018_says_what_it_counted(db_conn):
+    from services.data_query.app import app
+
+    question = "How many CAL FIRE incidents of all types were there in Butte County in 2018?"
+    tool, arguments, body, quals = _run_planned_call(question, app)
+    assert (tool, arguments["incident_type_mode"]) == ("data_query_records", "all")
+    butte_2018 = (
+        "EXTRACT(YEAR FROM c.date_only_created) = 2018 "
+        "AND 'butte' = ANY(string_to_array(lower(replace(c.county, ', ', ',')), ','))"
+    )
+    total = _scalar(db_conn, f"SELECT count(*) FROM wildfire.calfire_incidents c WHERE {butte_2018}")
+    untyped = _scalar(
+        db_conn,
+        f"SELECT count(*) FROM wildfire.calfire_incidents c WHERE {butte_2018} AND c.incident_type IS NULL",
+    )
+    flood = _scalar(
+        db_conn,
+        f"SELECT count(*) FROM wildfire.calfire_incidents c WHERE {butte_2018} AND c.incident_type = 'Flood'",
+    )
+    assert (total, untyped, flood) == (13, 11, 1)
+    assert body["meta"]["total"] == total
+    assert body["meta"]["untyped_incidents_counted"] == untyped
+    assert quals["calfire_missingness"] == (
+        f"{untyped} of the counted CAL FIRE incidents have no incident type recorded. "
+        "This count includes every incident type, non-wildfire types too, so "
+        "incidents with no type are counted."
+    )
+    assert not any(word in quals["calfire_missingness"] for word in ("Earthquake", "Flood", "Hazmat"))
+
+
+def test_pge_vs_sce_2017_states_the_untagged_incidents_left_out(db_conn):
+    from services.comparison.app import app
+
+    question = "PG&E vs SCE CAL FIRE incidents in 2017"
+    tool, arguments, body, quals = _run_planned_call(question, app)
+    assert tool == "comparison_run" and arguments["kind"] == "utilities"
+    assert arguments.get("ignition_definition", "attribute") == "attribute"
+    values = {row["key"]: row["value"] for row in body["results"]}
+    pge, pge_untagged = _sql_plain_filter(db_conn, "PGE", 2017)
+    sce, _ = _sql_plain_filter(db_conn, "SCE", 2017)
+    assert (values["PGE"], values["SCE"], pge_untagged) == (pge, sce, 31) == (257, 96, 31)
+    assert body["meta"]["untagged_incidents_excluded"] == 31
+    assert body["meta"]["untagged_incidents_counted"] == 0
+    assert quals["calfire_untagged_utility"] == (
+        "31 CAL FIRE incidents in the same period and scope have no utility tag "
+        "recorded and are not counted toward any utility."
+    )
+
+
+def test_single_utility_period_comparison_sums_both_periods(db_conn):
+    from fastapi.testclient import TestClient
+
+    from services.comparison.app import app
+
+    body = TestClient(app).get(
+        "/compare-periods",
+        params={
+            "scope_type": "utility", "scope": "PGE", "metric": "calfire_incident_count",
+            "period_a_start": "2017-01-01", "period_a_end": "2017-12-31",
+            "period_b_start": "2020-01-01", "period_b_end": "2020-12-31",
+        },
+    ).json()
+    assert (body["period_a"]["value"], body["period_b"]["value"]) == (257, 162)
+    assert body["meta"]["untagged_incidents_excluded"] == 31 + 26

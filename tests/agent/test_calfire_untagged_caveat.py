@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import httpx
 import pytest
 
 from services.shared.dataset_registry import (
@@ -83,13 +84,22 @@ def _records(
     )
 
 
-def _collect(executions):
+def _ignition_companion(request: httpx.Request) -> httpx.Response:
+    """The attribute CPUC ignition count a territory summary's caveat fetches."""
+    assert request.url.path.endswith("/ignitions"), request.url
+    utility = request.url.params.get("utility")
+    return httpx.Response(
+        200, json={"data": [], "meta": {"total": 6, "returned": 0, "filters": {"utility": utility}}}
+    )
+
+
+def _collect(executions, transport: httpx.AsyncBaseTransport | None = None):
     from services.agent.artifacts import ArtifactStore
     from services.agent.caveats import collect_qualifications
     from services.agent.config import AgentSettings
     from services.agent.tools import ToolExecutor
 
-    executor = ToolExecutor(AgentSettings.from_env(), ArtifactStore(60))
+    executor = ToolExecutor(AgentSettings.from_env(), ArtifactStore(60), transport=transport)
     quals, _companions, error = asyncio.run(
         collect_qualifications(executions, executor, request_id="untagged", start_attempt=1)
     )
@@ -186,32 +196,57 @@ def test_qualification_companions_do_not_add_the_caveat():
     assert "calfire_untagged_utility" not in quals
 
 
-def test_utility_comparison_and_territory_summary_are_utility_scoped():
-    comparison = _execution(
-        "comparison_run",
-        {"kind": "utilities", "utilities": ["PGE", "SCE"], "metric": "calfire_incident_count"},
-        {
-            "kind": "utilities",
-            "metric": "calfire_incident_count",
-            "results": [],
-            "metadata": {CALFIRE_UNTYPED_COUNTED_KEY: 0, CALFIRE_UNTAGGED_COUNTED_KEY: 3},
-        },
-    )
-    quals, error = _collect([comparison])
-    assert error is None
-    assert quals["calfire_untagged_utility"].startswith("3 of the counted")
+def _comparison(arguments: dict[str, Any], metadata: dict[str, Any]):
+    kind = arguments["kind"]
+    summary: dict[str, Any] = {"kind": kind, "metric": arguments["metric"], "metadata": metadata}
+    if kind != "periods":
+        summary["results"] = []
+    return _execution("comparison_run", arguments, summary)
 
-    periods = _execution(
-        "comparison_run",
+
+def test_tag_comparisons_state_the_untagged_incidents_left_out():
+    # PG&E vs SCE CAL FIRE incidents in 2017 (257 and 96 by tag); 31 untagged
+    # incidents in 2017 count toward neither (tests/test_calfire_default.py).
+    utilities = _comparison(
+        {"kind": "utilities", "utilities": ["PGE", "SCE"], "metric": "calfire_incident_count",
+         "start_date": "2017-01-01", "end_date": "2017-12-31"},
+        {CALFIRE_UNTYPED_COUNTED_KEY: 0, CALFIRE_UNTAGGED_COUNTED_KEY: 0,
+         CALFIRE_UNTAGGED_EXCLUDED_KEY: 31},
+    )
+    quals, error = _collect([utilities])
+    assert error is None
+    assert quals["calfire_untagged_utility"] == (
+        "31 CAL FIRE incidents in the same period and scope have no utility tag "
+        "recorded and are not counted toward any utility."
+    )
+
+    periods = _comparison(
         {"kind": "periods", "scope_type": "utility", "scope": "PGE", "metric": "acres_burned"},
-        {
-            "kind": "periods",
-            "metric": "acres_burned",
-            "metadata": {CALFIRE_UNTYPED_COUNTED_KEY: 0, CALFIRE_UNTAGGED_COUNTED_KEY: 4},
-        },
+        {CALFIRE_UNTYPED_COUNTED_KEY: 0, CALFIRE_UNTAGGED_COUNTED_KEY: 0,
+         CALFIRE_UNTAGGED_EXCLUDED_KEY: 57},
     )
     quals, _ = _collect([periods])
-    assert quals["calfire_untagged_utility"].startswith("4 of the counted")
+    assert quals["calfire_untagged_utility"].startswith("57 CAL FIRE incidents in the same period")
+
+
+def test_tag_comparison_without_the_excluded_figure_suppresses_the_answer():
+    utilities = _comparison(
+        {"kind": "utilities", "utilities": ["PGE", "SCE"], "metric": "calfire_incident_count"},
+        {CALFIRE_UNTYPED_COUNTED_KEY: 0, CALFIRE_UNTAGGED_COUNTED_KEY: 0},
+    )
+    _quals, error = _collect([utilities])
+    assert error == "CAL FIRE result did not report how many incidents in its scope have no utility tag."
+
+
+def test_territory_comparison_and_summary_state_the_counted_untagged_incidents():
+    spatial = _comparison(
+        {"kind": "utilities", "utilities": ["PGE", "SCE"], "metric": "calfire_incident_count",
+         "ignition_definition": "spatial"},
+        {CALFIRE_UNTYPED_COUNTED_KEY: 0, CALFIRE_UNTAGGED_COUNTED_KEY: 3},
+    )
+    quals, error = _collect([spatial])
+    assert error is None
+    assert quals["calfire_untagged_utility"].startswith("3 of the counted")
 
     summary = _execution(
         "data_query_spatial",
@@ -223,7 +258,9 @@ def test_utility_comparison_and_territory_summary_are_utility_scoped():
             "metadata": {CALFIRE_UNTYPED_COUNTED_KEY: 0, CALFIRE_UNTAGGED_COUNTED_KEY: 5},
         },
     )
-    quals, error = _collect([summary])
+    # A territory summary counts ignitions too, so its caveats fetch the
+    # attribute ignition count; the mock answers it with no service running.
+    quals, error = _collect([summary], transport=httpx.MockTransport(_ignition_companion))
     assert error is None
     assert quals["calfire_untagged_utility"].startswith("5 of the counted")
 

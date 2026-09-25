@@ -23,6 +23,7 @@ from services.shared.dataset_registry import (
     CALFIRE_DEFAULT_DESCRIPTION,
     CALFIRE_NON_WILDFIRE_INCIDENT_TYPES,
     CALFIRE_UNTAGGED_COUNTED_KEY,
+    CALFIRE_UNTAGGED_EXCLUDED_KEY,
     CALFIRE_UNTYPED_COUNTED_KEY,
     DATASET_COVERAGE,
     HFTD_TIERS,
@@ -203,6 +204,14 @@ def _calfire_missing_meta(
             )
             for key in totals:
                 totals[key] += counts[key]
+    # A utility compared by its tag counts no untagged incident; say how many
+    # untagged incidents each compared period holds, counted toward no utility.
+    # Summed over the periods, not the utilities: every utility leaves out the
+    # same untagged incidents.
+    if scope == "utility" and definition == "attribute":
+        totals[CALFIRE_UNTAGGED_EXCLUDED_KEY] = sum(
+            queries.calfire_untagged_in_period(conn, start=start, end=end) for start, end in ranges
+        )
     return totals
 
 

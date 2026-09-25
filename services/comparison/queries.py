@@ -258,6 +258,21 @@ def calfire_missing_counts(
     return calfire_missing_counts_meta(untyped, untagged)
 
 
+def calfire_untagged_in_period(conn: psycopg.Connection, *, start: date, end: date) -> int:
+    """Default-type CAL FIRE incidents in a period with no utility tag."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT count(*) FROM wildfire.calfire_incidents c
+            WHERE c.utility IS NULL
+              AND c.date_only_created BETWEEN %s AND %s
+              AND {_calfire_type_sql()}
+            """,
+            (start, end),
+        )
+        return int(cur.fetchone()[0])
+
+
 def calfire_multi_county_count(
     conn: psycopg.Connection,
     *,

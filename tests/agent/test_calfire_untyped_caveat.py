@@ -160,3 +160,69 @@ def test_tool_summary_keeps_the_untyped_meta(meta):
     kept = _select_metadata(meta)
     assert kept[CALFIRE_UNTYPED_COUNTED_KEY] == 7
     assert kept["calfire_excluded_incident_types"] == ["Earthquake"]
+
+
+# ------------------------------------------------ the text follows the incident_type_mode used
+
+
+def _mode_count(untyped: int, *, arg_mode: str | None = None, meta_mode: str | None = None, total: int = 13):
+    metadata: dict[str, Any] = {CALFIRE_UNTYPED_COUNTED_KEY: untyped}
+    if meta_mode:
+        metadata["incident_type_mode"] = meta_mode
+    arguments: dict[str, Any] = {"dataset": "calfire_incidents", "result_mode": "count",
+                                 "county": "Butte", "year": 2018}
+    if arg_mode:
+        arguments["incident_type_mode"] = arg_mode
+    return _execution(
+        "data_query_records",
+        {"dataset": "calfire_incidents", "result_mode": "count", "total": total, "returned": 1,
+         "filters": dict(arguments), "records": [], "metadata": metadata},
+        arguments=arguments,
+    )
+
+
+NON_WILDFIRE_WORDS = ("Earthquake", "Flood", "Hazmat")
+
+
+def test_all_types_answer_never_claims_types_were_excluded():
+    # All types in Butte County in 2018: 13 incidents, including the Flood row,
+    # 11 of them with no type (tests/test_calfire_default.py checks the SQL).
+    for kwargs in ({"arg_mode": "all"}, {"meta_mode": "all"}):
+        quals, error = _collect([_mode_count(11, **kwargs)])
+        assert error is None
+        text = quals["calfire_missingness"]
+        assert text == (
+            "11 of the counted CAL FIRE incidents have no incident type recorded. "
+            "This count includes every incident type, non-wildfire types too, so "
+            "incidents with no type are counted."
+        )
+        assert not any(word in text for word in NON_WILDFIRE_WORDS)
+        assert "except" not in text
+
+
+def test_untyped_only_answer_never_claims_types_were_excluded():
+    for kwargs in ({"arg_mode": "untyped"}, {"meta_mode": "untyped"}):
+        quals, _ = _collect([_mode_count(11, total=11, **kwargs)])
+        text = quals["calfire_missingness"]
+        assert text == (
+            "11 of the counted CAL FIRE incidents have no incident type recorded. "
+            "This count is of incidents with no type recorded only."
+        )
+        assert not any(word in text for word in NON_WILDFIRE_WORDS)
+
+
+def test_default_answer_names_the_excluded_types():
+    for kwargs in ({}, {"arg_mode": "wildfire_default"}, {"meta_mode": "default_wildfire"}):
+        quals, _ = _collect([_mode_count(11, total=12, **kwargs)])
+        assert quals["calfire_missingness"].endswith(
+            "CAL FIRE counts include every incident except the known non-wildfire "
+            "types (Earthquake, Flood, Hazmat), so incidents with no type are counted."
+        )
+
+
+def test_mixed_modes_get_one_sentence_pair_each():
+    quals, _ = _collect([_mode_count(11, total=12), _mode_count(11, arg_mode="all")])
+    text = quals["calfire_missingness"]
+    assert text.count("11 of the counted CAL FIRE incidents have no incident type recorded.") == 2
+    assert "except the known non-wildfire types" in text
+    assert "includes every incident type" in text
