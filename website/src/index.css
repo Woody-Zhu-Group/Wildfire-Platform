@@ -294,7 +294,7 @@ html.is-reordering-panels, html.is-reordering-panels * { cursor: grabbing !impor
 .stat-value.stat-unavailable { font-size: 28px; color: var(--muted-strong); letter-spacing: normal; }
 .back-to-panels { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--overlay-20); border-radius: 50%; background: var(--back-button); color: var(--text-secondary); z-index: 5; }
 .back-to-panels:hover { background: var(--surface-well-hover); color: var(--text-bright); }
-.chat-messages { width: 100%; max-width: 672px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 8px 12px 8px 8px; }
+.chat-messages { width: 100%; max-width: 1100px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 8px 12px 8px 8px; }
 :is(.chat-messages, .panel-body, .record-scroll, .analysis-bars)::-webkit-scrollbar { width: 4px; height: 4px; }
 :is(.chat-messages, .panel-body, .record-scroll, .analysis-bars)::-webkit-scrollbar-track { background: transparent; }
 :is(.chat-messages, .panel-body, .record-scroll, .analysis-bars)::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
@@ -305,6 +305,28 @@ html.is-reordering-panels, html.is-reordering-panels * { cursor: grabbing !impor
 }
 .chat-message { flex-shrink: 0; max-width: 90%; font-size: 14px; }
 .chat-message.user { align-self: flex-end; background: var(--surface-well); padding: 12px 16px; border-radius: 16px; }
+.chat-message.assistant { width: 100%; max-width: 100%; }
+.chat-message.user { max-width: min(90%, 672px); }
+.chat-message-copy, .chat-message.assistant .answer-view-notice, .chat-message.assistant .tool-trace { max-width: 672px; }
+.inline-answer-views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 16px 0 4px; }
+.inline-answer-views:has(> :only-child) { grid-template-columns: minmax(0, 1fr); max-width: 672px; }
+.inline-view { display: flex; flex-direction: column; min-width: 0; height: 320px; overflow: hidden; border: 1px solid var(--overlay-14); border-radius: 14px; background: var(--surface); }
+.inline-view-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; min-height: 56px; padding: 13px 15px 8px; }
+.inline-view-heading > div { min-width: 0; }
+.inline-view-heading h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
+.inline-view-heading p { margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+.inline-view-heading > span { flex-shrink: 0; color: var(--muted-strong); font-size: 10px; }
+.inline-view-content { flex: 1; min-height: 0; overflow: hidden; pointer-events: none; }
+.inline-view-content :is(.map-toolbar, .map-legend, .map-layers, .analysis-heading, .chart-filter-drawer, .comparison-toolbar, .series-readout, .overview-more, .live-map > .panel-note) { display: none; }
+.inline-view-content .series-panel { padding: 8px 10px; }
+.inline-view-content .series-panel .series-plot { min-height: 0; }
+.inline-view-content .comparison-panel { padding: 8px 14px; }
+.inline-view-content .comparison-panel .analysis-bars { margin-top: 4px; }
+.inline-view-content .map-stage { min-height: 0; }
+.inline-view-content .leaflet-control-zoom { display: none; }
+.inline-view footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; margin: 0 15px; border-top: 1px solid var(--overlay-0b); color: var(--muted); font-size: 10px; }
+.inline-view footer button { color: var(--link); font-size: 10px; }
+.inline-view footer button:hover { color: var(--text-bright); }
 @media (min-width: 641px) and (max-width: 1100px) {
   .panel-slot { grid-column: span 6; }
 }
@@ -317,6 +339,8 @@ html.is-reordering-panels, html.is-reordering-panels * { cursor: grabbing !impor
   .panel-strip { gap: 16px 12px; }
   .panel-shortcut { max-width: 100px; text-align: center; }
   .workspace-heading h1 span { display: block; margin-left: 0; margin-top: 4px; }
+  .inline-answer-views { grid-template-columns: minmax(0, 1fr); }
+  .inline-view { height: 270px; }
 }
 .has-chat .workspace-intro { min-height: 0; padding: 0 0 40px; gap: 24px; }
 .has-chat .conversation-stage { height: 100dvh; padding: 24px 24px 20px; gap: 24px; }
