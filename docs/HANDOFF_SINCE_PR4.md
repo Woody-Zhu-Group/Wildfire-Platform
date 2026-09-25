@@ -166,7 +166,7 @@ The early Jev work started on Michael's personal fork before it moved to the tea
 
 Plain language: a question from the website goes to the agent. The agent first checks a list of hard stops (live questions, future dates, advice, cities, HFTD operations no tool can do, off-topic subjects). Then, in decide mode (on in production), Jev is asked whether the question can be answered, needs a clarification, or must be refused; the router's own decision stands whenever Jev is unsure, and when both decline the same way the router's wording is what the user reads, unless the router's question is the generic ranking one (`ranking_missing_slots`), which yields to Jev's more specific question (PR #94). The router extracts the year, utility, county, dataset, and dates. If the router recognized the question exactly, it runs the exact tool calls itself. If not, the slot planner may build several exact calls, or the question goes to the language model on OpenRouter, which must choose from a small list of tools and can only cite what the tools returned. Caveats attach to every successful path. The answer, its evidence, who decided, and any views come back to the website, which turns the views into workspace panels only when they cite evidence.
 
-The root [`README.md`](../README.md#architecture) has the same flow as a rendered diagram, next to diagrams of the deployment and the data. The sketch below keeps the file and function names.
+The root [`README.md`](../README.md#architecture) has two simple diagrams of the main production path (how the parts fit together, and what happens to a question). The sketch below is the full flow with file and function names.
 
 ```
 website Ask panel (POST /ask/stream, SSE)  ..  website/src/api.ts, useRemote.ts
