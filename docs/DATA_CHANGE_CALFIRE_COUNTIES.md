@@ -1,5 +1,7 @@
 # Data change: multi-county CAL FIRE incidents and EPSS cause codes
 
+> **Default changed 2026-09-24.** Counts in this document use the CAL FIRE default of its time, `incident_type IN ('Wildfire', 'Fire')`. The default is now every incident except the non-wildfire types (Earthquake, Flood, Hazmat), so untyped incidents are counted; see [`DATA_CHANGE_CALFIRE_DEFAULT.md`](DATA_CHANGE_CALFIRE_DEFAULT.md) for every count that changes.
+
 Status: code change in PR #81 (issues #77 and #78). No warehouse rows change;
 only how the services match, group, and display existing values. Takes effect
 on EC2 when the backend is redeployed from main.

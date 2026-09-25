@@ -80,7 +80,7 @@ def _sql_within_counts(
               (SELECT count(*) FROM wildfire.calfire_incidents c, region r
                  WHERE ST_Within(c.geom, r.geom)
                    AND c.date_only_created BETWEEN %s AND %s
-                   AND c.incident_type IN ('Wildfire', 'Fire')) AS calfire_incidents
+                   AND (c.incident_type IS NULL OR c.incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat'))) AS calfire_incidents
             """,
             (region_param, start, end, start, end, start, end),
         )

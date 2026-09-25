@@ -14,7 +14,17 @@ from services.agent.places import (
 )
 from services.agent.routing import city_point_for_question
 from services.agent.tools import ToolExecution, ToolExecutor
-from services.shared.dataset_registry import DATASETS, coverage_summary, coverage_window
+from services.shared.dataset_registry import (
+    CALFIRE_NON_WILDFIRE_INCIDENT_TYPES,
+    CALFIRE_UNTAGGED_COUNTED_KEY,
+    CALFIRE_UNTAGGED_EXCLUDED_KEY,
+    CALFIRE_UNTYPED_COUNTED_KEY,
+    DATASETS,
+    DEFAULT_INCIDENT_TYPE_MODE,
+    INCIDENT_TYPE_MODES,
+    coverage_summary,
+    coverage_window,
+)
 
 # Static catalog text. Dynamic caveats (CAL FIRE missingness counts,
 # US sample notes from service meta, ignition definition pairs) format
@@ -39,7 +49,7 @@ CAVEAT_TEXT = {
         "CAL FIRE rows in this warehouse are the fire.ca.gov incident-map "
         "feed, not CAL FIRE's Redbook census. The map's posting threshold "
         "dropped in 2024 (median acreage 70 to 43; sub-100-acre incidents "
-        "71 to 422). The 133 to 611 Wildfire/Fire count change is a posting "
+        "71 to 422). The 133 to 611 incident count change is a posting "
         "change, not a change in fire occurrence. Acreage totals in the feed "
         "track the Redbook at 95–97% in both years, so acre-based comparisons "
         "remain valid; count-based year-to-year comparisons do not."
@@ -148,48 +158,37 @@ async def collect_qualifications(
             for cid in DATASETS["us_ignitions"].caveat_ids:
                 add(cid, str(base), "service_response.meta")
 
-        # CAL FIRE metadata is present on data_query but not all viz/comparison calls.
-        if _uses_calfire(execution):
-            null_types = metadata.get("null_incident_type_count")
-            null_utility = metadata.get("null_utility_records_in_table")
-            if null_types is None or null_utility is None:
-                attempt += 1
-                extra = await executor.execute(
-                    "data_query_records",
-                    {
-                        "dataset": "calfire_incidents",
-                        "result_mode": "count",
-                        "incident_type_mode": "all",
-                        "limit": 1,
-                    },
-                    request_id=request_id,
-                    attempt=attempt,
-                    qualification_call=True,
-                )
-                companion.append(extra)
-                if not extra.ok:
-                    return (
-                        qualifications,
-                        companion,
-                        "CAL FIRE qualification metadata could not be retrieved.",
-                    )
-                extra_meta = extra.summary.get("metadata") or {}
-                null_types = extra_meta.get("null_incident_type_count")
-                null_utility = extra_meta.get("null_utility_records_in_table")
-            if null_types is None or null_utility is None:
-                return (
-                    qualifications,
-                    companion,
-                    "CAL FIRE qualification metadata was incomplete.",
-                )
-            add(
-                "calfire_missingness",
-                (
-                    f"CAL FIRE has {int(null_types):,} records without incident type "
-                    f"and {int(null_utility):,} without utility tags; default counts "
-                    "include only Wildfire/Fire incident types."
-                ),
-                "service_response.meta",
+        # Every CAL FIRE result reports how many of the incidents it counted
+        # have no type recorded; the caveat below is built from that. A
+        # result without it cannot say whether the caveat applies.
+        if _uses_calfire(execution) and not isinstance(
+            metadata.get(CALFIRE_UNTYPED_COUNTED_KEY), int
+        ):
+            return (
+                qualifications,
+                companion,
+                "CAL FIRE result did not report how many counted incidents have no type.",
+            )
+        # Likewise for the utility tag on a utility-scoped CAL FIRE count.
+        if (
+            _counts_calfire(execution)
+            and _utility_scoped(execution)
+            and not isinstance(metadata.get(CALFIRE_UNTAGGED_COUNTED_KEY), int)
+        ):
+            return (
+                qualifications,
+                companion,
+                "CAL FIRE result did not report how many counted incidents have no utility tag.",
+            )
+        if (
+            _plain_utility_filter(execution)
+            and _uses_calfire(execution)
+            and not isinstance(metadata.get(CALFIRE_UNTAGGED_EXCLUDED_KEY), int)
+        ):
+            return (
+                qualifications,
+                companion,
+                "CAL FIRE result did not report how many incidents in its scope have no utility tag.",
             )
 
         if _uses_epss(execution):
@@ -349,6 +348,23 @@ async def collect_qualifications(
                 CAVEAT_TEXT["cnhpp_cell_461"],
                 "data_gap",
             )
+
+    untyped = _calfire_untyped_counts(working)
+    if untyped:
+        add("calfire_missingness", _untyped_text(untyped), "service_response.meta")
+
+    untagged = _calfire_untagged_counts(working)
+    excluded = _calfire_untagged_excluded_counts(working)
+    if untagged or excluded:
+        text = " ".join(
+            part
+            for part in (
+                _untagged_text(untagged) if untagged else "",
+                _untagged_excluded_text(excluded) if excluded else "",
+            )
+            if part
+        )
+        add("calfire_untagged_utility", text, "service_response.meta")
 
     multi_county = _calfire_multi_county_counts(working)
     if multi_county:
@@ -533,6 +549,203 @@ def _is_cpuc_ignitions(execution: ToolExecution) -> bool:
 def _is_us_ignitions(execution: ToolExecution) -> bool:
     """True for US sample reads, including qualification companions."""
     return execution.summary.get("dataset") == "us_ignitions"
+
+
+def _incident_type_mode_used(execution: ToolExecution) -> str:
+    """The incident_type_mode a CAL FIRE result counted with.
+
+    The call's own ``incident_type_mode`` when it set one; otherwise the mode
+    the service reports in meta (``default_wildfire``, ``all``, ``untyped``,
+    ``explicit``); otherwise the default (comparisons and spatial summaries
+    always count the default).
+    """
+    mode = (execution.arguments or {}).get("incident_type_mode")
+    if mode in INCIDENT_TYPE_MODES:
+        return mode
+    reported = (execution.summary.get("metadata") or {}).get("incident_type_mode")
+    return {
+        "default_wildfire": DEFAULT_INCIDENT_TYPE_MODE,
+        "all": "all",
+        "untyped": "untyped",
+        "explicit": "explicit",
+    }.get(reported, DEFAULT_INCIDENT_TYPE_MODE)
+
+
+def _calfire_untyped_counts(executions: list[ToolExecution]) -> list[tuple[str, int]]:
+    """Non-zero counts of untyped incidents from counted CAL FIRE results, with
+    the incident_type_mode each result counted with.
+
+    Read from any primary result that reports the figure, so a spatial
+    summary's CAL FIRE count is covered as well as CAL FIRE reads.
+    """
+    counts: list[tuple[str, int]] = []
+    for item in executions:
+        if item.qualification_call:
+            continue
+        value = (item.summary.get("metadata") or {}).get(CALFIRE_UNTYPED_COUNTED_KEY)
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            counts.append((_incident_type_mode_used(item), value))
+    return counts
+
+
+def _untyped_text(counts: list[tuple[str, int]]) -> str:
+    """One sentence pair per incident_type_mode, each saying what that count read.
+
+    Only a default count excluded the non-wildfire types, so only its text
+    names them; an all-types count includes them and an untyped-only count
+    reads no typed incident at all.
+    """
+    by_mode: dict[str, list[int]] = {}
+    for mode, n in counts:
+        by_mode.setdefault(mode, []).append(n)
+    parts: list[str] = []
+    for mode, values in by_mode.items():
+        if len(values) == 1:
+            n = values[0]
+            lead = (
+                f"{n:,} of the counted CAL FIRE incidents has no incident type recorded"
+                if n == 1
+                else f"{n:,} of the counted CAL FIRE incidents have no incident type recorded"
+            )
+        else:
+            lead = (
+                "Counted CAL FIRE incidents with no incident type recorded: "
+                + ", ".join(f"{n:,}" for n in values)
+                + " across these results"
+            )
+        if mode == DEFAULT_INCIDENT_TYPE_MODE:
+            excluded = ", ".join(CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
+            tail = (
+                "CAL FIRE counts include every incident except the known "
+                f"non-wildfire types ({excluded}), so incidents with no type are counted."
+            )
+        elif mode == "all":
+            tail = (
+                "This count includes every incident type, non-wildfire types too, "
+                "so incidents with no type are counted."
+            )
+        elif mode == "untyped":
+            tail = "This count is of incidents with no type recorded only."
+        else:
+            tail = ""
+        parts.append(f"{lead}. {tail}".strip())
+    return " ".join(parts)
+
+
+def _counts_calfire(execution: ToolExecution) -> bool:
+    """A CAL FIRE read, or a spatial summary whose counts include CAL FIRE."""
+    if _uses_calfire(execution):
+        return True
+    counts = execution.summary.get("counts")
+    return isinstance(counts, dict) and "calfire_incidents" in counts
+
+
+def _utility_scoped(execution: ToolExecution) -> bool:
+    """A result filtered to, or compared across, utilities.
+
+    A utility argument (a named IOU, ``untagged``, or a territory for a
+    spatial summary), a utility comparison, or a period comparison scoped to
+    a utility.
+    """
+    args = execution.arguments or {}
+    if args.get("utility"):
+        return True
+    return execution.tool == "comparison_run" and (
+        args.get("kind") == "utilities" or args.get("scope_type") == "utility"
+    )
+
+
+_PLAIN_FILTER_TOOLS = frozenset({"data_query_records", "data_query_rank", "visualization_create"})
+
+
+def _plain_utility_filter(execution: ToolExecution) -> bool:
+    """A count of named utilities by their tag, untagged incidents not included.
+
+    A utility filter, a utility comparison, or a period comparison scoped to
+    one utility, counted by the tag (``ignition_definition`` attribute, the
+    comparison default for utilities). Such a result counts no untagged
+    incident, so the caveat states how many in the same period and scope it
+    leaves out. Territory summaries and spatial comparisons count by territory
+    and are not plain filters.
+    """
+    args = execution.arguments or {}
+    if execution.tool == "comparison_run":
+        utility_scope = args.get("kind") == "utilities" or args.get("scope_type") == "utility"
+        return utility_scope and args.get("ignition_definition") != "spatial"
+    utility = args.get("utility")
+    return (
+        execution.tool in _PLAIN_FILTER_TOOLS
+        and bool(utility)
+        and utility != "untagged"
+        and not args.get("include_untagged")
+    )
+
+
+def _calfire_untagged_excluded_counts(executions: list[ToolExecution]) -> list[int]:
+    """Non-zero counts of untagged incidents a plain utility filter left out."""
+    counts: list[int] = []
+    for item in executions:
+        if item.qualification_call or not (_uses_calfire(item) and _plain_utility_filter(item)):
+            continue
+        value = (item.summary.get("metadata") or {}).get(CALFIRE_UNTAGGED_EXCLUDED_KEY)
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            counts.append(value)
+    return counts
+
+
+def _untagged_excluded_text(counts: list[int]) -> str:
+    if len(counts) == 1:
+        n = counts[0]
+        if n == 1:
+            return (
+                "1 CAL FIRE incident in the same period and scope has no utility tag "
+                "recorded and is not counted toward any utility."
+            )
+        return (
+            f"{n:,} CAL FIRE incidents in the same period and scope have no utility tag "
+            "recorded and are not counted toward any utility."
+        )
+    return (
+        "CAL FIRE incidents in the same period and scope with no utility tag recorded, "
+        "not counted toward any utility: "
+        + ", ".join(f"{n:,}" for n in counts)
+        + " across these results."
+    )
+
+
+def _calfire_untagged_counts(executions: list[ToolExecution]) -> list[int]:
+    """Non-zero counts of untagged incidents from utility-scoped CAL FIRE results.
+
+    A plain utility filter counts none, so it is left to
+    ``_calfire_untagged_excluded_counts``.
+    """
+    counts: list[int] = []
+    for item in executions:
+        if item.qualification_call or not (_counts_calfire(item) and _utility_scoped(item)):
+            continue
+        if _plain_utility_filter(item):
+            continue
+        value = (item.summary.get("metadata") or {}).get(CALFIRE_UNTAGGED_COUNTED_KEY)
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            counts.append(value)
+    return counts
+
+
+def _untagged_text(counts: list[int]) -> str:
+    if len(counts) == 1:
+        n = counts[0]
+        lead = (
+            f"{n:,} of the counted CAL FIRE incidents has no utility tag recorded"
+            if n == 1
+            else f"{n:,} of the counted CAL FIRE incidents have no utility tag recorded"
+        )
+    else:
+        lead = (
+            "Counted CAL FIRE incidents with no utility tag recorded: "
+            + ", ".join(f"{n:,}" for n in counts)
+            + " across these results"
+        )
+    return f"{lead}, so the tag does not attribute them to any utility."
 
 
 def _calfire_multi_county_counts(executions: list[ToolExecution]) -> list[int]:

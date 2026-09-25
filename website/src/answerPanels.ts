@@ -1,7 +1,7 @@
 import type { AgentAnswer } from './api.ts';
 import type { PanelId } from './PanelPicker';
 import type { PanelSettings } from './state';
-import { CHART_DATASETS, DATASETS, utilityLabel } from './data.ts';
+import { CALFIRE_DEFAULT_MODE, CHART_DATASETS, DATASETS, utilityLabel } from './data.ts';
 
 interface AnswerPanel { type: PanelId; name: string; settings: Partial<PanelSettings> }
 
@@ -218,7 +218,7 @@ export function panelsFromAnswer(answer: AgentAnswer): AnswerPanel[] {
       continue;
     }
     if (!['map', 'time_series', 'record_table'].includes(view.type)
-      || (p.incident_type_mode && p.incident_type_mode !== 'wildfire_default')) continue;
+      || (p.incident_type_mode && p.incident_type_mode !== CALFIRE_DEFAULT_MODE)) continue;
     const ids = view.type === 'map' ? p.datasets : [p.dataset];
     if (!Array.isArray(ids) || ids.length !== 1) continue;
     const dataset = DATASETS.find(d => d.api === ids[0] || d.id === ids[0] || d.query === ids[0]);

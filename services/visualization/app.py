@@ -259,21 +259,21 @@ def map_layer(
         style = style_for("calfire")
         fc = queries.rows_to_feature_collection(rows, id_field="incident_id")
         extra_meta["incident_type_default"] = CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM
+        calfire_filters = {
+            "utility": util,
+            "county": county,
+            "year": year,
+            "start_date": start,
+            "end_date": end,
+            "min_acres": min_acres,
+            "incident_type": incident_type,
+            "bbox": bb,
+        }
+        extra_meta.update(queries.calfire_missing_counts(conn, **calfire_filters))
+        extra_meta.update(queries.calfire_untagged_excluded(conn, **calfire_filters))
         if county is not None:
             extra_meta.update(
-                multi_county_meta(
-                    queries.calfire_multi_county_count(
-                        conn,
-                        utility=util,
-                        county=county,
-                        year=year,
-                        start_date=start,
-                        end_date=end,
-                        min_acres=min_acres,
-                        incident_type=incident_type,
-                        bbox=bb,
-                    )
-                )
+                multi_county_meta(queries.calfire_multi_county_count(conn, **calfire_filters))
             )
     elif ds == "hftd":
         rows = queries.map_hftd(conn, tier=t)
@@ -410,20 +410,21 @@ def time_series(
         meta.update(US_IGNITIONS_META)
     else:
         meta["utility_filter_definition"] = "attribute"
-    if ds == "calfire" and county is not None:
-        meta.update(
-            multi_county_meta(
-                queries.calfire_multi_county_count(
-                    conn,
-                    utility=util,
-                    county=county,
-                    year=year if iv == "weekly" else None,
-                    start_date=start,
-                    end_date=end,
-                    incident_type=incident_type,
-                )
+    if ds == "calfire":
+        calfire_filters = {
+            "utility": util,
+            "county": county,
+            "year": year if iv == "weekly" else None,
+            "start_date": start,
+            "end_date": end,
+            "incident_type": incident_type,
+        }
+        meta.update(queries.calfire_missing_counts(conn, dated_only=True, **calfire_filters))
+        meta.update(queries.calfire_untagged_excluded(conn, dated_only=True, **calfire_filters))
+        if county is not None:
+            meta.update(
+                multi_county_meta(queries.calfire_multi_county_count(conn, **calfire_filters))
             )
-        )
     return {
         "dataset": ds,
         "interval": iv,

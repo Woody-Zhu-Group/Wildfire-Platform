@@ -41,6 +41,10 @@ const UTILITY_CODES_BY_LABEL: Record<string, string> = Object.fromEntries(
 );
 export const UTILITIES: string[] = naming.workspace_utilities;
 export const COUNTIES: string[] = naming.california_counties;
+// The CAL FIRE default counts every incident except these types; the agent
+// sends this incident_type_mode for it.
+export const CALFIRE_EXCLUDED_TYPES: string[] = naming.calfire_non_wildfire_incident_types;
+export const CALFIRE_DEFAULT_MODE: string = naming.calfire_default_incident_type_mode;
 export type Interval = 'daily' | 'weekly' | 'monthly' | 'quarterly';
 export type GroupBy = 'cause' | 'utility' | 'county';
 export interface Filters { start: string; end: string; county: string; utility: string }
@@ -99,7 +103,7 @@ export function unavailableReason(dataset: DatasetId, filters: Filters): string 
 }
 export function datasetNote(dataset: DatasetId) {
   if (dataset === 'cpuc') return 'Utility uses the source attribute; spatial territory counts can differ.';
-  if (dataset === 'calfire') return 'Wildfire / Fire records from the incident-map feed; reporting coverage varies across years.';
+  if (dataset === 'calfire') return `Incident-map feed records except ${CALFIRE_EXCLUDED_TYPES.join(', ')}; incidents with no type recorded are counted. Reporting coverage varies across years.`;
   if (dataset === 'epss') return `${soleUtility('epss') ?? 'No utility'} only. Counts are outage events, not unique circuits or customers.`;
   if (dataset === 'us_ignitions') return 'IRWIN / FireCastRL all-cause sample, not a national census or comparable to CPUC.';
   return 'PSPS event areas; affected customers may recur across events.';

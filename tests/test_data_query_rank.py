@@ -16,7 +16,7 @@ def test_rank_calfire_counties_2023_matches_sql(
             FROM wildfire.calfire_incidents,
                  LATERAL unnest(string_to_array(
                      COALESCE(NULLIF(TRIM(county), ''), '(unknown)'), ',')) AS part
-            WHERE incident_type IN ('Wildfire', 'Fire')
+            WHERE (incident_type IS NULL OR incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat'))
               AND EXTRACT(YEAR FROM date_only_created) = 2023
             GROUP BY 1
             ORDER BY n DESC, grp ASC
@@ -26,13 +26,13 @@ def test_rank_calfire_counties_2023_matches_sql(
         cur.execute(
             """
             SELECT COUNT(*) FROM wildfire.calfire_incidents
-            WHERE incident_type IN ('Wildfire', 'Fire')
+            WHERE (incident_type IS NULL OR incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat'))
               AND EXTRACT(YEAR FROM date_only_created) = 2023
               AND county LIKE '%,%'
             """
         )
         multi = int(cur.fetchone()[0])
-    assert expected, "warehouse has no 2023 CAL FIRE Wildfire/Fire rows"
+    assert expected, "warehouse has no 2023 CAL FIRE default rows"
     # A multi-county incident ranks in every county it lists, never as its own
     # "Monterey, San Luis Obispo" group.
     assert all("," not in row[0] for row in expected)

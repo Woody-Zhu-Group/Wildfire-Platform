@@ -19,6 +19,7 @@ from services.shared.epss_causes import cause_display_sql, cause_filter_sql, cau
 from services.shared.dataset_registry import (
     ALLOWED_RANK_PAIRS,
     CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
+    CALFIRE_UNTAGGED_EXCLUDED_KEY,
     GROUP_BY_FIELDS,
     GROUPED_DATASETS,
     MISSING_LABEL_RANK,
@@ -27,6 +28,10 @@ from services.shared.dataset_registry import (
     UTILITY_DISPLAY_LABELS,
     WORKSPACE_UTILITIES,
     calfire_default_type_sql,
+    calfire_incident_type_filter,
+    calfire_missing_counts_meta,
+    calfire_missing_counts_sql,
+    calfire_untyped_count_sql,
     coverage_summary,
     covered_utilities,
     dataset_coverage_gap,
@@ -325,8 +330,7 @@ def query_psps_event_circuits(
 
 # ---- CAL FIRE ----
 
-def query_calfire(
-    conn: psycopg.Connection,
+def _calfire_filter_where(
     *,
     utility: str | None,
     include_untagged: bool,
@@ -336,25 +340,10 @@ def query_calfire(
     end_date: date | None,
     min_acres: float | None,
     incident_type: str | None,
-    limit: int,
-    offset: int,
-) -> tuple[list[dict[str, Any]], int, dict[str, Any]]:
-    where = ["TRUE"]
-    params: list[Any] = []
-    type_mode = "default_wildfire"
-
-    if incident_type is None or incident_type.strip() == "":
-        where.append(_CALFIRE_DEFAULT_TYPE_SQL)
-        type_mode = "default_wildfire"
-    elif incident_type.strip().lower() == "all":
-        type_mode = "all"
-    elif incident_type.strip().lower() == "untyped":
-        where.append("c.incident_type IS NULL")
-        type_mode = "untyped"
-    else:
-        where.append("c.incident_type = %s")
-        params.append(incident_type.strip())
-        type_mode = "explicit"
+) -> tuple[str, list[Any], str]:
+    """CAL FIRE WHERE clause (alias c), its params, and the incident_type_mode."""
+    type_sql, params, type_mode = calfire_incident_type_filter("c.incident_type", incident_type)
+    where = [type_sql]
 
     if utility == "untagged":
         where.append("c.utility IS NULL")
@@ -381,8 +370,53 @@ def query_calfire(
     if min_acres is not None:
         where.append("c.acres_burned >= %s")
         params.append(min_acres)
+    return " AND ".join(where), params, type_mode
 
-    where_sql = " AND ".join(where)
+
+def _calfire_untagged_excluded_meta(
+    conn: psycopg.Connection, *, utility: str | None, include_untagged: bool, **filters: Any
+) -> dict[str, int]:
+    """For a plain utility filter (a named utility, untagged rows not included):
+    how many incidents in the same period and scope have no utility tag, and so
+    count toward no utility. Empty for any other utility scope."""
+    if utility is None or utility == "untagged" or include_untagged:
+        return {}
+    where_sql, params, _mode = _calfire_filter_where(
+        utility="untagged", include_untagged=False, **filters
+    )
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT count(*) FROM wildfire.calfire_incidents c WHERE {where_sql}", params
+        )
+        return {CALFIRE_UNTAGGED_EXCLUDED_KEY: int(cur.fetchone()[0] or 0)}
+
+
+def query_calfire(
+    conn: psycopg.Connection,
+    *,
+    utility: str | None,
+    include_untagged: bool,
+    county: str | None,
+    year: int | None,
+    start_date: date | None,
+    end_date: date | None,
+    min_acres: float | None,
+    incident_type: str | None,
+    limit: int,
+    offset: int,
+) -> tuple[list[dict[str, Any]], int, dict[str, Any]]:
+    scope = {
+        "county": county,
+        "year": year,
+        "start_date": start_date,
+        "end_date": end_date,
+        "min_acres": min_acres,
+        "incident_type": incident_type,
+    }
+    where_sql, params, type_mode = _calfire_filter_where(
+        utility=utility, include_untagged=include_untagged, **scope
+    )
+
     select_sql = f"""
         SELECT c.incident_id, c.incident_name, c.incident_type, c.acres_burned,
                c.containment, c.county, c.location, c.utility,
@@ -401,10 +435,29 @@ def query_calfire(
         "incident_type_mode": type_mode,
         "null_incident_type_count": null_incident_type_count(conn),
         "null_utility_records_in_table": null_utility_count(conn),
+        **_calfire_missing_meta(conn, where_sql, params),
+        **_calfire_untagged_excluded_meta(
+            conn, utility=utility, include_untagged=include_untagged, **scope
+        ),
     }
     if county is not None:
         extra.update(_calfire_multi_county_meta(conn, where_sql, params))
     return rows, total, extra
+
+
+def _calfire_missing_meta(
+    conn: psycopg.Connection, where_sql: str, params: list[Any]
+) -> dict[str, int]:
+    """How many incidents a CAL FIRE result (alias c) counted with no type
+    recorded, and with no utility tag."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT {calfire_missing_counts_sql('c')} "
+            f"FROM wildfire.calfire_incidents c WHERE {where_sql}",
+            params,
+        )
+        untyped, untagged = cur.fetchone()
+    return calfire_missing_counts_meta(untyped, untagged)
 
 
 def _calfire_multi_county_meta(
@@ -697,10 +750,24 @@ def spatial_summary(
               (SELECT count(*) FROM wildfire.calfire_incidents c, region r
                  WHERE ST_Within(c.geom, r.geom)
                    AND c.date_only_created BETWEEN %s AND %s
-                   AND {_CALFIRE_DEFAULT_TYPE_SQL}) AS calfire_incidents
+                   AND {_CALFIRE_DEFAULT_TYPE_SQL}) AS calfire_incidents,
+              (SELECT {calfire_untyped_count_sql('c.incident_type')}
+                 FROM wildfire.calfire_incidents c, region r
+                 WHERE ST_Within(c.geom, r.geom)
+                   AND c.date_only_created BETWEEN %s AND %s
+                   AND {_CALFIRE_DEFAULT_TYPE_SQL}) AS calfire_untyped,
+              (SELECT count(*) FROM wildfire.calfire_incidents c, region r
+                 WHERE ST_Within(c.geom, r.geom)
+                   AND c.utility IS NULL
+                   AND c.date_only_created BETWEEN %s AND %s
+                   AND {_CALFIRE_DEFAULT_TYPE_SQL}) AS calfire_untagged
             """,
             (
                 region_param,
+                start_date,
+                end_date,
+                start_date,
+                end_date,
                 start_date,
                 end_date,
                 start_date,
@@ -725,6 +792,9 @@ def spatial_summary(
             "calfire_counts_use_spatial_containment": True,
             "null_incident_type_count": null_incident_type_count(conn),
             "null_utility_records_in_table": null_utility_count(conn),
+            **calfire_missing_counts_meta(
+                counts.get("calfire_untyped"), counts.get("calfire_untagged")
+            ),
         },
     }
 
@@ -949,39 +1019,18 @@ def _rank_calfire_sql(
     end_date: date | None,
     incident_type: str | None,
 ) -> tuple[str, str, list[Any], dict[str, Any]]:
-    where = ["TRUE"]
-    params: list[Any] = []
-    type_mode = "default_wildfire"
-    if incident_type is None or incident_type.strip() == "":
-        where.append(_CALFIRE_DEFAULT_TYPE_SQL)
-    elif incident_type.strip().lower() == "all":
-        type_mode = "all"
-    elif incident_type.strip().lower() == "untyped":
-        where.append("c.incident_type IS NULL")
-        type_mode = "untyped"
-    else:
-        where.append("c.incident_type = %s")
-        params.append(incident_type.strip())
-        type_mode = "explicit"
-    if utility == "untagged":
-        where.append("c.utility IS NULL")
-    elif utility is not None:
-        if include_untagged:
-            where.append("(c.utility = %s OR c.utility IS NULL)")
-            params.append(utility)
-        else:
-            where.append("c.utility = %s")
-            params.append(utility)
-    if year is not None:
-        where.append("EXTRACT(YEAR FROM c.date_only_created) = %s")
-        params.append(year)
-    if start_date is not None:
-        where.append("c.date_only_created >= %s")
-        params.append(start_date)
-    if end_date is not None:
-        where.append("c.date_only_created <= %s")
-        params.append(end_date)
-    where_sql = " AND ".join(where)
+    scope = {
+        "county": None,
+        "year": year,
+        "start_date": start_date,
+        "end_date": end_date,
+        "min_acres": None,
+        "incident_type": incident_type,
+    }
+    where_sql, params, type_mode = _calfire_filter_where(
+        utility=utility, include_untagged=include_untagged, **scope
+    )
+
     agg = (
         "COALESCE(SUM(c.acres_burned), 0)"
         if metric == "acres_burned"
@@ -999,6 +1048,10 @@ def _rank_calfire_sql(
     extra = {
         "incident_type_mode": type_mode,
         **_calfire_multi_county_meta(conn, where_sql, params),
+        **_calfire_missing_meta(conn, where_sql, params),
+        **_calfire_untagged_excluded_meta(
+            conn, utility=utility, include_untagged=include_untagged, **scope
+        ),
     }
     select_sql, count_sql, params = _rank_wrap_sql(groups_sql, extra_cols=(), params=params)
     return select_sql, count_sql, params, extra
@@ -1423,6 +1476,8 @@ def query_grouped_counts(
         extra = _calfire_multi_county_meta(conn, where_sql, params)
         if calfire_by_county:
             extra["note"] = MULTI_COUNTY_NOTE
+    if dataset == "calfire_incidents":
+        extra.update(_calfire_missing_meta(conn, where_sql, params))
     return {"rows": rows, "total": total, **extra}
 
 
@@ -1564,6 +1619,8 @@ def query_summary(
     out: dict[str, Any] = {"total": total, "metrics": metrics}
     if dataset == "calfire_incidents" and county is not None:
         out.update(_calfire_multi_county_meta(conn, where_sql, params))
+    if dataset == "calfire_incidents":
+        out.update(_calfire_missing_meta(conn, where_sql, params))
     return out
 
 

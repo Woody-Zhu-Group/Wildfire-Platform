@@ -19,6 +19,7 @@ from services.data_query.filters import parse_dataset
 from services.shared.dataset_registry import (
     ALIASES,
     ALLOWED_RANK_PAIRS,
+    CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
     DATASETS,
     GROUPED_DATASETS,
     parse_viz_dataset,
@@ -74,7 +75,8 @@ def test_rank_accepts_every_alias(client, monkeypatch, alias):
 def test_rank_calfire_alias_echoes_the_default_incident_types(client, monkeypatch):
     monkeypatch.setattr(dq.queries, "query_rank", _recorder({}, ([], {"total": 0})))
     response = client.get("/rank", params={"dataset": "cal fire", "group_by": "county"})
-    assert response.json()["meta"]["filters"]["incident_type"] == "Wildfire,Fire"
+    assert response.json()["meta"]["filters"]["incident_type"] == CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM
+    assert CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM == "not Earthquake,Flood,Hazmat"
 
 
 @pytest.mark.parametrize("alias", ["us ignitions", "national_ignitions"])
@@ -142,6 +144,7 @@ def test_visualization_endpoint_accepts_cal_fire(monkeypatch):
             return [], 0
 
         monkeypatch.setattr(viz.queries, "map_calfire", fake_calfire)
+        monkeypatch.setattr(viz.queries, "calfire_missing_counts", lambda conn, **kwargs: {})
         response = client.get("/map-layer", params={"dataset": "cal fire", "year": 2024})
         assert response.status_code == 200, response.text
         assert called == ["calfire"]

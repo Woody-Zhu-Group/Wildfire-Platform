@@ -39,7 +39,11 @@ from services.agent.coverage import (
     named_utilities,
 )
 from services.shared.dataset_registry import (
+    CALFIRE_UNTAGGED_COUNTED_KEY,
+    CALFIRE_UNTAGGED_EXCLUDED_KEY,
+    CALFIRE_UNTYPED_COUNTED_KEY,
     COMPARISON_METRIC_DATASETS,
+    DEFAULT_INCIDENT_TYPE_MODE,
     call_definition,
     data_query_path,
     dataset_coverage_gap,
@@ -523,7 +527,7 @@ class ToolExecutor:
         if "bbox" in params:
             params["bbox"] = ",".join(str(v) for v in params["bbox"])
         incident_mode = params.pop("incident_type_mode", None)
-        if incident_mode and incident_mode != "wildfire_default":
+        if incident_mode and incident_mode != DEFAULT_INCIDENT_TYPE_MODE:
             params["incident_type"] = incident_mode
         if "tier" in params:
             params["tier"] = params["tier"]
@@ -534,7 +538,7 @@ class ToolExecutor:
     ) -> tuple[str, dict[str, Any]]:
         params = args.model_dump(mode="json", exclude_none=True)
         incident_mode = params.pop("incident_type_mode", None)
-        if incident_mode and incident_mode != "wildfire_default":
+        if incident_mode and incident_mode != DEFAULT_INCIDENT_TYPE_MODE:
             params["incident_type"] = incident_mode
         return self.settings.data_query_url + "/rank", params
 
@@ -558,7 +562,7 @@ class ToolExecutor:
         params = args.model_dump(mode="json", exclude_none=True)
         kind = params.pop("kind")
         incident_mode = params.pop("incident_type_mode", None)
-        if incident_mode and incident_mode != "wildfire_default":
+        if incident_mode and incident_mode != DEFAULT_INCIDENT_TYPE_MODE:
             params["incident_type"] = incident_mode
         if kind == "map":
             params.pop("interval", None)
@@ -1026,7 +1030,11 @@ def _select_metadata(meta: dict[str, Any]) -> dict[str, Any]:
         "notes",
         "epss_scope",
         "ignition_definition",
-        "calfire_incident_types",
+        "calfire_incident_type_default",
+        "calfire_excluded_incident_types",
+        CALFIRE_UNTYPED_COUNTED_KEY,
+        CALFIRE_UNTAGGED_COUNTED_KEY,
+        CALFIRE_UNTAGGED_EXCLUDED_KEY,
         "empty_reason",
         "multi_county_incidents",
     }

@@ -87,5 +87,11 @@
   "hftd_tiers": [
     "Tier 2",
     "Tier 3"
-  ]
+  ],
+  "calfire_non_wildfire_incident_types": [
+    "Earthquake",
+    "Flood",
+    "Hazmat"
+  ],
+  "calfire_default_incident_type_mode": "wildfire_default"
 }

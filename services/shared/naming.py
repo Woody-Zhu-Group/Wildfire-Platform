@@ -284,21 +284,107 @@ EPSS_UNKNOWN_CAUSE = "Unknown"
 # CAL FIRE incident types
 # ---------------------------------------------------------------------------
 
-# The default CAL FIRE population: these stored incident types.
-CALFIRE_DEFAULT_INCIDENT_TYPES: tuple[str, ...] = ("Wildfire", "Fire")
-# The default as a comma-separated parameter value, as echoed in meta.
-CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM = ",".join(CALFIRE_DEFAULT_INCIDENT_TYPES)
+# The default CAL FIRE population is every incident except the stored types
+# that are known not to be wildfires. Incidents with no type recorded are
+# counted (decision of 2026-09-24, docs/DATA_CHANGE_CALFIRE_DEFAULT.md).
+#
+# Measured on 2026-09-24 from the warehouse's distinct incident types
+# (SELECT incident_type, count(*) FROM wildfire.calfire_incidents GROUP BY 1):
+# Wildfire 2,471; no type (NULL) 1,234; Fire 38; Flood 2; Hazmat 1;
+# Earthquake 1. Wildfire and Fire are wildfires. The four excluded rows are
+# incidents CAL FIRE posted on its map that are not vegetation fires:
+#   Earthquake: "7.0 Earthquake" (2024-12-05), a USGS event off Petrolia.
+#   Flood: "Honey Flooding" (2018-11-30, Butte) and "Eaton Flood"
+#     (2025-02-13, Los Angeles), post-fire flooding.
+#   Hazmat: "Garden Grove HAZMAT" (2026-05-22, Orange), a hazardous
+#     materials call.
+# A type added to the feed later is counted until it is listed here;
+# ``db/loaders/validate.py`` prints any stored type in neither list below.
+CALFIRE_NON_WILDFIRE_INCIDENT_TYPES: tuple[str, ...] = ("Earthquake", "Flood", "Hazmat")
+# Stored types reviewed as wildfires (counted). Used only by load validation.
+CALFIRE_REVIEWED_WILDFIRE_INCIDENT_TYPES: tuple[str, ...] = ("Wildfire", "Fire")
+# The default as echoed in meta ``filters.incident_type``; also accepted
+# back as an incident_type filter value meaning the default.
+CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM = "not " + ",".join(CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
+# One-line description of the default for docs, meta, and the website.
+CALFIRE_DEFAULT_DESCRIPTION = (
+    "every incident except the non-wildfire types "
+    + ", ".join(CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
+    + "; incidents with no type recorded are counted"
+)
 # incident_type filter keywords, lowercase: no type filter, or NULL types.
 CALFIRE_INCIDENT_TYPE_KEYWORDS = frozenset({"all", "untyped"})
-# Agent ``incident_type_mode`` values; the first is the default.
+# Agent ``incident_type_mode`` values; the first is the default. The name
+# "wildfire_default" is kept (it is in the tool schema and the Jev payloads);
+# it means the default above.
 INCIDENT_TYPE_MODES: tuple[str, ...] = ("wildfire_default", "all", "untyped")
 DEFAULT_INCIDENT_TYPE_MODE = INCIDENT_TYPE_MODES[0]
+# Meta key on every CAL FIRE result: how many of the incidents it counted
+# have no incident type recorded.
+CALFIRE_UNTYPED_COUNTED_KEY = "untyped_incidents_counted"
+# Meta key on every CAL FIRE result: how many of the incidents it counted
+# have no utility tag.
+CALFIRE_UNTAGGED_COUNTED_KEY = "untagged_incidents_counted"
+# Meta key on a CAL FIRE result filtered to one named utility (untagged rows
+# not included): how many incidents in the same period and scope have no
+# utility tag, and so are counted toward no utility.
+CALFIRE_UNTAGGED_EXCLUDED_KEY = "untagged_incidents_excluded"
 
 
 def calfire_default_type_sql(column: str) -> str:
-    """WHERE fragment for the default incident types, e.g. ``c.incident_type IN ('Wildfire', 'Fire')``."""
-    quoted = ", ".join(f"'{value}'" for value in CALFIRE_DEFAULT_INCIDENT_TYPES)
-    return f"{column} IN ({quoted})"
+    """WHERE fragment for the default: every row except the non-wildfire types.
+
+    ``NOT IN`` alone drops NULL rows, so the fragment keeps them explicitly:
+    ``(c.incident_type IS NULL OR c.incident_type NOT IN ('Earthquake', ...))``.
+    """
+    quoted = ", ".join(f"'{value}'" for value in CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
+    return f"({column} IS NULL OR {column} NOT IN ({quoted}))"
+
+
+def calfire_counted_by_default(incident_type: str | None) -> bool:
+    """True when a row with this stored type is in the default population."""
+    return incident_type is None or incident_type not in CALFIRE_NON_WILDFIRE_INCIDENT_TYPES
+
+
+def calfire_untyped_count_sql(column: str) -> str:
+    """Aggregate: how many rows in the group have no incident type recorded."""
+    return f"COUNT(*) FILTER (WHERE {column} IS NULL)::bigint"
+
+
+def calfire_missing_counts_sql(alias: str = "c") -> str:
+    """Two aggregates for a CAL FIRE result: counted rows with no type, and with no utility tag.
+
+    Selected in that order; ``calfire_missing_counts_meta`` names them.
+    """
+    return (
+        f"{calfire_untyped_count_sql(f'{alias}.incident_type')}, "
+        f"COUNT(*) FILTER (WHERE {alias}.utility IS NULL)::bigint"
+    )
+
+
+def calfire_missing_counts_meta(untyped: int | None, untagged: int | None) -> dict[str, int]:
+    """Meta keys for the two counts ``calfire_missing_counts_sql`` selects."""
+    return {
+        CALFIRE_UNTYPED_COUNTED_KEY: int(untyped or 0),
+        CALFIRE_UNTAGGED_COUNTED_KEY: int(untagged or 0),
+    }
+
+
+def calfire_incident_type_filter(column: str, incident_type: str | None) -> tuple[str, list, str]:
+    """WHERE fragment, bound params, and ``incident_type_mode`` for a filter.
+
+    ``incident_type`` is what ``parse_incident_type`` returned: None for the
+    default, "all", "untyped", or one or more stored types, comma separated.
+    """
+    value = (incident_type or "").strip()
+    if value == "":
+        return calfire_default_type_sql(column), [], "default_wildfire"
+    if value.lower() == "all":
+        return "TRUE", [], "all"
+    if value.lower() == "untyped":
+        return f"{column} IS NULL", [], "untyped"
+    types = [part.strip() for part in value.split(",") if part.strip()]
+    return f"{column} = ANY(%s)", [types], "explicit"
 
 
 # The rows each ``incident_type_mode`` reads, as a WHERE predicate on the CAL
@@ -313,7 +399,9 @@ CALFIRE_INCIDENT_TYPE_MODE_SQL: dict[str, str | None] = {
 }
 CALFIRE_INCIDENT_TYPE_MODE_WORDS: dict[str, str] = {
     DEFAULT_INCIDENT_TYPE_MODE: (
-        "of the default incident types (" + ", ".join(CALFIRE_DEFAULT_INCIDENT_TYPES) + ")"
+        "of the default incident types (every type except "
+        + ", ".join(CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
+        + ")"
     ),
     "all": "of any incident type",
     "untyped": "with no incident type",

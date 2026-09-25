@@ -1,5 +1,7 @@
 # CAL FIRE 2023→2024 jump: reporting artifact, not a 4.6× fire year
 
+> **Default changed 2026-09-24.** Counts in this document use the CAL FIRE default of its time, `incident_type IN ('Wildfire', 'Fire')`. The default is now every incident except the non-wildfire types (Earthquake, Flood, Hazmat), so untyped incidents are counted; see [`../docs/DATA_CHANGE_CALFIRE_DEFAULT.md`](../docs/DATA_CHANGE_CALFIRE_DEFAULT.md) for every count that changes.
+
 **Warehouse:** PostGIS `localhost:5433/wildfire`, queried 2026-08-14.  
 **Repro:** `python analysis/calfire_2024_jump.py` (JSON beside this file).  
 **Source file:** sibling `dataset_demo/assets/data/calfire_incidents.csv` (3747 rows = table count).

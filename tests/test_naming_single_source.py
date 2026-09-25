@@ -3,7 +3,7 @@
 Fails if a module outside ``services/shared/dataset_registry.py`` and
 ``services/shared/naming.py`` defines its own list of utility, county, HFTD
 tier, or dataset names or aliases, EPSS cause codes, or the CAL FIRE default
-incident types. A module that needs one imports it from
+(the non-wildfire incident types it excludes). A module that needs one imports it from
 ``services.shared.dataset_registry``.
 
 What counts as a definition (string literals only; derived values are fine):
@@ -11,7 +11,9 @@ What counts as a definition (string literals only; derived values are fine):
 - a list, tuple, set, or dict, or the body of an Enum subclass (member names
   and values together), holding two or more utility spellings, two or more
   California county names, both HFTD tier names, two or more EPSS cause codes,
-  or both CAL FIRE default incident types ("Wildfire" and "Fire");
+  two or more of the CAL FIRE non-wildfire types ("Earthquake", "Flood",
+  "Hazmat"), or both types of the default before 2026-09-24 ("Wildfire"
+  and "Fire"), so a stale copy of the old default is caught too;
 - a dict that maps one dataset name or alias to another, maps dataset names
   to dataset labels the registry already defines, or maps two or more EPSS
   cause codes to their word forms;
@@ -19,8 +21,9 @@ What counts as a definition (string literals only; derived values are fine):
   with its literal parts joined) that names two or more utilities, two or
   more counties, or three or more datasets (two dataset words beside other
   nouns are usually a topic check, not a list);
-- a string that spells the CAL FIRE default as SQL or a parameter
-  (``'Wildfire', 'Fire'`` or ``Wildfire,Fire``).
+- a string that spells either CAL FIRE list as SQL or a parameter
+  (``'Flood', 'Hazmat'``, ``Earthquake,Flood``, ``'Wildfire', 'Fire'``, or
+  ``Wildfire,Fire``).
 
 A single name used in logic (``utility == "PGE"``) is not a definition. Prose
 is not a definition either (services/shared/README.md keeps caveat text,
@@ -34,8 +37,8 @@ Not scanned, on purpose: tests (they assert the values), ``analysis/``
 keeps unmodified, and ``frontend/assets/js`` (the legacy static map page, see
 services/shared/README.md). ``services/data_query/_smoke_test.py`` is a
 test script and asserts the values like the tests do. Each website source file is scanned as a whole
-for the county list, utility lists, and tier lists, so a list written one item
-per line is caught.
+for the county list, utility lists, tier lists, and the CAL FIRE non-wildfire
+types, so a list written one item per line is caught.
 """
 
 from __future__ import annotations
@@ -110,11 +113,17 @@ EPSS_CAUSE_CODES = {
     _fold(code) for code in (*reg.EPSS_CAUSE_CODE_WORDS, *reg.EPSS_CAUSE_CODES_LEFT_ALONE)
 }
 EPSS_CAUSE_PAIRS = {(_fold(code), _fold(word)) for code, word in reg.EPSS_CAUSE_CODE_WORDS.items()}
-# The stored CAL FIRE default types. Compared case-sensitively: lowercase
-# "fire" and "wildfire" are question words, not the stored values.
-CALFIRE_DEFAULT_TYPES = set(reg.CALFIRE_DEFAULT_INCIDENT_TYPES)
+# The stored CAL FIRE types the default excludes, and the two types the old
+# default kept (a copy of either list is a second definition). Compared
+# case-sensitively: lowercase "fire", "wildfire", and "flood" are question
+# words, not the stored values.
+CALFIRE_EXCLUDED_TYPES = set(reg.CALFIRE_NON_WILDFIRE_INCIDENT_TYPES)
+CALFIRE_OLD_DEFAULT_TYPES = set(reg.CALFIRE_REVIEWED_WILDFIRE_INCIDENT_TYPES)
+_EXCLUDED_ALT = "|".join(sorted(CALFIRE_EXCLUDED_TYPES))
 _CALFIRE_DEFAULT_STRING = re.compile(
-    r"""(['"])Wildfire\1\s*,\s*\1Fire\1|(?<![A-Za-z])Wildfire,Fire(?![A-Za-z])"""
+    r"""(['"])Wildfire\1\s*,\s*\1Fire\1|(?<![A-Za-z])Wildfire,Fire(?![A-Za-z])|"""
+    rf"""(['"])(?:{_EXCLUDED_ALT})\2\s*,\s*\2(?:{_EXCLUDED_ALT})\2|"""
+    rf"""(?<![A-Za-z])(?:{_EXCLUDED_ALT}),\s?(?:{_EXCLUDED_ALT})(?![A-Za-z])"""
 )
 
 # A regex word that is not inside a longer word; "\b" in the regex source
@@ -221,8 +230,10 @@ def _collection_problems(node: ast.AST) -> list[str]:
         problems.append("HFTD tier names")
     if len(_hits(values, EPSS_CAUSE_CODES)) >= 2:
         problems.append(f"EPSS cause codes {sorted(_hits(values, EPSS_CAUSE_CODES))}")
-    if CALFIRE_DEFAULT_TYPES <= set(values):
-        problems.append("CAL FIRE default incident types")
+    if len(CALFIRE_EXCLUDED_TYPES & set(values)) >= 2:
+        problems.append("CAL FIRE default incident types (non-wildfire list)")
+    if CALFIRE_OLD_DEFAULT_TYPES <= set(values):
+        problems.append("CAL FIRE default incident types (old Wildfire/Fire pair)")
     if isinstance(node, ast.Dict):
         pairs = [
             (k.value, v.value)
@@ -341,6 +352,8 @@ def _website_problems(text: str) -> list[str]:
         problems.append(f"utility names {sorted(raw & WEBSITE_UTILITY_WORDS)}")
     if quoted & TIER_WORDS == TIER_WORDS:
         problems.append("HFTD tier names")
+    if len(raw & CALFIRE_EXCLUDED_TYPES) >= 2:
+        problems.append("CAL FIRE default incident types (non-wildfire list)")
     return problems
 
 
@@ -390,6 +403,10 @@ def test_the_guard_catches_a_copied_list():
         'X = ("Wildfire", "Fire")': "CAL FIRE default incident types",
         "X = \"WHERE incident_type IN ('Wildfire', 'Fire')\"": "CAL FIRE default incident types",
         'X = {"incident_type": "Wildfire,Fire"}': "CAL FIRE default incident types",
+        'X = ("Earthquake", "Flood", "Hazmat")': "CAL FIRE default incident types",
+        'X = frozenset({"Flood", "Hazmat"})': "CAL FIRE default incident types",
+        "X = \"incident_type NOT IN ('Earthquake', 'Flood', 'Hazmat')\"": "CAL FIRE default incident types",
+        'X = {"incident_type": "not Earthquake,Flood,Hazmat"}': "CAL FIRE default incident types",
     }
     for source, expected in samples.items():
         found = [problem for _, problem in _tree_problems(ast.parse(source))]
@@ -399,6 +416,7 @@ def test_the_guard_catches_a_copied_list():
         "export const U = [\n  'PGE',\n  'SCE',\n];": "utility names",
         "const T = [\n  'Tier 2',\n  'Tier 3',\n];": "HFTD tier names",
         "const C = [\n  'Butte',\n  'Lake',\n  'Shasta',\n];": "county names",
+        "const X = [\n  'Earthquake',\n  'Flood',\n];": "CAL FIRE default incident types",
     }
     for source, expected in website_samples.items():
         found = _website_problems(source)

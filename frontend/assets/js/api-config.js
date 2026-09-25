@@ -19,7 +19,8 @@ window.WILDFIRE_DATA_QUERY_BASE = "http://127.0.0.1:8000";
 /**
  * CAL FIRE incident_type query value for /map-layer and /time-series.
  * - "all" during A/B verification against static CSV (website has no type filter)
- * - "" (omit / API default Wildfire+Fire) after verification for the wildfire demo
+ * - "" (omit / API default: every incident except the non-wildfire types,
+ *   docs/DATA_CHANGE_CALFIRE_DEFAULT.md) after verification for the wildfire demo
  * See frontend/VERIFICATION.md — switched to wildfire default after verification.
  */
 window.WILDFIRE_CALFIRE_INCIDENT_TYPE = "";
