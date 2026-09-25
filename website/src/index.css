@@ -309,13 +309,13 @@ html.is-reordering-panels, html.is-reordering-panels * { cursor: grabbing !impor
 .chat-message.user { max-width: min(90%, 672px); }
 .chat-message-copy, .chat-message.assistant .answer-view-notice, .chat-message.assistant .tool-trace { max-width: 672px; }
 .inline-answer-views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 16px 0 4px; }
+.inline-answer-views:has(> :only-child) { grid-template-columns: minmax(0, 1fr); max-width: 672px; }
 .inline-view { display: flex; flex-direction: column; min-width: 0; height: 320px; overflow: hidden; border: 1px solid var(--overlay-14); border-radius: 14px; background: var(--surface); }
 .inline-view-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; min-height: 56px; padding: 13px 15px 8px; }
 .inline-view-heading > div { min-width: 0; }
 .inline-view-heading h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; }
 .inline-view-heading p { margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
 .inline-view-heading > span { flex-shrink: 0; color: var(--muted-strong); font-size: 10px; }
-.inline-view.is-previous .inline-view-heading > span { color: var(--muted); }
 .inline-view-content { flex: 1; min-height: 0; overflow: hidden; pointer-events: none; }
 .inline-view-content :is(.map-toolbar, .map-legend, .map-layers, .analysis-heading, .chart-filter-drawer, .comparison-toolbar, .series-readout, .overview-more, .live-map > .panel-note) { display: none; }
 .inline-view-content .series-panel { padding: 8px 10px; }

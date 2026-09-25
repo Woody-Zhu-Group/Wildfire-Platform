@@ -3,7 +3,6 @@ import { EventMap } from './EventMap';
 import { TimeSeries, Comparison } from './AnalysisCharts';
 import type { PanelInstance } from './PanelPicker';
 import { PanelContext } from './state';
-import type { InlineAnswerView } from './inlineViews.ts';
 
 const CONTENT = { map: EventMap, time_series: TimeSeries, comparison: Comparison };
 
@@ -19,7 +18,7 @@ function viewTitle(panel: PanelInstance): string {
   return panel.type === 'map' ? 'Event map' : panel.type === 'time_series' ? 'Event trends' : 'Comparison';
 }
 
-function InlineViewCard({ view, onOpen }: { view: InlineAnswerView; onOpen: (panel: PanelInstance) => void }) {
+function InlineViewCard({ panel, onOpen }: { panel: PanelInstance; onOpen: (panel: PanelInstance) => void }) {
   const host = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -30,11 +29,10 @@ function InlineViewCard({ view, onOpen }: { view: InlineAnswerView; onOpen: (pan
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  const { panel, updated } = view;
   const Content = CONTENT[panel.type as keyof typeof CONTENT];
   const title = viewTitle(panel);
-  return <article ref={host} className={`inline-view${updated ? '' : ' is-previous'}`}>
-    <header className="inline-view-heading"><div><h3>{title}</h3><p>{viewScope(panel)}</p></div><span>{updated ? 'Updated' : 'Previous view'}</span></header>
+  return <article ref={host} className="inline-view">
+    <header className="inline-view-heading"><div><h3>{title}</h3><p>{viewScope(panel)}</p></div><span>Updated</span></header>
     <div className="inline-view-content" inert>
       {visible && <PanelContext.Provider value={{ settings: panel.settings, update: () => {}, expanded: false, expand: () => onOpen(panel), actionsHost: null, title }}><Content /></PanelContext.Provider>}
     </div>
@@ -42,9 +40,9 @@ function InlineViewCard({ view, onOpen }: { view: InlineAnswerView; onOpen: (pan
   </article>;
 }
 
-export function InlineAnswerViews({ views, onOpen }: { views: InlineAnswerView[]; onOpen: (panel: PanelInstance) => void }) {
+export function InlineAnswerViews({ views, onOpen }: { views: PanelInstance[]; onOpen: (panel: PanelInstance) => void }) {
   if (!views.length) return null;
   return <div className="inline-answer-views" aria-label="Charts shown with this answer">
-    {views.map(view => <InlineViewCard key={view.panel.id} view={view} onOpen={onOpen} />)}
+    {views.map(panel => <InlineViewCard key={panel.id} panel={panel} onOpen={onOpen} />)}
   </div>;
 }
