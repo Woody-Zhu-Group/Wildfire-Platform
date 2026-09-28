@@ -20,6 +20,7 @@ from services.shared.dataset_registry import (
     covered_utilities,
 )
 from services.shared.epss_causes import cause_display_sql, cause_filter_sql, cause_variants
+from services.shared.time_adapter import date_window
 from services.visualization.styles import acres_radius_hint
 
 
@@ -152,9 +153,7 @@ def map_epss_circuits(
 
     where = ["TRUE"]
     params: list[Any] = []
-    if year is not None:
-        where.append("e.year = %s")
-        params.append(year)
+    start_date, end_date = date_window(year, start_date, end_date)
     if start_date is not None:
         where.append("e.start_date >= %s")
         params.append(start_date)
@@ -238,7 +237,7 @@ def map_epss_circuits(
         cur.execute(
             f"""
             WITH filtered AS (
-              SELECT e.circuit_id, e.circuit, e.year, e.start_date
+              SELECT e.circuit_id, e.circuit, extract(year FROM e.start_date)::int AS year, e.start_date
               FROM wildfire.epss_outages e
               WHERE {where_sql}
             ),
@@ -536,9 +535,7 @@ def time_series_dates(
             params = []
             if utility and utility not in covered_utilities("epss_outages"):
                 return []
-            if year is not None:
-                where.append("year = %s")
-                params.append(year)
+            start_date, end_date = date_window(year, start_date, end_date)
             if start_date:
                 where.append("start_date >= %s")
                 params.append(start_date)
@@ -634,9 +631,7 @@ def _epss_outages_for_circuit(
 ) -> list[dict]:
     where = ["circuit_id = %s"]
     params: list[Any] = [circuit_id]
-    if year is not None:
-        where.append("year = %s")
-        params.append(year)
+    start_date, end_date = date_window(year, start_date, end_date)
     if start_date is not None:
         where.append("start_date >= %s")
         params.append(start_date)

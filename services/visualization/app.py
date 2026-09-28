@@ -370,7 +370,7 @@ def time_series(
         conn,
         ds,
         utility=util,
-        year=year if iv == "weekly" else None,
+        year=year if iv == "weekly" or ds == "epss" else None,
         start_date=start,
         end_date=end,
         county=county,
