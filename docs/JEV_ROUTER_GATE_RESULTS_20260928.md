@@ -47,9 +47,21 @@ the #108 change questions, even though Jev correctly reads `compare`. An agent
 handoff is also not proof that the final answer will be correct. The 180 trials
 are repetitions of 36 questions, not 180 independent questions or an OOS claim.
 
+V3 retains all **70/70 valid original deterministic plans**, whereas the new
+gate retains 21/70. V3 also retains **25 incomplete original plans** under the
+development set's router-fit labels: five repeats each of v4_001, v4_002,
+v4_003 (span totals for change questions), v4_018 (map without its requested
+trend), and v4_036 (utility scalar instead of a restricted statewide grid).
+These are plan-level findings, not 25 executed production answers. They explain
+why strong intent and disposition scores alone do not resolve issue #108.
+
 ## Does the new gate correctly judge the router plan?
 
 - Raw proposal-fit labels: **139/180 correct (77.2%)**, mean confidence **0.680**.
+- This matched-payload evaluation collected labels even for guarded questions.
+  The runtime would skip Jev for those questions. On the actually eligible
+  subset, proposal-fit labels are **129/150 correct (86.0%)**. Both denominators
+  are reported; neither changes the exact-plan retention result below.
 - Four raw mistaken acceptances all concerned the SCE-restricted statewide
   risk-grid request. Their confidence was only 0.02 to 0.27, so the 0.9 acceptance
   gate prevented those exact calls from executing.

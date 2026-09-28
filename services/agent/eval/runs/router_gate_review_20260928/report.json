@@ -1288,6 +1288,8 @@
   "router_fit": {
     "n": 180,
     "correct": 139,
+    "eligible_n": 150,
+    "eligible_correct": 129,
     "unsafe_accepts": [
       {
         "id": "v4_036",

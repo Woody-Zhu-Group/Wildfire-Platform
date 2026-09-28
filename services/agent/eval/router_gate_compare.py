@@ -108,6 +108,8 @@ def summarize(cases: dict, records: list[dict]) -> dict:
     fit = {
         "n": 0,
         "correct": 0,
+        "eligible_n": 0,
+        "eligible_correct": 0,
         "unsafe_accepts": [],
         "unnecessary_rejects": [],
         "confidences": [],
@@ -148,6 +150,11 @@ def summarize(cases: dict, records: list[dict]) -> dict:
             fit["correct"] += int(
                 label == case["expected_router_fit"] and not record["error"]
             )
+            if not router_gate.exemption(proposal, case["question"]):
+                fit["eligible_n"] += 1
+                fit["eligible_correct"] += int(
+                    label == case["expected_router_fit"] and not record["error"]
+                )
             if reading.get("confidence") is not None:
                 fit["confidences"].append(reading["confidence"])
             if label != case["expected_router_fit"]:
