@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import asdict
 from datetime import date
 from typing import Any
 
@@ -81,6 +82,39 @@ def _confidence(answers: dict, name: str) -> float:
     )
 
 
+def highest_choices(answers: dict) -> dict:
+    """Select maximal-probability labels without changing reported confidence.
+
+    Keep the provider's choice on a maximum-probability tie; otherwise break
+    ties by label. Missing or malformed probabilities cannot supply a choice.
+    """
+    selected = {}
+    for name, answer in answers.items():
+        item = dict(answer) if isinstance(answer, dict) else asdict(answer)
+        if item.get("kind") == "choice":
+            probabilities = item.get("probabilities")
+            if not probabilities or any(
+                not isinstance(p, (int, float))
+                or not math.isfinite(p)
+                or not 0 <= p <= 1
+                for p in probabilities.values()
+            ):
+                raise ValueError(f"No valid choice probabilities for {name}")
+            maximum = max(probabilities.values())
+            if maximum == 0:
+                raise ValueError(f"No positive choice probability for {name}")
+            winners = sorted(
+                label
+                for label, probability in probabilities.items()
+                if probability == maximum
+            )
+            item["value"] = (
+                item["value"] if item.get("value") in winners else winners[0]
+            )
+        selected[name] = item
+    return selected
+
+
 def decide_from_answers(
     question: str,
     answers: dict | None,
@@ -89,6 +123,7 @@ def decide_from_answers(
     answer_gate: float = 0.9,
     error: str | None = None,
     today: date | None = None,
+    use_confidence: bool = True,
 ) -> RouteDecision:
     """Pure v4 policy, shared by live execution, scripted tests and replay.
 
@@ -98,8 +133,15 @@ def decide_from_answers(
     today = today or date.today()
     slots, time = question_context(question, today=today)
     answers = answers or {}
+    if not use_confidence and answers and not error:
+        answers = highest_choices(answers)
     intent = _value(answers, "intent")
     intent_confidence = _confidence(answers, "intent")
+
+    def certain(name: str, threshold: float) -> bool:
+        return not use_confidence or _confidence(answers, name) >= threshold
+
+    truth_threshold = gate if use_confidence else 0.5
 
     def finish(
         path: str, rule: str, text: str = "", *, confidence=None, calls=None, why="gate"
@@ -118,6 +160,10 @@ def decide_from_answers(
             "jev_intent": intent,
             "jev_intent_confidence": intent_confidence,
         }
+        if not use_confidence:
+            slots["jev_decide"]["selection"] = "argmax_without_confidence_gate"
+            if why == "gate":
+                slots["jev_decide"]["why"] = "argmax"
         return RouteDecision(
             path,
             rule,
@@ -163,7 +209,7 @@ def decide_from_answers(
         if _value(answers, name) not in specs[name].criteria:
             return uncertain()
     topic = _value(answers, "off_topic")
-    if topic in _TOPICS and _confidence(answers, "off_topic") >= gate:
+    if topic in _TOPICS and certain("off_topic", gate):
         rule = _TOPICS[topic]
         text = (
             "This service reports historical data; it does not give recommendations or judgments about blame, responsibility, or penalties."
@@ -176,30 +222,35 @@ def decide_from_answers(
         return finish(
             "unsupported", rule, text, confidence=_confidence(answers, "off_topic")
         )
-    if topic != "on_topic" or _confidence(answers, "off_topic") < answer_gate:
+    if topic != "on_topic" or not certain("off_topic", answer_gate):
         return uncertain()
     for name, rule in (
         ("prompt_injection", "prompt_injection"),
         ("future_time", "unsupported_future_prediction"),
     ):
         value = _value(answers, name)
-        if not isinstance(value, (float, int)) or _confidence(answers, name) < gate:
+        if (
+            not isinstance(value, (float, int))
+            or not math.isfinite(value)
+            or not 0 <= value <= 1
+            or not certain(name, gate)
+        ):
             return uncertain()
-        if value >= gate:
+        if value >= truth_threshold:
             return finish(
                 "unsupported",
                 rule,
                 "This service can only answer supported historical wildfire data questions.",
                 confidence=_confidence(answers, name),
             )
-        if _confidence(answers, name) < answer_gate:
+        if not certain(name, answer_gate):
             return uncertain()
-    if intent == "other" or intent_confidence < gate:
+    if intent == "other" or not certain("intent", gate):
         return uncertain()
 
     dataset = _value(answers, "dataset")
     measure = _value(answers, "measure")
-    if _confidence(answers, "dataset") < gate or _confidence(answers, "measure") < gate:
+    if not certain("dataset", gate) or not certain("measure", gate):
         return uncertain()
     if slots["dataset"] and dataset not in {slots["dataset"], "multiple", "none"}:
         return clarify(
@@ -216,11 +267,16 @@ def decide_from_answers(
         ("vague_proximity", "undefined_spatial_scope"),
     ):
         value = _value(answers, fact)
-        if not isinstance(value, (float, int)) or _confidence(answers, fact) < gate:
+        if (
+            not isinstance(value, (float, int))
+            or not math.isfinite(value)
+            or not 0 <= value <= 1
+            or not certain(fact, gate)
+        ):
             return uncertain()
-        if value >= gate:
+        if value >= truth_threshold:
             return clarify(rule, why="gate", confidence=_confidence(answers, fact))
-        if _confidence(answers, fact) < answer_gate:
+        if not certain(fact, answer_gate):
             return uncertain()
     if time.status in {"ambiguous", "out_of_coverage"}:
         return clarify(
@@ -305,7 +361,7 @@ def decide_from_answers(
         group = _value(answers, "rank_dimension")
         metric = "acres_burned" if measure == "acres_burned" else "count"
         if (
-            _confidence(answers, "rank_dimension") < gate
+            not certain("rank_dimension", gate)
             or (dataset, group, metric) not in ALLOWED_RANK_PAIRS
         ):
             return clarify("unsupported_ranking")
@@ -340,10 +396,7 @@ def decide_from_answers(
                 "The model grid is statewide. Please request the statewide grid or a supported point, county, or utility risk score.",
             )
         kind = _value(answers, "risk_map_kind")
-        if (
-            kind not in {"risk", "residual"}
-            or _confidence(answers, "risk_map_kind") < gate
-        ):
+        if kind not in {"risk", "residual"} or not certain("risk_map_kind", gate):
             return uncertain()
         slots["map_mode"] = kind
         return finish(

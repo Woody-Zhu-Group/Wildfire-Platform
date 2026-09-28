@@ -1,5 +1,10 @@
 # Router-gate classification comparison, 2026-09-28
 
+Follow-up: [removing v4's confidence gates](JEV_V4_ARGMAX_RESULTS_20260928.md)
+raises its broad disposition agreement to 169/180 on the same captured answers.
+The original results below are retained; the earlier v4 conclusion applies to
+its gated policy, not to the top-choice predictions alone.
+
 **Recommendation: keep production on v3 `decide`. Do not deploy either
 experimental policy yet.** The new gate avoids the reported span-count mistake,
 but it rejects too many valid exact plans. The previous v4 policy over-clarifies.

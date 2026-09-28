@@ -5,6 +5,8 @@ rejected replacing production v3. `decide` retains v3; the new experiment is
 `router_gate`, documented in [JEV_ROUTER_GATE.md](JEV_ROUTER_GATE.md).
 The v4 policy and runner below are retained only as a comparison baseline.
 The following sections describe the previous prototype, not deployed behavior.
+An offline [argmax ablation](JEV_V4_ARGMAX_RESULTS_20260928.md) disables confidence
+gates while keeping the same captured responses and structural checks.
 
 With `AGENT_JEV_MODE=decide`, Jev owns semantic intent and disposition. The
 runtime does not call `route_question`, its keyword candidate selector, or the
