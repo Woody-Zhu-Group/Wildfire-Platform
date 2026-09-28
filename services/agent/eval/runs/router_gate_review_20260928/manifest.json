@@ -1,0 +1,6 @@
+{
+  "case_file": "services/agent/eval/router_gate_cases.json",
+  "case_hash": "8fb08f3ff818c06cf352fa290cca0fb047f5cdcf951bf0b646ea4fdf15ba3a79",
+  "repeats": 5,
+  "model": "typesafe/jev-1.13-20260917"
+}
