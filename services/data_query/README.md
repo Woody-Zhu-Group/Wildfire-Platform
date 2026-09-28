@@ -2,6 +2,10 @@
 
 FastAPI read API over the `wildfire` PostGIS schema.
 
+EPSS `year` filters count by the year of `start_date`. Explicit date bounds
+intersect the year filter; returned `year` fields retain the source value.
+See [EPSS date semantics](../../docs/DATA_CHANGE_EPSS_YEAR.md).
+
 ## Run
 
 ```bash

@@ -16,6 +16,7 @@ from services.shared.calfire_county import (
     multi_county_meta,
 )
 from services.shared.epss_causes import cause_display_sql, cause_filter_sql, cause_variants
+from services.shared.time_adapter import date_window
 from services.shared.dataset_registry import (
     ALLOWED_RANK_PAIRS,
     CALFIRE_DEFAULT_INCIDENT_TYPE_PARAM,
@@ -228,9 +229,7 @@ def query_epss(
     if county is not None:
         where.append("lower(e.county) = lower(%s)")
         params.append(county)
-    if year is not None:
-        where.append("e.year = %s")
-        params.append(year)
+    start_date, end_date = date_window(year, start_date, end_date)
     if start_date is not None:
         where.append("e.start_date >= %s")
         params.append(start_date)
@@ -1087,9 +1086,7 @@ def _rank_epss_sql(
     if county is not None:
         where.append("lower(e.county) = lower(%s)")
         params.append(county)
-    if year is not None:
-        where.append("e.year = %s")
-        params.append(year)
+    start_date, end_date = date_window(year, start_date, end_date)
     if start_date is not None:
         where.append("e.start_date >= %s")
         params.append(start_date)

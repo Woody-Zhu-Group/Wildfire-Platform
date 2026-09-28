@@ -564,3 +564,16 @@ error fallback), so the pass ran through the OpenRouter backend with the same Je
 (`AGENT_JEV_BACKEND=openrouter`, `AGENT_JEV_MODEL=typesafe/jev-1.13-20260917`). 137 of 137
 final decisions match the TypeSafe replay, 136 of 137 Jev dispositions match, 0 errors, Jev
 asked on 113 (24 exempt), p50 381 ms and p95 646 ms per question when asked, $0.029.
+
+## Written month-range endpoints
+
+On the model path, a Jev `compare` or `trend` reading at the decline gate
+protects the first and last calendar months of a written month range. Each
+endpoint is both a protected call window and a `month:YYYY-MM` coverage item,
+so one call per turn works the same as both calls in one turn. A missing
+endpoint cannot produce a completed comparison. This also covers two months
+within one year and uses the actual last day of each month.
+
+With Jev off, below the gate, or reading `count`, a lone month call still
+expands to the resolved span. Year-endpoint behavior and deterministic routing
+are unchanged; issue #108's deterministic span-count conflict is separate.

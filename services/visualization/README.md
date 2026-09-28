@@ -4,6 +4,11 @@ FastAPI helpers that mirror `dataset_demo` map/chart conventions: styled GeoJSON
 
 ## Run
 
+EPSS map, time-series and circuit-detail year filters use `start_date`, with
+explicit date bounds intersected through the shared time adapter. Map summary
+`years` follows that date; embedded outage `year` retains the source value.
+See [EPSS date semantics](../../docs/DATA_CHANGE_EPSS_YEAR.md).
+
 ```bash
 # PostGIS up + loaded
 docker compose up -d
