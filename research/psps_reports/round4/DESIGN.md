@@ -159,3 +159,13 @@ Decided on 2026-09-28, after the design was committed and before any round 4 cod
 **Spend controls for Sol:**
 - One minimal Sol call runs before the first development run. A 402 or any credit error stops the round.
 - The OpenRouter allowance is $6.92. If the projection (development plus test plus queue, times 1.5) is above it, the round stops before any more Sol calls. The allowance is recorded in `freeze.json`.
+
+**Added after the first list (same day, still before any round 4 code or model call):**
+
+5. **Special items get their own session where they would expose Jev's answers.** The categorical values in `round3/dataset.csv` are Jev's answers, so `current_values.json` must never share a packet with blind items. On the 20 reports that have both (18 in the queue run, 2 in development), each reviewer runs two sessions: one packet with the blind items and no current values, and a second packet with only the special items and `current_values.json`. Every other report keeps one session.
+6. **Smaller additions:**
+   - The answer format gets a `search_terms` field, where `not_stated` and `null` answers record the searches they ran.
+   - When an event has two correction letters (items 4 and 7), they go in `correction/` and `correction2/`, and Sol's `document` argument takes the same names.
+   - The quote check removes all whitespace, rather than collapsing it, so a quote still matches across a line-break hyphen ("de-\nenergizing").
+   - Categorical test items that are not in the queue get the pages Jev was shown as `page_refs`, read only from the page lists in `round3/runs/jev.jsonl`. Numeric test items get no `page_refs`.
+   - Development also runs the 3 special items on the round 1 reports (items 9, 21, and 25).
