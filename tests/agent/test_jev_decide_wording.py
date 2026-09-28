@@ -110,16 +110,16 @@ def _decide_settings(tmp_path):
 
 
 def test_santa_rosa_end_to_end_response_and_stream(tmp_path, capsys):
-    orchestrator = _orchestrator(_decide_settings(tmp_path), FakeBackend(_answer_facts(**NEAR_NO_PLACE)))
+    orchestrator = _orchestrator(_decide_settings(tmp_path), FakeBackend(_answer_facts(dataset=_choice("psps_events"), **NEAR_NO_PLACE)))
     events = []
 
     async def on_event(name, data):
         events.append((name, data))
 
     response = asyncio.run(orchestrator.ask(SANTA_ROSA, on_event=on_event)).response
-    router = route_question(SANTA_ROSA)
     assert response["status"] == "clarification"
-    assert response["answer_text"] == router.answer
+    assert response["answer_text"].startswith(_REASON_TEXT["undefined_spatial_scope"])
+    assert "year or date range" in response["answer_text"]
     assert response["route"]["rule"] == "undefined_spatial_scope"
     # decision_source (PR #71) still reports Jev's clarify disposition and confidence.
     assert response["decision_source"]["source"] == "jev"
@@ -127,11 +127,11 @@ def test_santa_rosa_end_to_end_response_and_stream(tmp_path, capsys):
     assert response["decision_source"]["confidence"] == pytest.approx(0.95)
     routing = next(data for name, data in events if name == "routing")
     assert routing["decision_source"] == response["decision_source"]
-    # Same disposition, different reason: Jev's reason is written to the log.
+    # The runtime log describes the v4 decision, with no second semantic route.
     logged = [json.loads(line) for line in capsys.readouterr().out.splitlines() if '"jev_decide"' in line]
-    assert logged and logged[0]["jev"]["rule"] == "missing_location"
+    assert logged and logged[0]["jev_rule"] == "undefined_spatial_scope"
     on_disk = [json.loads(line) for line in (tmp_path / "jev.jsonl").read_text().splitlines()]
-    assert on_disk[0]["wording"] == "router"
+    assert on_disk[0]["schema_version"] == "v4" and "router" not in on_disk[0]
 
 
 def test_agreement_summary_carries_confidence(tmp_path):
@@ -145,7 +145,7 @@ def test_agreement_summary_carries_confidence(tmp_path):
     orchestrator._ask_routed = routed
     asyncio.run(orchestrator.ask(COUNT_Q))
     summary = seen["decision"].slots["jev_decide"]
-    assert summary["why"] == "agree" and summary["jev_confidence"] == pytest.approx(0.95)
+    assert summary["why"] == "gate" and summary["jev_confidence"] == pytest.approx(0.95)
     # decision_source (PR #71) now carries that confidence for an agreed answer.
-    assert seen["decision"].slots["decision_source"]["jev_confidence"] == pytest.approx(0.95)
+    assert seen["decision"].slots["decision_source"]["confidence"] == pytest.approx(0.95)
 

@@ -329,7 +329,7 @@ def _month_of(day: date) -> str:
     return f"{day.year}-{day.month:02d}"
 
 
-def _months_covered(arguments: dict[str, Any], named: list[str]) -> set[str]:
+def _months_covered(arguments: dict[str, Any], named: list[str], *, series: bool = False) -> set[str]:
     """Named months (``YYYY-MM``) a call reads, when it reads nothing else.
 
     A call covers a named month when its window overlaps that month and lies
@@ -349,9 +349,9 @@ def _months_covered(arguments: dict[str, Any], named: list[str]) -> set[str]:
     while day <= end:
         months.append(_month_of(day))
         day = date(day.year + 1, 1, 1) if day.month == 12 else date(day.year, day.month + 1, 1)
-    if any(month not in named for month in months):
+    if not series and any(month not in named for month in months):
         return set()
-    return set(months)
+    return set(months) & set(named)
 
 
 def _covered(arguments: dict[str, Any], tool: str) -> dict[str, set[Any]]:
@@ -406,7 +406,11 @@ def uncovered_entities(
     for tool, arguments in calls:
         for kind, values in _covered(arguments, tool).items():
             covered[kind] |= values
-        covered["month"] |= _months_covered(arguments, list(entities.get("month") or []))
+        for period_args in _period_arguments(tool, arguments):
+            covered["month"] |= _months_covered(
+                period_args, list(entities.get("month") or []),
+                series=tool == "visualization_create" and arguments.get("kind") == "time_series",
+            )
     missing: list[str] = []
     for kind, values in entities.items():
         if not values:
@@ -418,3 +422,25 @@ def uncovered_entities(
             if key not in covered[kind]:
                 missing.append(f"{kind}:{value}")
     return missing
+
+
+def _period_arguments(tool: str, args: dict[str, Any]) -> list[dict[str, Any]]:
+    if tool == "comparison_run" and args.get("kind") == "periods":
+        return [{"start_date": args.get(f"{prefix}_start"), "end_date": args.get(f"{prefix}_end")}
+                for prefix in ("period_a", "period_b")]
+    return [args]
+
+
+def uncovered_periods(
+    periods: frozenset[tuple[str, str]], calls: list[tuple[str, dict[str, Any]]],
+) -> list[str]:
+    """A comparison needs separate period values, not one encompassing total."""
+    covered: set[tuple[str, str]] = set()
+    for tool, args in calls:
+        for period_args in _period_arguments(tool, args):
+            window = call_window(period_args)
+            if window:
+                covered.add(window)
+                if tool == "visualization_create" and args.get("kind") == "time_series":
+                    covered.update(period for period in periods if window[0] <= period[0] and window[1] >= period[1])
+    return [f"period:{start}/{end}" for start, end in sorted(periods - covered)]

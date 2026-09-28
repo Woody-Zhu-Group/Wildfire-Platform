@@ -68,7 +68,7 @@ def decision_source(
         if decide.get("winner") == "jev":
             return {
                 "source": "jev",
-                "disposition": ROUTER_DISPOSITION.get(path, "answer"),
+                "disposition": ROUTER_DISPOSITION.get(path),
                 "confidence": _confidence(decide.get("jev_confidence")),
                 "mode": mode,
             }

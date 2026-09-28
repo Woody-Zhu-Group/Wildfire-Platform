@@ -4,10 +4,10 @@ Code that asks Jev (TypeSafe System One) for routing facts and tool picks. It is
 used only when `AGENT_JEV_MODE` is not `off`. Nothing outside this package
 imports `typesafe_sdk`, and the default `off` mode never imports it.
 
-## Modes on main
+## Modes
 
 `AGENT_JEV_MODE` accepts `off` (default), `shadow`, `tool_pick`, and
-`tool_pick_template` (`services/agent/config.py`, `validate()`). `verify`,
+`tool_pick_template`, and `decide` (`services/agent/config.py`, `validate()`). `verify`,
 `fallback`, and `route` are reserved names that abort startup.
 
 - `shadow`: `shadow.py` runs Jev in the background next to the regex router
@@ -21,15 +21,11 @@ imports `typesafe_sdk`, and the default `off` mode never imports it.
 
 `AGENT_JEV_BACKEND` is `typesafe` (default, `api.typesafe.ai`) or `openrouter`
 (same request body sent to OpenRouter).
-- `decide`: router backstops first, then Jev's derived disposition behind a decline
-  gate and a higher answer gate. Topic keyword refusals (cost, leadership, and the
-  others in `routing.TOPIC_JUDGMENT_RULES`) are not backstops: Jev's `off_topic` refuses
-  them at the decline gate and lifts them only at the answer gate; below those gates the
-  keyword rule stands (issue #97). Jev owns the disposition and the router owns the
-  wording: when both decline the same way the router's text stands (except the generic
-  `ranking_missing_slots`, which yields to Jev's more specific clarification), and a Jev
-  clarification that changes the disposition goes through clarify-all-missing; see [`docs/JEV_DECIDE.md`](../../../docs/JEV_DECIDE.md)
-  and `decide_mode.py`. Jev's plan mode was archived on the `jev-plan-archive` branch and is not accepted; the deterministic slot planner (`AGENT_SLOT_PLAN`, `services/agent/eval/slot_plan.py`) runs after decide when both are on.
+- `decide`: Jev-first v4 owns intent and disposition. It does not invoke the
+  semantic router or slot planner. Low confidence clarifies; backend failures
+  and exhausted budgets return errors. Date, entity, capability, coverage and
+  evidence checks remain in code. See [JEV_V4.md](../../../docs/JEV_V4.md).
+  Real v4 API evaluation is pending; the existing v3 captures are not reused.
 
 Operating guide: [`docs/JEV_SHADOW.md`](../../../docs/JEV_SHADOW.md). OpenRouter
 backend: [`docs/OPENROUTER.md`](../../../docs/OPENROUTER.md). Deferred work:
@@ -48,7 +44,8 @@ backend: [`docs/OPENROUTER.md`](../../../docs/OPENROUTER.md). Deferred work:
 | `mapping.py` | Projects router decisions and eval cases onto Jev's label space (`regex_labels`, `derive_case_labels`, `agreement`). |
 | `shadow.py` | `ShadowRunner` and `get_runner()`: background thread pool, sample rate, concurrency and daily caps, timeout. User requests never wait on it. |
 | `shadow_log.py` | Append-only JSONL log at `AGENT_JEV_LOG_PATH`, rotated by size (5 backups), redacts `TYPESAFE_API_KEY`. |
-| `decide_mode.py` | `AGENT_JEV_MODE=decide`: `BACKSTOP_RULES`, router-only exemptions, the decline and answer gates, the slot-contradiction, slot-unused (`route_uses`), and code-verified rules, reason texts, the bounded shared executor, and `decide_live()` / `decide_from_answers()`. |
+| `decide_mode.py` | Frozen v3 combined policy for historical replay; shared bounded SDK executor and reason text. |
+| `v4.py`, `jev_first.py` | Current decide payload and Jev-owned policy, with explicit capability checks and no router fallback. |
 | `tool_pick_mode.py` | `decide_tool_pick()`, slot-filled arguments per tool, the multi-tool refusal, template intents, and `tool_pick_decision` log lines. |
 | `canonical.py` | Canonical JSON bytes and hashes, so a replay can prove two payloads are the same. |
 | `integrity.py` | Parses raw Jev answers without substituting defaults; question hashes, replay mismatch checks, and scoring helpers. |

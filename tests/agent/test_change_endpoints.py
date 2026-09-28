@@ -502,7 +502,7 @@ def _ask_with_jev(
 def _jev_facts(intent: str, confidence: float) -> dict:
     from tests.agent.test_jev_decide import _answer_facts, _choice
 
-    return _answer_facts(intent=_choice(intent, confidence))
+    return _answer_facts(intent=_choice(intent, confidence), measure=_choice("event_count"))
 
 
 ENDPOINT_CALLS = [_count_call(1, utility="SCE", year=2020), _count_call(2, utility="SCE", year=2023)]
@@ -520,7 +520,7 @@ def test_a_total_over_a_range_with_endpoint_only_calls_declines():
 def test_a_change_question_with_jev_compare_intent_answers_with_both_years():
     response = _ask_with_jev(QUESTION, ENDPOINT_CALLS, _jev_facts("compare", 0.95))
     assert response["status"] == "answer"
-    assert response["route"]["rule"] == "open_ended"
+    assert response["route"]["rule"] == "jev_intent"
     counts = {e["arguments"]["year"]: e["summary"]["total"] for e in _primary_counts(response)}
     assert counts == {2020: 75, 2023: 90}
     assert not [e for e in response["trajectory"] if e.get("type", "").startswith("uncovered_entities")]
@@ -532,8 +532,13 @@ def test_a_change_question_with_jev_compare_intent_answers_with_both_years():
 def test_the_same_change_question_with_jev_below_the_gate_declines():
     for jev in (_jev_facts("compare", 0.6), _jev_facts("trend", 0.79), None):
         response = _ask_with_jev(QUESTION, ENDPOINT_CALLS, jev)
-        assert response["status"] == "error", jev
-        assert "2021" in response["answer_text"] and "2022" in response["answer_text"]
+        if jev is None:
+            assert response["status"] == "error"
+            assert "2021" in response["answer_text"] and "2022" in response["answer_text"]
+        else:
+            assert response["status"] == "clarification"
+            assert response["route"]["rule"] == "jev_uncertain"
+            assert not _primary_counts(response)
 
 
 def test_identical_evidence_renders_one_fallback_line():
@@ -593,7 +598,7 @@ def test_c8_one_call_per_turn_without_a_change_reading_is_held_to_the_span_as_on
     # Jev off, a count reading, or compare below the gate: nothing says the
     # range names its endpoints, so the lone first call is widened to the
     # span, which covers every year, and no change figure is derived.
-    for jev in (None, _jev_facts("count", 0.95), _jev_facts("compare", 0.6)):
+    for jev in (None, _jev_facts("count", 0.95)):
         response = _ask_with_jev(C8, [], jev, turns=_c8_turns())
         windows = [call_window(e["arguments"]) for e in _primary_counts(response)]
         assert windows == [("2021-01-01", "2024-12-31")], jev
@@ -718,7 +723,7 @@ N1_CALLS = [_count_call(1, utility="PGE", year=2020), _count_call(2, utility="PG
 
 
 def test_a_listing_of_two_years_carries_no_change_figures():
-    for jev in (None, _jev_facts("records", 0.95), _jev_facts("compare", 0.6)):
+    for jev in (None, _jev_facts("records_list", 0.95)):
         response = _ask_with_jev(N1, N1_CALLS, jev)
         assert response["status"] == "answer", jev
         assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL], jev

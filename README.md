@@ -31,9 +31,9 @@ The loaders read the source files (CPUC ignitions, CAL FIRE incidents, EPSS outa
 
 ```mermaid
 flowchart TD
-    Q["Question"] --> Safe["Safety checks"]
-    Safe --> Decide["Decide: answer, clarify, refuse"]
-    Decide -->|"answer"| Get["Get the data"]
+    Q["Question"] --> Decide["Jev decide: answer, clarify, refuse"]
+    Decide -->|"answer"| Safe["Validate dates, places and capabilities"]
+    Safe --> Get["Get the data"]
     Get --> Checks["Checks: citations, coverage, caveats"]
     Checks --> Ans["Answer with panels"]
     Safe -->|"stop"| Refuse["Refuse"]
@@ -42,7 +42,16 @@ flowchart TD
     Decide -->|"clarify"| Clarify
 ```
 
-The safety checks are the router's fixed rules (live data, future dates, advice, places it cannot resolve, off-topic subjects); when one fires, the question stops there. Jev then decides whether to answer, clarify, or refuse (a few router-only rules skip Jev), and the router's own decision stands whenever Jev is below its confidence gate, times out, or fails. To get the data, the agent runs exact tool calls when the router recognized the question, and otherwise lets Luna choose from a short list of tools while the harness drops or corrects any filter, year, or utility the question did not ask for, so no filter is invented. There are no partial answers: if a named utility, county, year, or tier is still not covered, the answer is an error that names it, and a dataset with no measured rows for a utility or period is reported as not covered or asked about, never counted as 0. Every number in an answer comes from a cited tool result, differences and percent changes are computed by the harness rather than the model, and a panel opens only when it cites that evidence.
+In `decide` mode, Jev-first v4 owns intent and disposition. The semantic router and
+slot planner do not run: uncertain readings clarify, and backend failures stop
+with an error. Code still parses dates and entities and validates supported
+scopes, tool arguments, measured coverage and evidence. A comparison cannot
+complete with one aggregate total over its endpoint periods. Other modes retain
+their existing routing. See [Jev v4, prepared tests and request/output examples](docs/JEV_V4.md);
+new live API evaluation is pending and this does not claim production deployment.
+Every reported number must come from cited tool evidence, and changes are
+computed by the harness. EPSS year filters are normalized to the year of the
+outage start date across services ([date semantics](docs/DATA_CHANGE_EPSS_YEAR.md)).
 
 Not in the diagrams because they are off or unused in production: the slot planner for multi-part questions (`AGENT_SLOT_PLAN`), the TypeSafe direct API as Jev's backend (production runs Jev through OpenRouter), and the older `frontend/` app.
 

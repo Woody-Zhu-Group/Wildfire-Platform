@@ -1,4 +1,7 @@
-"""AGENT_JEV_MODE=decide: router backstops first, then Jev's derived disposition.
+"""Historical v3 combined policy and the shared bounded Jev call executor.
+
+The current decide runtime uses jev_first.py and v4.py. This policy remains
+reproducible for existing v3 captures; the description below is historical.
 
 Order for one question:
 1. Router hard backstops (BACKSTOP_RULES) decide. Jev is not called. These are
@@ -735,6 +738,7 @@ def ask_jev(
     today: str,
     *,
     timeout: float | None = None,
+    calls: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Answer], str | None, int]:
     """Run the three calls on the shared pool. Any failed call is an error for the question.
 
@@ -743,7 +747,7 @@ def ask_jev(
     """
     from services.agent.decisions.integrity import question_hash
 
-    calls = jev_calls(question, today)
+    calls = jev_calls(question, today) if calls is None else calls
     digest = question_hash(question)
 
     def one(call: dict[str, Any]):
