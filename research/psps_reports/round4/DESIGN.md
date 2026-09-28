@@ -140,3 +140,22 @@ Also reported, with no bar: the agreement rate, the share of valid answers, accu
 - The 35 queue-matched items are a small sample, so the 90 percent bar has a wide interval.
 - The special items have no direct gold labels; the test's numeric fields cover the reading they depend on.
 - Items that can be read only from an image may end up unresolved.
+
+## Changes before the freeze
+
+Decided on 2026-09-28, after the design was committed and before any round 4 code or model call. Each one fixes a part of the design that could not work as written.
+
+1. **Partial corrections (17 items).** The packet gets the correction letter's pages in their own folder (`correction/NNN.txt`, plus `correction/NNN.png` for image-only or scrambled pages). Sol's `search`, `read_page`, and `view_page` take a `document` argument (`report` or `correction`). The quote check looks for the quote on the cited pages of the document each page is cited from. For these items, an answer is valid only if at least one cited page is from the correction letter.
+2. **Redlines (3 items).** These are sent straight to `unresolved` without asking either reviewer. The text layer cannot separate struck from inserted text, so no answer could pass the code checks honestly.
+3. **Defaults accepted:**
+   - `not_stated` and `null` answers skip the quote check. They are valid only if they record the pages read and the search terms used.
+   - Round 2 MBL gold becomes `not_applicable` wherever the gold `customers_deenergized` is 0.
+   - `r2_pge_2017_2019` is excluded from the test. Round 3 used the amended PDF, which differs from the file round 2 labeled.
+   - The two workbook-versus-PDF time items are asked as designed. Workbooks are not in the packet, so an answer that picks the workbook time cannot pass the quote check and the item ends `unresolved`.
+4. **Packet isolation setup.** Reviewer 1 sessions run with only the Read, Grep, Glob, and Write tools available, file access limited to the packet folder, no MCP servers, no user or project settings, and permission mode `dontAsk`. The exact command is recorded in `freeze.json`.
+
+**Updated test counts before rule-difference exclusions:** 216 values (225 minus the 9 on `r2_pge_2017_2019`) and 34 queue-matched items (35 minus item 262).
+
+**Spend controls for Sol:**
+- One minimal Sol call runs before the first development run. A 402 or any credit error stops the round.
+- The OpenRouter allowance is $6.92. If the projection (development plus test plus queue, times 1.5) is above it, the round stops before any more Sol calls. The allowance is recorded in `freeze.json`.
