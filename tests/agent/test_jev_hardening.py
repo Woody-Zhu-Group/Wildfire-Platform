@@ -199,7 +199,7 @@ def test_the_cap_is_a_decision_source_reason():
     assert source == {"source": "router", "why": "jev_daily_cap", "mode": "decide"}
 
 
-def test_orchestrator_decide_mode_records_the_cap_without_router_fallback(monkeypatch):
+def test_orchestrator_decide_mode_records_the_cap_and_keeps_the_router_route(monkeypatch):
     settings = replace(AgentSettings.from_env(), jev_mode="decide", jev_daily_call_cap=3)
     backend = FakeBackend(_answer_facts())
     orchestrator = _orchestrator(settings, backend)
@@ -215,15 +215,15 @@ def test_orchestrator_decide_mode_records_the_cap_without_router_fallback(monkey
     asyncio.run(orchestrator.ask(COUNT_Q))
     assert backend.calls == 3
     first, second = seen
-    assert first.slots["decision_source"]["source"] == "jev"
+    assert first.slots["decision_source"]["why"] == "jev_agreed"
     assert second.slots["decision_source"] == {
-        "source": "jev",
-        "disposition": None,
-        "confidence": None,
+        "source": "router",
+        "why": "jev_daily_cap",
         "mode": "decide",
     }
     assert second.slots["jev_decide"]["why"] == "daily_cap"
-    assert (second.path, second.rule) == ("error", "jev_unavailable")
+    router = route_question(COUNT_Q)
+    assert (second.path, second.rule) == (router.path, router.rule)
 
 
 def test_off_mode_builds_no_budget():

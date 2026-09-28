@@ -176,19 +176,15 @@ def test_synthesis_states_the_harness_computed_changes_and_cites_them():
 
 
 def test_without_jev_s_change_reading_no_change_is_derived_or_shown():
-    # Off mode and a confident count reading withhold change arithmetic.
-    # V4 low-confidence intent stops before any model or tool execution.
-    for intent in (None, ("count", 0.95)):
+    # Jev off, a count reading, or compare below the gate: the four counts are
+    # answered, and the harness withholds the difference and percent change.
+    for intent in (None, ("count", 0.95), ("compare", 0.6)):
         provider = ScriptedProvider()
         response = _ask(provider, jev_intent=intent)
         assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL], intent
         assert [e for e in response["trajectory"] if e.get("type") == "derived_evidence_withheld"], intent
         kinds = [item["summary"].get("kind") for item in provider.synthesis_payloads[0]["evidence"]]
         assert "derived_arithmetic" not in kinds, intent
-    provider = ScriptedProvider()
-    response = _ask(provider, jev_intent=("compare", 0.6))
-    assert response["status"] == "clarification"
-    assert not response["evidence"] and not provider.synthesis_payloads
 
 
 def test_a_change_the_harness_did_not_compute_is_rejected():

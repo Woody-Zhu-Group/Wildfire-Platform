@@ -1,14 +1,7 @@
 # Jev decide mode
 
-The current opt-in decide runtime is **Jev-first v4**. It does not run the
-semantic router, and uncertainty or backend failure never falls back to it.
-See [JEV_V4.md](JEV_V4.md) for the current behavior, prepared evaluation,
-request payloads and output examples. Fresh v4 API evaluation is still pending.
-
-## Historical v3 combined-decider reference
-
-The behavior, tables and commands below reproduce the existing v3 captures.
-They describe the previous combined policy, not the v4 runtime.
+This remains the production v3 mode. The separate router/agent selection
+experiment is [`router_gate`](JEV_ROUTER_GATE.md); it does not replace `decide`.
 
 `AGENT_JEV_MODE=decide` is the runtime version of the combined decider that was scored
 offline (`services/agent/eval/_v3_gap_score.py`): router backstops first, then Jev's derived

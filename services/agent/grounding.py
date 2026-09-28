@@ -329,7 +329,7 @@ def _month_of(day: date) -> str:
     return f"{day.year}-{day.month:02d}"
 
 
-def _months_covered(arguments: dict[str, Any], named: list[str], *, series: bool = False) -> set[str]:
+def _months_covered(arguments: dict[str, Any], named: list[str]) -> set[str]:
     """Named months (``YYYY-MM``) a call reads, when it reads nothing else.
 
     A call covers a named month when its window overlaps that month and lies
@@ -349,9 +349,9 @@ def _months_covered(arguments: dict[str, Any], named: list[str], *, series: bool
     while day <= end:
         months.append(_month_of(day))
         day = date(day.year + 1, 1, 1) if day.month == 12 else date(day.year, day.month + 1, 1)
-    if not series and any(month not in named for month in months):
+    if any(month not in named for month in months):
         return set()
-    return set(months) & set(named)
+    return set(months)
 
 
 def _covered(arguments: dict[str, Any], tool: str) -> dict[str, set[Any]]:
@@ -406,11 +406,7 @@ def uncovered_entities(
     for tool, arguments in calls:
         for kind, values in _covered(arguments, tool).items():
             covered[kind] |= values
-        for period_args in _period_arguments(tool, arguments):
-            covered["month"] |= _months_covered(
-                period_args, list(entities.get("month") or []),
-                series=tool == "visualization_create" and arguments.get("kind") == "time_series",
-            )
+        covered["month"] |= _months_covered(arguments, list(entities.get("month") or []))
     missing: list[str] = []
     for kind, values in entities.items():
         if not values:

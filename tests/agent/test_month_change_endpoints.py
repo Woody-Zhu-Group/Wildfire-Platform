@@ -10,7 +10,6 @@ from tests.agent.test_change_endpoints import (
     _jev_facts,
     _primary_counts,
 )
-from tests.agent.test_jev_decide import _choice
 
 
 # Written before the implementation; fixture counts are not warehouse values.
@@ -31,19 +30,13 @@ def _calls(case):
     ]
 
 
-def _facts(intent, confidence, dataset="epss_outages"):
-    facts = _jev_facts(intent, confidence)
-    facts["dataset"] = _choice(dataset)
-    return facts
-
-
 @pytest.mark.parametrize("case", CASES)
 @pytest.mark.parametrize("intent,confidence", [("compare", 0.95), ("trend", 0.8)])
 @pytest.mark.parametrize("separate_turns", [True, False])
 def test_month_endpoints_are_kept_and_change_is_derived(case, intent, confidence, separate_turns):
     calls = _calls(case)
     response = _ask_with_jev(
-        case[0], calls, _facts(intent, confidence, case[1]),
+        case[0], calls, _jev_facts(intent, confidence),
         turns=[[call] for call in calls] if separate_turns else None,
     )
     assert response["status"] == "answer", response["answer_text"]
@@ -59,13 +52,13 @@ def test_month_endpoints_are_kept_and_change_is_derived(case, intent, confidence
 
 def test_missing_endpoint_month_declines_instead_of_answering_a_span_total():
     case = CASES[0]
-    response = _ask_with_jev(case[0], _calls(case)[:1], _facts("compare", 0.95))
+    response = _ask_with_jev(case[0], _calls(case)[:1], _jev_facts("compare", 0.95))
     assert response["status"] == "error"
     assert "month:2024-09" in str(response["trajectory"])
     assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]
 
 
-@pytest.mark.parametrize("jev", [None, _facts("count", 0.95)])
+@pytest.mark.parametrize("jev", [None, _jev_facts("count", 0.95), _jev_facts("compare", 0.79)])
 def test_without_change_intent_a_lone_month_still_reads_the_full_span(jev):
     case = CASES[0]
     response = _ask_with_jev(case[0], _calls(case)[:1], jev)
@@ -78,6 +71,6 @@ def test_whole_year_reads_do_not_answer_a_month_comparison():
     response = _ask_with_jev(case[0], [
         _count_call(1, dataset="epss_outages", utility="PGE", year=2023),
         _count_call(2, dataset="epss_outages", utility="PGE", year=2024),
-    ], _facts("compare", 0.95))
+    ], _jev_facts("compare", 0.95))
     assert response["status"] == "error"
     assert not [e for e in response["evidence"] if e["tool"] == DERIVED_TOOL]

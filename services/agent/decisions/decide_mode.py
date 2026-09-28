@@ -1,7 +1,6 @@
-"""Historical v3 combined policy and the shared bounded Jev call executor.
+"""Production v3 decide policy and the shared bounded Jev call executor.
 
-The current decide runtime uses jev_first.py and v4.py. This policy remains
-reproducible for existing v3 captures; the description below is historical.
+The separate router_gate mode audits an exact proposal without replacing this policy.
 
 Order for one question:
 1. Router hard backstops (BACKSTOP_RULES) decide. Jev is not called. These are

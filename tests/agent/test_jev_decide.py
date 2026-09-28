@@ -46,7 +46,7 @@ def _answer_facts(**overrides):
         "off_topic": _choice("on_topic"),
         "intent": _choice("count"),
         "dataset": _choice("cpuc_ignitions"),
-        "measure": _choice("event_count"),
+        "measure": _choice("count"),
         "county": _choice("none"),
         "rank_dimension": _choice("none"),
     }
@@ -224,15 +224,14 @@ def test_decide_mode_returns_a_jev_refusal_and_logs_the_disagreement(monkeypatch
     assert backend.calls == 3
     logged = [json.loads(line) for line in capsys.readouterr().out.splitlines() if '"jev_decide"' in line]
     assert logged and logged[0]["winner"] == "jev"
-    assert "router" not in logged[0]
-    assert logged[0]["schema_version"] == "v4"
-    assert logged[0]["jev_rule"] == "unsupported_cost"
-    assert logged[0]["jev_confidence"] == pytest.approx(0.93)
+    assert logged[0]["router"]["rule"] == "filtered_records"
+    assert logged[0]["jev"]["rule"] == "unsupported_cost"
+    assert logged[0]["jev"]["confidence"] == pytest.approx(0.93)
     on_disk = [json.loads(line) for line in (tmp_path / "jev.jsonl").read_text().splitlines()]
     assert on_disk[0]["why"] == "gate"
 
 
-def test_decide_mode_timeout_stops_without_the_router(monkeypatch):
+def test_decide_mode_timeout_leaves_the_router(monkeypatch):
     settings = replace(AgentSettings.from_env(), jev_mode="decide", jev_timeout_seconds=0.05)
 
     class Slow(FakeBackend):
@@ -251,9 +250,8 @@ def test_decide_mode_timeout_stops_without_the_router(monkeypatch):
 
     monkeypatch.setattr(orchestrator, "_ask_routed", routed)
     asyncio.run(orchestrator.ask(COUNT_Q))
-    assert seen["decision"].rule == "jev_unavailable"
-    assert seen["decision"].path == "error"
-    assert seen["decision"].slots["jev_decide"]["why"].startswith("timeout")
+    assert seen["decision"].rule == "filtered_records"
+    assert seen["decision"].slots["jev_decide"]["why"] == "timeout"
 
 
 def test_decline_gate_and_answer_gate_are_separate():
@@ -300,7 +298,7 @@ def test_decide_mode_uses_the_configured_answer_gate(monkeypatch):
         seen["decision"] = decision
         return None
 
-    for answer_gate, expected in ((0.9, "jev_uncertain"), (0.85, "jev_intent")):
+    for answer_gate, expected in ((0.9, "undefined_spatial_scope"), (0.85, "jev_decide_answer")):
         settings = replace(AgentSettings.from_env(), jev_mode="decide", jev_decide_answer_confidence=answer_gate)
         orchestrator = _orchestrator(settings, backend)
         monkeypatch.setattr(orchestrator, "_ask_routed", routed)
@@ -399,22 +397,24 @@ def _routed_capture(orchestrator, monkeypatch):
     return seen
 
 
-def test_decide_bypasses_the_semantic_slot_planner(monkeypatch):
+def test_decide_runs_before_the_slot_planner_on_the_router_decision(monkeypatch):
     assert route_question(MULTI_Q).rule == "multi_entity_deferred"
     orchestrator = _orchestrator(_both_on(), FakeBackend(_answer_facts(intent=_choice("count"), dataset=_choice("psps_events"))))
     decided = {}
     original = orchestrator._jev_decide
 
-    async def spy(question, request_id):
-        decided["question"] = question
-        return await original(question, request_id)
+    async def spy(question, decision, request_id):
+        decided["rule"] = decision.rule
+        return await original(question, decision, request_id)
 
     monkeypatch.setattr(orchestrator, "_jev_decide", spy)
     seen = _routed_capture(orchestrator, monkeypatch)
     asyncio.run(orchestrator.ask(MULTI_Q))
-    assert decided["question"] == MULTI_Q
-    assert seen["decision"].rule == "jev_intent"
-    assert seen["decision"].tool_calls == []
+    # decide saw the router's own decision, not the planner's rewrite.
+    assert decided["rule"] == "multi_entity_deferred"
+    # Jev left it as an answer, so the slot planner then planned the calls.
+    assert seen["decision"].rule == "slot_plan"
+    assert [tool for tool, _ in seen["decision"].tool_calls] == ["data_query_records"] * 3
 
 
 def test_slot_planner_does_not_act_on_a_jev_decline(monkeypatch):

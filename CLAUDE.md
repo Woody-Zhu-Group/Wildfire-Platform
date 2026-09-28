@@ -25,26 +25,19 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 
 ## Architecture (target design: Jev first)
 
-`AGENT_JEV_MODE=decide` now uses the versioned Jev-first v4 payload and policy
-(`services/agent/decisions/v4.py`, `jev_first.py`). It is opt-in and has not been
-live-validated or deployed by this change. In this mode `route_question`, its
-keyword candidate catalog and the semantic slot planner are bypassed.
+Experimental `router_gate` is a separate mode: hard backstops first, then one
+Jev request checks the proposed router plan. Accepted plans keep exact calls;
+rejections or uncertain fit go to agent planning, and Jev failures fall back to
+the router. Production `decide` below remains v3. Do not deploy the experiment
+without reviewing its live results in `docs/JEV_ROUTER_GATE.md`.
 
-1. Parse explicit dates and entities without choosing an intent.
-2. Jev owns topic and intent. The 0.8 gate applies to intent/refusals; the 0.9
-   answer gate applies to the on-topic and negative refusal facts. Uncertainty
-   clarifies; errors, timeouts and exhausted budgets stop without router fallback.
-3. Validate date, place and dataset capabilities. Jev can select model metrics
-   and statewide risk/residual maps through existing harness tools. Otherwise
-   the generative model fills arguments using the Jev-selected tool catalog.
-4. Executor coverage, filter grounding, evidence validation, derived arithmetic
-   and caveats remain mandatory. Period comparisons require endpoint results.
+On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is `AGENT_JEV_MODE=decide` (off by default, `docs/JEV_DECIDE.md`); Jev owns the disposition and the router owns the wording, except that the generic `ranking_missing_slots` question yields to Jev's more specific clarification; the slot planner is `AGENT_SLOT_PLAN` (off by default, `docs/JEV_MULTI_TOOL.md`). With both on, decide runs first and the slot planner acts only on questions decide leaves as answer.
 
-Other modes retain their existing routing and v3 payloads. The old combined
-policy and stored v3 reports remain reproducible through `decide_mode.py` and
-`jev_decide_replay`; they do not validate v4. Use the 36-case development set and
-budgeted Jev-only runner in `docs/JEV_V4.md` for fresh five-repeat API evaluation.
-No old gold labels may be changed and no v3 capture may be relabeled as v4.
+1. Router hard backstops fire first (`services/agent/routing.py`): live and current, future dates, city_needs_place, hftd_constraint_unavailable. Unsupported-topic keywords (cost, leadership, optimization, damage, and the rest of `routing.TOPIC_JUDGMENT_RULES`) are refusals in off mode; in decide mode Jev's off_topic refuses them at the decline gate (0.8), lifts them only at the answer gate (0.9), and the keyword rule is the fallback (issue #97, `docs/JEV_DECIDE.md`). The advice rule stays with the router.
+2. Jev decides answer, clarify, or refuse (`services/agent/decisions/`, policy in `jev_policy.py`, schema in `v3.py`).
+3. Router regex extracts slots (years, utilities, counties, dataset, dates).
+4. Tools run: the router's deterministic call when it has one; otherwise Jev tool pick, template answers, or the slot planner for multi-part questions. The tool executor refuses any read for a utility or period outside its dataset's measured coverage (the loaders write `shared/dataset_coverage.json`, measured on exactly the rows each count reads: once per registry query definition, such as CAL FIRE's `incident_type_mode`; coverage is never declared by hand) with a `not_covered` result, never a zero, and the answer becomes a clarification on every path. It offers other data only where the coverage file's per-year counts show rows for that utility in that period, and says when an offer drops a filter.
+5. Caveats attach per tool (`caveats.py`). Every rendered number must trace to tool evidence (`evidence_ids`). Changes, differences, percent changes, and ratios come from harness-derived evidence (`derived.py`), never from model arithmetic.
 
 Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answers with probabilities. Lessons that hold:
 - Ask Jev small, unambiguous facts with mutually exclusive options; let code apply policy. Overlapping yes/no facts land in the 0.2 to 0.8 band.
@@ -55,7 +48,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 ## Env flags (all default off)
 
-- `AGENT_JEV_MODE`: off, shadow, tool_pick, tool_pick_template, decide (Jev-first v4); plan mode was archived on the `jev-plan-archive` branch and is not accepted (`docs/JEV_MULTI_TOOL.md`).
+- `AGENT_JEV_MODE`: off, shadow, tool_pick, tool_pick_template, decide; plan mode was archived on the `jev-plan-archive` branch and is not accepted (`docs/JEV_MULTI_TOOL.md`).
 - `AGENT_JEV_DECIDE_MIN_CONFIDENCE` (0.8) and `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE` (0.9): decide mode's decline and answer gates. The answer gate is a stated default, not chosen from any eval set; v3 was not used.
 - `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`: default 0.8
 - `AGENT_JEV_BACKEND`: typesafe (default) or openrouter

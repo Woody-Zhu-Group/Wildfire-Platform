@@ -227,12 +227,10 @@ def test_ask_response_carries_a_jev_timeout(monkeypatch):
     monkeypatch.setattr(orchestrator, "_ask_routed", routed)
     asyncio.run(orchestrator.ask(COUNT_Q))
     assert seen["decision"].slots["decision_source"] == {
-        "source": "jev",
-        "disposition": None,
-        "confidence": None,
+        "source": "router",
+        "why": "jev_timeout",
         "mode": "decide",
     }
-    assert seen["decision"].path == "error"
 
 
 def test_off_mode_marks_the_router(monkeypatch):

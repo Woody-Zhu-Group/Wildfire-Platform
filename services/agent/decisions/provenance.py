@@ -68,7 +68,7 @@ def decision_source(
         if decide.get("winner") == "jev":
             return {
                 "source": "jev",
-                "disposition": ROUTER_DISPOSITION.get(path),
+                "disposition": ROUTER_DISPOSITION.get(path, "answer"),
                 "confidence": _confidence(decide.get("jev_confidence")),
                 "mode": mode,
             }
@@ -78,7 +78,7 @@ def decision_source(
             out["jev_disposition"] = decide.get("jev_disposition")
             out["jev_confidence"] = _confidence(decide.get("jev_confidence"))
         return out
-    if mode == "decide":
+    if mode in {"decide", "router_gate"}:
         # Decide mode skipped this request (forced-model evaluation).
         return {"source": "router", "why": "jev_skipped", "mode": mode}
     return {"source": "router", "why": _MODE_WHY.get(mode, "jev_off"), "mode": mode}
