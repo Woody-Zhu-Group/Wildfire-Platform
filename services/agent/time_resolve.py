@@ -305,6 +305,25 @@ def explicit_year_range(text: str) -> tuple[str, str, str] | None:
     return f"{year_a}-01-01", f"{year_b}-12-31", match.group(0)
 
 
+def month_range_endpoints(text: str) -> tuple[tuple[str, str], ...]:
+    """Full endpoint months of a written range, for a gated change reading."""
+    span = explicit_month_year_range(text)
+    if span is not None:
+        first, last = date.fromisoformat(span[0]), date.fromisoformat(span[1])
+        endpoints = (first.year, first.month), (last.year, last.month)
+    else:
+        same_year = explicit_month_range_in_year(text)
+        if same_year is None:
+            return ()
+        year, first_month, last_month, _ = same_year
+        if first_month > last_month:
+            return ()
+        endpoints = (year, first_month), (year, last_month)
+    if endpoints[0] == endpoints[1]:
+        return ()
+    return tuple(_range_for_year_month(year, month) for year, month in endpoints)
+
+
 def _span_resolution(
     start: str, end: str, *, phrase: str, data_max: int
 ) -> TimeResolution:

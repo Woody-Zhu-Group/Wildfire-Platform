@@ -43,7 +43,7 @@ from services.agent.schemas import (
     openai_tools,
 )
 from services.agent.streaming import ProgressCallback
-from services.agent.time_resolve import CallWindows, call_window, named_month_periods
+from services.agent.time_resolve import CallWindows, call_window, month_range_endpoints, named_month_periods
 from services.agent.tools import ToolExecution, ToolExecutor, not_covered_notes
 from services.agent.views import dump_planned, empty_views_payload, plan_views
 from services.shared.dataset_registry import (
@@ -1286,6 +1286,7 @@ class AgentOrchestrator:
         # questions are checked for named entities no successful call has
         # covered yet.
         entity_years = list(years or []) or ([year] if year else [])
+        entity_months = named_month_periods(question)
         resolution = time_resolution or {}
         # The window of every successful model call for this question, across
         # all model turns, so the hold rule never judges a call by its turn.
@@ -1300,9 +1301,16 @@ class AgentOrchestrator:
             # its endpoints and two endpoint reads cover it. Without that
             # reading (a total, Jev below the gate, a Jev error, or Jev off)
             # every year in the range must be covered, as on main.
+            month_endpoints = month_range_endpoints(question)
             written = {int(value) for value in re.findall(r"\b(20\d{2})\b", question)}
             endpoint_years = [item for item in entity_years if item in written]
-            if len(endpoint_years) > 1:
+            if month_endpoints:
+                # Protect the same months coverage requires, including when
+                # the model sends the first endpoint in a turn of its own.
+                call_windows = CallWindows(endpoints=frozenset(month_endpoints))
+                entity_months = [start[:7] for start, _ in month_endpoints]
+                entity_years = sorted({int(start[:4]) for start, _ in month_endpoints})
+            elif len(endpoint_years) > 1:
                 entity_years = endpoint_years
                 # Coverage asks for each endpoint on its own, so a lone call
                 # on one of them is a planned read the hold rule keeps, even
@@ -1317,7 +1325,7 @@ class AgentOrchestrator:
             utilities=utilities,
             county=county,
             years=entity_years,
-            months=named_month_periods(question),
+            months=entity_months,
         )
         check_coverage = any(len(values) > 1 for values in entities.values())
         trajectory.append(
