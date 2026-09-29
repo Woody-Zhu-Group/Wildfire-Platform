@@ -41,10 +41,17 @@ does not override V4. Forced-model and disabled-router evaluation switches
 remain explicit evaluation overrides, not normal V4 operation.
 
 `services/agent/decisions/v4_router.py` owns the new schema (`v4_router_v1`),
-compiler and shared live/replay policy. It reuses the historical V4 structural
+compiler and shared live/replay policy (current schema `v4_router_v2`). It reuses the historical V4 structural
 constraints without modifying their old request schemas. The new prompt
 distinguishes circuit inventory from CPZ, point containment from proximity,
 and a user's missing current location from requests for live wildfire data.
+
+V2 uses one operation-specific missing-geographic-parameter question; the old
+proximity fact is no longer asked or applied. Static inventory containment with
+no point asks for a location even if the topic reading incorrectly says live
+data. Composite on-topic measures across multiple datasets go to the agent
+rather than the single-metric clarification. The V1 capture and its unchanged
+labels remain available at the frozen V1 source revision for reproducibility.
 
 ## Evaluation contract
 

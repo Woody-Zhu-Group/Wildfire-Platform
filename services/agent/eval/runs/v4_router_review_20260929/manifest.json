@@ -1,0 +1,16 @@
+{
+  "case_file": "services\\agent\\eval\\v4_router_cases_v1.json",
+  "case_hash": "1b3c1f3a83d3ca911195fa5510340c2264c886aaee2e6c80b1961b1139517ccb",
+  "repeats": 5,
+  "model": "typesafe/jev-1.13-20260917",
+  "modes": [
+    "decide_v3",
+    "v4_router"
+  ],
+  "today": "2026-09-29",
+  "source_commit": "2d574ec",
+  "schema_version": "v4_router_v1",
+  "api_calls": 2865,
+  "replay_verified_records": 880,
+  "role": "First router-first iteration; preserved before V2 removes the redundant proximity guard. Labels unchanged."
+}

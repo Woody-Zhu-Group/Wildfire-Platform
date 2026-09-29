@@ -57,6 +57,9 @@ def score_executors(cases: dict, rows: list[dict]) -> dict:
             correct = correct and matched
         if case.get("accepted_rules"):
             correct = correct and row["rule"] in case["accepted_rules"]
+        if row.get("api_error"):
+            correct = False
+            matched = False
         groups = (
             row["mode"],
             f"{row['mode']}:{case['split']}",

@@ -235,6 +235,7 @@ def summarize(cases: dict, records: list[dict]) -> dict:
             "id": case["id"], "mode": mode, "repeat": record["repeat"],
             "question": case["question"], "expected_dispositions": sorted(expected),
             "correct": correct, "intent": actual_intent,
+            "api_error": record["error"],
             "path": decision.path, "rule": decision.rule,
             "tool_calls": decision.tool_calls, "view": decision.slots.get("view"),
             "output_selectors": {k:decision.slots[k] for k in ("map_mode", "stat_mode", "series_mode") if k in decision.slots},

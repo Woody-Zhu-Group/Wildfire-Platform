@@ -54,3 +54,9 @@ def test_extra_unrequested_filter_is_an_incorrect_plan_acceptance():
     ]
     stats = score_executors({"cases": [CASE]}, rows)["metrics"]["v4"]
     assert stats["correct"] == 0 and stats["incorrect_plan_acceptance"] == 1
+
+
+def test_api_error_is_not_a_successful_router_retention():
+    row = {"id":"count", "mode":"v3", "repeat":1, "path":"deterministic", "rule":"fallback", "api_error":"timeout", "tool_calls":CASE['expected_tool_calls']}
+    stats = score_executors({"cases":[CASE]},[row])["metrics"]["v3"]
+    assert stats["correct"] == 0 and stats["router_retained_correctly"] == 0

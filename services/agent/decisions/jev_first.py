@@ -124,6 +124,8 @@ def decide_from_answers(
     error: str | None = None,
     today: date | None = None,
     use_confidence: bool = True,
+    check_proximity: bool = True,
+    defer_composite_measure: bool = False,
     geography_fact: Literal[
         "broad_region", "missing_geographic_scope"
     ] = "broad_region",
@@ -282,6 +284,8 @@ def decide_from_answers(
         ),
         ("vague_proximity", "undefined_spatial_scope"),
     ):
+        if fact == "vague_proximity" and not check_proximity:
+            continue
         value = _value(answers, fact)
         if (
             not isinstance(value, (float, int))
@@ -375,7 +379,7 @@ def decide_from_answers(
 
     if intent in _EVENT_INTENTS and dataset not in _INVENTORY and time.status == "none":
         return clarify("records_missing_year", "What year or date range should I use?")
-    if intent in {"count", "rank", "compare", "trend"} and measure == "other_measure":
+    if intent in {"count", "rank", "compare", "trend"} and measure == "other_measure" and not (defer_composite_measure and dataset == "multiple"):
         return clarify(
             "ambiguous_risk_metric",
             "Which supported measure should I use: event count, CAL FIRE acres, PSPS customer-events, or a supported comparison rate?",

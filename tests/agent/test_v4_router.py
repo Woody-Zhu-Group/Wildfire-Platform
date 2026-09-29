@@ -156,6 +156,39 @@ def test_missing_location_clarifies_and_missing_backend_is_not_a_model_handoff()
     assert result.decision.path == "error" and not result.decision.tool_calls
 
 
+def test_obsolete_proximity_fact_cannot_override_complete_scope():
+    result = decide(
+        "Which utility territory contains 38.5, -121.5?",
+        answers("spatial_context", "iou_territories", vague_proximity=_noul(0.99)),
+    )
+    assert result.path == "deterministic"
+    request_facts = v4_router.calls_for(
+        "Which utility contains this point?", TODAY.isoformat()
+    )[0]["questions"]
+    assert "vague_proximity" not in request_facts
+
+
+def test_static_inventory_location_conflict_clarifies_instead_of_live_refusal():
+    result = decide(
+        "Identify the utility territory containing my current location.",
+        answers(
+            "spatial_context",
+            "iou_territories",
+            off_topic=_choice("live_or_web"),
+            missing_geographic_scope=_noul(0.99),
+        ),
+    )
+    assert result.path == "clarification" and result.rule == "missing_geographic_scope"
+
+
+def test_composite_arithmetic_outside_fixed_templates_goes_to_agent():
+    result = decide(
+        "Count CPUC ignitions and CAL FIRE incidents in 2024, then compute their ratio.",
+        answers("compare", "multiple", measure=_choice("other_measure")),
+    )
+    assert result.path == "model" and not result.tool_calls
+
+
 def test_fixed_plan_needs_an_actual_fit_decision():
     data = answers()
     del data["plan_fit"]
@@ -242,6 +275,48 @@ def test_v4_is_separate_from_v3_and_change_detection_ignores_confidence(monkeypa
         "jev_intent_confidence": 0.01,
     }
     assert agent._jev_reads_change(decision)
+
+
+def test_supported_count_executes_without_contacting_the_agent(tmp_path):
+    import asyncio
+    from dataclasses import replace
+    from unittest.mock import MagicMock
+    import httpx
+    from services.agent.artifacts import ArtifactStore
+    from services.agent.config import AgentSettings
+    from services.agent.orchestrator import AgentOrchestrator
+    from services.agent.tools import ToolExecutor
+    from tests.agent.test_change_endpoints import _handler
+    from tests.agent.test_jev_decide import FakeBackend
+
+    settings = replace(
+        AgentSettings(), jev_mode="v4", jev_log_path=str(tmp_path / "jev.jsonl")
+    )
+    provider = MagicMock()
+
+    async def run():
+        executor = ToolExecutor(
+            settings, ArtifactStore(60), transport=httpx.MockTransport(_handler)
+        )
+        try:
+            agent = AgentOrchestrator(
+                settings, provider, executor, decide_backend=FakeBackend(answers())
+            )
+            return (await agent.ask("Count PG&E ignitions in 2024.")).response
+        finally:
+            await executor.close()
+
+    response = asyncio.run(run())
+    assert response["status"] == "answer"
+    assert response["route"]["path"] == "deterministic"
+    assert response["decision_source"]["mode"] == "v4"
+    primary = [
+        e
+        for e in response["evidence"]
+        if e["tool"] == "data_query_records" and not e.get("qualification_call")
+    ]
+    assert len(primary) == 1 and primary[0]["arguments"]["year"] == 2024
+    assert not provider.mock_calls
 
 
 ROUTER_CASES = [

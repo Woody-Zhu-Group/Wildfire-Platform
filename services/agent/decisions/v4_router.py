@@ -34,7 +34,7 @@ from services.agent.routing import (
 from services.agent.schemas import EXECUTABLE_TOOL_MODELS, TOOL_DESCRIPTIONS
 from services.agent.time_resolve import month_range_endpoints, named_month_periods
 
-SCHEMA_VERSION = "v4_router_v1"
+SCHEMA_VERSION = "v4_router_v2"
 
 
 def calls_for(question: str, today: str) -> list[dict]:
@@ -43,12 +43,16 @@ def calls_for(question: str, today: str) -> list[dict]:
         call["state"]["schema_version"] = SCHEMA_VERSION
         questions = call["questions"]
         if call["name"] == "facts":
-            questions["vague_proximity"] = QuestionSpec(
+            del questions["vague_proximity"]
+            questions[v4_scope.SCOPE_FACT] = QuestionSpec(
                 kind="noul",
                 instructions=(
-                    "The requested operation needs a search radius or area boundary that is missing. "
-                    "Nearby event searches need a radius. Point containment (which territory or tier "
-                    "contains given coordinates) and risk AT a point do not need a radius."
+                    "The question is missing a geographic parameter necessary for its requested operation. "
+                    "A nearby-event search needs a center and a distance or a defined region; ask for any missing parameter. "
+                    "Point containment or fitted risk AT supplied coordinates needs no distance. "
+                    "Named counties and utility territories are defined boundaries, and the entire California grid is defined. "
+                    "A dataset-wide count, saved model evaluation, or inventory lookup by ID needs no added geographic filter. "
+                    "An unnamed county, missing user location, or undefined area does need clarification."
                 ),
             )
         if call["name"] == "topic":
@@ -275,6 +279,28 @@ def prepare(
 ) -> RouteDecision:
     """Build a candidate without accepting its semantic completeness yet."""
     selected = jev_first.highest_choices(answers) if answers and not error else {}
+    slots, _ = question_context(question, today=today)
+    if (
+        not error
+        and _value(selected, "intent") == "spatial_context"
+        and _value(selected, "dataset") in {"iou_territories", "hftd"}
+        and _value(selected, "off_topic") == "live_or_web"
+        and not slots["coords"]
+        and (_value(selected, v4_scope.SCOPE_FACT) or 0) >= 0.5
+        and all(
+            isinstance(_value(selected, name), (int, float))
+            and 0 <= _value(selected, name) < 0.5
+            for name in ("prompt_injection", "future_time")
+        )
+    ):
+        # Static inventory containment needs a location, not a live data feed.
+        return RouteDecision(
+            "clarification",
+            "missing_geographic_scope",
+            "Static point lookup lacks a point",
+            answer="What coordinates or location should I look up?",
+            slots=slots,
+        )
     decision = jev_first.decide_from_answers(
         question,
         selected,
@@ -282,6 +308,8 @@ def prepare(
         error=error,
         use_confidence=False,
         geography_fact=v4_scope.SCOPE_FACT,
+        check_proximity=False,
+        defer_composite_measure=True,
     )
     if decision.path not in {"model", "deterministic"}:
         return decision
@@ -354,7 +382,11 @@ def plan_call(question: str, today: str, candidate: RouteDecision) -> dict:
                 if k in candidate.slots
             },
             "contracts": {
-                tool: TOOL_DESCRIPTIONS.get(tool)
+                tool: {
+                    "risk_surface": "Returns fitted ignition intensity and residual data for EVERY California grid cell on the specified historical date. The harness renders the statewide grid using map_mode risk or residual. No individual cell calls are needed.",
+                    "risk_metrics": "Returns the saved statewide held-out evaluation scores for HPP, NHPP and cNHPP; the harness renders model performance and comparison of these scores. No model fitting is performed.",
+                }.get(tool)
+                or TOOL_DESCRIPTIONS.get(tool)
                 or EXECUTABLE_TOOL_MODELS[tool].__doc__
                 for tool, _ in candidate.tool_calls
             },
