@@ -117,7 +117,7 @@ Code checked that each answer was an allowed value, that its quote appears on a 
   | Row | Report and field | Verified label | Dataset (or old label) | Note on the report |
   |---|---|---|---|---|
   | A05 | PG&E Sept 30 2023, complaints (queue) | `zero` | `not_stated` | The verifier's note says "not applicable". Under the rules, "Not applicable" counts as `not_stated`. |
-  | A08 | PG&E Sept 7-10 2020, first de-energization (unflagged) | 2020-09-07 14:31 | 2020-09-07 04:25 | The full circuit table lists PUEBLO 2103 at 9/7/2020 4:25 (p56) and KANAKA 1101 at 14:31 (p54). The verifier judged the 4:25 entry a mistake (the note first named Pueblo 2102 and, after the recheck, Pueblo 2103); the rules take the earliest time in a complete table. |
+  | A08 | PG&E Sept 7-10 2020, first de-energization (unflagged) | 2020-09-07 14:31 | 2020-09-07 04:25 | The full circuit table lists PUEBLO 2103 at 9/7/2020 4:25 (p56) and KANAKA 1101 at 14:31 (p54). The verifier treats the 4:25 entry as an error: it is about 10 hours before every other 9/7 circuit, and its Napa neighbor Pueblo 2102 is 9/8 4:07 (p56), so the date is likely 9/8. The rules take the earliest time in a complete table, so the dataset keeps 04:25. Listed in `round3/contradictions.csv` as human-found. |
   | A54 | SDG&E Oct 19-20 2018, MBL (unflagged) | `all_notified` (UNSURE) | `not_stated` | The verifier noted the report is "not really specific". |
   | A31 | SCE Oct 16 2020, cancellation (old label) | `not_stated` (UNSURE) | `no` (old label, marked uncertain) | The verifier's note says no customers were de-energized, but p5 says 37 and 49 customers were. No advance notices were sent, which the rules treat as `not_stated`. |
 
@@ -195,7 +195,7 @@ The Claude Opus 5.5 session that wrote the gold labels found and checked these 2
 
 Most of these are small. They matter because a dataset built from these reports silently picks one value unless it has a stated precedence rule. Ours prefers the circuit table when complete, then the section that answers the CPUC template question. The contradictions also bear on reporting quality in their own right.
 
-Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been checked by a person or a model.
+Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". Round 5 added 1 human-found contradiction: in PG&E's Sept 7 to 10, 2020 report, Pueblo 2103's 9/7 4:25 (p56) is about 10 hours before every other circuit dated 9/7 and is likely a date error for 9/8. A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been checked by a person or a model.
 
 ## Gaps in what utilities publish
 

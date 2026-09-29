@@ -16,7 +16,7 @@ A person verified 60 values in the PSPS dataset against the report PDFs. **Metho
 - **Rows left out (as submitted):** A22 (blank) and A10 (unreadable: `2020/09/25 02:46` for a 2019 event; it differs from the dataset's 2019-09-23 17:06 either way). None was marked `SEEN:`, and 4 were marked `UNSURE:`.
 - **Differences (as submitted):**
   - **A05** (queue, PG&E Sept 30 2023 complaints): `zero` against `not_stated`. The verifier's note says "not applicable", which the rules count as `not_stated`.
-  - **A08** (unflagged, PG&E Sept 7-10 2020 first de-energization): 14:31 against 04:25. The table has PUEBLO 2103 at 9/7 4:25 (p56); the verifier judged it a mistake.
+  - **A08** (unflagged, PG&E Sept 7-10 2020 first de-energization): 14:31 against 04:25. The table has PUEBLO 2103 at 9/7 4:25 (p56). The verifier treats it as an error: it is about 10 hours before every other 9/7 circuit, and its Napa neighbor Pueblo 2102 is 9/8 4:07, so the date is likely 9/8. This is in `round3/contradictions.csv` as human-found. The note in `audit_sheet_rechecked.xlsx` was rewritten after the rescore. The scores did not change, because A08's `UNSURE:` status stayed the same, so `audit_results_rechecked.md` still shows the earlier note text.
   - **A54** (unflagged, SDG&E Oct 19-20 2018 MBL): `all_notified` (UNSURE) against `not_stated`.
   - **A31** (old label, SCE Oct 16 2020 cancellation): `not_stated` (UNSURE) against the old label `no`. The verifier's note says nobody was de-energized, but p5 lists 37 and 49 customers.
 - **After rechecking the rows flagged in the first scoring:** only A05, A08, A10, A22, and A31 were rechecked, and the other 55 rows are as submitted.
