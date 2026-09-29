@@ -40,7 +40,7 @@ Every value carries its source (PDF page or Excel sheet and row). Uncertain valu
 
 ## Accuracy
 
-All labels are from one reviewer (the author). No second reader has checked them yet; the review split below includes a 40-item overlap to measure that.
+All labels are from one reviewer (the author), and no second reader has checked them. The two-reviewer split planned a 40-item overlap to measure that, but round 4 used models in place of the two human reviewers, so the overlap was never scored.
 
 | Check | Reports | Clean? | Result |
 |---|---|---|---|
@@ -54,7 +54,12 @@ All labels are from one reviewer (the author). No second reader has checked them
 
 ## Model-assisted review of the queue (round 4)
 
-Round 4 replaced the two human reviewers with two independent models: Claude Opus 5.5, run as fresh headless Claude Code sessions confined to a packet folder, and GPT-6 Sol on OpenRouter. Each model answered every flagged item from the report itself, without seeing Jev's answer, the gold labels, or the other model's output. Code checked that each answer was an allowed value, that its quote appears on a cited page, and that the model was not unsure. Items where both answers passed and matched were accepted. Details are in `round4/README.md` and `round4/DESIGN.md`.
+Round 4 replaced the two human reviewers with two independent models: Claude Opus 5.5, run as fresh headless Claude Code sessions confined to a packet folder, and GPT-6 Sol on OpenRouter. Each model answered every flagged item from the report itself, without seeing the gold labels or the other model's output. On the blind items, neither model saw Jev's answers or confidences. Two exceptions apply:
+
+- **Special items.** Sessions for special items (partial corrections, unreadable pages, workbook times) also received the event's current values from `round3/dataset.csv`, as `round4/DESIGN.md` allows. Those values include Jev's answers for the five categorical fields, on 23 events.
+- **Item reason.** Every item showed its `reason`. For `low_confidence`, which the guide explains as "Jev answered, but not confidently", that reveals Jev's confidence was below 0.9, though not the answer or the number. An item's `page_refs` are the pages Jev was shown.
+
+Code checked that each answer was an allowed value, that its quote appears on a cited page, and that the model was not unsure. A `not_stated` or `null` answer needs no quote, only the pages read and the search terms used. Items where both answers passed and matched were accepted. Details are in `round4/README.md` and `round4/DESIGN.md`.
 
 **These values are model-reviewed; accuracy was measured on 211 hand-labeled values from 24 reports; no human audit of the reviewed items.** The design planned 25 reports. One round 2 report was excluded because round 3 used an amended PDF.
 
@@ -67,7 +72,9 @@ Round 4 replaced the two human reviewers with two independent models: Claude Opu
 - **Queue:**
   - 206 of the 286 items were accepted as `model_review_agreed`.
   - 80 remain unresolved, mostly because Opus marked them unsure (60).
-  - In the dataset, 257 field values are model-reviewed, 270 carry a hand label, 107 are unresolved, and 761 were never flagged, out of 1,395 (155 events × 9 fields).
+  - In the dataset, 145 field values are `model_review_agreed`, 112 are `model_review_no_change`, 270 carry a hand label, 107 are unresolved, and 761 were never flagged, out of 1,395 (155 events × 9 fields).
+  - `model_review_no_change` marks the 112 fields, on 17 events, that no reviewer answered on its own. An agreed whole-event item (a correction letter, a table page, or a report cut for length) left them unchanged, and the reviewers had the current values in view. `apply.py` had counted them as `model_review_agreed`. They were relabeled after the review of this work (`round4/no_change.py`), and no value changed.
+  - **Agreed `not_stated` answers need no quote.** 88 of the 206 accepted queue items are `not_stated`. In 44 of them neither reviewer quoted a page, so the only evidence check was that both listed the pages they read and their search terms. In the other 44, at least one reviewer's quote was found on a cited page. The test backs these less than other values: only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer).
   - Model review changed 82 values and hand labels changed 8. In all, 87 values differ from `round3/dataset.csv`, since some fields changed in both steps.
   - Hand labels were applied after the test (`round4/hand_labels.py`), so known errors do not stay in the dataset. They come from the test gold and from the round 1 gold. The round 1 gold was converted to round 3 rules the same way as round 2: 63 of 90 rows kept, and 27 excluded (every time row, and 7 wind rows).
   - A gold `null` does not replace a time taken from a utility workbook, because the gold was written from the PDF alone. That case applies to 4 fields.
@@ -78,10 +85,11 @@ Round 4 replaced the two human reviewers with two independent models: Claude Opu
   - Claims moved from `zero` to `not_stated` (11).
   - 32 no-matching-page placeholders were filled in.
 - **Limits:**
-  - The 29-item bar has a wide interval.
+  - The queue-matched bar passed on its point estimate (27/29, 93.1%), but its 95% interval, 78.0 to 98.1, reaches well below the 90% bar.
   - The 28 special items (partial corrections, unreadable pages, workbook times) have no direct gold.
   - The 3 redlines were not asked.
   - The two human reviewer files in `round3/` were not used and are unchanged.
+  - **A misapplied correction letter.** SCE's consolidated correction letter of April 1, 2024 amends only the Oct 29, Nov 9, Nov 20, and Dec 9, 2023 reports. Round 3 linked it to 8 SCE 2023 events. For the other four (Jul 11, Jul 18, Oct 11, and Nov 26, 2023), both reviewers found that it amends nothing, and those items (18, 19, 17, and 10) were agreed as no change. `round3/versions.csv` still lists the letter for all 8.
 
 ## Cost
 
@@ -153,6 +161,7 @@ Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchec
 
   SCE's own PSPS reports page returns 404. Recent SCE PDFs list only a handful of circuits, so exact times for most SCE events are not publicly recoverable from the PDF. One SDG&E workbook (Oct 2023) has no circuit table at all. We did not collect PG&E attachments.
 - **Tables with no text.** Some tables exist only as images or vector outlines. For example, SCE's Table 1 (event summary) and Table 9 (MBL notification) in Oct 2021 have no text layer. We transcribed 414 such pages; 11 were unreadable.
+- **A cover filing with no report.** For PG&E's Dec 15, 2023 event, the CPUC file is only the 3-page cover filing. The report itself (Attachment A, Table A-1.2) was filed on archival DVD, so nothing can be read from the PDF. The dataset has no numbers for this event. Its categorical fields are `not_stated`, except MBL, which is unresolved.
 - **Broken text encoding.** One PG&E report (Sept 30, 2023) has a font encoding that shifts every letter and drops every digit, so it needs OCR.
 - **Redlines and corrections.**
   - Three PG&E 2024 amendments were filed only as redlines, where extracted text mixes deleted and inserted values.
@@ -204,5 +213,5 @@ Round 4 settled 206 of the 286 flagged items by model review. Once the remaining
 
 - The wind field is weak for PG&E and should not be used without review.
 - Circuit-level times are reliable only for the 7 workbook events and for reports whose PDF table lists every circuit.
-- All accuracy figures rest on one labeler until the two-reviewer overlap is scored.
-- Values marked `model_review_agreed` were settled by two models, not a person, and values marked `hand_labeled` carry a hand label. Use `review_method` to separate them.
+- All gold labels come from one labeler, and no second labeler has checked them. The planned two-reviewer overlap was never scored, because round 4 used models in place of the two human reviewers.
+- Values marked `model_review_agreed` were settled by two models, not a person. Values marked `model_review_no_change` were left unchanged by an agreed whole-event item and never answered on their own. Values marked `hand_labeled` carry a hand label. Use `review_method` to separate them.

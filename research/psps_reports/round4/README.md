@@ -1,8 +1,12 @@
 # Round 4: model-assisted review of the round 3 queue
 
-Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queue on their own, from the report itself. Code checked their evidence, and items where they agreed were accepted. The method was tested once, on 211 hand-labeled values from 24 clean reports, before it touched the queue. It passed both bars. `DESIGN.md` is the plan, including the changes decided before the freeze.
+Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queue on their own, from the report itself. Code checked their evidence, and items where they agreed were accepted. The method was tested once, on 211 hand-labeled values from 24 clean reports, before it touched the queue. Both results were at or above their bars on the point estimate. The queue-matched result, 27/29 (93.1%, 95% interval 78.0 to 98.1), rests on few items. `DESIGN.md` is the plan, including the changes decided before the freeze.
 
 **Values settled here are model-reviewed, not human-reviewed.** Accuracy was measured on 211 hand-labeled values from 24 reports; no human audit of the reviewed items. All gold labels come from one labeler.
+
+**What the reviewers saw.** Neither reviewer saw the gold labels, the answer key, or the other reviewer's output. On blind items, neither saw Jev's answers or confidences. There are two exceptions:
+- The 23 queue special sessions (partial corrections, unreadable pages, workbook times) also received `current_values.json`, as `DESIGN.md` allows. It holds the event's values from `round3/dataset.csv`, which include Jev's answers for the five categorical fields.
+- Every item showed its `reason`. The guide explains `low_confidence` as "Jev answered, but not confidently", which reveals that Jev's confidence was below 0.9, though not the answer or the number. An item's `page_refs` are the pages Jev was shown.
 
 ## Results
 
@@ -30,7 +34,7 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
   - 1 correction that listed fields outside the correction syntax (item 16).
 
   In 59 of the 80, the two reviewers gave the same value.
-- **Dataset fields after model review (155 events × 9 fields):** 962 unflagged, 304 `model_review_agreed`, 129 `unresolved`. 82 values changed:
+- **Dataset fields after model review (155 events × 9 fields):** 962 unflagged, 304 `model_review_agreed` as `apply.py` writes them (123 of these are whole-event fields; see `model_review_no_change` below), 129 `unresolved`. 82 values changed:
   - 32 `NO_MATCHING_PAGE` placeholders now have an answer.
   - Wind moved from `met` or `not_met` to `not_stated` 13 times.
   - Claims moved from `zero` to `not_stated` 11 times.
@@ -50,8 +54,14 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
   - A gold `a|b` keeps the current value when it is one of the alternatives.
   - **PG&E Oct 21 2020 first de-energization.** Its round 1 label (17:33) was dropped by the conversion. The report states both 14:42 (a transmission line, p75) and 17:33 (the earliest distribution circuit in Appendix A, p73). The field keeps 14:42, is `unresolved` with the flag `first_deenergization:contradiction_in_report`, and is listed in `round3/contradictions.csv` as "round 4 hand-label check".
   - Hand labels changed 8 values, all from `test_gold.csv`, including the two agreed test errors (items 117 and 141, SDG&E MBL, now `all_notified`).
-  - **Final dataset fields:** 761 unflagged, 270 `hand_labeled`, 257 `model_review_agreed`, 107 `unresolved`. 87 values differ from `round3/dataset.csv`.
   - The test scoring and `calibration_results.md` are unchanged.
+- **Whole-event fields** (`no_change.py`, added after the PR #29 review on 2026-09-28): `apply.py` marks every field an agreed whole-event item covers ("all fields", "table pages", "numeric fields") as `model_review_agreed`. Those items ask whether a correction letter or table page changes the event, with the current values in view.
+  - A field that such an item left unchanged, and that no agreed item asked about directly, is now `model_review_no_change`: 112 fields on 17 events.
+  - A field stays `model_review_agreed` when an agreed item asks about it directly or an agreed correction names it. No value changed.
+- **Final dataset fields:** 761 unflagged, 270 `hand_labeled`, 145 `model_review_agreed`, 112 `model_review_no_change`, 107 `unresolved`. 87 values differ from `round3/dataset.csv`.
+- **Agreed `not_stated` answers need no quote.** The check accepts a `not_stated` or `null` answer with the pages read and the search terms used, and no quote.
+  - 88 of the 206 accepted queue items are `not_stated`. In 44, neither reviewer quoted a page. In the other 44, at least one reviewer's quote was found on a cited page.
+  - Only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer), so the test says less about these than about other values.
 - **Contradictions:** 16 `CONTRADICTION:` notes were appended to `round3/contradictions.csv`, marked "round 4 model-found, unchecked".
 
 **Effort:**
@@ -65,9 +75,31 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
 - The weak spot is the same as in round 3: MBL notification. Both agreed errors are MBL items, and MBL has the most unresolved items (35 of 91).
 - Unresolved items keep the pipeline value, carry the flag `<field>:model_review_disagreement`, and record both answers in `model_review_unresolved`. They still need a human.
 
+## Gitignored inputs
+
+Round 4 reads three round 3 folders that are gitignored because of their size (about 820 MB: `raw/` 703 MB, `raw_amend/` 76 MB, `pages/` 42 MB):
+
+| Folder | What round 4 uses it for |
+|---|---|
+| `round3/pages/` | One JSON line per PDF page with its text layer. The quote checks (`verify.py`), `score.py`, `apply.py`, and the packets all read it. |
+| `round3/raw/` | The original report PDFs. The packets render page images from the extracted document. |
+| `round3/raw_amend/` | Amendments and correction letters. It holds the extracted document for the 15 events that use an amendment, and the correction letters the checks read. |
+
+`packets.py`, `run_claude.py`, `run_sol.py`, `score.py`, and `apply.py` do not run without them. To regenerate them (no model calls):
+
+```
+python research/psps_reports/round3/inventory.py --download   # raw/, raw_amend/, workbooks/ from the CPUC and utility URLs
+python research/psps_reports/round3/pipeline3.py extract       # pages/ from the documents listed in round3/versions.csv
+git status research/psps_reports/round3                        # inventory.py also rewrites pool.csv, amendment_links.csv, and workbooks.csv; they should be unchanged
+python research/psps_reports/round4/inputs.py check           # compares every input file with inputs_sha256.json
+```
+
+Do not run `pipeline3.py versions`, which rewrites the frozen `versions.csv`. `inputs_sha256.json` holds a SHA-256 for each of the 322 files round 4 reads: 155 page files, 140 original PDFs, and 27 amendment or correction PDFs. The hashes were recorded with PyMuPDF 1.27.2.3 installed, and two page files extracted again with it came out identical. Another version can extract slightly different text, and the CPUC can move or replace a file, so treat any `DIFFERS` or `MISSING` line as a reason to stop before rerunning anything.
+
 ## Rerun
 
 ```
+python research/psps_reports/round4/inputs.py check   # the gitignored inputs match (see above)
 python research/psps_reports/round4/run_claude.py isolation
 python research/psps_reports/round4/run_claude.py run --set dev --tag _vN   # development only
 python research/psps_reports/round4/run_sol.py ping
@@ -82,6 +114,7 @@ python research/psps_reports/round4/run_claude.py run --set queue
 python research/psps_reports/round4/run_sol.py run --set queue
 python research/psps_reports/round4/apply.py
 python research/psps_reports/round4/hand_labels.py   # always right after apply.py
+python research/psps_reports/round4/no_change.py     # after hand_labels.py
 ```
 
 The test and queue commands use the frozen limits and refuse to run if a code file or the Claude Code version changed. A rerun resumes: sessions already in `runs/*.jsonl` are skipped. The test was run once and must not be rerun on the same gold.
@@ -97,6 +130,8 @@ The test and queue commands use the frozen limits and refuse to run if a code fi
 | `score.py` | Gold conversion (`test_gold.csv`, `test_exclusions.csv`), development scoring, the freeze, and the test scoring. |
 | `apply.py` | Applies the decisions: `reviewed_queue.csv`, `dataset_reviewed.csv`, and the contradiction notes. |
 | `hand_labels.py` | Converts the round 1 gold to round 3 rules (`round1_gold_converted.csv`, `round1_rule_differences.json`), then puts the hand labels into `dataset_reviewed.csv` after `apply.py` and records the previous values. |
+| `no_change.py` | After `hand_labels.py`: marks fields that only an agreed whole-event item covered, and that it left unchanged, as `model_review_no_change`. |
+| `inputs.py` | Records (`write`) and checks (`check`) the SHA-256 of every gitignored round 3 input that round 4 reads, in `inputs_sha256.json`. |
 
 ## Packet isolation check
 
@@ -112,7 +147,14 @@ The command that passed: `claude -p --model opus --tools Read,Grep,Glob,Write --
 
 `freeze.json` fixes everything before the test run: Claude Code 2.1.281 with `claude-opus-5-5` (alias `opus`), the session command, prompt, tools, and limits; Sol (`openai/gpt-6-sol`) with its tools, answer schema, and limits; both reviewers' instructions (text and hash); the packet and check settings; the gold hashes; the pass bars; and the code commit with a hash of every code file. The test and queue runs refuse to start when a code file no longer matches its frozen hash or the installed Claude Code version differs.
 
+**One edit after the freeze** (2026-09-28, after the PR #29 review): the Claude `command` in `freeze.json` recorded the write rule as `Edit(//c/AI Coding Projects/wf-psps/research/psps_reports/round4/<packet>/answers.json)`. `score.py freeze` built that string from a placeholder path relative to the working folder, so it named a folder inside the repository. The runs used the packet folder under the system temp directory (`psps_r4/<set>/claude/<session>/`), as `runs/isolation_check.json` shows. The string now reads `Edit(//<packet posix path>/answers.json)`, matching `allowed_tools`. No hashed value changed, the frozen code is untouched, and the original is in commit 6d973b4.
+
 **Sol spend limits:** the cap is $20.08, 1.5 times the projection of $13.39, which is $1.91 spent in development plus $1.97 for the test and $9.51 for the queue. The OpenRouter allowance is $25. The run stops before any call once total Sol spend, development included, reaches the cap.
+
+## Source problems found in the review
+
+- **SCE's consolidated 2023 correction letter** (April 1, 2024) amends only the Oct 29, Nov 9, Nov 20, and Dec 9, 2023 reports. `round3/amendment_links.csv` and `round3/versions.csv` link it to 8 events. For Jul 11, Jul 18, Oct 11, and Nov 26, 2023, both reviewers found that it amends nothing (items 18, 19, 17, and 10, agreed as no change). The frozen round 3 files still list it for all 8.
+- **PG&E Dec 15, 2023:** the CPUC file is the 3-page cover filing only. The report itself (Attachment A, Table A-1.2) was filed on archival DVD, so nothing can be read from the PDF. The dataset has no numbers for this event, and its categorical fields are `not_stated`, except MBL, which is unresolved.
 
 ## Test gold (`test_gold.csv`, `test_exclusions.csv`)
 

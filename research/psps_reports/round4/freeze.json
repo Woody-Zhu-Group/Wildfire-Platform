@@ -26,7 +26,7 @@
       "Read(./**)",
       "Grep(./**)",
       "Glob(./**)",
-      "Edit(//c/AI Coding Projects/wf-psps/research/psps_reports/round4/<packet>/answers.json)",
+      "Edit(//<packet posix path>/answers.json)",
       "--permission-mode",
       "dontAsk",
       "--restricted",

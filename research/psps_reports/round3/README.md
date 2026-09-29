@@ -77,7 +77,7 @@ Ten events were drawn with seed 20260924 from the 127 never read in rounds 1 and
 
 ## Review queue
 
-**Round 4 update:** two models (Claude Opus 5.5 and GPT-6 Sol) reviewed this queue on their own, after passing a one-time test on hand-labeled values. 206 of the 286 items were accepted as `model_review_agreed` and 80 remain unresolved. See [`../round4/README.md`](../round4/README.md). The reviewed dataset is `../round4/dataset_reviewed.csv`, and this folder's `dataset.csv` is unchanged. The round 4 reviewers' `CONTRADICTION:` notes were appended to `contradictions.csv` as "round 4 model-found, unchecked".
+**Round 4 update:** two models (Claude Opus 5.5 and GPT-6 Sol) reviewed this queue on their own, after a one-time test on hand-labeled values (queue-matched items: 27/29 agreed answers right, 93.1%, 95% interval 78.0 to 98.1; bar 90%). 206 of the 286 items were accepted as `model_review_agreed` and 80 remain unresolved. See [`../round4/README.md`](../round4/README.md). The reviewed dataset is `../round4/dataset_reviewed.csv`, and this folder's `dataset.csv` is unchanged. The round 4 reviewers' `CONTRADICTION:` notes were appended to `contradictions.csv` as "round 4 model-found, unchecked".
 
 **286 items across 145 of the 155 events. At 2 to 3 minutes per item, that is 9.5 to 14.3 hours.**
 
