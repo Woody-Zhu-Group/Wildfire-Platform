@@ -1,13 +1,24 @@
-# Round 5: human audit of the PSPS dataset (plan)
+# Round 5: model-assisted, human-verified audit of the PSPS dataset (plan)
 
-Status: plan. It is committed together with the sample list (`sample.csv`) before the audit sheet is built. Nothing below changes after the auditor starts labeling.
+Status: plan. It was committed together with the sample list (`sample.csv`) before the audit sheet was built. It was amended once, on 2026-09-29, after labeling and before scoring (see "Amendment"). The sample and the scoring rules are unchanged.
+
+## Amendment (2026-09-29, after labeling, before scoring)
+
+- **Method, for all 60 rows: model-assisted, human-verified.** Claude Opus 5.5 proposed an answer and a page for each row. Michael then checked each proposal against the report PDF and recorded the final answer in `audit_sheet_filled.xlsx`.
+- **What the proposing model saw:** only the labeling rules and the report PDFs. It did not see `audit_key.csv`, `sample.csv`, `round4/dataset_reviewed.csv`, `FINDINGS.md`, or the PR text.
+- **This is not a blind or independent human audit.** The sheet hid the dataset values, the old gold labels, and the round 4 and pipeline answers, but the verifier saw the proposing model's answer for every row.
+- **Why that matters for the results:**
+  - Claude Opus 5.5 is also the model that wrote the old gold labels and was round 4's Reviewer 1, so its mistakes can match the values being checked.
+  - A person checking a proposed answer tends to accept it.
+  - So the agreement rates below measure agreement with model-assisted, human-verified labels. They are likely higher than agreement with fully independent human labels would be.
+- **What changed in this file:** the title, this section, the "Why" bullet on the first check, the name of the section on what the sheet shows, and the "After scoring" line. Everything else is as committed in 6f16dd3.
 
 ## Why
 
 - **No person has checked any value in this dataset.**
   - The gold labels used in rounds 1 to 4 (`gold_labels.csv`, `round2/gold_new15.csv`, `round3/gold_sample10.csv`) were written by a Claude Opus 5.5 Claude Code session on 2026-09-23, not by a person. That session's transcript shows it creating each file, with a Write call or shell heredocs, after reading the report pages. No labels came from the user, and each committed file matches what the session wrote. The earlier docs called them "hand-checked" because the round prompts asked the session to hand-check the values itself.
   - Round 4's Reviewer 1 was the same model, so the round 4 test measured two models against labels written by one of them.
-- **This audit is the first human check.** It measures three things: the values the two round 4 models agreed on, the values the pipeline never flagged, and the old model-written test labels.
+- **This audit is the first check in which a person verified each value against the report.** It measures three things: the values the two round 4 models agreed on, the values the pipeline never flagged, and the old model-written test labels.
 
 ## Who, when, and what rules
 
@@ -15,9 +26,9 @@ Status: plan. It is committed together with the sample list (`sample.csv`) befor
 - **Timing:** after round 4. The dataset, code, and old labels are not changed while the audit runs.
 - **Rules:** the "The fields" section of `round3/REVIEW_GUIDE.md`, the same rules the models and the old labels followed. The sheet includes them on its Rules tab.
 
-## Blindness
+## What the sheet shows
 
-The auditor sees, for each row:
+The sheet hid the dataset values, the old gold labels, and the round 4 and pipeline answers, but the labeling was not blind to model answers: a model proposed an answer for each row (see "Amendment"). The auditor sees, for each row:
 
 - the report name and PDF link;
 - a workbook link, for the time fields of the events with a utility workbook;
@@ -83,7 +94,7 @@ The drawn rows are sorted by report and field and numbered A01 to A60. They cove
 
 **How much the sample can tell us:** there are no pass bars. With 30 rows the interval is wide. For example, 27 of 30 right gives 90.0% (74.4 to 96.5), and 14 of 15 gives 70.2 to 98.8.
 
-**After scoring:** the results go in `audit_results.md`. `FINDINGS.md` is then updated to describe the old test labels as model-written and this audit as the human check.
+**After scoring:** the results go in `audit_results.md`. `FINDINGS.md` is then updated to describe the old test labels as model-written and this audit as model-assisted and human-verified.
 
 ## Effort
 
