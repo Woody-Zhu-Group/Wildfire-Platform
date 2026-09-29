@@ -1,0 +1,221 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "V4：Jev 判断，代码执行，Agent 处理剩余任务",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "primary",
+      "label": "优先使用固定计划"
+    },
+    {
+      "id": "alternative",
+      "label": "澄清或转交"
+    },
+    {
+      "id": "failure",
+      "label": "异常与能力限制",
+      "variant": "exception"
+    }
+  ],
+  "mainPath": [
+    "query",
+    "meaning",
+    "compile",
+    "fit",
+    "fixed",
+    "answer"
+  ],
+  "nodes": [
+    {
+      "id": "query",
+      "lane": "primary",
+      "col": 0,
+      "type": "external",
+      "label": "用户 Query",
+      "sublabel": "原始问题",
+      "width": 148
+    },
+    {
+      "id": "meaning",
+      "lane": "primary",
+      "col": 1,
+      "type": "cloud",
+      "label": "Jev：理解需求",
+      "sublabel": "意图、数据集、指标与范围",
+      "tag": "3 个并行请求",
+      "width": 148
+    },
+    {
+      "id": "compile",
+      "lane": "primary",
+      "col": 2,
+      "type": "backend",
+      "label": "代码：构建计划",
+      "sublabel": "绑定参数并校验覆盖与约束",
+      "width": 148
+    },
+    {
+      "id": "fit",
+      "lane": "primary",
+      "col": 3,
+      "type": "cloud",
+      "label": "Jev：检查完整性",
+      "sublabel": "原问题＋具体调用＋工具能力",
+      "tag": "额外 1 次请求",
+      "width": 148
+    },
+    {
+      "id": "fixed",
+      "lane": "primary",
+      "col": 4,
+      "type": "backend",
+      "label": "代码：执行 Router",
+      "sublabel": "固定调用，不调用 Agent",
+      "width": 148
+    },
+    {
+      "id": "answer",
+      "lane": "primary",
+      "col": 5,
+      "type": "frontend",
+      "label": "返回答案",
+      "sublabel": "证据、限定说明与视图",
+      "width": 148
+    },
+    {
+      "id": "clarify",
+      "lane": "alternative",
+      "col": 2,
+      "type": "security",
+      "label": "直接澄清或拒绝",
+      "sublabel": "不调用第二阶段 Jev",
+      "width": 148
+    },
+    {
+      "id": "agent",
+      "lane": "alternative",
+      "col": 4,
+      "type": "backend",
+      "label": "Agent 规划与回答",
+      "sublabel": "按需要组合工具调用",
+      "width": 148
+    },
+    {
+      "id": "error",
+      "lane": "failure",
+      "col": 1,
+      "type": "security",
+      "label": "返回服务错误",
+      "sublabel": "不执行工具，不转交 Agent",
+      "width": 148
+    },
+    {
+      "id": "harness",
+      "lane": "failure",
+      "col": 3,
+      "type": "security",
+      "label": "请求澄清",
+      "sublabel": "Agent 无权调用专用工具",
+      "width": 148
+    }
+  ],
+  "edges": [
+    {
+      "from": "query",
+      "to": "meaning",
+      "role": "main"
+    },
+    {
+      "from": "meaning",
+      "to": "compile",
+      "label": "结构化判断",
+      "role": "main"
+    },
+    {
+      "from": "compile",
+      "to": "fit",
+      "label": "有合法候选计划",
+      "role": "main"
+    },
+    {
+      "from": "fit",
+      "to": "fixed",
+      "label": "router",
+      "role": "main"
+    },
+    {
+      "from": "fixed",
+      "to": "answer",
+      "role": "main"
+    },
+    {
+      "from": "compile",
+      "to": "clarify",
+      "label": "缺参数或不支持",
+      "role": "branch"
+    },
+    {
+      "from": "compile",
+      "to": "agent",
+      "label": "没有完整固定模板",
+      "role": "branch"
+    },
+    {
+      "from": "fit",
+      "to": "agent",
+      "label": "agent：普通计划不完整",
+      "role": "branch"
+    },
+    {
+      "from": "agent",
+      "to": "answer",
+      "label": "执行结果",
+      "role": "return"
+    },
+    {
+      "from": "meaning",
+      "to": "error",
+      "label": "超时、失败或额度不足",
+      "role": "error"
+    },
+    {
+      "from": "fit",
+      "to": "error",
+      "label": "调用失败",
+      "role": "error"
+    },
+    {
+      "from": "fit",
+      "to": "harness",
+      "label": "专用网格或模型评分计划被否决",
+      "role": "branch"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "两次判断都由 Jev 完成",
+      "items": [
+        "第一阶段识别需求，第二阶段评估具体方案；最高概率胜出，不设置信度门槛。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "计划由代码生成",
+      "items": [
+        "参数解析、固定模板、数据覆盖校验和工具执行均由代码完成。正常完整路径最多 4 次 Jev 调用。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "当前实现的边界",
+      "items": [
+        "第二阶段只有 router / agent；缺参数通常应先澄清，但漏检时仍可能误转交。图示为当前实现，不是理想化流程。"
+      ]
+    }
+  ]
+}
