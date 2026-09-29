@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
-from services.agent.decisions import decide_mode, jev_first, router_gate, v4
+from services.agent.decisions import decide_mode, jev_first, router_gate, v4, v4_scope
 from services.agent.decisions.canonical import payload_hash
 from services.agent.decisions.integrity import answer_to_json, question_hash
 from services.agent.decisions.mapping import regex_labels
@@ -24,6 +24,7 @@ from services.agent.eval.jev_metrics import INPUT_USD_PER_MILLION
 
 CASES = Path(__file__).with_name("router_gate_cases.json")
 MODEL = "typesafe/jev-1.13-20260917"
+MODES = ("decide_v3", "prior_v4", "router_gate", "v4_scope_argmax")
 
 
 def account_usage() -> float:
@@ -38,6 +39,10 @@ def account_usage() -> float:
 
 
 def request_calls(case: dict, mode: str, today: str) -> list[dict]:
+    if mode not in MODES:
+        raise ValueError(f"Unknown comparison mode: {mode}")
+    if mode == "v4_scope_argmax":
+        return v4_scope.calls_for(case["question"], today)
     proposal = route_question(case["question"])
     return (
         decide_mode.jev_calls(case["question"], today)
@@ -100,6 +105,7 @@ def summarize(cases: dict, records: list[dict]) -> dict:
             "intent_correct": 0,
             "intent_confidences": [],
             "disposition_correct": 0,
+            "disposition_confusion": defaultdict(int),
             "routes": defaultdict(int),
             "failures": [],
         }
@@ -114,6 +120,8 @@ def summarize(cases: dict, records: list[dict]) -> dict:
         "unnecessary_rejects": [],
         "confidences": [],
     }
+    rows = []
+    groups = defaultdict(lambda: {"n": 0, "correct": 0})
     for record in records:
         case = by_id[record["id"]]
         proposal = route_question(case["question"])
@@ -128,12 +136,16 @@ def summarize(cases: dict, records: list[dict]) -> dict:
                 today=date.fromisoformat(record["today"]),
             )
             decision = result.decision
-        elif mode == "prior_v4":
+        elif mode in {"prior_v4", "v4_scope_argmax"}:
             decision = jev_first.decide_from_answers(
                 case["question"],
                 answers,
                 error=record["error"],
                 today=date.fromisoformat(record["today"]),
+                use_confidence=mode == "prior_v4",
+                geography_fact=(
+                    v4_scope.SCOPE_FACT if mode == "v4_scope_argmax" else "broad_region"
+                ),
             )
         else:
             result = router_gate.decide_from_answers(
@@ -172,7 +184,12 @@ def summarize(cases: dict, records: list[dict]) -> dict:
         item = stats[mode]
         item["runs"] += 1
         item["errors"] += int(bool(record["error"]))
-        actual_intent = answers.get("intent", {}).get("value")
+        selected = (
+            jev_first.highest_choices(answers)
+            if mode == "v4_scope_argmax" and not record["error"]
+            else answers
+        )
+        actual_intent = selected.get("intent", {}).get("value")
         # V3 and gate use the v3 vocabulary. Score intent only on shared labels.
         expected_intent = case["expected"].get("intent")
         if expected_intent and not set(expected_intent) & {
@@ -194,6 +211,24 @@ def summarize(cases: dict, records: list[dict]) -> dict:
             "answer" if decision.path in {"model", "deterministic"} else decision.path
         )
         item["disposition_correct"] += int(actual in expected and not record["error"])
+        item["disposition_confusion"][
+            f"{'|'.join(sorted(expected))}->{('error' if record['error'] else actual)}"
+        ] += 1
+        correct = actual in expected and not record["error"]
+        for dimension in ("split", "group"):
+            key = f"{mode}:{dimension}:{case.get(dimension, 'unspecified')}"
+            groups[key]["n"] += 1
+            groups[key]["correct"] += correct
+        rows.append({
+            "id": case["id"], "mode": mode, "repeat": record["repeat"],
+            "question": case["question"], "expected_dispositions": sorted(expected),
+            "correct": correct, "intent": actual_intent,
+            "path": decision.path, "rule": decision.rule,
+            "tool_calls": decision.tool_calls, "view": decision.slots.get("view"),
+            "answer": decision.answer,
+            "plan_requirements": case.get("plan_requirements", []),
+            "plan_review": "pending" if decision.path == "deterministic" else "not_executed",
+        })
         item["routes"][decision.path] += 1
         repeated[(mode, case["id"])].add((actual_intent, decision.path, decision.rule))
         if actual not in expected or record["error"]:
@@ -246,6 +281,8 @@ def summarize(cases: dict, records: list[dict]) -> dict:
         },
         "modes": dict(stats),
         "router_fit": fit,
+        "by_group": dict(groups),
+        "rows": rows,
         "caveat": "Pre-execution classification only. An agent handoff is not proof of a correct final answer. Repeats measure consistency, not independent sample size.",
     }
 
@@ -260,8 +297,12 @@ def main():
     parser.add_argument("--cases", type=Path, default=CASES)
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--cap-usd", type=float)
+    parser.add_argument("--modes", nargs="+", choices=MODES)
     args = parser.parse_args()
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
+    modes = args.modes or cases.get("comparison_modes", list(MODES[:3]))
+    if not modes or len(set(modes)) != len(modes) or set(modes) - set(MODES):
+        parser.error("Comparison modes must be unique supported modes")
     if args.replay:
         if args.run or args.output is None:
             parser.error("Replay requires --output and must not use --run")
@@ -283,6 +324,14 @@ def main():
                 raise ValueError(
                     "Capture is incomplete or its payload no longer matches; do not reuse it as a fresh result"
                 )
+        expected_keys = {
+            (case["id"], mode, repeat)
+            for case in cases["cases"] for mode in modes
+            for repeat in range(1, args.repeats + 1)
+        }
+        keys = [(row["id"], row["mode"], row["repeat"]) for row in records]
+        if len(keys) != len(set(keys)) or set(keys) != expected_keys:
+            raise ValueError("Replay must contain every case/mode/repeat exactly once")
         report = summarize(cases, records)
         args.output.mkdir(parents=True, exist_ok=False)
         (args.output / "report.json").write_text(
@@ -304,7 +353,9 @@ def main():
                 {
                     "cases": len(cases["cases"]),
                     "repeats": args.repeats,
-                    "max_api_calls": len(cases["cases"]) * args.repeats * 7,
+                    "modes": modes,
+                    "max_api_calls": len(cases["cases"]) * args.repeats
+                    * sum(1 if mode == "router_gate" else 3 for mode in modes),
                     "network_calls": 0,
                 }
             )
@@ -331,6 +382,8 @@ def main():
                 "case_hash": payload_hash(cases),
                 "repeats": args.repeats,
                 "model": MODEL,
+                "modes": modes,
+                "today": cases["today"],
             },
             indent=2,
         ),
@@ -339,9 +392,9 @@ def main():
     records = []
     jobs = [
         (case, mode, repeat)
-        for case in cases["cases"]
         for repeat in range(1, args.repeats + 1)
-        for mode in ("decide_v3", "prior_v4", "router_gate")
+        for case in cases["cases"]
+        for mode in (modes if repeat % 2 else list(reversed(modes)))
     ]
     stopped = None
     with (
