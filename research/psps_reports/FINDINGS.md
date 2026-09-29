@@ -63,11 +63,13 @@ Round 4 replaced the two human reviewers with two independent models: Claude Opu
   - On all 179 agreed test values, 177 were right (98.9%, 96.0 to 99.7). The bar was 95%.
   - The models agreed on 179 of 211 test values.
   - Both agreed errors are SDG&E MBL items.
-- **SDG&E MBL caveat:** Both agreed errors in the test were SDG&E Medical Baseline items. 8 SDG&E mbl_advance_notice items were accepted in the queue; treat them with that caveat. Their status is unchanged, since changing a rule after the test would undo the freeze.
+- **SDG&E MBL caveat:** Both agreed errors in the test were SDG&E Medical Baseline items (queue items 117 and 141). 8 SDG&E mbl_advance_notice items were accepted in the queue. Six of them now carry their hand label: 117 and 141, where the hand label replaced the agreed answer, and 204, 230, 253, and 260, where the agreed answer already matched it. The caveat applies to the two accepted SDG&E Medical Baseline items without a hand label, 184 and 203. The review rules were not changed after the test.
 - **Queue:**
   - 206 of the 286 items were accepted as `model_review_agreed`.
   - 80 remain unresolved, mostly because Opus marked them unsure (60).
-  - In the dataset, 304 field values are now model-reviewed, 129 are unresolved, and 962 were never flagged. 82 values changed.
+  - In the dataset, 253 field values are model-reviewed, 297 carry a hand label, 103 are unresolved, and 742 were never flagged, out of 1,395 (155 events × 9 fields).
+  - Model review changed 82 values and hand labels changed 9. In all, 88 values differ from `round3/dataset.csv`, since some fields changed in both steps.
+  - Hand labels come from the test gold and the round 1 gold, applied after the test (`round4/hand_labels.py`), so known errors do not stay in the dataset. A gold `null` does not replace a time taken from a utility workbook, because the gold was written from the PDF alone. That case applies to 4 fields.
   - `round4/dataset_reviewed.csv` carries a per-field `review_method`.
 - **What changed most:**
   - Wind answers moved from `met` or `not_met` to `not_stated` (13).
@@ -201,4 +203,4 @@ Round 4 settled 206 of the 286 flagged items by model review. Once the remaining
 - The wind field is weak for PG&E and should not be used without review.
 - Circuit-level times are reliable only for the 7 workbook events and for reports whose PDF table lists every circuit.
 - All accuracy figures rest on one labeler until the two-reviewer overlap is scored.
-- Values marked `model_review_agreed` were settled by two models, not a person. Use `review_method` to separate them.
+- Values marked `model_review_agreed` were settled by two models, not a person, and values marked `hand_labeled` carry a hand label. Use `review_method` to separate them.

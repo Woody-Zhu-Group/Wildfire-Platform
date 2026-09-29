@@ -30,11 +30,19 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
   - 1 correction that listed fields outside the correction syntax (item 16).
 
   In 59 of the 80, the two reviewers gave the same value.
-- **Dataset fields (155 events × 9 fields):** 962 unflagged, 304 `model_review_agreed`, 129 `unresolved`. 82 values changed:
+- **Dataset fields after model review (155 events × 9 fields):** 962 unflagged, 304 `model_review_agreed`, 129 `unresolved`. 82 values changed:
   - 32 `NO_MATCHING_PAGE` placeholders now have an answer.
   - Wind moved from `met` or `not_met` to `not_stated` 13 times.
   - Claims moved from `zero` to `not_stated` 11 times.
   - The SDG&E Jan 20 to 24, 2025 last restoration is now the PDF's 15:48 (item 22), and its duration was recomputed.
+- **Hand labels** (`hand_labels.py`, added after the test on 2026-09-28): every field with a hand label now carries it, so known errors do not stay in the dataset.
+  - The labels come from the kept rows of `test_gold.csv`, and from the round 1 gold with the development mapping. Excluded gold rows and `r2_pge_2017_2019` are skipped.
+  - The previous value is kept in `<field>_value_before_hand_label`, and the field's round 4 disagreement flag is removed.
+  - A gold `null` does not replace a time taken from a utility workbook, since the gold was written from the PDF alone. This keeps 4 workbook times (SCE Jan 20 2025, first and last; SDG&E Dec 9 2024, first; SDG&E Jan 20 2025, first).
+  - A gold `a|b` keeps the current value when it is one of the alternatives.
+  - Hand labels changed 9 values, including the two agreed test errors (items 117 and 141, SDG&E MBL, now `all_notified`).
+  - **Final dataset fields:** 742 unflagged, 297 `hand_labeled`, 253 `model_review_agreed`, 103 `unresolved`. 88 values differ from `round3/dataset.csv`.
+  - The test scoring and `calibration_results.md` are unchanged.
 - **Contradictions:** 16 `CONTRADICTION:` notes were appended to `round3/contradictions.csv`, marked "round 4 model-found, unchecked".
 
 **Effort:**
@@ -64,6 +72,7 @@ python research/psps_reports/round4/score.py test
 python research/psps_reports/round4/run_claude.py run --set queue
 python research/psps_reports/round4/run_sol.py run --set queue
 python research/psps_reports/round4/apply.py
+python research/psps_reports/round4/hand_labels.py   # always right after apply.py
 ```
 
 The test and queue commands use the frozen limits and refuse to run if a code file or the Claude Code version changed. A rerun resumes: sessions already in `runs/*.jsonl` are skipped. The test was run once and must not be rerun on the same gold.
@@ -78,6 +87,7 @@ The test and queue commands use the frozen limits and refuse to run if a code fi
 | `verify.py` | The code checks on each answer and the agreement rule. |
 | `score.py` | Gold conversion (`test_gold.csv`, `test_exclusions.csv`), development scoring, the freeze, and the test scoring. |
 | `apply.py` | Applies the decisions: `reviewed_queue.csv`, `dataset_reviewed.csv`, and the contradiction notes. |
+| `hand_labels.py` | Puts the hand labels into `dataset_reviewed.csv` after `apply.py`, and records the previous values. |
 
 ## Packet isolation check
 
