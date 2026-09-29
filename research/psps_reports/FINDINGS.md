@@ -1,6 +1,6 @@
 # Structured data from CPUC PSPS post-event reports: findings
 
-Research memo, September 2026. Details and code are under `research/psps_reports/`: round 1 (pilot), `round2/` (clean test), and `round3/` (full run).
+Research memo, September 2026. Details and code are under `research/psps_reports/`: round 1 (pilot), `round2/` (clean test), `round3/` (full run), and `round4/` (model-assisted review of the round 3 queue).
 
 ## What was built
 
@@ -52,15 +52,42 @@ All labels are from one reviewer (the author). No second reader has checked them
 - **The weak fields** are MBL notification and wind. Both depend on how a utility words its report. PG&E, for example, describes a composite risk score rather than a wind threshold, so "does the report say wind met a threshold" often has no clear answer.
 - **The numbers were reliable** whenever the report actually stated them. Luna's misses in round 2 were all cases where the PDF's circuit table was incomplete. The round 3 rules make it return null there instead.
 
+## Model-assisted review of the queue (round 4)
+
+Round 4 replaced the two human reviewers with two independent models: Claude Opus 5.5, run as fresh headless Claude Code sessions confined to a packet folder, and GPT-6 Sol on OpenRouter. Each model answered every flagged item from the report itself, without seeing Jev's answer, the gold labels, or the other model's output. Code checked that each answer was an allowed value, that its quote appears on a cited page, and that the model was not unsure. Items where both answers passed and matched were accepted. Details are in `round4/README.md` and `round4/DESIGN.md`.
+
+**These values are model-reviewed; accuracy was measured on 211 hand-labeled values from 24 reports; no human audit of the reviewed items.** The design planned 25 reports. One round 2 report was excluded because round 3 used an amended PDF.
+
+- **Test, run once after a committed freeze:**
+  - On the 29 agreed queue-matched items, 27 were right (93.1%, Wilson 95% interval 78.0 to 98.1). The bar was 90%.
+  - On all 179 agreed test values, 177 were right (98.9%, 96.0 to 99.7). The bar was 95%.
+  - The models agreed on 179 of 211 test values.
+  - Both agreed errors are SDG&E MBL items.
+- **Queue:**
+  - 206 of the 286 items were accepted as `model_review_agreed`.
+  - 80 remain unresolved, mostly because Opus marked them unsure (60).
+  - In the dataset, 304 field values are now model-reviewed, 129 are unresolved, and 962 were never flagged. 82 values changed.
+  - `round4/dataset_reviewed.csv` carries a per-field `review_method`.
+- **What changed most:**
+  - Wind answers moved from `met` or `not_met` to `not_stated` (13).
+  - Claims moved from `zero` to `not_stated` (11).
+  - 32 no-matching-page placeholders were filled in.
+- **Limits:**
+  - The 29-item bar has a wide interval.
+  - The 28 special items (partial corrections, unreadable pages, workbook times) have no direct gold.
+  - The 3 redlines were not asked.
+  - The two human reviewer files in `round3/` were not used and are unchanged.
+
 ## Cost
 
-All model calls for the three rounds cost **$2.66**:
+All OpenRouter and TypeSafe calls for rounds 1 to 3 cost **$2.66**, and round 4 added **$10.39**, for **$13.05** in total:
 
 | Round | Cost | What it covered |
 |---|---|---|
 | Round 1 | $0.17 | 10 reports |
 | Round 2 | $0.21 | 15 reports |
 | Round 3 | $2.28 | All 155 reports, including image transcription |
+| Round 4 | $10.39 | GPT-6 Sol for model-assisted review (development, test, queue); Opus ran on the Claude subscription (199 sessions, no dollar cost) |
 
 The dominant cost is human review, not computation.
 
@@ -110,7 +137,7 @@ We found 22 places where a report disagrees with itself. They come from 17 of th
 
 Most of these are small. They matter because a dataset built from these reports silently picks one value unless it has a stated precedence rule. Ours prefers the circuit table when complete, then the section that answers the CPUC template question. The contradictions also bear on reporting quality in their own right.
 
-A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been hand-checked.
+Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been hand-checked.
 
 ## Gaps in what utilities publish
 
@@ -161,7 +188,7 @@ In every large disagreement we checked, the report pages support the dataset's v
 
 ## What the dataset could support after review
 
-Once the 286 flagged items are resolved, the table would be a consistent, sourced event record of PSPS use by the three utilities from 2017 to 2026. It could support:
+Round 4 settled 206 of the 286 flagged items by model review. Once the remaining 80 are resolved by a person, the table would be a consistent, sourced event record of PSPS use by the three utilities from 2017 to 2026. It could support:
 
 - **An event panel:** frequency, size (customers), duration, and geographic spread (counties) of shutoffs by utility and year. Events where notices went out but no one was shut off are included, which matters for studying notification burden.
 - **Compliance-style indicators:** how often de-energized MBL customers were not notified in advance, how often events generated complaints or claims, and how often notified customers were never shut off. These are presence or absence indicators, not counts. The pipeline does not yet extract complaint and claim counts, though the reports usually give them.
@@ -173,3 +200,4 @@ Once the 286 flagged items are resolved, the table would be a consistent, source
 - The wind field is weak for PG&E and should not be used without review.
 - Circuit-level times are reliable only for the 7 workbook events and for reports whose PDF table lists every circuit.
 - All accuracy figures rest on one labeler until the two-reviewer overlap is scored.
+- Values marked `model_review_agreed` were settled by two models, not a person. Use `review_method` to separate them.

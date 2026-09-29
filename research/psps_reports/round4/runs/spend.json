@@ -1,4 +1,80 @@
 {
   "sol_ping_usd": 0.000176,
-  "sol_usd": 3.729739
+  "sol_usd": 10.385497,
+  "claude_sessions": {
+    "isolation_check_sessions": 5,
+    "claude_dev_v1.jsonl": {
+      "sessions": 12,
+      "turns_total": 389,
+      "turns_mean": 32.4,
+      "turns_max": 46,
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "versions": [
+        "2.1.281"
+      ]
+    },
+    "claude_dev_v2.jsonl": {
+      "sessions": 12,
+      "turns_total": 412,
+      "turns_mean": 34.3,
+      "turns_max": 49,
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "versions": [
+        "2.1.281"
+      ]
+    },
+    "claude_queue.jsonl": {
+      "sessions": 146,
+      "turns_total": 2486,
+      "turns_mean": 17.0,
+      "turns_max": 42,
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "versions": [
+        "2.1.281"
+      ]
+    },
+    "claude_test.jsonl": {
+      "sessions": 24,
+      "turns_total": 670,
+      "turns_mean": 27.9,
+      "turns_max": 47,
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "versions": [
+        "2.1.281"
+      ]
+    },
+    "total_sessions": 199,
+    "note": "subscription, no dollar cost; no usage-limit pause occurred"
+  },
+  "sol_by_run": {
+    "sol_dev_v1.jsonl": {
+      "sessions": 12,
+      "usd": 0.8889,
+      "tool_calls": 373
+    },
+    "sol_dev_v2.jsonl": {
+      "sessions": 12,
+      "usd": 1.0161,
+      "tool_calls": 407
+    },
+    "sol_queue.jsonl": {
+      "sessions": 146,
+      "usd": 6.6558,
+      "tool_calls": 2798
+    },
+    "sol_test.jsonl": {
+      "sessions": 24,
+      "usd": 1.8247,
+      "tool_calls": 792
+    }
+  },
+  "sol_total_usd": 10.3857
 }

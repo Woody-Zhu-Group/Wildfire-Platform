@@ -1,6 +1,72 @@
 # Round 4: model-assisted review of the round 3 queue
 
-Work in progress. `DESIGN.md` is the plan, including the changes decided before the freeze. This README is completed when the round ends.
+Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queue on their own, from the report itself. Code checked their evidence, and items where they agreed were accepted. The method was tested once, on 211 hand-labeled values from 24 clean reports, before it touched the queue. It passed both bars. `DESIGN.md` is the plan, including the changes decided before the freeze.
+
+**Values settled here are model-reviewed, not human-reviewed.** Accuracy was measured on 211 hand-labeled values from 24 reports; no human audit of the reviewed items. All gold labels come from one labeler.
+
+## Results
+
+**Test** (`calibration_results.md`; clean set, run once after the freeze):
+
+| Bar | Needed | Result (Wilson 95% interval) | Pass |
+|---|---|---|---|
+| Queue-matched items | at least 90% | 27/29 agreed answers right (93.1%, 78.0 to 98.1) | yes |
+| All test values | at least 95% | 177/179 agreed answers right (98.9%, 96.0 to 99.7) | yes |
+
+- **Agreement:** the reviewers agreed on 179 of 211 test values (84.8%), and on 29 of 32 queue-matched ones.
+- **The two agreed errors** are both SDG&E MBL items that the gold says were `all_notified`.
+- **Opus's null times:** Opus wrote 18 unstated times as a JSON `null` rather than the string `"null"`. The frozen check counts those as invalid, which lowers agreement but not accuracy.
+
+**Queue** (`reviewed_queue.csv`, `dataset_reviewed.csv`):
+
+- **206 of 286 items accepted** (`model_review_agreed`):
+  - 175 from the queue run,
+  - 31 reused from the test run, since they ask the same question on the same report.
+- **80 unresolved:**
+  - 62 where a reviewer marked the item unsure (60 of them Opus),
+  - 9 read only from an image,
+  - 5 where both answers were valid but different,
+  - 3 redlines, which were not asked,
+  - 1 correction that listed fields outside the correction syntax (item 16).
+
+  In 59 of the 80, the two reviewers gave the same value.
+- **Dataset fields (155 events × 9 fields):** 962 unflagged, 304 `model_review_agreed`, 129 `unresolved`. 82 values changed:
+  - 32 `NO_MATCHING_PAGE` placeholders now have an answer.
+  - Wind moved from `met` or `not_met` to `not_stated` 13 times.
+  - Claims moved from `zero` to `not_stated` 11 times.
+  - The SDG&E Jan 20 to 24, 2025 last restoration is now the PDF's 15:48 (item 22), and its duration was recomputed.
+- **Contradictions:** 16 `CONTRADICTION:` notes were appended to `round3/contradictions.csv`, marked "round 4 model-found, unchecked".
+
+**Effort:**
+- 199 Opus sessions (5 isolation checks, 24 development, 24 test, 146 queue) on the Claude subscription, with no usage-limit pause.
+- Sol cost $10.39 on OpenRouter: $1.91 development (including the ping), $1.82 test, $6.66 queue. The cap was $20.08. Details are in `runs/spend.json`.
+
+## What the results mean
+
+- An agreed answer on a queue-style item was right about 93 percent of the time on the closest test match. The interval runs from 78 to 98 percent, because only 29 items back it.
+- Across all test values, agreed answers were right about 99 percent of the time.
+- The weak spot is the same as in round 3: MBL notification. Both agreed errors are MBL items, and MBL has the most unresolved items (35 of 91).
+- Unresolved items keep the pipeline value, carry the flag `<field>:model_review_disagreement`, and record both answers in `model_review_unresolved`. They still need a human.
+
+## Rerun
+
+```
+python research/psps_reports/round4/run_claude.py isolation
+python research/psps_reports/round4/run_claude.py run --set dev --tag _vN   # development only
+python research/psps_reports/round4/run_sol.py ping
+python research/psps_reports/round4/run_sol.py run --set dev --tag _vN
+python research/psps_reports/round4/score.py dev --tag _vN
+python research/psps_reports/round4/score.py gold
+python research/psps_reports/round4/score.py freeze        # after committing the code
+python research/psps_reports/round4/run_claude.py run --set test
+python research/psps_reports/round4/run_sol.py run --set test
+python research/psps_reports/round4/score.py test
+python research/psps_reports/round4/run_claude.py run --set queue
+python research/psps_reports/round4/run_sol.py run --set queue
+python research/psps_reports/round4/apply.py
+```
+
+The test and queue commands use the frozen limits and refuse to run if a code file or the Claude Code version changed. A rerun resumes: sessions already in `runs/*.jsonl` are skipped. The test was run once and must not be rerun on the same gold.
 
 ## Code
 
@@ -10,6 +76,8 @@ Work in progress. `DESIGN.md` is the plan, including the changes decided before 
 | `run_claude.py` | Reviewer 1: the packet isolation check, then one fresh headless Claude Code session per packet. |
 | `run_sol.py` | Reviewer 2: GPT-6 Sol on OpenRouter with `search`, `read_page`, and `view_page` over the same packet, plus the spend ledger. |
 | `verify.py` | The code checks on each answer and the agreement rule. |
+| `score.py` | Gold conversion (`test_gold.csv`, `test_exclusions.csv`), development scoring, the freeze, and the test scoring. |
+| `apply.py` | Applies the decisions: `reviewed_queue.csv`, `dataset_reviewed.csv`, and the contradiction notes. |
 
 ## Packet isolation check
 
