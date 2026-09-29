@@ -391,6 +391,30 @@ def packet_dir(set_name: str, reviewer: str) -> Path:
     return PACKET_ROOT / set_name / reviewer
 
 
+CODE_FILES = ["packets.py", "verify.py", "run_claude.py", "run_sol.py", "score.py", "apply.py"]
+
+
+def file_sha256(path: Path) -> str:
+    import hashlib
+
+    # Hash with normalized line endings so a CRLF checkout does not look like a change.
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def frozen(set_name: str) -> dict | None:
+    """For the test and queue sets: the freeze, after checking the code still matches it."""
+    if set_name == "dev":
+        return None
+    path = HERE / "freeze.json"
+    if not path.exists():
+        raise SystemExit(f"STOP: no freeze.json; the {set_name} set runs only after the freeze")
+    freeze = json.loads(path.read_text(encoding="utf-8"))
+    changed = [f for f, h in freeze["code_sha256"].items() if file_sha256(HERE / f) != h]
+    if changed:
+        raise SystemExit(f"STOP: code changed since the freeze: {changed}")
+    return freeze
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("command", choices=["build", "list"])

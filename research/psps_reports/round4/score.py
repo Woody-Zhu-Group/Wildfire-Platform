@@ -16,6 +16,7 @@ import csv
 import json
 import math
 from collections import Counter, defaultdict
+from pathlib import Path
 
 import packets as pk
 import verify as vf
@@ -80,6 +81,11 @@ def cmd_gold() -> None:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
         w.writerows(rows)
+    excluded_rows = [r for r in rows if r["excluded"] == "yes"]
+    with open(HERE / "test_exclusions.csv", "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=["report_id", "gold_report_id", "field", "gold_original", "certain", "exclusion_reason"])
+        w.writeheader()
+        w.writerows({k: r[k] for k in w.fieldnames} for r in excluded_rows)
     kept = [r for r in rows if r["excluded"] == "no"]
     qm = queue_matched_keys()
     print(f"test_gold.csv: {len(rows)} rows, {len(kept)} kept, {len(rows) - len(kept)} excluded; "
@@ -269,12 +275,84 @@ def cmd_test() -> None:
     print("\n".join(lines))
 
 
+SOL_CAP_USD = 20.08  # 1.5 x the projection below, set by the user on 2026-09-28
+SOL_PROJECTION = {"development_actual_usd": 1.91, "test_usd": 1.97, "queue_usd": 9.51, "total_usd": 13.39,
+                  "basis": "test: 24 sessions x $0.082 (mean of 20 nine-item development sessions); "
+                           "queue: 146 sessions x $0.065 (mean of the 4 one- or two-item development sessions)"}
+
+
+def cmd_freeze() -> None:
+    import hashlib
+    import subprocess
+    import time
+
+    import run_claude as rc
+    import run_sol as rs
+
+    repo = pk.ROOT.parent.parent
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout.strip()
+    dirty = subprocess.run(["git", "status", "--porcelain", "--"] + [str(HERE / f) for f in pk.CODE_FILES], cwd=repo,
+                           capture_output=True, text=True).stdout.strip()
+    if dirty:
+        raise SystemExit(f"STOP: commit the code before the freeze: {dirty}")
+    iso = json.loads((RUNS / "isolation_check.json").read_text(encoding="utf-8"))
+    dev_runs = [json.loads(line) for line in (RUNS / "claude_dev_v2.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    gold_rows = pk.read_csv(HERE / "test_gold.csv")
+    kept = [r for r in gold_rows if r["excluded"] == "no"]
+    qm = queue_matched_keys()
+    instr = {name: pk.instructions(name) for name in ("claude", "sol")}
+    spent = rs.sol_total()
+    freeze = {
+        "frozen_at": time.strftime("%Y-%m-%d %H:%M"),
+        "code_commit": head,
+        "code_sha256": {f: pk.file_sha256(HERE / f) for f in pk.CODE_FILES},
+        "claude": {
+            "claude_code_version": iso["summary"]["claude_code_version"],
+            "model_alias": "opus", "model": iso["summary"]["model"],
+            "models_seen_in_development": sorted({r["model"] for r in dev_runs}),
+            "command": rc.claude_command(Path("<packet>"), rc.MAX_TURNS)[1:],
+            "prompt": rc.PROMPT, "tools": ["Read", "Grep", "Glob", "Write"],
+            "allowed_tools": ["Read(./**)", "Grep(./**)", "Glob(./**)", "Edit(//<packet posix path>/answers.json)"],
+            "max_turns": rc.MAX_TURNS, "session_timeout_s": rc.SESSION_TIMEOUT_S, "workers": 3,
+            "isolation_check": {"passed": iso["passed"], "checks": iso["checks"]},
+        },
+        "sol": {
+            "model": rs.MODEL, "reasoning_effort": rs.REASONING_EFFORT, "max_tool_calls": rs.MAX_TOOL_CALLS,
+            "max_rounds": rs.MAX_ROUNDS, "tools": rs.tool_specs(["report", "correction", "correction2"]),
+            "answer_schema": rs.ANSWER_SCHEMA, "workers": 3,
+            "cost_cap_usd": SOL_CAP_USD, "allowance_usd": rs.ALLOWANCE_USD, "projection": SOL_PROJECTION,
+            "spent_before_freeze_usd": round(spent, 6),
+            "cap_rule": "the run stops before any call once total Sol spend, including development, reaches the cap",
+        },
+        "instructions_sha256": {k: hashlib.sha256(v.encode("utf-8")).hexdigest() for k, v in instr.items()},
+        "instructions": instr,
+        "packets": {"root": "system temp directory / psps_r4", "png_dpi": pk.DPI, "low_text_chars": pk.LOW_TEXT_CHARS,
+                    "png_pages": "pages in round3/runs/images.jsonl, pages under the low-text limit or scrambled (common.is_garbled), and every page_ref"},
+        "checks": {"quote_normalization": "NFKC (unfolds ligatures), casefold, remove all whitespace",
+                   "empty_quote_values": sorted(vf.EMPTY_QUOTE_VALUES),
+                   "partial_corrections": "valid only if at least one cited page is from a correction letter",
+                   "redlines": "items 1, 2, 3 go straight to unresolved"},
+        "gold": {"test_gold_sha256": pk.file_sha256(HERE / "test_gold.csv"),
+                 "test_exclusions_sha256": pk.file_sha256(HERE / "test_exclusions.csv"),
+                 "rows": len(gold_rows), "kept": len(kept), "excluded": len(gold_rows) - len(kept),
+                 "queue_matched_kept": sum((r["report_id"], r["field"]) in qm for r in kept),
+                 "rule_differences": RULE_DIFFERENCES,
+                 "excluded_rows": [{"gold_report_id": r["gold_report_id"], "field": r["field"], "reason": r["exclusion_reason"]}
+                                   for r in gold_rows if r["excluded"] == "yes"]},
+        "pass_bars": {"queue_matched_min_accuracy": 0.90, "all_test_values_min_accuracy": 0.95,
+                      "measured_on": "agreed answers; gold rows marked uncertain count"},
+        "sets": {s: {"sessions": len(pk.sessions(s)), "items": sum(len(x["items"]) for x in pk.sessions(s))} for s in ("test", "queue")},
+    }
+    (HERE / "freeze.json").write_text(json.dumps(freeze, indent=2), encoding="utf-8")
+    print(f"freeze.json written at code commit {head[:10]}; Sol cap ${SOL_CAP_USD}, spent ${spent:.3f}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["gold", "dev", "test"])
+    ap.add_argument("command", choices=["gold", "dev", "test", "freeze"])
     ap.add_argument("--tag", default="")
     args = ap.parse_args()
-    {"gold": cmd_gold, "dev": lambda: cmd_dev(args.tag), "test": cmd_test}[args.command]()
+    {"gold": cmd_gold, "dev": lambda: cmd_dev(args.tag), "test": cmd_test, "freeze": cmd_freeze}[args.command]()
 
 
 if __name__ == "__main__":

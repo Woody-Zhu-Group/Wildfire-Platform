@@ -35,7 +35,7 @@ from common import load_env  # noqa: E402
 HERE = pk.HERE
 RUNS = HERE / "runs"
 MODEL = "openai/gpt-6-sol"
-ALLOWANCE_USD = 20.0  # raised from 6.92 on 2026-09-28 by the user
+ALLOWANCE_USD = 25.0  # raised from 6.92 to 20 and then 25 on 2026-09-28 by the user
 MAX_TOOL_CALLS = 50
 MAX_ROUNDS = 30
 REASONING_EFFORT = "medium"
@@ -286,6 +286,9 @@ def ping() -> None:
 
 def run_set(set_name: str, only: list[str] | None, workers: int, max_tool_calls: int, tag: str) -> None:
     load_env()
+    freeze = pk.frozen(set_name)
+    if freeze:
+        max_tool_calls, tag = freeze["sol"]["max_tool_calls"], ""
     out_path = RUNS / f"sol_{set_name}{tag}.jsonl"
     done = set()
     if out_path.exists():

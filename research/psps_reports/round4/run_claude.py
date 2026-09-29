@@ -64,6 +64,7 @@ def child_env() -> dict:
     # Subscription auth, not an API key; no secrets or parent-session markers in the child.
     for name in ("ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "TYPESAFE_API_KEY", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"):
         env.pop(name, None)
+    env["DISABLE_AUTOUPDATER"] = "1"  # keep the frozen Claude Code version for the whole run
     return env
 
 
@@ -186,6 +187,12 @@ End with a short table of each step and whether it worked."""
 def run_set(set_name: str, only: list[str] | None, workers: int, max_turns: int, tag: str) -> None:
     if not json.loads((RUNS / "isolation_check.json").read_text(encoding="utf-8"))["passed"]:
         raise SystemExit("STOP: the packet isolation check has not passed")
+    freeze = pk.frozen(set_name)
+    if freeze:
+        max_turns, tag = freeze["claude"]["max_turns"], ""
+        version = subprocess.run([shutil.which("claude") or "claude", "--version"], capture_output=True, text=True).stdout.split()[0]
+        if version != freeze["claude"]["claude_code_version"]:
+            raise SystemExit(f"STOP: Claude Code is {version}, frozen at {freeze['claude']['claude_code_version']}")
     out_path = RUNS / f"claude_{set_name}{tag}.jsonl"
     done = set()
     if out_path.exists():
