@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import asdict
 from datetime import date
-from typing import Any
+from typing import Any, Literal
 
 from services.agent.decisions.decide_mode import (
     ask_jev,
@@ -124,6 +124,9 @@ def decide_from_answers(
     error: str | None = None,
     today: date | None = None,
     use_confidence: bool = True,
+    geography_fact: Literal[
+        "broad_region", "missing_geographic_scope"
+    ] = "broad_region",
 ) -> RouteDecision:
     """Pure v4 policy, shared by live execution, scripted tests and replay.
 
@@ -164,6 +167,8 @@ def decide_from_answers(
             slots["jev_decide"]["selection"] = "argmax_without_confidence_gate"
             if why == "gate":
                 slots["jev_decide"]["why"] = "argmax"
+        if geography_fact != "broad_region":
+            slots["jev_decide"]["geography_fact"] = geography_fact
         return RouteDecision(
             path,
             rule,
@@ -180,7 +185,13 @@ def decide_from_answers(
             rule, "Please specify the result, dataset, place and time period you need."
         )
         if (
-            rule in {"undefined_region", "undefined_spatial_scope", "city_needs_place"}
+            rule
+            in {
+                "undefined_region",
+                "undefined_spatial_scope",
+                "city_needs_place",
+                "missing_geographic_scope",
+            }
             and intent in _EVENT_INTENTS
             and time.status == "none"
             and _value(answers, "dataset") not in _INVENTORY
@@ -263,7 +274,12 @@ def decide_from_answers(
         return clarify("missing_dataset", "Which wildfire dataset should I use?")
 
     for fact, rule in (
-        ("broad_region", "undefined_region"),
+        (
+            geography_fact,
+            "undefined_region"
+            if geography_fact == "broad_region"
+            else "missing_geographic_scope",
+        ),
         ("vague_proximity", "undefined_spatial_scope"),
     ):
         value = _value(answers, fact)
@@ -275,7 +291,14 @@ def decide_from_answers(
         ):
             return uncertain()
         if value >= truth_threshold:
-            return clarify(rule, why="gate", confidence=_confidence(answers, fact))
+            text = (
+                "Which location or geographic area should I use? Please specify coordinates, a county, a utility territory, or a defined boundary."
+                if fact == "missing_geographic_scope"
+                else None
+            )
+            return clarify(
+                rule, text, why="gate", confidence=_confidence(answers, fact)
+            )
         if not certain(fact, answer_gate):
             return uncertain()
     if time.status in {"ambiguous", "out_of_coverage"}:

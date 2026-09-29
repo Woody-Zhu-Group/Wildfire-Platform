@@ -1,5 +1,9 @@
 # V4 without confidence gates: paired offline comparison
 
+Follow-up: the [2026-09-29 live geography-question comparison](JEV_V4_SCOPE_RESULTS_20260929.md)
+replaces broadness with missing required geographic information, while retaining
+argmax selection. The results below remain the original confidence ablation.
+
 The same 180 real v4 responses (36 development queries, five repeats each) were
 replayed twice: once through the original policy and once with confidence
 gating disabled. No API calls, new prompts, new labels or fabricated confidence

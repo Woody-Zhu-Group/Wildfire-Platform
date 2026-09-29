@@ -1,0 +1,8 @@
+{
+  "case_hash": "74676e71f9181f7dbc44bbfb0b471be2bad48f382e6f17b8c388cc81d906cd31",
+  "today": "2026-09-29",
+  "model": "typesafe/jev-1.13-20260917",
+  "repeats": 5,
+  "new_question": "The request still lacks geographic scope information required for its requested operation. Judge missing or unresolved location or boundary information, not the size of the area. A named statewide area, county, utility territory, grid cell, or coordinates is defined. A count or list without any requested geographic restriction uses the dataset's full coverage. A statewide grid or model-performance query does not need a narrower location. An inventory lookup by identifier needs no geographic filter. A needed point or local location, an unnamed county, or an undefined boundary needs clarification.",
+  "schema_version": "v4_scope_v1"
+}

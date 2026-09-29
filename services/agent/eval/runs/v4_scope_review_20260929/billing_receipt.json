@@ -1,0 +1,11 @@
+{
+  "account_usage_start": 0.085872528,
+  "account_usage_final": 0.136132248,
+  "account_usage_delta": 0.05025972000000001,
+  "input_tokens": 1196660,
+  "input_cost": 0.05025972,
+  "known_previous_spend": 0.085872528,
+  "known_cumulative_spend": 0.136132248,
+  "authorized_cap_usd": 5,
+  "api_calls": 1000
+}

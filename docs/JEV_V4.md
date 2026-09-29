@@ -7,6 +7,8 @@ The v4 policy and runner below are retained only as a comparison baseline.
 The following sections describe the previous prototype, not deployed behavior.
 An offline [argmax ablation](JEV_V4_ARGMAX_RESULTS_20260928.md) disables confidence
 gates while keeping the same captured responses and structural checks.
+The subsequent [live missing-scope experiment](JEV_V4_SCOPE_RESULTS_20260929.md)
+replaces one geographic fact without changing production v3 or the old payloads.
 
 With `AGENT_JEV_MODE=decide`, Jev owns semantic intent and disposition. The
 runtime does not call `route_question`, its keyword candidate selector, or the

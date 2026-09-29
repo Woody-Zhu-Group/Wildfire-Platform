@@ -1,0 +1,117 @@
+{
+  "set_status": "Development geographic-scope controls, written before implementing the revised question. Not an independent holdout.",
+  "cases": [
+    {
+      "id": "scope_01",
+      "question": "Render fitted ignition intensity for every California grid cell on 2024-08-15.",
+      "expected_scope_missing": false,
+      "expected_dispositions": [
+        "answer"
+      ]
+    },
+    {
+      "id": "scope_02",
+      "question": "I need the full California model-risk map for 2024-08-15.",
+      "expected_scope_missing": false,
+      "expected_dispositions": [
+        "answer"
+      ]
+    },
+    {
+      "id": "scope_03",
+      "question": "Display model residuals over the entire state of California on 2024-08-15.",
+      "expected_scope_missing": false,
+      "expected_dispositions": [
+        "answer"
+      ]
+    },
+    {
+      "id": "scope_04",
+      "question": "Map CAL FIRE incidents across Los Angeles County in 2024.",
+      "expected_scope_missing": false,
+      "expected_dispositions": [
+        "answer"
+      ]
+    },
+    {
+      "id": "scope_05",
+      "question": "Count 2024 CPUC ignitions attributed to PG&E.",
+      "expected_scope_missing": false,
+      "expected_dispositions": [
+        "answer"
+      ]
+    },
+    {
+      "id": "scope_06",
+      "question": "How many CAL FIRE incidents occurred in 2024?",
+      "expected_scope_missing": false,
+      "expected_dispositions": [
+        "answer"
+      ]
+    },
+    {
+      "id": "scope_07",
+      "question": "What was the fitted ignition risk on 2024-08-15?",
+      "expected_scope_missing": true,
+      "expected_dispositions": [
+        "clarification"
+      ]
+    },
+    {
+      "id": "scope_08",
+      "question": "Show CPUC ignitions near my house in 2024.",
+      "expected_scope_missing": true,
+      "expected_dispositions": [
+        "clarification"
+      ]
+    },
+    {
+      "id": "scope_09",
+      "question": "Count CPUC ignitions up north in 2024.",
+      "expected_scope_missing": true,
+      "expected_dispositions": [
+        "clarification"
+      ]
+    },
+    {
+      "id": "scope_10",
+      "question": "Map CAL FIRE incidents around Sacramento in 2024.",
+      "expected_scope_missing": true,
+      "expected_dispositions": [
+        "clarification"
+      ]
+    },
+    {
+      "id": "scope_11",
+      "question": "What was the fitted ignition risk at 38.5, -121.5 on 2024-08-15?",
+      "expected_scope_missing": false,
+      "expected_dispositions": [
+        "answer"
+      ]
+    },
+    {
+      "id": "scope_12",
+      "question": "Which utility territory contains 38.5, -121.5?",
+      "expected_scope_missing": false,
+      "expected_dispositions": [
+        "answer"
+      ]
+    },
+    {
+      "id": "scope_13",
+      "question": "How many CPUC ignitions were recorded in the county in 2024?",
+      "expected_scope_missing": true,
+      "expected_dispositions": [
+        "clarification"
+      ]
+    },
+    {
+      "id": "scope_14",
+      "question": "Compare CAL FIRE incident counts in my county and the neighboring county for 2024.",
+      "expected_scope_missing": true,
+      "expected_dispositions": [
+        "clarification"
+      ]
+    }
+  ]
+}
