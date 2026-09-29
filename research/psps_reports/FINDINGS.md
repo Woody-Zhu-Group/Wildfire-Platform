@@ -72,7 +72,7 @@ Code checked that each answer was an allowed value, that its quote appears on a 
 - **Queue:**
   - 206 of the 286 items were accepted as `model_review_agreed`.
   - 80 remain unresolved, mostly because Opus marked them unsure (60).
-  - In the dataset, 145 field values are `model_review_agreed`, 112 are `model_review_no_change`, 270 carry a hand label, 107 are unresolved, and 761 were never flagged, out of 1,395 (155 events × 9 fields).
+  - In the dataset, 145 field values are `model_review_agreed`, 112 are `model_review_no_change`, 270 are `model_labeled` (they carry an old gold label, which a model wrote; see `round5/AUDIT_PLAN.md`), 107 are unresolved, and 761 were never flagged, out of 1,395 (155 events × 9 fields).
   - `model_review_no_change` marks the 112 fields, on 17 events, that no reviewer answered on its own. An agreed whole-event item (a correction letter, a table page, or a report cut for length) left them unchanged, and the reviewers had the current values in view. `apply.py` had counted them as `model_review_agreed`. They were relabeled after the review of this work (`round4/no_change.py`), and no value changed.
   - **Agreed `not_stated` answers need no quote.** 88 of the 206 accepted queue items are `not_stated`. In 44 of them neither reviewer quoted a page, so the only evidence check was that both listed the pages they read and their search terms. In the other 44, at least one reviewer's quote was found on a cited page. The test backs these less than other values: only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer).
   - Model review changed 82 values and hand labels changed 8. In all, 87 values differ from `round3/dataset.csv`, since some fields changed in both steps.
@@ -214,4 +214,4 @@ Round 4 settled 206 of the 286 flagged items by model review. Once the remaining
 - The wind field is weak for PG&E and should not be used without review.
 - Circuit-level times are reliable only for the 7 workbook events and for reports whose PDF table lists every circuit.
 - All gold labels come from one labeler, and no second labeler has checked them. The planned two-reviewer overlap was never scored, because round 4 used models in place of the two human reviewers.
-- Values marked `model_review_agreed` were settled by two models, not a person. Values marked `model_review_no_change` were left unchanged by an agreed whole-event item and never answered on their own. Values marked `hand_labeled` carry a hand label. Use `review_method` to separate them.
+- Values marked `model_review_agreed` were settled by two models, not a person. Values marked `model_review_no_change` were left unchanged by an agreed whole-event item and never answered on their own. Values marked `model_labeled` carry an old gold label, written by a Claude Opus 5.5 session, not a person. Use `review_method` to separate them.

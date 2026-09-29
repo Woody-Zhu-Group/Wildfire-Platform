@@ -58,7 +58,7 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
 - **Whole-event fields** (`no_change.py`, added after the PR #29 review on 2026-09-28): `apply.py` marks every field an agreed whole-event item covers ("all fields", "table pages", "numeric fields") as `model_review_agreed`. Those items ask whether a correction letter or table page changes the event, with the current values in view.
   - A field that such an item left unchanged, and that no agreed item asked about directly, is now `model_review_no_change`: 112 fields on 17 events.
   - A field stays `model_review_agreed` when an agreed item asks about it directly or an agreed correction names it. No value changed.
-- **Final dataset fields:** 761 unflagged, 270 `hand_labeled`, 145 `model_review_agreed`, 112 `model_review_no_change`, 107 `unresolved`. 87 values differ from `round3/dataset.csv`.
+- **Final dataset fields:** 761 unflagged, 270 `model_labeled` (called `hand_labeled` before 2026-09-29; a Claude Opus 5.5 session wrote these gold labels, see `../round5/AUDIT_PLAN.md`), 145 `model_review_agreed`, 112 `model_review_no_change`, 107 `unresolved`. 87 values differ from `round3/dataset.csv`.
 - **Agreed `not_stated` answers need no quote.** The check accepts a `not_stated` or `null` answer with the pages read and the search terms used, and no quote.
   - 88 of the 206 accepted queue items are `not_stated`. In 44, neither reviewer quoted a page. In the other 44, at least one reviewer's quote was found on a cited page.
   - Only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer), so the test says less about these than about other values.

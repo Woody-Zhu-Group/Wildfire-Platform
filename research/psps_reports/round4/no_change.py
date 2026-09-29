@@ -9,7 +9,7 @@ answered that field on its own, so its review_method becomes `model_review_no_ch
 Rules:
 - A field stays `model_review_agreed` when an agreed item asks about it directly, or when an agreed
   whole-event correction names it.
-- `hand_labeled`, `unresolved`, and `unflagged` fields are not touched, and no value changes.
+- `model_labeled`, `unresolved`, and `unflagged` fields are not touched, and no value changes.
 - The script is idempotent.
 
 This does not touch the test scoring or calibration_results.md.

@@ -1,7 +1,9 @@
-"""Put hand labels into dataset_reviewed.csv (run after apply.py; decided after the test, on 2026-09-28).
+"""Put the gold labels into dataset_reviewed.csv (run after apply.py; decided after the test, on 2026-09-28).
 
-Known errors should not stay in the dataset. For every field with a hand label, the value becomes the
-gold value and its review_method becomes `hand_labeled`:
+The gold labels were written by a Claude Opus 5.5 session in rounds 1 to 3, not by a person (round5/AUDIT_PLAN.md);
+the file and column names still say "hand label". Known errors should not stay in the dataset. For every field
+with a gold label, the value becomes the gold value and its review_method becomes `model_labeled`
+(named `hand_labeled` until 2026-09-29):
 - test gold: the kept rows of test_gold.csv (rows excluded there, including all of r2_pge_2017_2019, are skipped);
 - round 1 gold: gold_labels.csv on the 10 pilot reports, converted to round 3 rules the same way as round 2
   (ROUND1_DIFFERENCES below): only mechanical mappings, and every row a non-mechanical difference touches is
@@ -132,7 +134,7 @@ def main() -> None:
                 changed += 1
                 times_changed |= f in ("first_deenergization", "last_restoration")
                 row[f] = value
-            row[f"{f}_review_method"] = "hand_labeled"
+            row[f"{f}_review_method"] = "model_labeled"
             flags = [x for x in flags if x != f"{f}:model_review_disagreement"]
             labeled += 1
         row["flags"] = ";".join(flags)
@@ -144,7 +146,7 @@ def main() -> None:
         for (rid, f), c in REPORT_STATES_BOTH.items():
             if row["report_id"] != rid:
                 continue
-            assert row[f"{f}_review_method"] != "hand_labeled", f"{rid} {f} still has a hand label"
+            assert row[f"{f}_review_method"] != "model_labeled", f"{rid} {f} still has a gold label"
             row[f"{f}_review_method"] = "unresolved"
             flags = [x for x in row["flags"].split(";") if x.strip()] if row["flags"] else []
             row["flags"] = ";".join(flags + [f"{f}:contradiction_in_report"])
@@ -164,7 +166,7 @@ def main() -> None:
         w = csv.DictWriter(fh, fieldnames=cols)
         w.writeheader()
         w.writerows(rows)
-    print(f"hand-labeled fields {labeled}; values changed by hand labels {changed}; skipped (workbook value, PDF gold null) {len(skipped)}; "
+    print(f"gold-labeled fields {labeled}; values changed by gold labels {changed}; skipped (workbook value, PDF gold null) {len(skipped)}; "
           f"report states both values {len(contradictions)}")
     for line in skipped:
         print("  skipped:", line)
