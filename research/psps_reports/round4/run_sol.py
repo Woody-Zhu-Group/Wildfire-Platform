@@ -36,7 +36,7 @@ HERE = pk.HERE
 RUNS = HERE / "runs"
 MODEL = "openai/gpt-6-sol"
 ALLOWANCE_USD = 20.0  # raised from 6.92 on 2026-09-28 by the user
-MAX_TOOL_CALLS = 40
+MAX_TOOL_CALLS = 50
 MAX_ROUNDS = 30
 REASONING_EFFORT = "medium"
 _lock = threading.Lock()
@@ -298,9 +298,7 @@ def run_set(set_name: str, only: list[str] | None, workers: int, max_tool_calls:
     def one(session: dict) -> None:
         if stop.is_set():
             return
-        folder = root / session["session"]
-        if not (folder / "items.json").exists():
-            pk.build(session, root)
+        folder = pk.build(session, root)
         start = time.time()
         try:
             result = run_session(session, folder, max_tool_calls)
