@@ -1,0 +1,404 @@
+{
+  "frozen_at": "2026-09-28 20:22",
+  "code_commit": "76f105b4b041d97ec28e78e767703c39738b72c5",
+  "code_sha256": {
+    "packets.py": "b6cb9087788907e3d9bf0669deff7252409af4c217fb0dd1b2977e9083e3f721",
+    "verify.py": "53a15bfee278c367e53d4113c50968a3343e00c8f40d7f709b9fc8e922256c05",
+    "run_claude.py": "325aa314cfa4f5faad9fa28a61fef2a1dda8840b68ffe348fed50376c0260de3",
+    "run_sol.py": "001809c467138d8fbf5f50b4ab3231e43bbe5077d80f6230b9938a1c973408b4",
+    "score.py": "e46982f35ba4bd125b91fa6b6f5b029573d2cd0f630fdd31e5c7f5d3caefb6a2",
+    "apply.py": "4b684fd542dce191fe325a672a5745b68c5dc5e88609cb212854e5cfd04013a1"
+  },
+  "claude": {
+    "claude_code_version": "2.1.281",
+    "model_alias": "opus",
+    "model": "claude-opus-5-5",
+    "models_seen_in_development": [
+      "claude-opus-5-5"
+    ],
+    "command": [
+      "-p",
+      "--model",
+      "opus",
+      "--tools",
+      "Read,Grep,Glob,Write",
+      "--allowedTools",
+      "Read(./**)",
+      "Grep(./**)",
+      "Glob(./**)",
+      "Edit(//c/AI Coding Projects/wf-psps/research/psps_reports/round4/<packet>/answers.json)",
+      "--permission-mode",
+      "dontAsk",
+      "--restricted",
+      "--safe-mode",
+      "--strict-mcp-config",
+      "--setting-sources",
+      "local",
+      "--no-session-persistence",
+      "--max-turns",
+      "80",
+      "--output-format",
+      "stream-json",
+      "--verbose"
+    ],
+    "prompt": "Read instructions.md in this folder and follow it exactly. Answer every item in items.json from the report files in this folder, then write answers.json in this folder.",
+    "tools": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Write"
+    ],
+    "allowed_tools": [
+      "Read(./**)",
+      "Grep(./**)",
+      "Glob(./**)",
+      "Edit(//<packet posix path>/answers.json)"
+    ],
+    "max_turns": 80,
+    "session_timeout_s": 3600,
+    "workers": 3,
+    "isolation_check": {
+      "passed": true,
+      "checks": {
+        "session ran": true,
+        "model is Opus": true,
+        "only Read Grep Glob Write available": true,
+        "no MCP servers": true,
+        "inside file readable": true,
+        "answers.json writable": true,
+        "outside reads were attempted": true,
+        "outside file not read": true,
+        "sibling packet not read": true,
+        "repository file not read": true,
+        "gold labels not read": true,
+        "no write outside answers.json": true
+      }
+    }
+  },
+  "sol": {
+    "model": "openai/gpt-6-sol",
+    "reasoning_effort": "medium",
+    "max_tool_calls": 50,
+    "max_rounds": 30,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "search",
+          "description": "Pages whose text contains the query (case-insensitive), with a snippet.",
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "query",
+              "document"
+            ],
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "document": {
+                "type": "string",
+                "enum": [
+                  "report",
+                  "correction",
+                  "correction2"
+                ],
+                "description": "report, or a correction letter folder"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_page",
+          "description": "The text layer of PDF page n, plus the stored transcription when there is one.",
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "n",
+              "document"
+            ],
+            "properties": {
+              "n": {
+                "type": "integer"
+              },
+              "document": {
+                "type": "string",
+                "enum": [
+                  "report",
+                  "correction",
+                  "correction2"
+                ],
+                "description": "report, or a correction letter folder"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "view_page",
+          "description": "The rendered page image, for image-only tables and scrambled text.",
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "n",
+              "document"
+            ],
+            "properties": {
+              "n": {
+                "type": "integer"
+              },
+              "document": {
+                "type": "string",
+                "enum": [
+                  "report",
+                  "correction",
+                  "correction2"
+                ],
+                "description": "report, or a correction letter folder"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "answer_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "answers"
+      ],
+      "properties": {
+        "answers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item",
+              "value",
+              "pages",
+              "quote",
+              "search_terms",
+              "note",
+              "unsure"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "quote": {
+                "type": "string"
+              },
+              "search_terms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "note": {
+                "type": "string"
+              },
+              "unsure": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "workers": 3,
+    "cost_cap_usd": 20.08,
+    "allowance_usd": 25.0,
+    "projection": {
+      "development_actual_usd": 1.91,
+      "test_usd": 1.97,
+      "queue_usd": 9.51,
+      "total_usd": 13.39,
+      "basis": "test: 24 sessions x $0.082 (mean of 20 nine-item development sessions); queue: 146 sessions x $0.065 (mean of the 4 one- or two-item development sessions)"
+    },
+    "spent_before_freeze_usd": 1.905175,
+    "cap_rule": "the run stops before any call once total Sol spend, including development, reaches the cap"
+  },
+  "instructions_sha256": {
+    "claude": "0e627e0924cd23359f44291cf94bb17993d4526e6e9ca6633b2cbc11e19351c3",
+    "sol": "7d617161c53639e1f37007f5b352d26f7f122fd247c04b359157fda971a0b005"
+  },
+  "instructions": {
+    "claude": "# Review task\n\nYou are settling items from one California utility PSPS post-event report. The rules below are the ones a human reviewer uses.\n\n## The files\n\nEverything you may use is in this folder:\n\n- `items.json`: the items to answer.\n- `pages/NNN.txt`: the text layer of PDF page NNN of the report. Some pages also have `pages/NNN_transcription.txt`, a machine transcription of a table that was only an image.\n- `pages/NNN.png`: a rendered image of the page, for pages with an image-only table, little text, or scrambled text, and for every page an item lists in `page_refs`.\n- `correction/` and `correction2/` (only when an item needs them): the same files for a correction letter.\n- `current_values.json` (only for partial correction, unreadable-page, and workbook items): the event's current values.\n\nUse Grep to search the pages and Read to open them. When you are done, write your answers to `answers.json` in this folder as `{\"answers\": [ ... ]}` and nothing else.\n\n## Your answer\n\nAnswer every item in `items.json`. Each answer is one JSON object:\n\n| Key | What to put |\n|---|---|\n| `item` | The item's `item` value, exactly. |\n| `value` | Your answer. For an item with `options`, exactly one of the listed options. For a number item, a whole number, a time as `YYYY-MM-DD HH:MM`, or `null`, as the item's `options` says. For a partial correction, redline, or unreadable-page item, `no change` or corrections as `field=value; field=value`, using the field names in `current_values.json`. For a workbook versus PDF time item, the time you decide is right, as `YYYY-MM-DD HH:MM`. |\n| `pages` | The pages that support your answer, as a list of strings. A report page is its PDF page number (`\"9\"`). A correction letter page is prefixed with its folder (`\"correction:3\"`, `\"correction2:1\"`). |\n| `quote` | A short passage copied exactly from one of the cited pages that supports your answer: one contiguous stretch of text, no ellipses, no paraphrase, copied character for character from the page file, including stray footnote numbers inside it. One sentence or one table row is safest. It may come from a page's text or its transcription. Leave it empty only when `value` is `not_stated` or `null`. |\n| `search_terms` | The searches you ran for this item, as a list of strings. Required when `value` is `not_stated` or `null`; then `pages` lists the pages you read. |\n| `note` | Anything a second reader needs. Start with `CONTRADICTION:` or `UNSURE:` as the guide describes. |\n| `unsure` | `true` if the note starts with `UNSURE:`, otherwise `false`. |\n\nWhere the guide below says `decision_value`, `decision_pages`, or `notes`, use `value`, `pages`, and `note`. Where it says to compare with the event's row in `dataset.csv`, use `current_values.json`. An item with an empty `reason` is a routine check: answer its question the same way. Answer only from the report and any correction letter provided; don't use outside knowledge.\n\n# Review guide (excerpt)\n\n## The fields\n\nAnswer only from what the report says. Don't use outside knowledge, other reports, or news coverage.\n\n### `mbl_advance_notice`: were Medical Baseline customers notified in advance?\n\nMedical Baseline (MBL) customers are enrolled in a program for people who rely on powered medical equipment. The question is whether every MBL customer who actually lost power had a notification delivered before the shutoff.\n\n| Value | Use when |\n|---|---|\n| `all_notified` | The report says every de-energized MBL customer had a notification delivered (or a successful positive notification) before de-energization, or it reports zero MBL notification failures. A door visit or door hanger counts, even if the customer never confirmed receipt. |\n| `some_not_notified` | The report says at least one de-energized MBL customer had no notification attempted or delivered before de-energization. This includes events where the utility could send no advance notice at all to the customers who were shut off. |\n| `not_applicable` | The report says no customers were de-energized in the event. |\n| `not_stated` | Customers were de-energized, but the report doesn't say whether the MBL customers among them were notified in advance. |\n\nMBL customers who were in scope but never lost power don't count. For example, \"one MBL customer could not be contacted, but was not de-energized\" is still `all_notified`. Some utilities (SCE in 2019 and 2020) track only \"critical care\" customers, a subset of MBL. Use what they report, and note the substitution.\n\n### `wind_threshold_cited`: does the report say wind met the shutoff threshold?\n\n| Value | Use when |\n|---|---|\n| `met` | The report says observed or forecast wind speeds or gusts met, reached, or exceeded a de-energization threshold, alert speed, or wind criterion for at least one area that was de-energized. Forecast statements count, for example \"circuits forecast to exceed alert speed criteria\". PG&E's 2019 \"outage producing wind\" levels count as a wind criterion. |\n| `not_met` | The report says winds did not reach the threshold in any de-energized area (power was shut off for other reasons). This is rare. |\n| `not_stated` | The report gives wind readings, forecasts, or a description of the threshold process, but never says winds met a threshold in a de-energized area. Also use it when nothing was de-energized. |\n\nPG&E from 2020 on usually describes a composite model score (FPI, CFP, or \"PSPS guidance\") rather than a wind threshold. A statement that an area \"exceeded PSPS guidance\" is **not** a wind statement. Statements such as \"the remaining areas were delayed because winds failed to reach mFPC\" only imply that the de-energized areas met it. Record `not_stated` and quote the sentence in notes.\n\n### `complaints_reported` and `claims_reported`\n\n| Value | Use when |\n|---|---|\n| `one_or_more` | The report gives a count of at least one complaint (or claim) for this event. |\n| `zero` | The report says none were received. \"No formal complaints were lodged\" counts as zero; note if the report limits it to one channel, such as \"from the CPUC\". |\n| `not_stated` | The report gives no count for this event. This includes \"Not applicable\" and counts deferred to another report (\"complaints will be reported with the October 26 event\"). If the section talks only about complaints, claims are `not_stated`. |\n\n### `canceled_after_notice`: were some notified customers not shut off?\n\n| Value | Use when |\n|---|---|\n| `yes` | Some notified customers, circuits, or areas were not de-energized. Examples: a cancellation, a removal from scope, \"no longer at risk\" notices, a \"Cancelled\" count above zero in the summary table, or simply more customers notified than de-energized. It also covers events where customers were notified and nobody was shut off. |\n| `no` | The report says every notified customer was de-energized, or its summary table shows Cancelled = 0. |\n| `not_stated` | The report doesn't say. For example, no advance notices were sent at all and the report is silent on scope. |\n\nCompare \"customers notified\" or \"in scope\" with \"customers de-energized\" when the report gives both. A gap means `yes`, even if the word \"cancel\" never appears.\n\n### Numbers\n\n| Field | Format | Rule |\n|---|---|---|\n| `customers_deenergized` | whole number | The event total as the report states it. Use `0` if nobody was shut off. If the report gives two totals (for example total and unique, or approximate and exact), put the one in the summary table and note the other. |\n| `first_deenergization` | `YYYY-MM-DD HH:MM`, 24-hour local time | When the first customers lost power: the earliest time in a circuit table that lists every de-energized circuit, or a sentence stating the first de-energization. Don't use EOC activation, notification or status-update times, or \"the event began at\". |\n| `last_restoration` | same | When the last de-energized customers got power back. Don't use \"the event ended at\" or EOC deactivation. |\n| `counties_deenergized` | whole number | Counties where customers actually lost power, not counties only in scope. |\n\nIf the report doesn't state the value (for example the circuit table lists only some circuits and no sentence covers the whole event), write `null` and explain in notes.\n\n## Item types (`reason` column)\n\n- **low_confidence:** Jev answered, but not confidently. Answer the question yourself.\n- **no_matching_page:** the pipeline found no page on the topic. Search the whole PDF (Ctrl+F for \"cancel\", \"complaint\", \"claim\", \"Medical Baseline\", \"threshold\"); the answer is often under unusual wording. If the report is truly silent, answer `not_stated`.\n- **unreadable_page:** a table page is an image that couldn't be read automatically, or a very long report was cut short. Read the listed pages, then note which dataset fields they change. Write `decision_value = no change`, or give the corrections as `field=value; field=value`.\n- **conflicting_sources**, which comes in three kinds:\n  - *Workbook vs PDF time:* `detail` shows both values. Decide which is right for the whole event, using the rules above, and put it in `decision_value`.\n  - *Partial correction filed* (`field = all fields`): `detail` links a correction letter. Read it, then compare with this event's row in `dataset.csv`. This item is not blind, since you need the current values. Write `no change`, or give the corrections as `field=value; field=value`.\n  - *Redline* (`field = numeric fields`): the report is a marked-up amendment, and the pipeline may have read a struck-out (deleted) number. Check the four numbers in `dataset.csv` against the clean (non-struck) text. Write `no change` or give the corrections.\n\n## Amendments and contradictions\n\n- **Which document:** `document_url` is the version the pipeline used. That is the latest full amendment where one exists, otherwise the original. Review that document. If an amendment, and not the original, says something different, the amendment wins.\n- **Contradictions inside a report are common.** Earlier rounds found them in 16 of 25 reports. Examples:\n  - narrative start times that disagree with the circuit table,\n  - \"event ended\" used as a restoration time,\n  - counties in scope counted as de-energized,\n  - typos (36,307 against 36,037).\n\n  To resolve one:\n  1. Prefer the circuit table when it lists every circuit.\n  2. Otherwise prefer the section that answers the template question: Table 1 for totals, Section 3 for time and place, Section 5 for notifications, Section 7 for complaints and claims.\n  3. Record your choice in `decision_value`.\n  4. Start the note with `CONTRADICTION:` and give both values and both pages, for example `CONTRADICTION: 36307 (p3) vs 36037 (p22)`.\n\n  These notes will be merged into `contradictions.csv`.\n- **Don't guess.** If the report can support two answers and the rules above don't settle it, pick the closest one, add `UNSURE:` at the start of the note, and say why. Unsure items get a second look.\n",
+    "sol": "# Review task\n\nYou are settling items from one California utility PSPS post-event report. The rules below are the ones a human reviewer uses.\n\n## The report\n\nYou read the report through three tools. Each takes a `document`: `report` for the report, or `correction` and `correction2` for a correction letter when an item needs one.\n\n- `search(query, document)`: the pages whose text contains the query (case-insensitive), with a short snippet.\n- `read_page(n, document)`: the text layer of PDF page n, plus its stored transcription when a table on the page was only an image.\n- `view_page(n, document)`: the rendered page image, for image-only tables and scrambled text.\n\nWhen you are done, reply with the JSON object `{\"answers\": [ ... ]}` and nothing else.\n\n## Your answer\n\nAnswer every item in `items.json`. Each answer is one JSON object:\n\n| Key | What to put |\n|---|---|\n| `item` | The item's `item` value, exactly. |\n| `value` | Your answer. For an item with `options`, exactly one of the listed options. For a number item, a whole number, a time as `YYYY-MM-DD HH:MM`, or `null`, as the item's `options` says. For a partial correction, redline, or unreadable-page item, `no change` or corrections as `field=value; field=value`, using the field names in `current_values.json`. For a workbook versus PDF time item, the time you decide is right, as `YYYY-MM-DD HH:MM`. |\n| `pages` | The pages that support your answer, as a list of strings. A report page is its PDF page number (`\"9\"`). A correction letter page is prefixed with its folder (`\"correction:3\"`, `\"correction2:1\"`). |\n| `quote` | A short passage copied exactly from one of the cited pages that supports your answer: one contiguous stretch of text, no ellipses, no paraphrase, copied character for character from the page file, including stray footnote numbers inside it. One sentence or one table row is safest. It may come from a page's text or its transcription. Leave it empty only when `value` is `not_stated` or `null`. |\n| `search_terms` | The searches you ran for this item, as a list of strings. Required when `value` is `not_stated` or `null`; then `pages` lists the pages you read. |\n| `note` | Anything a second reader needs. Start with `CONTRADICTION:` or `UNSURE:` as the guide describes. |\n| `unsure` | `true` if the note starts with `UNSURE:`, otherwise `false`. |\n\nWhere the guide below says `decision_value`, `decision_pages`, or `notes`, use `value`, `pages`, and `note`. Where it says to compare with the event's row in `dataset.csv`, use `current_values.json`. An item with an empty `reason` is a routine check: answer its question the same way. Answer only from the report and any correction letter provided; don't use outside knowledge.\n\n# Review guide (excerpt)\n\n## The fields\n\nAnswer only from what the report says. Don't use outside knowledge, other reports, or news coverage.\n\n### `mbl_advance_notice`: were Medical Baseline customers notified in advance?\n\nMedical Baseline (MBL) customers are enrolled in a program for people who rely on powered medical equipment. The question is whether every MBL customer who actually lost power had a notification delivered before the shutoff.\n\n| Value | Use when |\n|---|---|\n| `all_notified` | The report says every de-energized MBL customer had a notification delivered (or a successful positive notification) before de-energization, or it reports zero MBL notification failures. A door visit or door hanger counts, even if the customer never confirmed receipt. |\n| `some_not_notified` | The report says at least one de-energized MBL customer had no notification attempted or delivered before de-energization. This includes events where the utility could send no advance notice at all to the customers who were shut off. |\n| `not_applicable` | The report says no customers were de-energized in the event. |\n| `not_stated` | Customers were de-energized, but the report doesn't say whether the MBL customers among them were notified in advance. |\n\nMBL customers who were in scope but never lost power don't count. For example, \"one MBL customer could not be contacted, but was not de-energized\" is still `all_notified`. Some utilities (SCE in 2019 and 2020) track only \"critical care\" customers, a subset of MBL. Use what they report, and note the substitution.\n\n### `wind_threshold_cited`: does the report say wind met the shutoff threshold?\n\n| Value | Use when |\n|---|---|\n| `met` | The report says observed or forecast wind speeds or gusts met, reached, or exceeded a de-energization threshold, alert speed, or wind criterion for at least one area that was de-energized. Forecast statements count, for example \"circuits forecast to exceed alert speed criteria\". PG&E's 2019 \"outage producing wind\" levels count as a wind criterion. |\n| `not_met` | The report says winds did not reach the threshold in any de-energized area (power was shut off for other reasons). This is rare. |\n| `not_stated` | The report gives wind readings, forecasts, or a description of the threshold process, but never says winds met a threshold in a de-energized area. Also use it when nothing was de-energized. |\n\nPG&E from 2020 on usually describes a composite model score (FPI, CFP, or \"PSPS guidance\") rather than a wind threshold. A statement that an area \"exceeded PSPS guidance\" is **not** a wind statement. Statements such as \"the remaining areas were delayed because winds failed to reach mFPC\" only imply that the de-energized areas met it. Record `not_stated` and quote the sentence in notes.\n\n### `complaints_reported` and `claims_reported`\n\n| Value | Use when |\n|---|---|\n| `one_or_more` | The report gives a count of at least one complaint (or claim) for this event. |\n| `zero` | The report says none were received. \"No formal complaints were lodged\" counts as zero; note if the report limits it to one channel, such as \"from the CPUC\". |\n| `not_stated` | The report gives no count for this event. This includes \"Not applicable\" and counts deferred to another report (\"complaints will be reported with the October 26 event\"). If the section talks only about complaints, claims are `not_stated`. |\n\n### `canceled_after_notice`: were some notified customers not shut off?\n\n| Value | Use when |\n|---|---|\n| `yes` | Some notified customers, circuits, or areas were not de-energized. Examples: a cancellation, a removal from scope, \"no longer at risk\" notices, a \"Cancelled\" count above zero in the summary table, or simply more customers notified than de-energized. It also covers events where customers were notified and nobody was shut off. |\n| `no` | The report says every notified customer was de-energized, or its summary table shows Cancelled = 0. |\n| `not_stated` | The report doesn't say. For example, no advance notices were sent at all and the report is silent on scope. |\n\nCompare \"customers notified\" or \"in scope\" with \"customers de-energized\" when the report gives both. A gap means `yes`, even if the word \"cancel\" never appears.\n\n### Numbers\n\n| Field | Format | Rule |\n|---|---|---|\n| `customers_deenergized` | whole number | The event total as the report states it. Use `0` if nobody was shut off. If the report gives two totals (for example total and unique, or approximate and exact), put the one in the summary table and note the other. |\n| `first_deenergization` | `YYYY-MM-DD HH:MM`, 24-hour local time | When the first customers lost power: the earliest time in a circuit table that lists every de-energized circuit, or a sentence stating the first de-energization. Don't use EOC activation, notification or status-update times, or \"the event began at\". |\n| `last_restoration` | same | When the last de-energized customers got power back. Don't use \"the event ended at\" or EOC deactivation. |\n| `counties_deenergized` | whole number | Counties where customers actually lost power, not counties only in scope. |\n\nIf the report doesn't state the value (for example the circuit table lists only some circuits and no sentence covers the whole event), write `null` and explain in notes.\n\n## Item types (`reason` column)\n\n- **low_confidence:** Jev answered, but not confidently. Answer the question yourself.\n- **no_matching_page:** the pipeline found no page on the topic. Search the whole PDF (Ctrl+F for \"cancel\", \"complaint\", \"claim\", \"Medical Baseline\", \"threshold\"); the answer is often under unusual wording. If the report is truly silent, answer `not_stated`.\n- **unreadable_page:** a table page is an image that couldn't be read automatically, or a very long report was cut short. Read the listed pages, then note which dataset fields they change. Write `decision_value = no change`, or give the corrections as `field=value; field=value`.\n- **conflicting_sources**, which comes in three kinds:\n  - *Workbook vs PDF time:* `detail` shows both values. Decide which is right for the whole event, using the rules above, and put it in `decision_value`.\n  - *Partial correction filed* (`field = all fields`): `detail` links a correction letter. Read it, then compare with this event's row in `dataset.csv`. This item is not blind, since you need the current values. Write `no change`, or give the corrections as `field=value; field=value`.\n  - *Redline* (`field = numeric fields`): the report is a marked-up amendment, and the pipeline may have read a struck-out (deleted) number. Check the four numbers in `dataset.csv` against the clean (non-struck) text. Write `no change` or give the corrections.\n\n## Amendments and contradictions\n\n- **Which document:** `document_url` is the version the pipeline used. That is the latest full amendment where one exists, otherwise the original. Review that document. If an amendment, and not the original, says something different, the amendment wins.\n- **Contradictions inside a report are common.** Earlier rounds found them in 16 of 25 reports. Examples:\n  - narrative start times that disagree with the circuit table,\n  - \"event ended\" used as a restoration time,\n  - counties in scope counted as de-energized,\n  - typos (36,307 against 36,037).\n\n  To resolve one:\n  1. Prefer the circuit table when it lists every circuit.\n  2. Otherwise prefer the section that answers the template question: Table 1 for totals, Section 3 for time and place, Section 5 for notifications, Section 7 for complaints and claims.\n  3. Record your choice in `decision_value`.\n  4. Start the note with `CONTRADICTION:` and give both values and both pages, for example `CONTRADICTION: 36307 (p3) vs 36037 (p22)`.\n\n  These notes will be merged into `contradictions.csv`.\n- **Don't guess.** If the report can support two answers and the rules above don't settle it, pick the closest one, add `UNSURE:` at the start of the note, and say why. Unsure items get a second look.\n"
+  },
+  "packets": {
+    "root": "system temp directory / psps_r4",
+    "png_dpi": 150,
+    "low_text_chars": 200,
+    "png_pages": "pages in round3/runs/images.jsonl, pages under the low-text limit or scrambled (common.is_garbled), and every page_ref"
+  },
+  "checks": {
+    "quote_normalization": "NFKC (unfolds ligatures), casefold, remove all whitespace",
+    "empty_quote_values": [
+      "not_stated",
+      "null"
+    ],
+    "partial_corrections": "valid only if at least one cited page is from a correction letter",
+    "redlines": "items 1, 2, 3 go straight to unresolved"
+  },
+  "gold": {
+    "test_gold_sha256": "37256abacb9b7538d76827c3d0ef8fd97ad337a865522ff974e7dc2aa574971e",
+    "test_exclusions_sha256": "a1ba84c7edb6fa3f1529dacacbe5a13f9264c78344baf2fad25d588e3556ab41",
+    "rows": 225,
+    "kept": 211,
+    "excluded": 14,
+    "queue_matched_kept": 32,
+    "rule_differences": [
+      {
+        "id": "D1",
+        "rule": "MBL gains not_applicable when no customers were de-energized (round 3 method step 3; guide).",
+        "handling": "mechanical: MBL gold becomes not_applicable wherever gold customers_deenergized is 0"
+      },
+      {
+        "id": "D2",
+        "rule": "MBL: SCE 2019 and 2020 track only critical care customers; use what they report (guide).",
+        "handling": "not mechanical: exclude SCE 2019-2020 MBL rows whose events de-energized customers"
+      },
+      {
+        "id": "D3",
+        "rule": "MBL some_not_notified explicitly includes events where no advance notice could be sent to the customers shut off (guide).",
+        "handling": "not mechanical: exclude MBL rows whose note says the PSPS notice came after de-energization"
+      },
+      {
+        "id": "D4",
+        "rule": "Cancellation: a gap between customers notified and de-energized means yes, even without a cancel word (guide).",
+        "handling": "not mechanical: exclude cancellation rows labeled no or not_stated (the rule can only turn them into yes)"
+      },
+      {
+        "id": "D5",
+        "rule": "Times: use a circuit table listing every circuit or a sentence stating the first de-energization; never 'the event began at', notification, or status-update times (guide).",
+        "handling": "not mechanical: exclude time rows whose gold came from an introduction start time or a notification"
+      },
+      {
+        "id": "D6",
+        "rule": "Wind: PG&E composite scores ('exceeded PSPS guidance', mFPC) are not wind statements; not_stated when nothing was de-energized (guide).",
+        "handling": "no row changes: every round 2 PG&E wind gold and every no-shutoff wind gold is already not_stated"
+      },
+      {
+        "id": "D7",
+        "rule": "Complaints and claims: 'Not applicable' and deferred counts are not_stated; complaints-only sections leave claims not_stated (guide).",
+        "handling": "no row changes: the round 2 gold already follows it (for example SCE Aug 2019 'Not applicable' is not_stated)"
+      },
+      {
+        "id": "D8",
+        "rule": "Customers: when a report gives two totals, the reviewer uses the summary-table one (guide).",
+        "handling": "no row changes: the gold convention ('a|b' accepts either) is the same in round 3's own gold_sample10.csv"
+      },
+      {
+        "id": "D9",
+        "rule": "Document: round 3 extracts the latest full amendment (round 3 method step 1).",
+        "handling": "exclude every row of a round 2 report whose document differs from the file round 3 used (r2_pge_2017_2019)"
+      }
+    ],
+    "excluded_rows": [
+      {
+        "gold_report_id": "r2_pge_2017_2019",
+        "field": "canceled_after_notice",
+        "reason": "D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+      },
+      {
+        "gold_report_id": "r2_pge_2017_2019",
+        "field": "claims_reported",
+        "reason": "D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+      },
+      {
+        "gold_report_id": "r2_pge_2017_2019",
+        "field": "complaints_reported",
+        "reason": "D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+      },
+      {
+        "gold_report_id": "r2_pge_2017_2019",
+        "field": "counties_deenergized",
+        "reason": "D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+      },
+      {
+        "gold_report_id": "r2_pge_2017_2019",
+        "field": "customers_deenergized",
+        "reason": "D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+      },
+      {
+        "gold_report_id": "r2_pge_2017_2019",
+        "field": "first_deenergization",
+        "reason": "D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+      },
+      {
+        "gold_report_id": "r2_pge_2017_2019",
+        "field": "last_restoration",
+        "reason": "D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+      },
+      {
+        "gold_report_id": "r2_pge_2017_2019",
+        "field": "mbl_advance_notice",
+        "reason": "D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+      },
+      {
+        "gold_report_id": "r2_pge_2017_2019",
+        "field": "wind_threshold_cited",
+        "reason": "D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+      },
+      {
+        "gold_report_id": "r2_pge_2025_2026",
+        "field": "canceled_after_notice",
+        "reason": "D4: gold no from 'Table 1: canceled 0'; the round 3 gap rule may make it yes."
+      },
+      {
+        "gold_report_id": "r2_sce_2020",
+        "field": "mbl_advance_notice",
+        "reason": "D2: SCE 2020 tracks only critical care customers; the gold note relies on that subset."
+      },
+      {
+        "gold_report_id": "r2_sce_2023_2024",
+        "field": "first_deenergization",
+        "reason": "D5: gold is the introduction start time (the table lists 5 of 41 circuits)."
+      },
+      {
+        "gold_report_id": "r2_sdge_2017_2019",
+        "field": "mbl_advance_notice",
+        "reason": "D3: the PSPS message reached MBL customers after de-energization; under round 3 this may be some_not_notified."
+      },
+      {
+        "gold_report_id": "r2_sdge_2025_2026",
+        "field": "last_restoration",
+        "reason": "D5: gold is from a restoration notice; Section 8 gives the day only."
+      }
+    ]
+  },
+  "pass_bars": {
+    "queue_matched_min_accuracy": 0.9,
+    "all_test_values_min_accuracy": 0.95,
+    "measured_on": "agreed answers; gold rows marked uncertain count"
+  },
+  "sets": {
+    "test": {
+      "sessions": 24,
+      "items": 216
+    },
+    "queue": {
+      "sessions": 146,
+      "items": 249
+    }
+  }
+}
