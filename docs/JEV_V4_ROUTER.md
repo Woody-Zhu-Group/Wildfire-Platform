@@ -40,8 +40,8 @@ agent call. They never silently re-enable the old keyword plan. The slot planner
 does not override V4. Forced-model and disabled-router evaluation switches
 remain explicit evaluation overrides, not normal V4 operation.
 
-`services/agent/decisions/v4_router.py` owns the new schema (`v4_router_v1`),
-compiler and shared live/replay policy (current schema `v4_router_v2`). It reuses the historical V4 structural
+`services/agent/decisions/v4_router.py` owns the typed schema, compiler and
+shared live/replay policy (current schema `v4_router_v2`). It reuses the historical V4 structural
 constraints without modifying their old request schemas. The new prompt
 distinguishes circuit inventory from CPZ, point containment from proximity,
 and a user's missing current location from requests for live wildfire data.

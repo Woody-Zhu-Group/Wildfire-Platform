@@ -1,0 +1,13 @@
+{
+  "model": "typesafe/jev-1.13-20260917",
+  "api_calls": 2865,
+  "input_tokens": 4742637,
+  "input_cost_usd": 0.19919075400000003,
+  "account_usage_start": 0.310351608,
+  "account_usage_final": 0.509542362,
+  "account_usage_delta": 0.19919075400000003,
+  "authorized_cumulative_cap_usd": 5,
+  "run_cap_usd": 1,
+  "checked_at": "2026-09-29T17:55:30.081418+00:00",
+  "note": "Immediate account snapshots can lag; later usage matched against the next run or final account read. No credentials stored."
+}

@@ -33,6 +33,7 @@ from services.agent.routing import (
 )
 from services.agent.schemas import EXECUTABLE_TOOL_MODELS, TOOL_DESCRIPTIONS
 from services.agent.time_resolve import month_range_endpoints, named_month_periods
+from services.shared.dataset_registry import covered_utilities, single_utility_dataset
 
 SCHEMA_VERSION = "v4_router_v2"
 
@@ -152,13 +153,13 @@ def _compile(question, answers, decision, today):
             len(periods) == 2
             and not utilities
             and not counties
-            and dataset == "epss_outages"
+            and single_utility_dataset(dataset)
         ):
-            # EPSS inventory is PG&E-only, as declared by its service contract.
+            # Derive the implicit scope from measured coverage, not a literal utility.
             args.update(
                 kind="periods",
                 scope_type="utility",
-                scope="PGE",
+                scope=covered_utilities(dataset)[0],
                 period_a_start=periods[0][0],
                 period_a_end=periods[0][1],
                 period_b_start=periods[1][0],

@@ -346,6 +346,11 @@ card per count rather than a utility-by-year comparison.
   ([`docs/JEV_DECIDE.md`](../../docs/JEV_DECIDE.md), `decisions/decide_mode.py`).
   Jev owns the disposition and the router owns the clarification or refusal wording,
   except that the generic `ranking_missing_slots` question yields to Jev's more specific one.
+- `AGENT_JEV_MODE=v4` selects the separate router-first mode: Jev meaning is
+  compiled into a validated fixed plan, then Jev checks its completeness with
+  a binary router/agent Choice and no confidence threshold. Complete fixed plans
+  stay deterministic; only missing capabilities or incomplete plans go to the
+  agent. See [`docs/JEV_V4_ROUTER.md`](../../docs/JEV_V4_ROUTER.md).
 - `AGENT_SLOT_PLAN` (off by default) plans a deferred multi-entity question as
   several deterministic calls from router slots
   ([`docs/JEV_MULTI_TOOL.md`](../../docs/JEV_MULTI_TOOL.md)). With decide on,

@@ -8,10 +8,9 @@
     "v4_router"
   ],
   "today": "2026-09-29",
-  "source_commit": "2d574ec",
-  "schema_version": "v4_router_v1",
-  "api_calls": 2865,
+  "schema_version": "v4_router_v2",
+  "source_commit": "6a24ba9",
+  "api_calls": 2903,
   "replay_verified_records": 880,
-  "role": "First router-first iteration; preserved before V2 removes the redundant proximity guard. Labels unchanged.",
   "note": "Frozen executor labels, fresh paired V3/V4 calls. No Luna or data-service execution. Development set, not a blind holdout."
 }
