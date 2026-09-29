@@ -67,9 +67,11 @@ Round 4 replaced the two human reviewers with two independent models: Claude Opu
 - **Queue:**
   - 206 of the 286 items were accepted as `model_review_agreed`.
   - 80 remain unresolved, mostly because Opus marked them unsure (60).
-  - In the dataset, 253 field values are model-reviewed, 297 carry a hand label, 103 are unresolved, and 742 were never flagged, out of 1,395 (155 events × 9 fields).
-  - Model review changed 82 values and hand labels changed 9. In all, 88 values differ from `round3/dataset.csv`, since some fields changed in both steps.
-  - Hand labels come from the test gold and the round 1 gold, applied after the test (`round4/hand_labels.py`), so known errors do not stay in the dataset. A gold `null` does not replace a time taken from a utility workbook, because the gold was written from the PDF alone. That case applies to 4 fields.
+  - In the dataset, 257 field values are model-reviewed, 270 carry a hand label, 107 are unresolved, and 761 were never flagged, out of 1,395 (155 events × 9 fields).
+  - Model review changed 82 values and hand labels changed 8. In all, 87 values differ from `round3/dataset.csv`, since some fields changed in both steps.
+  - Hand labels were applied after the test (`round4/hand_labels.py`), so known errors do not stay in the dataset. They come from the test gold and from the round 1 gold. The round 1 gold was converted to round 3 rules the same way as round 2: 63 of 90 rows kept, and 27 excluded (every time row, and 7 wind rows).
+  - A gold `null` does not replace a time taken from a utility workbook, because the gold was written from the PDF alone. That case applies to 4 fields.
+  - The PG&E Oct 21 2020 first de-energization keeps 14:42 and is unresolved. Its round 1 label (17:33) did not survive the conversion, and the report states both times: 14:42 for a transmission line and 17:33 for the first distribution circuit. It is listed in `round3/contradictions.csv`.
   - `round4/dataset_reviewed.csv` carries a per-field `review_method`.
 - **What changed most:**
   - Wind answers moved from `met` or `not_met` to `not_stated` (13).

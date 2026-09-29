@@ -36,12 +36,21 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
   - Claims moved from `zero` to `not_stated` 11 times.
   - The SDG&E Jan 20 to 24, 2025 last restoration is now the PDF's 15:48 (item 22), and its duration was recomputed.
 - **Hand labels** (`hand_labels.py`, added after the test on 2026-09-28): every field with a hand label now carries it, so known errors do not stay in the dataset.
-  - The labels come from the kept rows of `test_gold.csv`, and from the round 1 gold with the development mapping. Excluded gold rows and `r2_pge_2017_2019` are skipped.
+  - The labels come from two sources:
+    - the kept rows of `test_gold.csv`;
+    - the round 1 gold, converted to round 3 rules the same way as round 2 (`round1_gold_converted.csv`, rule list in `round1_rule_differences.json`).
+  - Excluded gold rows and `r2_pge_2017_2019` are skipped.
+  - **Round 1 conversion:** 63 of 90 rows are kept and 27 excluded.
+    - All 20 time rows are excluded (R3). Round 1 took the circuit table's minimum and maximum, while round 3 needs a table that lists every circuit.
+    - The 5 wind `false` rows are excluded (R1), since they could be `not_met` or `not_stated`.
+    - 2 wind `true` rows are excluded (R2) because they rest on an implication, or don't tie the threshold to de-energized areas.
+    - The only mechanical mapping is wind `true` to `met` (3 rows).
   - The previous value is kept in `<field>_value_before_hand_label`, and the field's round 4 disagreement flag is removed.
   - A gold `null` does not replace a time taken from a utility workbook, since the gold was written from the PDF alone. This keeps 4 workbook times (SCE Jan 20 2025, first and last; SDG&E Dec 9 2024, first; SDG&E Jan 20 2025, first).
   - A gold `a|b` keeps the current value when it is one of the alternatives.
-  - Hand labels changed 9 values, including the two agreed test errors (items 117 and 141, SDG&E MBL, now `all_notified`).
-  - **Final dataset fields:** 742 unflagged, 297 `hand_labeled`, 253 `model_review_agreed`, 103 `unresolved`. 88 values differ from `round3/dataset.csv`.
+  - **PG&E Oct 21 2020 first de-energization.** Its round 1 label (17:33) was dropped by the conversion. The report states both 14:42 (a transmission line, p75) and 17:33 (the earliest distribution circuit in Appendix A, p73). The field keeps 14:42, is `unresolved` with the flag `first_deenergization:contradiction_in_report`, and is listed in `round3/contradictions.csv` as "round 4 hand-label check".
+  - Hand labels changed 8 values, all from `test_gold.csv`, including the two agreed test errors (items 117 and 141, SDG&E MBL, now `all_notified`).
+  - **Final dataset fields:** 761 unflagged, 270 `hand_labeled`, 257 `model_review_agreed`, 107 `unresolved`. 87 values differ from `round3/dataset.csv`.
   - The test scoring and `calibration_results.md` are unchanged.
 - **Contradictions:** 16 `CONTRADICTION:` notes were appended to `round3/contradictions.csv`, marked "round 4 model-found, unchecked".
 
@@ -87,7 +96,7 @@ The test and queue commands use the frozen limits and refuse to run if a code fi
 | `verify.py` | The code checks on each answer and the agreement rule. |
 | `score.py` | Gold conversion (`test_gold.csv`, `test_exclusions.csv`), development scoring, the freeze, and the test scoring. |
 | `apply.py` | Applies the decisions: `reviewed_queue.csv`, `dataset_reviewed.csv`, and the contradiction notes. |
-| `hand_labels.py` | Puts the hand labels into `dataset_reviewed.csv` after `apply.py`, and records the previous values. |
+| `hand_labels.py` | Converts the round 1 gold to round 3 rules (`round1_gold_converted.csv`, `round1_rule_differences.json`), then puts the hand labels into `dataset_reviewed.csv` after `apply.py` and records the previous values. |
 
 ## Packet isolation check
 
