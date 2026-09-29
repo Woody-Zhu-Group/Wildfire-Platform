@@ -13,6 +13,8 @@
 
 ## Scoring
 
+**Scoring correction:** the disposition criteria below omit the primary router-retention/handoff objective. Use the [handoff audit and corrected acceptance criteria](JEV_HANDOFF_AUDIT_20260929.md) before further evaluation. The frozen JSON is preserved; its answer labels must not be interpreted as evidence that an agent handoff is justified.
+
 1. Shared-vocabulary intent accuracy: exclude V4-only risk_surface/model_metrics labels from BOTH denominators. Keep these queries in the other metrics.
 2. Disposition accuracy: answer / clarification / unsupported. Both model and deterministic map to answer. Error is always incorrect. Report each split/category, unnecessary clarification, unsafe answering, path counts and repeat stability.
 3. Plan review, separate from disposition: review each emitted deterministic tool plan and view against the per-question requirements below. A span total is not a change between periods; a map alone is not map-plus-trend. Record pass/fail and reason. Runner exports these rows with review pending; it does not automatically certify plan completeness. A model handoff is not_executed, not a passing plan.

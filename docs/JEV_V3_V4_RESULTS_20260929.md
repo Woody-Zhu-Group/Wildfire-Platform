@@ -1,5 +1,7 @@
 # V3 vs latest V4: fresh paired classification run, 2026-09-29
 
+**Correction: this report's disposition metric does not validate router-versus-agent routing.** The [handoff audit](JEV_HANDOFF_AUDIT_20260929.md) found at least 116/196 (59.18%) unnecessary V4 handoffs using the existing router and topic-recovery paths, plus 35 template-normalization gaps. The 95.25% below must not be presented as success on the requested router-first objective. Raw results are preserved.
+
 Latest V4 scored 381/400 (95.25%) and V3 scored 350/400 (87.50%) on the frozen 80-question set. Both scored 220/220 on shared-vocabulary intent labels. The remaining failures occur after intent selection, in topic/scope decisions and policy handling.
 
 ## Protocol
