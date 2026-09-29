@@ -63,6 +63,7 @@ Round 4 replaced the two human reviewers with two independent models: Claude Opu
   - On all 179 agreed test values, 177 were right (98.9%, 96.0 to 99.7). The bar was 95%.
   - The models agreed on 179 of 211 test values.
   - Both agreed errors are SDG&E MBL items.
+- **SDG&E MBL caveat:** Both agreed errors in the test were SDG&E Medical Baseline items. 8 SDG&E mbl_advance_notice items were accepted in the queue; treat them with that caveat. Their status is unchanged, since changing a rule after the test would undo the freeze.
 - **Queue:**
   - 206 of the 286 items were accepted as `model_review_agreed`.
   - 80 remain unresolved, mostly because Opus marked them unsure (60).
