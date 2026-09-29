@@ -1,4 +1,4 @@
-"""Round 5: a human audit of the PSPS dataset (AUDIT_PLAN.md).
+"""Round 5: a model-assisted, human-verified audit of the PSPS dataset (AUDIT_PLAN.md).
 
     python research/psps_reports/round5/audit.py sample   # sample.csv (committed before the sheet is built)
     python research/psps_reports/round5/audit.py build    # audit_sheet.xlsx, audit_key.csv (gitignored), key_sha256.txt
@@ -393,7 +393,9 @@ def cmd_score(sheet: Path) -> None:
         return f"| {label} | " + " | ".join(parts) + " |"
 
     by = {g: [r for r in rows if r["group"] == g] for g in SIZES}
-    out = ["# Round 5: human audit results", "",
+    out = ["# Round 5: model-assisted, human-verified audit results", "",
+           "Method: for every row, Claude Opus 5.5 proposed an answer and page from the rules and the report PDF only, "
+           "and Michael verified it against the PDF (`AUDIT_PLAN.md`, \"Amendment\"). This is not a blind or independent human audit.", "",
            f"Sheet: `{sheet.name}`. Plan: `AUDIT_PLAN.md`. Scored by `audit.py score`; row-level results in `audit_scored.csv`.", "",
            f"- Rows answered: {sum(r['answered'] for r in rows)} of {len(rows)}; blank: "
            f"{', '.join(r['audit_id'] for r in rows if not r['answered'] and r['audit_id'] not in unreadable) or 'none'}; "

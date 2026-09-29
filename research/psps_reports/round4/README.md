@@ -1,8 +1,8 @@
 # Round 4: model-assisted review of the round 3 queue
 
-Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queue on their own, from the report itself. Code checked their evidence, and items where they agreed were accepted. The method was tested once, on 211 hand-labeled values from 24 clean reports, before it touched the queue. Both results were at or above their bars on the point estimate. The queue-matched result, 27/29 (93.1%, 95% interval 78.0 to 98.1), rests on few items. `DESIGN.md` is the plan, including the changes decided before the freeze.
+Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queue on their own, from the report itself. Code checked their evidence, and items where they agreed were accepted. The method was tested once, against 211 model-written gold values from 24 clean reports, before it touched the queue. Both results were at or above their bars on the point estimate. The queue-matched result, 27/29 (93.1%, 95% interval 78.0 to 98.1), rests on few items. `DESIGN.md` is the plan, including the changes decided before the freeze.
 
-**Values settled here are model-reviewed, not human-reviewed.** Accuracy was measured on 211 hand-labeled values from 24 reports; no human audit of the reviewed items. All gold labels come from one labeler.
+**Values settled here are model-reviewed, not human-reviewed.** Accuracy was measured against 211 gold values from 24 reports, and those labels were written by a Claude Opus 5.5 session, not a person (`../round5/AUDIT_PLAN.md`). Round 4 had no human audit; round 5 is a model-assisted, human-verified check of 60 values.
 
 **What the reviewers saw.** Neither reviewer saw the gold labels, the answer key, or the other reviewer's output. On blind items, neither saw Jev's answers or confidences. There are two exceptions:
 - The 23 queue special sessions (partial corrections, unreadable pages, workbook times) also received `current_values.json`, as `DESIGN.md` allows. It holds the event's values from `round3/dataset.csv`, which include Jev's answers for the five categorical fields.
@@ -39,7 +39,7 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
   - Wind moved from `met` or `not_met` to `not_stated` 13 times.
   - Claims moved from `zero` to `not_stated` 11 times.
   - The SDG&E Jan 20 to 24, 2025 last restoration is now the PDF's 15:48 (item 22), and its duration was recomputed.
-- **Hand labels** (`hand_labels.py`, added after the test on 2026-09-28): every field with a hand label now carries it, so known errors do not stay in the dataset.
+- **Gold labels** (`hand_labels.py`, added after the test on 2026-09-28; the file keeps its old name, and the labels are model-written): every field with a gold label now carries it.
   - The labels come from two sources:
     - the kept rows of `test_gold.csv`;
     - the round 1 gold, converted to round 3 rules the same way as round 2 (`round1_gold_converted.csv`, rule list in `round1_rule_differences.json`).
@@ -53,7 +53,7 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
   - A gold `null` does not replace a time taken from a utility workbook, since the gold was written from the PDF alone. This keeps 4 workbook times (SCE Jan 20 2025, first and last; SDG&E Dec 9 2024, first; SDG&E Jan 20 2025, first).
   - A gold `a|b` keeps the current value when it is one of the alternatives.
   - **PG&E Oct 21 2020 first de-energization.** Its round 1 label (17:33) was dropped by the conversion. The report states both 14:42 (a transmission line, p75) and 17:33 (the earliest distribution circuit in Appendix A, p73). The field keeps 14:42, is `unresolved` with the flag `first_deenergization:contradiction_in_report`, and is listed in `round3/contradictions.csv` as "round 4 hand-label check".
-  - Hand labels changed 8 values, all from `test_gold.csv`, including the two agreed test errors (items 117 and 141, SDG&E MBL, now `all_notified`).
+  - Gold labels changed 8 values, all from `test_gold.csv`, including the two agreed test errors (items 117 and 141, SDG&E MBL, now `all_notified`).
   - The test scoring and `calibration_results.md` are unchanged.
 - **Whole-event fields** (`no_change.py`, added after the PR #29 review on 2026-09-28): `apply.py` marks every field an agreed whole-event item covers ("all fields", "table pages", "numeric fields") as `model_review_agreed`. Those items ask whether a correction letter or table page changes the event, with the current values in view.
   - A field that such an item left unchanged, and that no agreed item asked about directly, is now `model_review_no_change`: 112 fields on 17 events.

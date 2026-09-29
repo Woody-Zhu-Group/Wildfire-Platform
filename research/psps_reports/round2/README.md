@@ -1,5 +1,7 @@
 # PSPS post-event reports: round 2 (clean test)
 
+> **Note (2026-09-29):** "I" in this file is a Claude Opus 5.5 Claude Code session. Its "hand-checked" gold labels were written by that session, not by a person (`../round5/AUDIT_PLAN.md`). The first check by a person is the round 5 model-assisted, human-verified audit.
+
 Round 2 changes the page selection and the Jev questions, then tests the pipeline once on 15 reports I had never read. The round 1 files one level up are unchanged.
 
 ## What changed from round 1

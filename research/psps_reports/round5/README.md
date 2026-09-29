@@ -1,6 +1,27 @@
-# Round 5: human audit
+# Round 5: model-assisted, human-verified audit
 
-A person checks 60 values in the PSPS dataset against the report PDFs, without seeing any model answer. It is the first human check of this dataset. The old test labels were written by a model, not a person (`AUDIT_PLAN.md`, "Why"). `AUDIT_PLAN.md` fixes the sample, what the sheet shows, and the scoring. It was committed before the sheet was built.
+A person verified 60 values in the PSPS dataset against the report PDFs. **Method, for all 60 rows: model-assisted, human-verified.** Claude Opus 5.5 proposed an answer and a page for each row, and Michael verified each proposal against the report PDF. The proposing model saw only the labeling rules and the report PDFs, not `audit_key.csv`, `sample.csv`, `round4/dataset_reviewed.csv`, `FINDINGS.md`, or the PR text. This is not a blind or independent human audit (`AUDIT_PLAN.md`, "Amendment"). The old test labels were written by a model, not a person (`AUDIT_PLAN.md`, "Why").
+
+## Results
+
+Scored by `audit.py score` on `audit_sheet_filled.xlsx`. The full output is `audit_results.md`, and row-level detail is `audit_scored.csv`. The rates are agreement with model-assisted, human-verified labels, not independent accuracy: the proposing model also wrote the old labels and was round 4's Reviewer 1.
+
+| Group (rows) | Compared with the verified label | Agreement (Wilson 95% interval) | Without `UNSURE:` rows |
+|---|---|---|---|
+| Queue values the round 4 models agreed on (30) | dataset value | 29/30 (96.7%, 83.3 to 99.4) | 29/30 |
+| Unflagged pipeline values (15) | dataset value | 12/14 (85.7%, 60.1 to 96.0) | 11/12 |
+| Old model-written test labels (15) | old gold label | 13/14 (92.9%, 68.5 to 98.7) | 13/13 |
+| Same rows, round 4 agreed answers | round 4 answer | 12/12 (100%, 75.8 to 100) | 12/12 |
+
+- **Rows left out:** A22 (blank) and A10 (unreadable: `2020/09/25 02:46` for a 2019 event; it differs from the dataset's 2019-09-23 17:06 either way). None was marked `SEEN:`, and 4 were marked `UNSURE:`.
+- **Differences:**
+  - **A05** (queue, PG&E Sept 30 2023 complaints): `zero` against `not_stated`. The verifier's note says "not applicable", which the rules count as `not_stated`.
+  - **A08** (unflagged, PG&E Sept 7-10 2020 first de-energization): 14:31 against 04:25. The table has PUEBLO 2103 at 9/7 4:25 (p56); the verifier judged it a mistake.
+  - **A54** (unflagged, SDG&E Oct 19-20 2018 MBL): `all_notified` (UNSURE) against `not_stated`.
+  - **A31** (old label, SCE Oct 16 2020 cancellation): `not_stated` (UNSURE) against the old label `no`. The verifier's note says nobody was de-energized, but p5 lists 37 and 49 customers.
+- **Not rechecked yet:** A05, A08, A31, A10, and A22. The results above are as submitted.
+
+The steps below are the instructions the verifier followed.
 
 ## How to fill in the audit sheet
 
@@ -38,9 +59,11 @@ This checks `audit_key.csv` against `key_sha256.txt`, compares each group with y
 
 | File | What it is |
 |---|---|
-| `AUDIT_PLAN.md` | The plan: why, blindness, sample, scoring. Committed before the sheet. |
+| `AUDIT_PLAN.md` | The plan: why, what the sheet shows, sample, scoring, and the method amendment (committed after labeling, before scoring). |
 | `audit.py` | `sample` draws `sample.csv`; `build` writes the sheet and the key; `score` scores the returned sheet. |
 | `sample.csv` | The 60 sampled rows with their group. Committed before the sheet. The auditor does not open it. |
 | `audit_sheet.xlsx` | The blank sheet for the auditor. It shows no model answer, dataset value, gold label, flag, or group; `build` checks that no row's number or time value appears in it. |
 | `audit_key.csv` | The answer key: group, dataset value, round 4 answers, and old gold label per row. Gitignored, local only. `audit.py build` rewrites it identically from the committed data. |
 | `key_sha256.txt` | SHA-256 of `audit_key.csv`, committed with the sheet. |
+| `audit_sheet_filled.xlsx` | The verified labels, committed before scoring. |
+| `audit_results.md`, `audit_scored.csv` | The scored results and row-level detail. |

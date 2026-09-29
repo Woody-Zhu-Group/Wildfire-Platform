@@ -1,6 +1,6 @@
 # Structured data from CPUC PSPS post-event reports: findings
 
-Research memo, September 2026. Details and code are under `research/psps_reports/`: round 1 (pilot), `round2/` (clean test), `round3/` (full run), and `round4/` (model-assisted review of the round 3 queue).
+Research memo, September 2026. Details and code are under `research/psps_reports/`: round 1 (pilot), `round2/` (clean test), `round3/` (full run), `round4/` (model-assisted review of the round 3 queue), and `round5/` (a model-assisted, human-verified audit).
 
 ## What was built
 
@@ -36,19 +36,19 @@ Every value carries its source (PDF page or Excel sheet and row). Uncertain valu
 - **Evaluation discipline:**
   - Each round was designed on reports already read, then tested on reports never read.
   - The test sample and pipeline version were committed before each run.
-  - Gold labels for the final test were written before looking at the pipeline's answers.
+  - The gold labels for each test were written by a Claude Opus 5.5 session, not by a person. That session reports writing them before looking at the pipeline's answers.
 
 ## Accuracy
 
-All labels are from one reviewer (the author), and no second reader has checked them. The two-reviewer split planned a 40-item overlap to measure that, but round 4 used models in place of the two human reviewers, so the overlap was never scored.
+**The results in this section are measured against model-written labels.** A Claude Opus 5.5 Claude Code session wrote every gold label for rounds 1 to 3, and these labels also scored the round 4 test. No person labeled them. Earlier versions of this memo called them hand-checked. The session transcript shows it writing each file after reading the report pages (`round5/AUDIT_PLAN.md`, "Why"). No second labeler has checked them. The planned 40-item two-reviewer overlap was never scored, because round 4 used models in place of the two human reviewers. The round 5 audit below is the first check in which a person verified values against the reports.
 
-| Check | Reports | Clean? | Result |
+| Check | Reports | Clean? | Result (against the model-written labels) |
 |---|---|---|---|
 | Pilot (round 1) | 10 | No, used for design | Jev 42/50, Luna numbers 40/40 |
 | Round 2 test | 15, never read, stratified by utility and era | Yes | Jev 67/75 (50 of 51 right at confidence 0.9 or above); Luna 55/60 |
 | Round 3 test | 10, never read, random (seed 20260924) | Yes | 80/90 values right; numbers 40/40; the review rule flags 9 of the 10 errors |
 
-- **Trust in unflagged answers.** In the round 3 test, 69 of 70 unflagged values were right. With a sample this small, the true error rate for unflagged values could plausibly be anywhere from well under 1 percent to about 8 percent. The sample also leaned toward events with no shutoff (5 of 10, against 37 of 155 overall).
+- **Trust in unflagged answers.** In the round 3 test, 69 of 70 unflagged values matched the model-written labels. With a sample this small, the true error rate for unflagged values could plausibly be anywhere from well under 1 percent to about 8 percent. The sample also leaned toward events with no shutoff (5 of 10, against 37 of 155 overall).
 - **The weak fields** are MBL notification and wind. Both depend on how a utility words its report. PG&E, for example, describes a composite risk score rather than a wind threshold, so "does the report say wind met a threshold" often has no clear answer.
 - **The numbers were reliable** whenever the report actually stated them. Luna's misses in round 2 were all cases where the PDF's circuit table was incomplete. The round 3 rules make it return null there instead.
 
@@ -61,22 +61,22 @@ Round 4 replaced the two human reviewers with two independent models: Claude Opu
 
 Code checked that each answer was an allowed value, that its quote appears on a cited page, and that the model was not unsure. A `not_stated` or `null` answer needs no quote, only the pages read and the search terms used. Items where both answers passed and matched were accepted. Details are in `round4/README.md` and `round4/DESIGN.md`.
 
-**These values are model-reviewed; accuracy was measured on 211 hand-labeled values from 24 reports; no human audit of the reviewed items.** The design planned 25 reports. One round 2 report was excluded because round 3 used an amended PDF.
+**These values are model-reviewed; accuracy was measured against 211 model-written gold values from 24 reports.** Round 4 itself had no human audit; round 5 is a model-assisted, human-verified check. The design planned 25 reports. One round 2 report was excluded because round 3 used an amended PDF.
 
-- **Test, run once after a committed freeze:**
+- **Test, run once after a committed freeze (scored against the model-written labels):**
   - On the 29 agreed queue-matched items, 27 were right (93.1%, Wilson 95% interval 78.0 to 98.1). The bar was 90%.
   - On all 179 agreed test values, 177 were right (98.9%, 96.0 to 99.7). The bar was 95%.
   - The models agreed on 179 of 211 test values.
   - Both agreed errors are SDG&E MBL items.
-- **SDG&E MBL caveat:** Both agreed errors in the test were SDG&E Medical Baseline items (queue items 117 and 141). 8 SDG&E mbl_advance_notice items were accepted in the queue. Six of them now carry their hand label: 117 and 141, where the hand label replaced the agreed answer, and 204, 230, 253, and 260, where the agreed answer already matched it. The caveat applies to the two accepted SDG&E Medical Baseline items without a hand label, 184 and 203. The review rules were not changed after the test.
+- **SDG&E MBL caveat:** Both agreed errors in the test were SDG&E Medical Baseline items (queue items 117 and 141). 8 SDG&E mbl_advance_notice items were accepted in the queue. Six of them now carry their old gold label: 117 and 141, where the gold label replaced the agreed answer, and 204, 230, 253, and 260, where the agreed answer already matched it. The caveat applies to the two accepted SDG&E Medical Baseline items without a gold label, 184 and 203. The review rules were not changed after the test.
 - **Queue:**
   - 206 of the 286 items were accepted as `model_review_agreed`.
   - 80 remain unresolved, mostly because Opus marked them unsure (60).
   - In the dataset, 145 field values are `model_review_agreed`, 112 are `model_review_no_change`, 270 are `model_labeled` (they carry an old gold label, which a model wrote; see `round5/AUDIT_PLAN.md`), 107 are unresolved, and 761 were never flagged, out of 1,395 (155 events × 9 fields).
   - `model_review_no_change` marks the 112 fields, on 17 events, that no reviewer answered on its own. An agreed whole-event item (a correction letter, a table page, or a report cut for length) left them unchanged, and the reviewers had the current values in view. `apply.py` had counted them as `model_review_agreed`. They were relabeled after the review of this work (`round4/no_change.py`), and no value changed.
   - **Agreed `not_stated` answers need no quote.** 88 of the 206 accepted queue items are `not_stated`. In 44 of them neither reviewer quoted a page, so the only evidence check was that both listed the pages they read and their search terms. In the other 44, at least one reviewer's quote was found on a cited page. The test backs these less than other values: only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer).
-  - Model review changed 82 values and hand labels changed 8. In all, 87 values differ from `round3/dataset.csv`, since some fields changed in both steps.
-  - Hand labels were applied after the test (`round4/hand_labels.py`), so known errors do not stay in the dataset. They come from the test gold and from the round 1 gold. The round 1 gold was converted to round 3 rules the same way as round 2: 63 of 90 rows kept, and 27 excluded (every time row, and 7 wind rows).
+  - Model review changed 82 values and the old gold labels changed 8. In all, 87 values differ from `round3/dataset.csv`, since some fields changed in both steps.
+  - The old gold labels were applied after the test (`round4/hand_labels.py`), so errors they identify do not stay in the dataset. They are model-written, so a value they replaced was not necessarily wrong. They come from the test gold and from the round 1 gold. The round 1 gold was converted to round 3 rules the same way as round 2: 63 of 90 rows kept, and 27 excluded (every time row, and 7 wind rows).
   - A gold `null` does not replace a time taken from a utility workbook, because the gold was written from the PDF alone. That case applies to 4 fields.
   - The PG&E Oct 21 2020 first de-energization keeps 14:42 and is unresolved. Its round 1 label (17:33) did not survive the conversion, and the report states both times: 14:42 for a transmission line and 17:33 for the first distribution circuit. It is listed in `round3/contradictions.csv`.
   - `round4/dataset_reviewed.csv` carries a per-field `review_method`.
@@ -90,6 +90,37 @@ Code checked that each answer was an allowed value, that its quote appears on a 
   - The 3 redlines were not asked.
   - The two human reviewer files in `round3/` were not used and are unchanged.
   - **A misapplied correction letter.** SCE's consolidated correction letter of April 1, 2024 amends only the Oct 29, Nov 9, Nov 20, and Dec 9, 2023 reports. Round 3 linked it to 8 SCE 2023 events. For the other four (Jul 11, Jul 18, Oct 11, and Nov 26, 2023), both reviewers found that it amends nothing, and those items (18, 19, 17, and 10) were agreed as no change. `round3/versions.csv` still lists the letter for all 8.
+
+## Model-assisted, human-verified audit (round 5)
+
+**Method, for all 60 rows: model-assisted, human-verified.** Claude Opus 5.5 proposed an answer and a page for each row. Michael then verified each proposal against the report PDF and recorded the final answer.
+
+- **What the proposing model saw:** only the labeling rules and the report PDFs. It did not see the answer key, the sample list, the dataset, this memo, or the PR text.
+- **This is not a blind or independent human audit.** The same model wrote the old gold labels and was round 4's Reviewer 1, and a person checking a proposed answer tends to accept it. The rates below are agreement with model-assisted, human-verified labels, and they are likely higher than agreement with independent human labels would be.
+- **Records:** the plan, the sample (seed 20260929), and the scoring rules were committed before the sheet was built. The method amendment was committed after labeling and before scoring (`round5/AUDIT_PLAN.md`). Results are in `round5/audit_results.md`, and row-level detail is in `round5/audit_scored.csv`.
+
+| Group (rows) | Compared with the verified label | Agreement (Wilson 95% interval) | Without `UNSURE:` rows |
+|---|---|---|---|
+| Queue values the two round 4 models agreed on (30) | the dataset value | 29/30 (96.7%, 83.3 to 99.4) | 29/30 |
+| Unflagged pipeline values (15) | the dataset value | 12/14 (85.7%, 60.1 to 96.0) | 11/12 |
+| Old model-written test labels (15) | the old gold label | 13/14 (92.9%, 68.5 to 98.7) | 13/13 |
+| The same old-label rows, where both round 4 reviewers agreed in the test | the round 4 agreed answer | 12/12 (100%, 75.8 to 100) | 12/12 |
+
+- **Rows left out:**
+  - A22 was left blank.
+  - A10's answer could not be read: it was written `2020/09/25 02:46` for a September 2019 event. Read either way, it differs from the dataset value (2019-09-23 17:06).
+  - No row was marked `SEEN:`, and 4 were marked `UNSURE:`.
+- **Rows where the verified label differs from the dataset or the old label:**
+
+  | Row | Report and field | Verified label | Dataset (or old label) | Note on the report |
+  |---|---|---|---|---|
+  | A05 | PG&E Sept 30 2023, complaints (queue) | `zero` | `not_stated` | The verifier's note says "not applicable". Under the rules, "Not applicable" counts as `not_stated`. |
+  | A08 | PG&E Sept 7-10 2020, first de-energization (unflagged) | 2020-09-07 14:31 | 2020-09-07 04:25 | The full circuit table lists PUEBLO 2103 at 9/7/2020 4:25 (p56) and KANAKA 1101 at 14:31 (p54). The verifier judged the 4:25 entry a mistake; the rules take the earliest time in a complete table. |
+  | A54 | SDG&E Oct 19-20 2018, MBL (unflagged) | `all_notified` (UNSURE) | `not_stated` | The verifier noted the report is "not really specific". |
+  | A31 | SCE Oct 16 2020, cancellation (old label) | `not_stated` (UNSURE) | `no` (old label, marked uncertain) | The verifier's note says no customers were de-energized, but p5 says 37 and 49 customers were. No advance notices were sent, which the rules treat as `not_stated`. |
+
+- **Status:** these are the results as submitted. The notes on A05, A08, and A31 conflict with the rules or the report pages, and A10 and A22 are unscored. None of these has been rechecked, so the queue and old-label figures could each move by a row.
+- **What it says:** on this small sample, the values the two models agreed on and the old model-written labels mostly match what a person accepted after checking a model's proposal. The pipeline's unflagged values had the most differences (2 of 14). The intervals are wide, and none of these rates is an independent measure of accuracy.
 
 ## Cost
 
@@ -106,11 +137,11 @@ The dominant cost is human review, not computation.
 
 - **Review queue:** 286 flagged items across 145 of the 155 events.
 - **Reviewer split:** two reviewers with 163 items each (40 shared), about 5.4 to 8.2 hours each at 2 to 3 minutes per item.
-- **Hand-checking time:** hand-checking a report in full took 15 to 20 minutes.
+- **Checking time:** earlier versions of this memo said a full hand check of a report took 15 to 20 minutes. That figure came from the model session that wrote the gold labels, not from a person, so it says nothing about human effort.
 
-## Internal contradictions (22, hand-checked)
+## Internal contradictions (22, model-checked)
 
-We found 22 places where a report disagrees with itself. They come from 17 of the 35 reports read closely, spread across all three utilities and all eras. Page numbers are PDF pages.
+The Claude Opus 5.5 session that wrote the gold labels found and checked these 22 contradictions; no person has checked them. It found 22 places where a report disagrees with itself. They come from 17 of the 35 reports read closely, spread across all three utilities and all eras. Page numbers are PDF pages.
 
 **1. Start and end times that disagree (10).** The narrative gives one time and the circuit table another, or "the event ended" is presented as the restoration time.
 
@@ -150,7 +181,7 @@ We found 22 places where a report disagrees with itself. They come from 17 of th
 
 Most of these are small. They matter because a dataset built from these reports silently picks one value unless it has a stated precedence rule. Ours prefers the circuit table when complete, then the section that answers the CPUC template question. The contradictions also bear on reporting quality in their own right.
 
-Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been hand-checked.
+Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been checked by a person or a model.
 
 ## Gaps in what utilities publish
 
@@ -213,5 +244,5 @@ Round 4 settled 206 of the 286 flagged items by model review. Once the remaining
 
 - The wind field is weak for PG&E and should not be used without review.
 - Circuit-level times are reliable only for the 7 workbook events and for reports whose PDF table lists every circuit.
-- All gold labels come from one labeler, and no second labeler has checked them. The planned two-reviewer overlap was never scored, because round 4 used models in place of the two human reviewers.
+- The old gold labels were written by a Claude Opus 5.5 session, not by a person, and no second labeler has checked them. The only check by a person is the round 5 audit, which is model-assisted and human-verified and covers 60 values.
 - Values marked `model_review_agreed` were settled by two models, not a person. Values marked `model_review_no_change` were left unchanged by an agreed whole-event item and never answered on their own. Values marked `model_labeled` carry an old gold label, written by a Claude Opus 5.5 session, not a person. Use `review_method` to separate them.

@@ -1,5 +1,7 @@
 # PSPS post-event reports pilot
 
+> **Note (2026-09-29):** "I" in this file is a Claude Opus 5.5 Claude Code session. Its "hand-checked" gold labels were written by that session, not by a person (`round5/AUDIT_PLAN.md`). The first check by a person is the round 5 model-assisted, human-verified audit.
+
 A pilot that tests whether Jev plus a small LLM can turn the CPUC's unstructured utility PSPS post-event reports into a structured dataset. The pilot covers 10 reports: 4 PG&E, 3 SCE, and 3 SDG&E, with events from 2020 to 2025.
 
 Outputs:

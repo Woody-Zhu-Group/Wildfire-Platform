@@ -1,5 +1,7 @@
 # Round 4: model-assisted review of the round 3 queue
 
+> **Note (2026-09-29):** the "hand-checked" labels this design relies on were written by a Claude Opus 5.5 session, not by a person (`../round5/AUDIT_PLAN.md`). The design text below is unchanged.
+
 Status: design, committed before any round 4 code or model call.
 
 ## Why

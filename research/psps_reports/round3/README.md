@@ -1,5 +1,7 @@
 # PSPS post-event reports: round 3 (full run)
 
+> **Note (2026-09-29):** "I" in this file is a Claude Opus 5.5 Claude Code session. Its "hand-checked" gold labels were written by that session, not by a person (`../round5/AUDIT_PLAN.md`). The first check by a person is the round 5 model-assisted, human-verified audit.
+
 Round 3 fixes the problems found in round 2 and runs the pipeline over every PG&E, SCE, and SDG&E post-event report the CPUC lists. It then measures accuracy on 10 reports that had never been read.
 
 ## Outputs
@@ -77,7 +79,7 @@ Ten events were drawn with seed 20260924 from the 127 never read in rounds 1 and
 
 ## Review queue
 
-**Round 4 update:** two models (Claude Opus 5.5 and GPT-6 Sol) reviewed this queue on their own, after a one-time test on hand-labeled values (queue-matched items: 27/29 agreed answers right, 93.1%, 95% interval 78.0 to 98.1; bar 90%). 206 of the 286 items were accepted as `model_review_agreed` and 80 remain unresolved. See [`../round4/README.md`](../round4/README.md). The reviewed dataset is `../round4/dataset_reviewed.csv`, and this folder's `dataset.csv` is unchanged. The round 4 reviewers' `CONTRADICTION:` notes were appended to `contradictions.csv` as "round 4 model-found, unchecked".
+**Round 4 update:** two models (Claude Opus 5.5 and GPT-6 Sol) reviewed this queue on their own, after a one-time test against model-written gold values (queue-matched items: 27/29 agreed answers right, 93.1%, 95% interval 78.0 to 98.1; bar 90%). 206 of the 286 items were accepted as `model_review_agreed` and 80 remain unresolved. See [`../round4/README.md`](../round4/README.md). The reviewed dataset is `../round4/dataset_reviewed.csv`, and this folder's `dataset.csv` is unchanged. The round 4 reviewers' `CONTRADICTION:` notes were appended to `contradictions.csv` as "round 4 model-found, unchecked".
 
 **286 items across 145 of the 155 events. At 2 to 3 minutes per item, that is 9.5 to 14.3 hours.**
 
