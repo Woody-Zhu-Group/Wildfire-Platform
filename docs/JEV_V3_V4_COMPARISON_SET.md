@@ -1,6 +1,6 @@
 # V3 / latest V4 comparison set v1
 
-80 questions: 50 observed regression cases and 30 new questions in 15 contrast pairs. No live API evaluation has been performed for this set. Labels are a reviewable draft, not an independently annotated gold standard.
+80 questions: 50 observed regression cases and 30 new questions in 15 contrast pairs. Labels were frozen before live capture and remain a reviewable draft, not an independently annotated gold standard. The completed fresh V3/V4 comparison is in [the September 29 results](JEV_V3_V4_RESULTS_20260929.md). The JSON's unrun status describes the dataset at freeze time; its contents were preserved for hash verification.
 
 ## Versions and protocol
 

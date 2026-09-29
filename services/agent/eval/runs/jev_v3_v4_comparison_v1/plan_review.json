@@ -1,0 +1,2774 @@
+{
+  "scope": "Static review of every emitted deterministic decision (255 trials, 51 distinct case/mode plans). This is before orchestration/execution; downstream guards may still alter or reject plans. A pass is not final-answer correctness. Agent handoffs have no tool plan here and remain unverified.",
+  "summary": {
+    "decide_v3": {
+      "fail": 45,
+      "pass": 160
+    },
+    "v4_scope_argmax": {
+      "pass": 50
+    }
+  },
+  "plans": [
+    {
+      "id": "v4_001",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "How did the number of PG&E ignitions change from 2019 to 2023?",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "end_date": "2023-12-31",
+            "result_mode": "count",
+            "start_date": "2019-01-01",
+            "utility": "PGE"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2023-12-31",
+        "start_date": "2019-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "2019 to 2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2019-01-01",
+          "status": "explicit",
+          "year": null,
+          "years": [
+            2019,
+            2020,
+            2021,
+            2022,
+            2023
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": null,
+        "years": [
+          2019,
+          2020,
+          2021,
+          2022,
+          2023
+        ]
+      },
+      "requirements": [
+        "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+      ],
+      "review": "fail",
+      "review_reason": "One 2019-2023 total cannot express the requested change."
+    },
+    {
+      "id": "v4_002",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "What happened to SCE's CPUC ignition count between 2020 and 2023?",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "end_date": "2023-12-31",
+            "result_mode": "count",
+            "start_date": "2020-01-01",
+            "utility": "SCE"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2023-12-31",
+        "start_date": "2020-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "between 2020 and 2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2020-01-01",
+          "status": "explicit",
+          "year": null,
+          "years": [
+            2020,
+            2021,
+            2022,
+            2023
+          ]
+        },
+        "utilities": [
+          "SCE"
+        ],
+        "year": null,
+        "years": [
+          2020,
+          2021,
+          2022,
+          2023
+        ]
+      },
+      "requirements": [
+        "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+      ],
+      "review": "fail",
+      "review_reason": "One 2020-2023 total cannot express the requested change."
+    },
+    {
+      "id": "v4_003",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "How much did SDG&E's ignition tally move from 2020 to 2024?",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "end_date": "2024-12-31",
+            "result_mode": "count",
+            "start_date": "2020-01-01",
+            "utility": "SDGE"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-12-31",
+        "start_date": "2020-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2020 to 2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2020-01-01",
+          "status": "explicit",
+          "year": null,
+          "years": [
+            2020,
+            2021,
+            2022,
+            2023,
+            2024
+          ]
+        },
+        "utilities": [
+          "SDGE"
+        ],
+        "year": null,
+        "years": [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+      ],
+      "review": "fail",
+      "review_reason": "One 2020-2024 total cannot express the requested change."
+    },
+    {
+      "id": "v4_010",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "How many PG&E ignitions were there from 2020 through 2023?",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "end_date": "2023-12-31",
+            "result_mode": "count",
+            "start_date": "2020-01-01",
+            "utility": "PGE"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2023-12-31",
+        "start_date": "2020-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "2020 through 2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2020-01-01",
+          "status": "explicit",
+          "year": null,
+          "years": [
+            2020,
+            2021,
+            2022,
+            2023
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": null,
+        "years": [
+          2020,
+          2021,
+          2022,
+          2023
+        ]
+      },
+      "requirements": [
+        "Return one total for exactly the requested dataset, utility and full inclusive period."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_012",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Count all SCE ignitions in 2024.",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "result_mode": "count",
+            "utility": "SCE",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-12-31",
+        "start_date": "2024-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-01-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [
+          "SCE"
+        ],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Return one total for exactly the requested dataset, utility and full inclusive period."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_013",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "For our budget meeting, how many PG&E ignitions were recorded in 2024?",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "result_mode": "count",
+            "utility": "PGE",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-12-31",
+        "start_date": "2024-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-01-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Return one total for exactly the requested dataset, utility and full inclusive period."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_014",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Plot monthly PG&E ignition counts from 2020 through 2023.",
+      "calls": [
+        [
+          "visualization_create",
+          {
+            "dataset": "ignitions",
+            "end_date": "2023-12-31",
+            "interval": "monthly",
+            "kind": "time_series",
+            "start_date": "2020-01-01",
+            "utility": "PGE"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2023-12-31",
+        "start_date": "2020-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "2020 through 2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2020-01-01",
+          "status": "explicit",
+          "year": null,
+          "years": [
+            2020,
+            2021,
+            2022,
+            2023
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": null,
+        "years": [
+          2020,
+          2021,
+          2022,
+          2023
+        ]
+      },
+      "requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_015",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Show where CAL FIRE incidents occurred in Butte County in 2024.",
+      "calls": [
+        [
+          "visualization_create",
+          {
+            "county": "Butte",
+            "dataset": "calfire",
+            "kind": "map",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [
+          "Butte"
+        ],
+        "county": "Butte",
+        "dataset": "calfire_incidents",
+        "end_date": "2024-12-31",
+        "start_date": "2024-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-01-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_016",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "List the individual EPSS outages in July 2024.",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "epss_outages",
+            "end_date": "2024-07-31",
+            "limit": 25,
+            "result_mode": "records",
+            "start_date": "2024-07-01",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "epss_outages",
+        "end_date": "2024-07-31",
+        "start_date": "2024-07-01",
+        "time_resolution": {
+          "end_date": "2024-07-31",
+          "per_year": false,
+          "phrase": "july 2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-07-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_017",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Rank California counties by CPUC ignition count in 2024.",
+      "calls": [
+        [
+          "data_query_rank",
+          {
+            "dataset": "cpuc_ignitions",
+            "group_by": "county",
+            "metric": "count",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-12-31",
+        "start_date": "2024-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-01-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_018",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Map CPUC ignitions and plot their monthly counts for 2024.",
+      "calls": [
+        [
+          "visualization_create",
+          {
+            "dataset": "ignitions",
+            "kind": "map",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-12-31",
+        "start_date": "2024-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-01-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "review": "fail",
+      "review_reason": "Only the map is planned; the monthly chart is missing."
+    },
+    {
+      "id": "v4_019",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "How well does the fitted ignition model perform?",
+      "calls": [
+        [
+          "risk_metrics",
+          {}
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": null,
+        "start_date": null,
+        "stat_mode": "model_metrics",
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_019",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "How well does the fitted ignition model perform?",
+      "calls": [
+        [
+          "risk_metrics",
+          {}
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": null,
+        "start_date": null,
+        "stat_mode": "model_metrics",
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_020",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Compare the held-out evaluation scores of HPP, NHPP and cNHPP.",
+      "calls": [
+        [
+          "risk_metrics",
+          {}
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": null,
+        "start_date": null,
+        "stat_mode": "model_metrics",
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_020",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Compare the held-out evaluation scores of HPP, NHPP and cNHPP.",
+      "calls": [
+        [
+          "risk_metrics",
+          {}
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": null,
+        "start_date": null,
+        "stat_mode": "model_metrics",
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_021",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Show the statewide fitted ignition risk surface for 2024-08-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-08-15",
+        "map_mode": "risk",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_021",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Show the statewide fitted ignition risk surface for 2024-08-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-08-15",
+        "map_mode": "risk",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_022",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Map the model residuals across California for 2024-08-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": "2024-08-15",
+        "map_mode": "residual",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_022",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Map the model residuals across California for 2024-08-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": "2024-08-15",
+        "map_mode": "residual",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_023",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "What was the fitted ignition risk in Butte County on 2024-08-15?",
+      "calls": [
+        [
+          "risk_forecast",
+          {
+            "county": "Butte",
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [
+          "Butte"
+        ],
+        "county": "Butte",
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-08-15",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_024",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Which utility territory and HFTD tier contain 38.5, -121.5?",
+      "calls": [
+        [
+          "data_query_spatial",
+          {
+            "kind": "point",
+            "lat": 38.5,
+            "lon": -121.5
+          }
+        ]
+      ],
+      "slots": {
+        "coords": [
+          38.5,
+          -121.5
+        ],
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": null,
+        "start_date": null,
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Preserve the requested point, inventory identifier or boundary; circuit inventory is not CPZ."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_025",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Show the PG&E utility service-area boundary.",
+      "calls": [
+        [
+          "visualization_inspect",
+          {
+            "kind": "utility_territory",
+            "utility": "PGE"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": null,
+        "start_date": null,
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Preserve the requested point, inventory identifier or boundary; circuit inventory is not CPZ."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_026",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Inspect circuit 043371102.",
+      "calls": [
+        [
+          "visualization_inspect",
+          {
+            "dataset": "circuits",
+            "kind": "event_detail",
+            "record_id": "043371102"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "circuits",
+        "end_date": null,
+        "start_date": null,
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Preserve the requested point, inventory identifier or boundary; circuit inventory is not CPZ."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "v4_036",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Show the statewide risk grid restricted to SCE territory on 2024-08-15.",
+      "calls": [
+        [
+          "risk_forecast",
+          {
+            "date": "2024-08-15",
+            "utility": "SCE"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": "2024-08-15",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [
+          "SCE"
+        ],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+      ],
+      "review": "fail",
+      "review_reason": "Substitutes scalar utility risk for an unsupported territory-filtered statewide grid."
+    },
+    {
+      "id": "scope_01",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Render fitted ignition intensity for every California grid cell on 2024-08-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-08-15",
+        "map_mode": "risk",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_02",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "I need the full California model-risk map for 2024-08-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": "2024-08-15",
+        "map_mode": "risk",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_02",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "I need the full California model-risk map for 2024-08-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": "2024-08-15",
+        "map_mode": "risk",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_03",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Display model residuals over the entire state of California on 2024-08-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": "2024-08-15",
+        "map_mode": "residual",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_03",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Display model residuals over the entire state of California on 2024-08-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": "2024-08-15",
+        "map_mode": "residual",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_04",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Map CAL FIRE incidents across Los Angeles County in 2024.",
+      "calls": [
+        [
+          "visualization_create",
+          {
+            "county": "Los Angeles",
+            "dataset": "calfire",
+            "kind": "map",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [
+          "Los Angeles"
+        ],
+        "county": "Los Angeles",
+        "dataset": "calfire_incidents",
+        "end_date": "2024-12-31",
+        "start_date": "2024-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-01-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_05",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Count 2024 CPUC ignitions attributed to PG&E.",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "result_mode": "count",
+            "utility": "PGE",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-12-31",
+        "start_date": "2024-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-01-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_06",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "How many CAL FIRE incidents occurred in 2024?",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "calfire_incidents",
+            "result_mode": "count",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "calfire_incidents",
+        "end_date": "2024-12-31",
+        "start_date": "2024-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-01-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_11",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "What was the fitted ignition risk at 38.5, -121.5 on 2024-08-15?",
+      "calls": [
+        [
+          "data_query_spatial",
+          {
+            "kind": "point",
+            "lat": 38.5,
+            "lon": -121.5
+          }
+        ],
+        [
+          "risk_forecast",
+          {
+            "cell_id": "$grid_cell_id",
+            "date": "2024-08-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": [
+          38.5,
+          -121.5
+        ],
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-08-15",
+        "start_date": "2024-08-15",
+        "time_resolution": {
+          "end_date": "2024-08-15",
+          "per_year": false,
+          "phrase": "2024-08-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-08-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_12",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Which utility territory contains 38.5, -121.5?",
+      "calls": [
+        [
+          "data_query_spatial",
+          {
+            "kind": "point",
+            "lat": 38.5,
+            "lon": -121.5
+          }
+        ]
+      ],
+      "slots": {
+        "coords": [
+          38.5,
+          -121.5
+        ],
+        "counties": [],
+        "county": null,
+        "dataset": "iou_territories",
+        "end_date": null,
+        "start_date": null,
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "scope_13",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "How many CPUC ignitions were recorded in the county in 2024?",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "result_mode": "count",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-12-31",
+        "start_date": "2024-01-01",
+        "time_resolution": {
+          "end_date": "2024-12-31",
+          "per_year": false,
+          "phrase": "2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-01-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ],
+      "review": "fail",
+      "review_reason": "County is unresolved but the plan silently queries statewide records."
+    },
+    {
+      "id": "cross_02a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Count all PG&E CPUC ignitions from April through June 2024.",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "end_date": "2024-06-30",
+            "result_mode": "count",
+            "start_date": "2024-04-01",
+            "utility": "PGE",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-06-30",
+        "start_date": "2024-04-01",
+        "time_resolution": {
+          "end_date": "2024-06-30",
+          "per_year": false,
+          "phrase": "from april through june 2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-04-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "One count from April 1 through June 30, including May."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_03a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Map CPUC ignitions throughout California for 2023.",
+      "calls": [
+        [
+          "visualization_create",
+          {
+            "dataset": "ignitions",
+            "kind": "map",
+            "year": 2023
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2023-12-31",
+        "start_date": "2023-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2023-01-01",
+          "status": "explicit",
+          "year": 2023,
+          "years": [
+            2023
+          ]
+        },
+        "utilities": [],
+        "year": 2023,
+        "years": [
+          2023
+        ]
+      },
+      "requirements": [
+        "Statewide CPUC event map for 2023; no county is required."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_04a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Count CAL FIRE incidents in Shasta County during 2023.",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "county": "Shasta",
+            "dataset": "calfire_incidents",
+            "result_mode": "count",
+            "year": 2023
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [
+          "Shasta"
+        ],
+        "county": "Shasta",
+        "dataset": "calfire_incidents",
+        "end_date": "2023-12-31",
+        "start_date": "2023-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2023-01-01",
+          "status": "explicit",
+          "year": 2023,
+          "years": [
+            2023
+          ]
+        },
+        "utilities": [],
+        "year": 2023,
+        "years": [
+          2023
+        ]
+      },
+      "requirements": [
+        "CAL FIRE count, Shasta County, 2023, dataset default incident definition."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_04b",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Count CAL FIRE incidents in that county during 2023.",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "calfire_incidents",
+            "result_mode": "count",
+            "year": 2023
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "calfire_incidents",
+        "end_date": "2023-12-31",
+        "start_date": "2023-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2023-01-01",
+          "status": "explicit",
+          "year": 2023,
+          "years": [
+            2023
+          ]
+        },
+        "utilities": [],
+        "year": 2023,
+        "years": [
+          2023
+        ]
+      },
+      "requirements": [
+        "No conversation history is supplied; ask which county."
+      ],
+      "review": "fail",
+      "review_reason": "That county is unresolved but the plan silently queries statewide records."
+    },
+    {
+      "id": "cross_06a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Open the inventory details for circuit ID 043371102.",
+      "calls": [
+        [
+          "visualization_inspect",
+          {
+            "dataset": "circuits",
+            "kind": "event_detail",
+            "record_id": "043371102"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "circuits",
+        "end_date": null,
+        "start_date": null,
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Circuit inventory lookup preserving the leading zero; not a CPZ request."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_07a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Map PG&E CPUC ignitions in 2023.",
+      "calls": [
+        [
+          "visualization_create",
+          {
+            "dataset": "ignitions",
+            "kind": "map",
+            "utility": "PGE",
+            "year": 2023
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2023-12-31",
+        "start_date": "2023-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2023-01-01",
+          "status": "explicit",
+          "year": 2023,
+          "years": [
+            2023
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": 2023,
+        "years": [
+          2023
+        ]
+      },
+      "requirements": [
+        "Map CPUC records with utility PG&E and year 2023."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_07b",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Map PG&E CPUC ignitions in 2023 and chart their monthly counts.",
+      "calls": [
+        [
+          "visualization_create",
+          {
+            "dataset": "ignitions",
+            "kind": "map",
+            "utility": "PGE",
+            "year": 2023
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2023-12-31",
+        "start_date": "2023-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2023-01-01",
+          "status": "explicit",
+          "year": 2023,
+          "years": [
+            2023
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": 2023,
+        "years": [
+          2023
+        ]
+      },
+      "requirements": [
+        "Both a map and monthly count chart with the same utility/year filters."
+      ],
+      "review": "fail",
+      "review_reason": "Only the map is planned; the monthly chart is missing."
+    },
+    {
+      "id": "cross_08a",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Show the saved held-out scores for the fitted ignition models.",
+      "calls": [
+        [
+          "risk_metrics",
+          {}
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": null,
+        "start_date": null,
+        "stat_mode": "model_metrics",
+        "time_resolution": {
+          "end_date": null,
+          "per_year": false,
+          "phrase": null,
+          "reason": null,
+          "source": null,
+          "start_date": null,
+          "status": "none",
+          "year": null,
+          "years": []
+        },
+        "utilities": [],
+        "year": null,
+        "years": []
+      },
+      "requirements": [
+        "Read saved risk_metrics; no new model fit and no event-count substitute."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_09a",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Display the fitted ignition risk grid over all California on 2024-07-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-07-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-07-15",
+        "map_mode": "risk",
+        "start_date": "2024-07-15",
+        "time_resolution": {
+          "end_date": "2024-07-15",
+          "per_year": false,
+          "phrase": "2024-07-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-07-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "risk_surface for 2024-07-15 with risk kind, covering the full grid."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_09b",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Display the fitted ignition risk grid over only PG&E territory on 2024-07-15.",
+      "calls": [
+        [
+          "risk_forecast",
+          {
+            "date": "2024-07-15",
+            "utility": "PGE"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-07-15",
+        "start_date": "2024-07-15",
+        "time_resolution": {
+          "end_date": "2024-07-15",
+          "per_year": false,
+          "phrase": "2024-07-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-07-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "A territory-filtered grid is unsupported; do not substitute a scalar territory score."
+      ],
+      "review": "fail",
+      "review_reason": "Substitutes scalar utility risk for an unsupported territory-filtered statewide grid."
+    },
+    {
+      "id": "cross_10a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Give the fitted ignition risk for Shasta County on 2024-07-15.",
+      "calls": [
+        [
+          "risk_forecast",
+          {
+            "county": "Shasta",
+            "date": "2024-07-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [
+          "Shasta"
+        ],
+        "county": "Shasta",
+        "dataset": "cpuc_ignitions",
+        "end_date": "2024-07-15",
+        "start_date": "2024-07-15",
+        "time_resolution": {
+          "end_date": "2024-07-15",
+          "per_year": false,
+          "phrase": "2024-07-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-07-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "County fitted risk at the exact supported day."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_11a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "List CAL FIRE incidents in Shasta County in July 2024.",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "county": "Shasta",
+            "dataset": "calfire_incidents",
+            "end_date": "2024-07-31",
+            "limit": 25,
+            "result_mode": "records",
+            "start_date": "2024-07-01",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [
+          "Shasta"
+        ],
+        "county": "Shasta",
+        "dataset": "calfire_incidents",
+        "end_date": "2024-07-31",
+        "start_date": "2024-07-01",
+        "time_resolution": {
+          "end_date": "2024-07-31",
+          "per_year": false,
+          "phrase": "july 2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-07-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Historical individual incident records with county and complete July window."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_13a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "How many CPUC ignitions were attributed to SDG&E in 2023?",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "cpuc_ignitions",
+            "result_mode": "count",
+            "utility": "SDGE",
+            "year": 2023
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "cpuc_ignitions",
+        "end_date": "2023-12-31",
+        "start_date": "2023-01-01",
+        "time_resolution": {
+          "end_date": "2023-12-31",
+          "per_year": false,
+          "phrase": "2023",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2023-01-01",
+          "status": "explicit",
+          "year": 2023,
+          "years": [
+            2023
+          ]
+        },
+        "utilities": [
+          "SDGE"
+        ],
+        "year": 2023,
+        "years": [
+          2023
+        ]
+      },
+      "requirements": [
+        "Historical attribute-based count; include normal attribution caveats."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_14a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "List PG&E EPSS outage records for June 2024.",
+      "calls": [
+        [
+          "data_query_records",
+          {
+            "dataset": "epss_outages",
+            "end_date": "2024-06-30",
+            "limit": 25,
+            "result_mode": "records",
+            "start_date": "2024-06-01",
+            "utility": "PGE",
+            "year": 2024
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": "epss_outages",
+        "end_date": "2024-06-30",
+        "start_date": "2024-06-01",
+        "time_resolution": {
+          "end_date": "2024-06-30",
+          "per_year": false,
+          "phrase": "june 2024",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-06-01",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [
+          "PGE"
+        ],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "Individual outage records, PG&E, complete June 2024 window."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_15a",
+      "mode": "decide_v3",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Show the California fitted risk surface on 2024-06-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-06-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": "2024-06-15",
+        "map_mode": "risk",
+        "start_date": "2024-06-15",
+        "time_resolution": {
+          "end_date": "2024-06-15",
+          "per_year": false,
+          "phrase": "2024-06-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-06-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "risk_surface for a supported past day, preserving the statewide grid output."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    },
+    {
+      "id": "cross_15a",
+      "mode": "v4_scope_argmax",
+      "repeats": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "question": "Show the California fitted risk surface on 2024-06-15.",
+      "calls": [
+        [
+          "risk_surface",
+          {
+            "date": "2024-06-15"
+          }
+        ]
+      ],
+      "slots": {
+        "coords": null,
+        "counties": [],
+        "county": null,
+        "dataset": null,
+        "end_date": "2024-06-15",
+        "map_mode": "risk",
+        "start_date": "2024-06-15",
+        "time_resolution": {
+          "end_date": "2024-06-15",
+          "per_year": false,
+          "phrase": "2024-06-15",
+          "reason": null,
+          "source": "explicit",
+          "start_date": "2024-06-15",
+          "status": "explicit",
+          "year": 2024,
+          "years": [
+            2024
+          ]
+        },
+        "utilities": [],
+        "year": 2024,
+        "years": [
+          2024
+        ]
+      },
+      "requirements": [
+        "risk_surface for a supported past day, preserving the statewide grid output."
+      ],
+      "review": "pass",
+      "review_reason": "Emitted tool arguments and output selectors preserve the listed request requirements; backend result and final rendering were not executed."
+    }
+  ]
+}
