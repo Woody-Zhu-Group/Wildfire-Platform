@@ -180,9 +180,9 @@ class AgentSettings:
                 f"AGENT_JEV_MODE={self.jev_mode} is reserved and not implemented. "
                 "Use off, shadow, tool_pick, tool_pick_template, or decide."
             )
-        if self.jev_mode not in {"off", "shadow", "tool_pick", "tool_pick_template", "decide", "router_gate"}:
+        if self.jev_mode not in {"off", "shadow", "tool_pick", "tool_pick_template", "decide", "router_gate", "v4"}:
             raise ValueError(
-                "AGENT_JEV_MODE must be off, shadow, tool_pick, tool_pick_template, decide, or router_gate"
+                "AGENT_JEV_MODE must be off, shadow, tool_pick, tool_pick_template, decide, router_gate, or v4"
             )
         if not 0 <= self.jev_decide_min_confidence <= 1:
             raise ValueError("AGENT_JEV_DECIDE_MIN_CONFIDENCE must be between 0 and 1")

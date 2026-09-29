@@ -149,3 +149,8 @@ For contrast, an **existing real v3 capture** in
 `dataset=cpuc_ignitions` and `measure=event_count` each had confidence 1.0.
 That observation is from the old payload and development data; it is not a v4
 test or a claim of general accuracy.
+# Current implementation
+
+The router-first V4 is now documented in [JEV_V4_ROUTER.md](JEV_V4_ROUTER.md)
+and selected with `AGENT_JEV_MODE=v4`. The material below describes the earlier
+Jev-first experiment and its historical payloads, not the new runtime mode.

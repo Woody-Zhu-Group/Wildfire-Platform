@@ -152,7 +152,7 @@ class AgentOrchestrator:
         # decide mode: today's Jev API call budget (AGENT_JEV_DAILY_CALL_CAP,
         # counted per call). Shadow mode keeps its own inside the runner.
         self.jev_budget = None
-        if settings.jev_mode in {"decide", "router_gate"}:
+        if settings.jev_mode in {"decide", "router_gate", "v4"}:
             from services.agent.decisions.call_budget import DailyCallBudget
 
             self.jev_budget = DailyCallBudget(settings.jev_daily_call_cap)
@@ -175,9 +175,9 @@ class AgentOrchestrator:
         # decide runs first, on the router's own decision. The slot planner then
         # acts only on a question decide left as an answer (apply_slot_plan skips
         # clarifications and refusals, and rewrites only multi_entity_deferred).
-        if self.settings.jev_mode in {"decide", "router_gate"} and not force_model:
+        if self.settings.jev_mode in {"decide", "router_gate", "v4"} and not force_model:
             decision = await self._jev_decide(question, decision, request_id)
-        if self.settings.slot_plan and not force_model and self.settings.jev_mode != "router_gate":
+        if self.settings.slot_plan and not force_model and self.settings.jev_mode not in {"router_gate", "v4"}:
             from services.agent.eval.slot_plan import apply_slot_plan
 
             decision = apply_slot_plan(decision, question)
@@ -274,6 +274,8 @@ class AgentOrchestrator:
         )
         if self.settings.jev_mode == "router_gate":
             from services.agent.decisions.router_gate import decide_from_answers, decide_live, exemption
+        elif self.settings.jev_mode == "v4":
+            from services.agent.decisions.v4_router import decide_from_answers, decide_live, exemption
 
         gate = self.settings.jev_decide_min_confidence
         answer_gate = self.settings.jev_decide_answer_confidence
@@ -305,7 +307,7 @@ class AgentOrchestrator:
                         timeout=self.settings.jev_timeout_seconds,
                         budget=self.jev_budget,
                     ),
-                    timeout=self.settings.jev_timeout_seconds + 1.0,
+                    timeout=self.settings.jev_timeout_seconds * (2 if self.settings.jev_mode == "v4" else 1) + 1.0,
                 )
             except (TimeoutError, asyncio.TimeoutError):
                 result = decide_from_answers(
@@ -323,7 +325,7 @@ class AgentOrchestrator:
         record = result.log_record(question, request_id)
         # A decline with a different reason is logged even when the router's
         # wording was kept, so Jev's reason is recorded somewhere.
-        if self.settings.jev_mode == "router_gate" or result.disagrees or result.error or result.reason_differs:
+        if self.settings.jev_mode in {"router_gate", "v4"} or result.disagrees or result.error or result.reason_differs:
             print(json.dumps(record, default=str))
             try:
                 from services.agent.decisions.shadow_log import ShadowLog, resolve_log_path
@@ -372,6 +374,8 @@ class AgentOrchestrator:
         jev = decision.slots.get("jev_decide") or {}
         intent = jev.get("jev_intent")
         confidence = jev.get("jev_intent_confidence")
+        if self.settings.jev_mode == "v4":
+            return intent in {"compare", "trend"}
         return (
             intent in {"compare", "trend"}
             and isinstance(confidence, (int, float))
@@ -445,7 +449,7 @@ class AgentOrchestrator:
             await self._emit(on_event, "error", response)
             return OrchestrationResult(response=response, raw_log=raw_log)
 
-        if decision.path in {"clarification", "unsupported"}:
+        if decision.path in {"clarification", "unsupported", "error"}:
             response = self._response(
                 request_id=request_id,
                 decision=decision,
@@ -460,7 +464,7 @@ class AgentOrchestrator:
                 model_turns=0,
                 synthesis_fallback=False,
             )
-            await self._emit(on_event, "answer", response)
+            await self._emit(on_event, "error" if decision.path == "error" else "answer", response)
             return OrchestrationResult(response=response, raw_log=raw_log)
 
         try:

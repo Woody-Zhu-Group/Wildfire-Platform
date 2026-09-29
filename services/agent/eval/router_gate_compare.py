@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
-from services.agent.decisions import decide_mode, jev_first, router_gate, v4, v4_scope
+from services.agent.decisions import decide_mode, jev_first, router_gate, v4, v4_scope, v4_router
 from services.agent.decisions.canonical import payload_hash
 from services.agent.decisions.integrity import answer_to_json, question_hash
 from services.agent.decisions.mapping import regex_labels
@@ -24,7 +24,7 @@ from services.agent.eval.jev_metrics import INPUT_USD_PER_MILLION
 
 CASES = Path(__file__).with_name("router_gate_cases.json")
 MODEL = "typesafe/jev-1.13-20260917"
-MODES = ("decide_v3", "prior_v4", "router_gate", "v4_scope_argmax")
+MODES = ("decide_v3", "prior_v4", "router_gate", "v4_scope_argmax", "v4_router")
 
 
 def account_usage() -> float:
@@ -38,11 +38,18 @@ def account_usage() -> float:
         return float(json.load(response)["data"]["usage"])
 
 
-def request_calls(case: dict, mode: str, today: str) -> list[dict]:
+def request_calls(case: dict, mode: str, today: str, answers=None) -> list[dict]:
     if mode not in MODES:
         raise ValueError(f"Unknown comparison mode: {mode}")
     if mode == "v4_scope_argmax":
         return v4_scope.calls_for(case["question"], today)
+    if mode == "v4_router":
+        calls = v4_router.calls_for(case["question"], today)
+        if answers is not None:
+            candidate = v4_router.prepare(case["question"], answers, today=date.fromisoformat(today))
+            if candidate.slots.get("v4_plan_pending"):
+                calls.append(v4_router.plan_call(case["question"], today, candidate))
+        return calls
     proposal = route_question(case["question"])
     return (
         decide_mode.jev_calls(case["question"], today)
@@ -90,6 +97,10 @@ def capture(case: dict, mode: str, repeat: int, today: str) -> dict:
         record["answers"].update(
             {name: answer_to_json(value) for name, value in result.answers.items()}
         )
+        if mode == "v4_router" and call["name"] == "places":
+            candidate = v4_router.prepare(case["question"], record["answers"], today=date.fromisoformat(today))
+            if candidate.slots.get("v4_plan_pending"):
+                calls.append(v4_router.plan_call(case["question"], today, candidate))
     record["latency_ms"] = round((time.perf_counter() - start) * 1000, 1)
     record["payload_hash"] = payload_hash(record["requests"])
     return record
@@ -127,8 +138,9 @@ def summarize(cases: dict, records: list[dict]) -> dict:
         proposal = route_question(case["question"])
         mode = record["mode"]
         answers = record["answers"]
-        if mode == "decide_v3":
-            result = decide_mode.decide_from_answers(
+        if mode in {"decide_v3", "v4_router"}:
+            policy = decide_mode if mode == "decide_v3" else v4_router
+            result = policy.decide_from_answers(
                 case["question"],
                 proposal,
                 answers,
@@ -186,7 +198,7 @@ def summarize(cases: dict, records: list[dict]) -> dict:
         item["errors"] += int(bool(record["error"]))
         selected = (
             jev_first.highest_choices(answers)
-            if mode == "v4_scope_argmax" and not record["error"]
+            if mode in {"v4_scope_argmax", "v4_router"} and not record["error"]
             else answers
         )
         actual_intent = selected.get("intent", {}).get("value")
@@ -225,6 +237,7 @@ def summarize(cases: dict, records: list[dict]) -> dict:
             "correct": correct, "intent": actual_intent,
             "path": decision.path, "rule": decision.rule,
             "tool_calls": decision.tool_calls, "view": decision.slots.get("view"),
+            "output_selectors": {k:decision.slots[k] for k in ("map_mode", "stat_mode", "series_mode") if k in decision.slots},
             "answer": decision.answer,
             "plan_requirements": case.get("plan_requirements", []),
             "plan_review": "pending" if decision.path == "deterministic" else "not_executed",
@@ -271,6 +284,10 @@ def summarize(cases: dict, records: list[dict]) -> dict:
     fit["mean_confidence"] = (
         sum(confidences) / len(confidences) if confidences else None
     )
+    executor_report = None
+    if all("expected_executor" in case for case in cases["cases"]):
+        from services.agent.eval.executor_metrics import score_executors
+        executor_report = score_executors(cases, rows)
     return {
         "set_status": cases["set_status"],
         "cases": len(by_id),
@@ -283,6 +300,7 @@ def summarize(cases: dict, records: list[dict]) -> dict:
         "router_fit": fit,
         "by_group": dict(groups),
         "rows": rows,
+        "executor_scoring": executor_report,
         "caveat": "Pre-execution classification only. An agent handoff is not proof of a correct final answer. Repeats measure consistency, not independent sample size.",
     }
 
@@ -313,7 +331,7 @@ def main():
             case = by_id[record["id"]]
             expected = [
                 _payload(call["state"], call["questions"], MODEL)
-                for call in request_calls(case, record["mode"], record["today"])
+                for call in request_calls(case, record["mode"], record["today"], record.get("answers"))
             ]
             if (
                 record["error"]
@@ -355,7 +373,7 @@ def main():
                     "repeats": args.repeats,
                     "modes": modes,
                     "max_api_calls": len(cases["cases"]) * args.repeats
-                    * sum(1 if mode == "router_gate" else 3 for mode in modes),
+                    * sum(1 if mode == "router_gate" else 4 if mode == "v4_router" else 3 for mode in modes),
                     "network_calls": 0,
                 }
             )
@@ -414,6 +432,7 @@ def main():
                 for case, mode, _ in batch
                 for call in request_calls(case, mode, cases["today"])
             )
+            reserve_tokens += sum(65536 for _, mode, _ in batch if mode == "v4_router")
             estimated = (
                 (sum(row["input_tokens"] for row in records) + reserve_tokens)
                 * INPUT_USD_PER_MILLION
