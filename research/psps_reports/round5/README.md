@@ -4,7 +4,7 @@ A person verified 60 values in the PSPS dataset against the report PDFs. **Metho
 
 ## Results
 
-Scored by `audit.py score` on `audit_sheet_filled.xlsx`. The full output is `audit_results.md`, and row-level detail is `audit_scored.csv`. The rates are agreement with model-assisted, human-verified labels, not independent accuracy: the proposing model also wrote the old labels and was round 4's Reviewer 1.
+**Headline, as submitted:** scored by `audit.py score` on `audit_sheet_filled.xlsx`. The full output is `audit_results.md`, and row-level detail is `audit_scored.csv`. The rates are agreement with model-assisted, human-verified labels, not independent accuracy: the proposing model also wrote the old labels and was round 4's Reviewer 1.
 
 | Group (rows) | Compared with the verified label | Agreement (Wilson 95% interval) | Without `UNSURE:` rows |
 |---|---|---|---|
@@ -13,13 +13,18 @@ Scored by `audit.py score` on `audit_sheet_filled.xlsx`. The full output is `aud
 | Old model-written test labels (15) | old gold label | 13/14 (92.9%, 68.5 to 98.7) | 13/13 |
 | Same rows, round 4 agreed answers | round 4 answer | 12/12 (100%, 75.8 to 100) | 12/12 |
 
-- **Rows left out:** A22 (blank) and A10 (unreadable: `2020/09/25 02:46` for a 2019 event; it differs from the dataset's 2019-09-23 17:06 either way). None was marked `SEEN:`, and 4 were marked `UNSURE:`.
-- **Differences:**
+- **Rows left out (as submitted):** A22 (blank) and A10 (unreadable: `2020/09/25 02:46` for a 2019 event; it differs from the dataset's 2019-09-23 17:06 either way). None was marked `SEEN:`, and 4 were marked `UNSURE:`.
+- **Differences (as submitted):**
   - **A05** (queue, PG&E Sept 30 2023 complaints): `zero` against `not_stated`. The verifier's note says "not applicable", which the rules count as `not_stated`.
   - **A08** (unflagged, PG&E Sept 7-10 2020 first de-energization): 14:31 against 04:25. The table has PUEBLO 2103 at 9/7 4:25 (p56); the verifier judged it a mistake.
   - **A54** (unflagged, SDG&E Oct 19-20 2018 MBL): `all_notified` (UNSURE) against `not_stated`.
   - **A31** (old label, SCE Oct 16 2020 cancellation): `not_stated` (UNSURE) against the old label `no`. The verifier's note says nobody was de-energized, but p5 lists 37 and 49 customers.
-- **Not rechecked yet:** A05, A08, A31, A10, and A22. The results above are as submitted.
+- **After rechecking the rows flagged in the first scoring:** only A05, A08, A10, A22, and A31 were rechecked, and the other 55 rows are as submitted.
+  - Files: `audit_sheet_rechecked.xlsx`, scored into `audit_results_rechecked.md` and `audit_scored_rechecked.csv` with `audit.py score --sheet audit_sheet_rechecked.xlsx --tag _rechecked`.
+  - A22 is now `not_stated` and matches the old label, so the old model-written labels agree with 14/15 (93.3%, 70.2 to 98.8).
+  - The queue (29/30), unflagged (12/14), and round 4 (12/12) results are unchanged.
+  - A05, A08, and A31 keep their answers.
+  - A10 (`2020/09-25 02:46`) still cannot be read and is left out.
 
 The steps below are the instructions the verifier followed.
 
@@ -66,4 +71,5 @@ This checks `audit_key.csv` against `key_sha256.txt`, compares each group with y
 | `audit_key.csv` | The answer key: group, dataset value, round 4 answers, and old gold label per row. Gitignored, local only. `audit.py build` rewrites it identically from the committed data. |
 | `key_sha256.txt` | SHA-256 of `audit_key.csv`, committed with the sheet. |
 | `audit_sheet_filled.xlsx` | The verified labels, committed before scoring. |
-| `audit_results.md`, `audit_scored.csv` | The scored results and row-level detail. |
+| `audit_results.md`, `audit_scored.csv` | The scored results and row-level detail, as submitted (the headline). |
+| `audit_sheet_rechecked.xlsx`, `audit_results_rechecked.md`, `audit_scored_rechecked.csv` | The sheet after rechecking only the rows flagged in the first scoring, and its scores. |

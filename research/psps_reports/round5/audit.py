@@ -3,6 +3,7 @@
     python research/psps_reports/round5/audit.py sample   # sample.csv (committed before the sheet is built)
     python research/psps_reports/round5/audit.py build    # audit_sheet.xlsx, audit_key.csv (gitignored), key_sha256.txt
     python research/psps_reports/round5/audit.py score --sheet <filled .xlsx>   # audit_results.md, audit_scored.csv
+    python research/psps_reports/round5/audit.py score --sheet audit_sheet_rechecked.xlsx --tag _rechecked \n        --version "..."   # audit_results_rechecked.md, audit_scored_rechecked.csv
 
 The sheet never shows a model answer, dataset value, gold label, flag, or sample group; build() checks that.
 """
@@ -353,7 +354,7 @@ def read_answers(path: Path) -> dict[str, dict]:
     return out
 
 
-def cmd_score(sheet: Path) -> None:
+def cmd_score(sheet: Path, tag: str = "", version: str = "") -> None:
     if not KEY.exists():
         raise SystemExit("STOP: audit_key.csv is missing; run `audit.py build` only if the sheet was built from the same commit")
     expected = KEY_HASH.read_text(encoding="utf-8").split()[0]
@@ -382,7 +383,7 @@ def cmd_score(sheet: Path) -> None:
         rows.append(row)
     cols = KEY_COLUMNS + ["auditor_answer", "auditor_page", "auditor_note", "unsure", "seen", "answered",
                           "dataset_agrees", "old_gold_agrees", "round4_agrees"]
-    write_csv(HERE / "audit_scored.csv", rows, cols)
+    write_csv(HERE / f"audit_scored{tag}.csv", rows, cols)
 
     def line(label: str, sel: list[dict], col: str) -> str:
         base = [r for r in sel if r["answered"] and r[col] != ""]
@@ -396,7 +397,8 @@ def cmd_score(sheet: Path) -> None:
     out = ["# Round 5: model-assisted, human-verified audit results", "",
            "Method: for every row, Claude Opus 5.5 proposed an answer and page from the rules and the report PDF only, "
            "and Michael verified it against the PDF (`AUDIT_PLAN.md`, \"Amendment\"). This is not a blind or independent human audit.", "",
-           f"Sheet: `{sheet.name}`. Plan: `AUDIT_PLAN.md`. Scored by `audit.py score`; row-level results in `audit_scored.csv`.", "",
+           f"Sheet: `{sheet.name}`. Plan: `AUDIT_PLAN.md`. Scored by `audit.py score`; row-level results in `audit_scored{tag}.csv`.", "",
+           *([f"Version: {version}", ""] if version else []),
            f"- Rows answered: {sum(r['answered'] for r in rows)} of {len(rows)}; blank: "
            f"{', '.join(r['audit_id'] for r in rows if not r['answered'] and r['audit_id'] not in unreadable) or 'none'}; "
            f"unreadable answers (left out): {', '.join(unreadable) or 'none'}.",
@@ -414,7 +416,7 @@ def cmd_score(sheet: Path) -> None:
         if r["answered"] and agrees is False:
             out.append(f"| {r['audit_id']} | {r['group']} | {r['report_id']} | {r['field']} | {r['auditor_answer']} | "
                        f"{r[col] or '(empty)'} | {r['auditor_note'][:120].replace('|', '/')} |")
-    (HERE / "audit_results.md").write_text("\n".join(out) + "\n", encoding="utf-8")
+    (HERE / f"audit_results{tag}.md").write_text("\n".join(out) + "\n", encoding="utf-8")
     print("\n".join(out[:14]))
 
 
@@ -422,9 +424,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("command", choices=["sample", "build", "score"])
     ap.add_argument("--sheet", type=Path, default=SHEET)
+    ap.add_argument("--tag", default="", help="suffix for the output files, e.g. _rechecked")
+    ap.add_argument("--version", default="", help="one line saying which version of the labels this is")
     args = ap.parse_args()
     if args.command == "score":
-        cmd_score(args.sheet)
+        cmd_score(args.sheet, args.tag, args.version)
     else:
         {"sample": cmd_sample, "build": cmd_build}[args.command]()
 

@@ -99,6 +99,8 @@ Code checked that each answer was an allowed value, that its quote appears on a 
 - **This is not a blind or independent human audit.** The same model wrote the old gold labels and was round 4's Reviewer 1, and a person checking a proposed answer tends to accept it. The rates below are agreement with model-assisted, human-verified labels, and they are likely higher than agreement with independent human labels would be.
 - **Records:** the plan, the sample (seed 20260929), and the scoring rules were committed before the sheet was built. The method amendment was committed after labeling and before scoring (`round5/AUDIT_PLAN.md`). Results are in `round5/audit_results.md`, and row-level detail is in `round5/audit_scored.csv`.
 
+**Headline, as submitted** (`round5/audit_sheet_filled.xlsx`):
+
 | Group (rows) | Compared with the verified label | Agreement (Wilson 95% interval) | Without `UNSURE:` rows |
 |---|---|---|---|
 | Queue values the two round 4 models agreed on (30) | the dataset value | 29/30 (96.7%, 83.3 to 99.4) | 29/30 |
@@ -106,20 +108,32 @@ Code checked that each answer was an allowed value, that its quote appears on a 
 | Old model-written test labels (15) | the old gold label | 13/14 (92.9%, 68.5 to 98.7) | 13/13 |
 | The same old-label rows, where both round 4 reviewers agreed in the test | the round 4 agreed answer | 12/12 (100%, 75.8 to 100) | 12/12 |
 
-- **Rows left out:**
+- **Rows left out (as submitted):**
   - A22 was left blank.
   - A10's answer could not be read: it was written `2020/09/25 02:46` for a September 2019 event. Read either way, it differs from the dataset value (2019-09-23 17:06).
   - No row was marked `SEEN:`, and 4 were marked `UNSURE:`.
-- **Rows where the verified label differs from the dataset or the old label:**
+- **Rows where the verified label differs from the dataset or the old label (as submitted):**
 
   | Row | Report and field | Verified label | Dataset (or old label) | Note on the report |
   |---|---|---|---|---|
   | A05 | PG&E Sept 30 2023, complaints (queue) | `zero` | `not_stated` | The verifier's note says "not applicable". Under the rules, "Not applicable" counts as `not_stated`. |
-  | A08 | PG&E Sept 7-10 2020, first de-energization (unflagged) | 2020-09-07 14:31 | 2020-09-07 04:25 | The full circuit table lists PUEBLO 2103 at 9/7/2020 4:25 (p56) and KANAKA 1101 at 14:31 (p54). The verifier judged the 4:25 entry a mistake; the rules take the earliest time in a complete table. |
+  | A08 | PG&E Sept 7-10 2020, first de-energization (unflagged) | 2020-09-07 14:31 | 2020-09-07 04:25 | The full circuit table lists PUEBLO 2103 at 9/7/2020 4:25 (p56) and KANAKA 1101 at 14:31 (p54). The verifier judged the 4:25 entry a mistake (the note first named Pueblo 2102 and, after the recheck, Pueblo 2103); the rules take the earliest time in a complete table. |
   | A54 | SDG&E Oct 19-20 2018, MBL (unflagged) | `all_notified` (UNSURE) | `not_stated` | The verifier noted the report is "not really specific". |
   | A31 | SCE Oct 16 2020, cancellation (old label) | `not_stated` (UNSURE) | `no` (old label, marked uncertain) | The verifier's note says no customers were de-energized, but p5 says 37 and 49 customers were. No advance notices were sent, which the rules treat as `not_stated`. |
 
-- **Status:** these are the results as submitted. The notes on A05, A08, and A31 conflict with the rules or the report pages, and A10 and A22 are unscored. None of these has been rechecked, so the queue and old-label figures could each move by a row.
+- **After rechecking the rows flagged in the first scoring** (`round5/audit_sheet_rechecked.xlsx`, `round5/audit_results_rechecked.md`): only the five flagged rows were rechecked: A05, A08, A10, A22, and A31. The other 55 rows were not rechecked and are as submitted.
+
+  | Group (rows) | As submitted | After rechecking the flagged rows |
+  |---|---|---|
+  | Queue values the two round 4 models agreed on (30) | 29/30 (96.7%, 83.3 to 99.4) | 29/30 (96.7%, 83.3 to 99.4) |
+  | Unflagged pipeline values (15) | 12/14 (85.7%, 60.1 to 96.0) | 12/14 (85.7%, 60.1 to 96.0) |
+  | Old model-written test labels (15) | 13/14 (92.9%, 68.5 to 98.7) | 14/15 (93.3%, 70.2 to 98.8) |
+  | Same rows, round 4 agreed answers | 12/12 (100%, 75.8 to 100) | 12/12 (100%, 75.8 to 100) |
+
+  - **A22** is now `not_stated`, which matches the old label (`null`).
+  - **A05, A08, and A31** keep their submitted answers after the recheck, so they still differ.
+  - **A10** was changed to `2020/09-25 02:46`. It still cannot be read under the scoring rules and is still left out; read either way, it differs from the dataset value.
+  - The differences above stand in both versions. The notes on A05 and A31 still conflict with the rules or the report pages, as described in the table.
 - **What it says:** on this small sample, the values the two models agreed on and the old model-written labels mostly match what a person accepted after checking a model's proposal. The pipeline's unflagged values had the most differences (2 of 14). The intervals are wide, and none of these rates is an independent measure of accuracy.
 
 ## Cost
