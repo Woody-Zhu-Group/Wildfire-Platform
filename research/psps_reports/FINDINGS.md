@@ -1,0 +1,287 @@
+# Structured data from CPUC PSPS post-event reports: findings
+
+Research memo, September 2026. Details and code are under `research/psps_reports/`: round 1 (pilot), `round2/` (clean test), `round3/` (full run), `round4/` (model-assisted review of the round 3 queue), and `round5/` (a model-assisted, human-verified audit).
+
+## What was built
+
+After every Public Safety Power Shutoff (PSPS), California's utilities must file a post-event report with the CPUC. The reports are long PDFs (10 to 550 pages) with no machine-readable companion for most events. We built a pipeline that turns every PG&E, SCE, and SDG&E post-event report the CPUC lists into one table: 155 events, 2017 to 2026 (`round3/dataset.csv`).
+
+For each event the table records nine fields:
+
+- **Five categorical facts:**
+  - were Medical Baseline (MBL) customers notified before their power was cut,
+  - does the report say wind met the shutoff threshold,
+  - were any complaints reported,
+  - were any claims reported,
+  - were some notified customers never shut off.
+- **Four numbers:**
+  - customers de-energized,
+  - first shutoff time,
+  - last restoration time,
+  - counties affected.
+
+  Event duration is computed from the two times.
+
+Every value carries its source (PDF page or Excel sheet and row). Uncertain values go to a review queue rather than into the table unmarked.
+
+## Method
+
+- **Categorical facts: Jev.** Jev is a typed decision model that picks one of a fixed set of options and reports a probability. It is asked one small question per fact with mutually exclusive options, always including "not stated in the report". It sees only the pages relevant to that question: the summary table, the template section for the topic, and the best keyword matches, up to 8 pages. If no page matches, the question is flagged and Jev is not asked.
+- **Numbers: GPT-6 Luna.** Luna reads the full text and must cite a page and a quote for each number. Code, not the model, computes duration. Luna may not use times from notification logs, status updates, or "the event ended" statements.
+- **Preprocessing:**
+  - Table pages that exist only as images or vector drawings are rendered and transcribed.
+  - Where a utility posts an Excel event workbook, circuit-level times come from the workbook.
+  - Amended reports replace the original when the amendment is a full report; partial corrections are flagged.
+- **Review rule:** an answer is flagged when Jev's confidence is below 0.9, when no page matched, when a relevant page could not be read, or when sources conflict.
+- **Evaluation discipline:**
+  - Each round was designed on reports already read, then tested on reports never read.
+  - The test sample and pipeline version were committed before each run.
+  - The gold labels for each test were written by a Claude Opus 5.5 session, not by a person. That session reports writing them before looking at the pipeline's answers.
+
+## Accuracy
+
+**The results in this section are measured against model-written labels.** A Claude Opus 5.5 Claude Code session wrote every gold label for rounds 1 to 3, and these labels also scored the round 4 test. No person labeled them. Earlier versions of this memo called them hand-checked. The session transcript shows it writing each file after reading the report pages (`round5/AUDIT_PLAN.md`, "Why"). No second labeler has checked them. The planned 40-item two-reviewer overlap was never scored, because round 4 used models in place of the two human reviewers. The round 5 audit below is the first check in which a person verified values against the reports.
+
+| Check | Reports | Clean? | Result (against the model-written labels) |
+|---|---|---|---|
+| Pilot (round 1) | 10 | No, used for design | Jev 42/50, Luna numbers 40/40 |
+| Round 2 test | 15, never read, stratified by utility and era | Yes | Jev 67/75 (50 of 51 right at confidence 0.9 or above); Luna 55/60 |
+| Round 3 test | 10, never read, random (seed 20260924) | Yes | 80/90 values right; numbers 40/40; the review rule flags 9 of the 10 errors |
+
+- **Trust in unflagged answers.** In the round 3 test, 69 of 70 unflagged values matched the model-written labels. With a sample this small, the true error rate for unflagged values could plausibly be anywhere from well under 1 percent to about 8 percent. The sample also leaned toward events with no shutoff (5 of 10, against 37 of 155 overall).
+- **The weak fields** are MBL notification and wind. Both depend on how a utility words its report. PG&E, for example, describes a composite risk score rather than a wind threshold, so "does the report say wind met a threshold" often has no clear answer.
+- **The numbers were reliable** whenever the report actually stated them. Luna's misses in round 2 were all cases where the PDF's circuit table was incomplete. The round 3 rules make it return null there instead.
+
+## Model-assisted review of the queue (round 4)
+
+Round 4 replaced the two human reviewers with two different models: Claude Opus 5.5, run as fresh headless Claude Code sessions confined to a packet folder, and GPT-6 Sol on OpenRouter. Claude Opus 5.5 is also the model that wrote the old gold labels. Each model answered every flagged item from the report itself, without seeing the gold labels or the other model's output. On the blind items, neither model saw Jev's answers or confidences. Two exceptions apply:
+
+- **Special items.** Sessions for special items (partial corrections, unreadable pages, workbook times) also received the event's current values from `round3/dataset.csv`, as `round4/DESIGN.md` allows. Those values include Jev's answers for the five categorical fields, on 23 events.
+- **Item reason.** Every item showed its `reason`. For `low_confidence`, which the guide explains as "Jev answered, but not confidently", that reveals Jev's confidence was below 0.9, though not the answer or the number. For `no_matching_page`, it reveals that the pipeline found no page on the topic, so Jev was not asked. An item's `page_refs` are the pages Jev was shown, and they are empty for most no-matching-page items.
+
+Code checked that each answer was an allowed value, that its quote appears on a cited page, and that the model was not unsure. **The quote check confirms only that the quote is on a cited page, not that it supports the value.** A `not_stated` or `null` answer needs no quote, only the pages read and the search terms used. Items where both answers passed and matched were accepted. Details are in `round4/README.md` and `round4/DESIGN.md`.
+
+**These values are model-reviewed; accuracy was measured against 211 model-written gold values from 24 reports.** Round 4 itself had no human audit; round 5 is a model-assisted, human-verified check. The design planned 25 reports. One round 2 report was excluded because round 3 used an amended PDF.
+
+- **Test, run once after a committed freeze (scored against the model-written labels):**
+  - On the 29 agreed queue-matched items, 27 were right (93.1%, Wilson 95% interval 78.0 to 98.1). The bar was 90%.
+  - On all 179 agreed test values, 177 were right (98.9%, 96.0 to 99.7). The bar was 95%.
+  - The models agreed on 179 of 211 test values.
+  - Both agreed errors are SDG&E MBL items.
+- **SDG&E MBL caveat:** Both agreed errors in the test were SDG&E Medical Baseline items (queue items 117 and 141). 8 SDG&E mbl_advance_notice items were accepted in the queue. Six of them now carry their old gold label: 117 and 141, where the gold label replaced the agreed answer, and 204, 230, 253, and 260, where the agreed answer already matched it. The caveat applies to the two accepted SDG&E Medical Baseline items without a gold label, 184 and 203. The review rules were not changed after the test.
+- **Queue:**
+  - 205 of the 286 items are accepted as `model_review_agreed`. `apply.py` accepted 206; one was moved to unresolved afterward (next bullet).
+  - 81 remain unresolved, mostly because Opus marked them unsure (60).
+  - **Queue item 5 is unresolved after a post-check.** This is SCE's Jan 20 2025 last restoration, a workbook-versus-PDF item. Both reviewers chose the workbook time, 2025-01-27 14:34. The workbook is not in the packet, so neither quote contains that time; each quote passed only because it appears on a cited page. DESIGN.md expected such an answer to end unresolved. `round4/quote_support.py` (added after the second review of this work; the frozen code is unchanged) now requires an agreed time or number to appear in at least one reviewer's quote. Only item 5 fails. Its field keeps the workbook value, becomes `unresolved`, and carries the flag `last_restoration:agreed_value_not_in_quote`. The other workbook item, 22, passes: both quotes say "as of 3:48 p.m."
+  - In the dataset, 144 field values are `model_review_agreed`, 112 are `model_review_no_change`, 270 are `model_labeled` (they carry an old gold label, which a model wrote; see `round5/AUDIT_PLAN.md`), 108 are unresolved, and 761 were never flagged, out of 1,395 (155 events × 9 fields).
+  - `model_review_no_change` marks the 112 fields, on 17 events, that no reviewer answered on its own. An agreed whole-event item (a correction letter, a table page, or a report cut for length) left them unchanged, and the reviewers had the current values in view. `apply.py` had counted them as `model_review_agreed`. They were relabeled after the review of this work (`round4/no_change.py`), and no value changed.
+  - **Agreed `not_stated` answers need no quote.** 88 of the 205 accepted queue items are `not_stated`. In 44 of them neither reviewer quoted a page, so the only evidence check was that both listed the pages they read and their search terms. In the other 44, at least one reviewer's quote was found on a cited page. The test backs these less than other values: only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer).
+  - Model review changed 82 values and the old gold labels changed 8. In all, 87 values differ from `round3/dataset.csv`, since some fields changed in both steps.
+  - The old gold labels were applied after the test (`round4/hand_labels.py`), so errors they identify do not stay in the dataset. They are model-written, so a value they replaced was not necessarily wrong. They come from the test gold and from the round 1 gold. The round 1 gold was converted to round 3 rules the same way as round 2: 63 of 90 rows kept, and 27 excluded (every time row, and 7 wind rows).
+  - A gold `null` does not replace a time taken from a utility workbook, because the gold was written from the PDF alone. That case applies to 4 fields.
+  - The PG&E Oct 21 2020 first de-energization keeps 14:42 and is unresolved. Its round 1 label (17:33) did not survive the conversion, and the report states both times: 14:42 for a transmission line and 17:33 for the first distribution circuit. It is listed in `round3/contradictions.csv`.
+  - `round4/dataset_reviewed.csv` carries a per-field `review_method`.
+- **What changed most:**
+  - Wind answers moved from `met` or `not_met` to `not_stated` (13).
+  - Claims moved from `zero` to `not_stated` (11).
+  - 32 no-matching-page placeholders were filled in.
+- **Limits:**
+  - The queue-matched bar passed on its point estimate (27/29, 93.1%), but its 95% interval, 78.0 to 98.1, reaches well below the 90% bar.
+  - The 28 special items (partial corrections, unreadable pages, workbook times) have no direct gold.
+  - The 3 redlines were not asked.
+  - The two human reviewer files in `round3/` were not used and are unchanged.
+  - **A misapplied correction letter.** SCE's consolidated correction letter of April 1, 2024 amends only the Oct 29, Nov 9, Nov 20, and Dec 9, 2023 reports. Round 3 linked it to 8 SCE 2023 events. For the other four (Jul 11, Jul 18, Oct 11, and Nov 26, 2023), both reviewers found that it amends nothing, and those items (18, 19, 17, and 10) were agreed as no change. `round3/versions.csv` still lists the letter for all 8.
+
+## Model-assisted, human-verified audit (round 5)
+
+**Method, for all 60 rows: model-assisted, human-verified.** In the first pass, Claude Opus 5.5 proposed an answer and a page for each row. Michael then verified each proposal against the report PDF and recorded the final answer. Five rows were later rechecked in three further steps (below), with more model involvement.
+
+- **What the first-pass proposing model saw:** only the labeling rules and the report PDFs. It did not see the answer key, the sample list, the dataset, this memo, or the PR text.
+- **This is not a blind or independent human audit.** The same model wrote the old gold labels and was round 4's Reviewer 1, and a person checking a proposed answer tends to accept it. The rates below are agreement with model-assisted, human-verified labels, and they are likely higher than agreement with independent human labels would be.
+- **Records:** the plan, the sample (seed 20260929), and the scoring rules were committed before the sheet was built. The method amendment was committed after labeling and before scoring (`round5/AUDIT_PLAN.md`). Results are in `round5/audit_results.md`, and row-level detail is in `round5/audit_scored.csv`. The sample was drawn from `round4/dataset_reviewed.csv` as of 6f16dd3, when the queue population had 145 fields. After the item 5 post-check it has 144, so `audit.py sample` reproduces the sample only on that earlier dataset.
+
+**Headline, as submitted** (`round5/audit_sheet_filled.xlsx`):
+
+| Group (rows) | Compared with the verified label | Agreement (Wilson 95% interval) | Without `UNSURE:` rows |
+|---|---|---|---|
+| Queue values the two round 4 models agreed on (30) | the dataset value | 29/30 (96.7%, 83.3 to 99.4) | 29/30 |
+| Unflagged pipeline values (15) | the dataset value | 12/14 (85.7%, 60.1 to 96.0) | 11/12 |
+| Old model-written test labels (15) | the old gold label | 13/14 (92.9%, 68.5 to 98.7) | 13/13 |
+| The same old-label rows, where both round 4 reviewers agreed in the test | the round 4 agreed answer | 12/12 (100%, 75.8 to 100) | 12/12 |
+
+- **Rows left out (as submitted):**
+  - A22 was left blank.
+  - A10's answer could not be read: it was written `2020/09/25 02:46` for a September 2019 event. Read either way, it differs from the dataset value (2019-09-23 17:06).
+  - No row was marked `SEEN:`, and 4 were marked `UNSURE:`. A26's agreed answer appeared in a tool output during the first review of this PR, before the audit. A26 was not marked `SEEN:`, so the "without SEEN" results still include it.
+- **Rows where the verified label differs from the dataset or the old label (as submitted):**
+
+  | Row | Report and field | Verified label | Dataset (or old label) | Note on the report |
+  |---|---|---|---|---|
+  | A05 | PG&E Sept 30 2023, complaints (queue) | `zero` | `not_stated` | The verifier's note says "not applicable". Under the rules, "Not applicable" counts as `not_stated`. |
+  | A08 | PG&E Sept 7-10 2020, first de-energization (unflagged) | 2020-09-07 14:31 | 2020-09-07 04:25 | The full circuit table lists PUEBLO 2103 at 9/7/2020 4:25 (p56) and KANAKA 1101 at 14:31 (p54). As submitted, the verifier treated the 4:25 entry as an error. After the recheck, the answer follows the rule (04:25), because nothing in the report says the entry is wrong. It is listed in `round3/contradictions.csv` as a possible report error. |
+  | A54 | SDG&E Oct 19-20 2018, MBL (unflagged) | `all_notified` (UNSURE) | `not_stated` | The verifier noted the report is "not really specific". |
+  | A31 | SCE Oct 16 2020, cancellation (old label) | `not_stated` (UNSURE) | `no` (old label, marked uncertain) | The verifier's note says no customers were de-energized, but p5 says 37 and 49 customers were. No advance notices were sent, which the rules treat as `not_stated`. |
+
+- **After rechecking the rows flagged in the first scoring** (`round5/audit_sheet_rechecked.xlsx`, `round5/audit_results_rechecked.md`):
+  - **Which rows:** the rechecked rows were A05, A08, A10, A22, and A31, and only those. This Claude Code session chose them after it had scored the first pass against the answer key. It flagged the rows whose notes conflicted with the rules or the report, plus the unreadable and blank rows. A54 also differed and was not rechecked. The other 55 rows are as submitted.
+  - **The recheck took three steps:**
+    1. **39505be, Michael's own recheck.** He filled A22 (`not_stated`), fixed a typo in A08's note (Pueblo 2102 to 2103), and changed A10 to `2020/09-25 02:46`, which was still unreadable. Intermediate result: queue 29/30, unflagged 12/14, old labels 14/15 (93.3%, 70.2 to 98.8), round 4 12/12.
+    2. **6ccc416, A08's note, written by this session.** This session had already scored the sheet against the answer key. Michael had stated a timeline reason: the entry is earlier than when the report says de-energization began. The session showed that 14:31 is also earlier than that, found the 10-hour gap and the neighbor-circuit evidence itself, and offered them as the reason. Michael chose that wording, and the session wrote A08's note from it. The answer stayed 14:31.
+    3. **d4aff3b, a separate Opus chat, then Michael's verification.** This session wrote the prompt for that chat. The chat proposed answers, and Michael verified them against the PDFs. The chat saw:
+       - the five reports' PDF links and each row's question;
+       - Michael's earlier answer, page, and note for each row, including the A08 note from step 2;
+       - excerpts of the labeling rules for times, complaints, cancellation, and contradictions;
+       - row-specific hints:
+         - A08: the Pueblo 2103 9/7 4:25 entry (p56), which is the dataset's value, the neighbor-circuit reasoning, and a request to say which first time the rule gives;
+         - A31: that p5 says 37 and 49 customers were de-energized;
+         - A10: its time was unreadable and said 2020 for a 2019 event;
+         - A22: its note was copied from another row's;
+         - A05: its answer was zero while its note said "not applicable", which the rules count as `not_stated`.
+
+       It did not see the answer key, the sample list, the dataset, or the old labels, apart from A08's 4:25, which is the dataset value.
+
+  | Group (rows) | As submitted (headline) | After rechecking the flagged rows |
+  |---|---|---|
+  | Queue values the two round 4 models agreed on (30) | 29/30 (96.7%, 83.3 to 99.4) | 30/30 (100%, 88.6 to 100) |
+  | Unflagged pipeline values (15) | 12/14 (85.7%, 60.1 to 96.0) | 14/15 (93.3%, 70.2 to 98.8) |
+  | Old model-written test labels (15) | 13/14 (92.9%, 68.5 to 98.7) | 15/15 (100%, 79.6 to 100) |
+  | Same rows, round 4 agreed answers | 12/12 (100%, 75.8 to 100) | 12/12 (100%, 75.8 to 100) |
+
+  - **A05** (complaints) is now `not_stated`, the dataset value. The report says Section 7 is not applicable because PSPS protocols weren't initiated, and the rules code that as `not_stated`.
+  - **A08** (first de-energization) is now 2020-09-07 04:25, the dataset value, following the rule (earliest time in the complete circuit table). Pueblo 2103's 9/7 4:25 (p56) is about 10 hours before any other 9/7 circuit and may be a report error, but nothing in the report says so. `round3/contradictions.csv` keeps it as a possible report error.
+  - **A10** (first de-energization) is now 2019-09-23 17:06, the dataset value (p7: "On September 23 at approximately 1706, de-energization was initiated"; p15). The p4 table's 02:46 is the second (Bravo) phase only, and the table misprints the year as 2020.
+  - **A22** (first de-energization) is `not_stated`, the old label: no customers were de-energized (p7; Table 1 shows 0, p8).
+  - **A31** (cancellation) is now `no`, the old label, marked `UNSURE:`. No advance notices were sent, and shutoff notices went only to the 86 customers who were de-energized (p38).
+  - **A54** is the only remaining difference.
+  - **Why this version is not the headline:**
+    - Only rows that disagreed were rechecked, which can raise agreement but never lower it. The 55 rows that agreed were not rechecked for errors in the other direction.
+    - The first scoring had already shown the verifier the compared value for A05, A08, A10, and A31.
+    - The session that chose the rows, wrote A08's step 2 note, and wrote the step 3 prompt had seen the answer key.
+    - All five rechecked rows now match the compared value.
+    - So the rechecked figures are an upper bound on agreement for this sample, not a better estimate than the as-submitted figures.
+- **What it says:** on this small sample, the values the two models agreed on and the old model-written labels mostly match what a person accepted after checking a model's proposal. The pipeline's unflagged values had the most differences as submitted (2 of 14). The intervals are wide, and none of these rates is an independent measure of accuracy.
+
+## Cost
+
+All OpenRouter and TypeSafe calls for rounds 1 to 3 cost **$2.66**, and round 4 added **$10.39**, for **$13.05** in total:
+
+| Round | Cost | What it covered |
+|---|---|---|
+| Round 1 | $0.17 | 10 reports |
+| Round 2 | $0.21 | 15 reports |
+| Round 3 | $2.28 | All 155 reports, including image transcription |
+| Round 4 | $10.39 | GPT-6 Sol for model-assisted review (development, test, queue); Opus ran on the Claude subscription (199 sessions, no dollar cost) |
+
+The dominant cost is human review, not computation.
+
+- **Review queue:** 286 flagged items across 145 of the 155 events.
+- **Reviewer split:** two reviewers with 163 items each (40 shared), about 5.4 to 8.2 hours each at 2 to 3 minutes per item.
+- **Checking time:** earlier versions of this memo said a full hand check of a report took 15 to 20 minutes. That figure came from the model session that wrote the gold labels, not from a person, so it says nothing about human effort.
+
+## Internal contradictions (22, model-checked)
+
+The Claude Opus 5.5 session that wrote the gold labels found and checked these 22 contradictions; no person has checked them. It found 22 places where a report disagrees with itself. They come from 17 of the 35 reports read closely, spread across all three utilities and all eras. Page numbers are PDF pages.
+
+**1. Start and end times that disagree (10).** The narrative gives one time and the circuit table another, or "the event ended" is presented as the restoration time.
+
+- PG&E, Oct 11, 2021: de-energization "began at 06:00" (p4), but the first circuit went out at 01:34 (Appendix B, p102).
+- SDG&E, Nov 24 to 26, 2021: the start is given as 11:47 (p20), as 18:00 (p6), and as the first circuit at 21:53 (p124).
+- SCE, Sept 2, 2025: "ended at 4:00 pm by which time service was restored" (p19), but the last circuit was restored at 12:49 (p62).
+- SCE, Oct 23 to 28, 2020: the Atento circuit is listed as re-energized 10/28 07:30 (table, p7) but restored 10/29 11:53 (p12).
+- SDG&E, Oct 19 to 20, 2018: final restoration is 10/20 09:38 (p3), but the attachment shows "PSPS Restore" at 10/19 14:52 (p10).
+- Also:
+  - PG&E, Oct 23 to 25, 2019: 18:20 vs about 18:01.
+  - PG&E, Jan 13 to 15, 2025: 22:45 vs 23:13.
+  - SCE, Oct 22, 2021: ended 3 pm vs restored 4:29 pm, with one customer not restored.
+  - SCE, Oct 29, 2023: 06:31 vs 07:42.
+  - PG&E, Jan 20 to 21, 2025: "all restored" on 1/21, but shared SCE customers were restored 1/24.
+
+**2. Customer totals that disagree (5).**
+
+- SCE, Oct 23 to 28, 2020: 36,307 (p3) vs 36,037 (p22). This looks like transposed digits.
+- PG&E, Oct 23 to 25, 2019: "approximately 177,000" (p2, p9) vs 176,620 (Table 2, p9).
+- SCE, Sept 4 to 8, 2019 (amended report): "approximately 650" (p3) vs 240 + 392 = 632 (p5).
+- SDG&E, Dec 23 to 24, 2020: 6,797 is given as the number of accounts impacted (p11, p128) and also as the number spared by sectionalizing (p10).
+- SDG&E, Jan 20 to 24, 2025: 29,980 total vs 27,015 unique customers (both on p6). This is stated, not an error, but a dataset has to choose one.
+
+**3. Counties in scope counted as de-energized (3).**
+
+- SCE, Nov 24, 2021: 6 counties including Kern (p8) vs 5, with Kern "in scope but not de-energized" (p22).
+- SCE, Oct 29, 2023: 6 in Table 1 and the introduction (p4, p6) vs 5 in the summary and Section 3 (p5, p18).
+- SDG&E, Jan 20 to 24, 2025: 3 counties in Table 1 (p8) vs 4 named in the introduction (p6).
+
+**4. Breakdowns that do not add up (3).**
+
+- PG&E, July 20 to 21, 2024: the text gives 112 residential, 92 commercial, and 24 other customers (p23); the circuit table totals 110, 82, and 19 (p76).
+- PG&E, Oct 25 to 28, 2020: 30 MBL customers without notification (p35) vs 51 without an attempted notification (p36).
+- PG&E, Jan 13 to 15, 2025: one customer not notified (p9) vs three (p41).
+
+**5. Incomplete tables presented as the record (1).** SCE, Jan 20, 2025: the circuit table in the PDF lists 5 of 225 de-energized circuits (p19). The full table is only in the Excel workbook. SCE's Oct 29, 2023 report has the same problem: 5 of 41 circuits.
+
+Most of these are small. They matter because a dataset built from these reports silently picks one value unless it has a stated precedence rule. Ours prefers the circuit table when complete, then the section that answers the CPUC template question. The contradictions also bear on reporting quality in their own right.
+
+Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". Round 5 added 1 possible report error (set "round 5 audit, possible report error"). Michael's as-submitted audit note flagged the entry, and this Claude Code session, which had already scored the audit against the answer key, added the supporting evidence: in PG&E's Sept 7 to 10, 2020 report, Pueblo 2103's 9/7 4:25 (p56) is about 10 hours before every other circuit dated 9/7 and may be a date error for 9/8. Nothing in the report says so, and the audit answer follows the rule (04:25). A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been checked by a person or a model.
+
+## Gaps in what utilities publish
+
+- **Dead links.** Two SCE 2019 originals (Sept 4 to 8 and Oct 21 to 26) now return "resource removed" on the CPUC site. Only their amendments survive.
+- **Missing workbooks.** The CPUC template requires an event data workbook with circuit-level times, but only 8 are public:
+  - 6 from SDG&E, on sdge.com,
+  - 2 from SCE, on the CPUC site.
+
+  SCE's own PSPS reports page returns 404. Recent SCE PDFs list only a handful of circuits, so exact times for most SCE events are not publicly recoverable from the PDF. One SDG&E workbook (Oct 2023) has no circuit table at all. We did not collect PG&E attachments.
+- **Tables with no text.** Some tables exist only as images or vector outlines. For example, SCE's Table 1 (event summary) and Table 9 (MBL notification) in Oct 2021 have no text layer. We transcribed 414 such pages; 11 were unreadable.
+- **A cover filing with no report.** For PG&E's Dec 15, 2023 event, the CPUC file is only the 3-page cover filing. The report itself (Attachment A, Table A-1.2) was filed on archival DVD, so nothing can be read from the PDF. The dataset has no numbers for this event. Its categorical fields are `not_stated`, except MBL, which is unresolved.
+- **Broken text encoding.** One PG&E report (Sept 30, 2023) has a font encoding that shifts every letter and drops every digit, so it needs OCR.
+- **Redlines and corrections.**
+  - Three PG&E 2024 amendments were filed only as redlines, where extracted text mixes deleted and inserted values.
+  - 17 events have partial correction letters instead of restated reports.
+- **Format drift.** Reports from 2017 to 2020 are letters answering numbered ESRB-8 questions. The standard template starts in late 2021, so older events are less likely to state MBL, complaint, or cancellation facts explicitly.
+
+## Cross-check against the warehouse PSPS table
+
+We compared the round 3 dataset with the warehouse table `wildfire.psps_events`, which is loaded from `psps_events.geojson` in the `dataset_demo` project. That table holds 56 PG&E, SCE, and SDG&E events from October 2021 to November 2025, with dates but no times. We matched events by utility and overlapping dates, using read-only queries. The script is `round3/warehouse_crosscheck.py` and the row-level output is `round3/warehouse_crosscheck.csv`.
+
+- **Coverage.** All 56 warehouse events match a report, one to one.
+  - Inside the warehouse's date range, the dataset has 22 more events, all of them events where customers were notified but nobody was shut off. The warehouse records only shutoffs, so this is expected.
+  - Outside that range, the dataset adds 58 shutoff events (2017 to early 2021, and 2026) and 19 more no-shutoff events.
+  - No shutoff event appears in the warehouse without a report, or the other way round, within the overlap.
+- **Customers de-energized: 37 of 56 match exactly.** 15 differ by under 2 percent, usually by 1 to 40 customers, and the dataset is higher in 11 of them. The largest of these is SCE, Nov 24, 2021: 78,514 in the report (p8, p22) against 79,697 in the warehouse. Four differ a lot, and in each the report explains the gap:
+  - **SDG&E, Jan 7 to 16, 2025:** 21,508 (dataset) vs 15,103 (warehouse). The report gives both: "21,508 total customers (15,103 unique customers)" (p7). It also shows the amended total replacing an earlier 21,605.
+  - **SDG&E, Jan 20 to 24, 2025:** 29,980 vs 27,015. Same pattern: total vs unique, both stated on p6. The warehouse uses unique customers for SDG&E and the dataset uses totals.
+  - **SCE, Oct 15, 2021:** 67 vs 104. The report says 67 three times (p8, p9, p38), and its footnote says this is the unique count although one circuit was shut off twice. The number 104 appears nowhere in the report text.
+  - **SCE, Oct 1, 2024:** 15 vs 1. The report says "1 SCE customer and 14 PG&E customers were de-energized" (p8). The warehouse counts SCE's own customer only, and the dataset adds the PG&E customers. This page's text layer is also scrambled, another broken-font case; we read it from the rendered page.
+- **First shutoff date: 51 of 53 match.** For three events the report states no first time and the dataset has none; those are not compared. The two misses are one day apart, and in both the report supports the dataset:
+  - PG&E, Oct 14 to 16, 2021: "On October 15, 2021 at 01:00 PDT, PG&E began de-energizing" (p7), and the circuit table starts 10/15 01:00. The warehouse has 10/14.
+  - PG&E, June 2025: "On June 19 at 04:47 PDT, PG&E began de-energization" (p4). The warehouse has 6/18.
+- **Last restoration date: 50 of 55 match.** Three of the five misses trace to a small number of late customers that the warehouse leaves out:
+  - PG&E, Oct 11, 2021: the Calpine 1144 line, which PG&E does not own, was restored 10/14 (Appendix B, p102), two days after everyone else (warehouse 10/12).
+  - SCE, Nov 24, 2022: one commercial customer was left off until 11/27 because an isolation device was left open (p40), while "service was restored to all" by 11/25 (p21). The warehouse has 11/25.
+  - SDG&E, Nov 6 to 8, 2024: the report's restoration table and text both end 11/8 at 08:18 (p41, p139), against 11/7 in the warehouse.
+
+  The other two, SCE Sept 7, 2024 and SCE Oct 28, 2025, differ by one day in the other direction and were not checked against the reports.
+- **Counties: 42 of 56 match, but this comparison is weak.** The warehouse has no county field. We counted counties covering at least 1 percent of each event polygon, and the polygons clip slivers of neighboring counties. For example, Orange, Riverside, and Imperial together make up under 0.4 percent of the SDG&E polygons, while the reports' own tables list 3 or 4 counties. Treat county disagreements as a definitional difference, not an error in either source.
+
+**The pattern.** The two sources agree on which events happened and on almost all dates. They disagree mainly on definitions:
+
+- total vs unique customers,
+- whether one utility's report counts another utility's customers,
+- whether a handful of late or third-party customers set the restoration date.
+
+In every large disagreement we checked, the report pages support the dataset's value as the report's own number. The warehouse value is usually also a defensible reading. A combined panel should carry both a total and a unique customer count, and should state whose customers are counted.
+
+## What the dataset could support after review
+
+Round 4 settled 205 of the 286 flagged items by model review. Even once a person resolves the remaining 81, the 526 fields settled by models (144 `model_review_agreed`, 112 `model_review_no_change`, and 270 `model_labeled`) would still not have been checked by a person, apart from the few in the round 5 audit sample, and neither would the 761 unflagged values. With that caveat, the table would be a consistent, sourced event record of PSPS use by the three utilities from 2017 to 2026. It could support:
+
+- **An event panel:** frequency, size (customers), duration, and geographic spread (counties) of shutoffs by utility and year. Events where notices went out but no one was shut off are included, which matters for studying notification burden.
+- **Compliance-style indicators:** how often de-energized MBL customers were not notified in advance, how often events generated complaints or claims, and how often notified customers were never shut off. These are presence or absence indicators, not counts. The pipeline does not yet extract complaint and claim counts, though the reports usually give them.
+- **Cross-checks against our warehouse PSPS data** (`wildfire.psps`) and CAL FIRE incidents, using event dates and counties. For the 7 events with workbooks, the comparison can go down to the circuit.
+- **A report-quality analysis.** With contradictions in about half the reports read closely, the consistency of utility reporting is itself a measurable outcome.
+
+**Caveats for use:**
+
+- The wind field is weak for PG&E and should not be used without review.
+- Circuit-level times are reliable only for the 7 workbook events and for reports whose PDF table lists every circuit.
+- The old gold labels were written by a Claude Opus 5.5 session, not by a person, and no second labeler has checked them. The only check by a person is the round 5 audit, which is model-assisted and human-verified and covers 60 values.
+- Values marked `model_review_agreed` were settled by two models, not a person. Values marked `model_review_no_change` were left unchanged by an agreed whole-event item and never answered on their own. Values marked `model_labeled` carry an old gold label, written by a Claude Opus 5.5 session, not a person. Use `review_method` to separate them.

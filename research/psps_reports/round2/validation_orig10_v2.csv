@@ -1,0 +1,101 @@
+set,report_id,field,extractor,extracted,gold,correct,gold_certain,jev_confidence,flagged_for_review,pages_shown,gold_pages,value_on_cited_page,note
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,mbl_advance_notice,jev,all_notified,some_not_notified,0,yes,0.47,1,4;5;10;11;25;30;31;34,33;35,,One de-energized MBL customer had no notification attempted (Table 3 and false negative text).
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,wind_threshold_cited,jev,not_stated,not_stated,1,no,0.93,0,4;5;6;15;16;64;65;69,8;54,,Cites gusts up to 56 mph and model guidance exceeded; never states wind met a de-energization threshold.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,complaints_reported,jev,not_stated,not_stated,1,yes,1.0,0,3;4;5;47;48,47,,Complaints deferred to the October 25 event report.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,claims_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,3;4;5;47;48,47,,6 claims.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,canceled_after_notice,jev,yes,yes,1,yes,1.0,0,4;5;8;9;29;30;32;34,8;29,,De-energization cancelled for TPs as conditions waned (about 5900 customers); cancellation notices sent.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,mbl_advance_notice,jev,some_not_notified,some_not_notified,1,yes,0.64,1,4;5;6;43;44;50;51;52,53,,54 de-energized MBL customers had no notification attempted (Table 6).
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,wind_threshold_cited,jev,not_stated,not_stated,1,no,0.91,0,4;5;6;8;9;15;16;89,12;14;89,,PG&E threshold is composite CFPD guidance; wind is only a minimum condition and is not stated as met for this event.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,3;4;5;6;78;79,78,,389 complaints.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,claims_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,3;4;5;6;78;79,79,,13 claims.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,canceled_after_notice,jev,yes,yes,1,yes,1.0,0,4;5;6;7;45;46;49;62,6,,Table 1: 22428 cancelled.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,mbl_advance_notice,jev,all_notified,all_notified,1,no,0.83,1,4;5;6;29;46;47;48;54,48,,All 127 de-energized MBL customers had a delivered notification (0 not attempted and 0 not delivered); 1 did not confirm receipt. The question option wording 'not reached' overlaps with unconfirmed receipt.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,wind_threshold_cited,jev,not_stated,not_stated,1,no,0.84,1,4;5;6;7;8;9;10;81,9;16,,mFPC includes sustained wind above 19 mph; the report implies but does not state that the de-energized TPs met it.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,3;4;5;6;72;73,72,,Table 17.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,claims_reported,jev,zero,zero,1,yes,1.0,0,3;4;5;6;72;73,72,,No claims as of September 27 2023.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,canceled_after_notice,jev,yes,yes,1,yes,1.0,0,4;5;6;7;16;39;44;45,6;16,,Table 1: 4187 cancelled.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,mbl_advance_notice,jev,all_notified,all_notified,1,yes,0.96,0,7;8;9;26;38;39;84;85,38,,26 of 26 MBL customers had successful positive notification (Table 5).
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,wind_threshold_cited,jev,not_stated,not_stated,1,no,0.93,0,7;8;9;10;11;12;14;61,7,,Gusts up to nearly 45 mph recorded; no statement that wind met a threshold.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,6;7;8;9;52;53,52,,13 complaints.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,claims_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,6;7;8;9;52;53,53,,1 claim.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,canceled_after_notice,jev,no,no,1,yes,0.98,0,7;8;9;10;30;31;87;97,9;40,,Table 1: notified 583; de-energized 583; cancelled 0.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,mbl_advance_notice,jev,all_notified,all_notified,1,yes,0.87,1,9;10;11;22;23;30;31;39,30,,9035 of 9035 successful positive notification (Table 9).
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,wind_threshold_cited,jev,met,met,1,yes,1.0,0,9;10;11;12;13;15;17;50,9,,Actual fire weather conditions met or exceeded SCE PSPS thresholds.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,7;9;10;11;39;40;50,39,,3591 complaints.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,claims_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,7;9;10;11;19;39;40;41,39,,477 claims.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,canceled_after_notice,jev,yes,yes,1,yes,1.0,0,9;10;11;21;22;23;30;35,22,,283454 in scope; 78514 de-energized; Kern in scope but not de-energized.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,mbl_advance_notice,jev,all_notified,all_notified,1,yes,0.38,1,8;9;10;21;22;28;29;30,29,,The one MBL customer not contacted was not de-energized.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,wind_threshold_cited,jev,met,met,1,yes,1.0,0,8;9;10;11;13;14;19;20,20,,5 circuits met FPI criteria when sustained or gust wind de-energization thresholds were exceeded.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,6;8;9;10;38;39,38,,53 complaints.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,claims_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,6;8;9;10;38;39,38,,7 claims.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,canceled_after_notice,jev,yes,yes,1,yes,1.0,0,8;9;10;20;21;27;28;34,9,,Table 1: 38277 cancelled.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,mbl_advance_notice,jev,some_not_notified,some_not_notified,1,yes,0.89,1,8;9;10;20;24;25;39;40,24;25,,MBL customers not contacted were due to emergent weather requiring immediate de-energization; the sentence spans pages 24 and 25.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,wind_threshold_cited,jev,met,met,1,yes,0.86,1,8;9;10;11;12;14;18;37,10;14,,Observed wind and FPI no longer met de-energization threshold criteria as of 7:53 on September 10.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,8;9;10;31;32;58;59;83,31,,15 complaints.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,claims_reported,jev,zero,zero,1,yes,1.0,0,8;9;10;31;32;58;59;83,31,,Zero claims.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,canceled_after_notice,jev,yes,yes,1,yes,1.0,0,8;9;10;19;20;28;39;43,9,,Table 1: 12501 cancelled.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,mbl_advance_notice,jev,not_stated,all_notified,0,yes,0.73,1,10;13;14;29;33;79;90;96,13,,Affirmative notifications made to MBL customers not reached by phone.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,wind_threshold_cited,jev,not_stated,not_stated,1,yes,0.46,1,3;4;6;7;8;12,6;12,,Lists potential gusts above 50 mph; the only threshold mention (page 12) is circuit 157 meeting the notification threshold.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,17;18,17,,2 complaints.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,claims_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,17;18,17,,2 claims.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,canceled_after_notice,jev,NO_MATCHING_PAGE,yes,0,no,,1,,12;29,,Implicit only: about 16700 customers notified and 49 de-energized; no cancellation wording.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,mbl_advance_notice,jev,all_notified,all_notified,1,yes,0.69,1,6;7;8;22;23;52;53;96,23,,47 of 47 successful positive notification (Table 4).
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,wind_threshold_cited,jev,met,met,1,yes,0.81,1,6;7;8;9;19;20;35;40,16,,PSPS implemented in real time once alert speeds were reached.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,6;7;8;33;34;35;122;228,34,,39 complaints.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,claims_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,6;7;8;33;34;35;122;229,34,,18 claims.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,canceled_after_notice,jev,yes,yes,1,yes,1.0,0,6;7;8;20;22;24;25;125,7,,Table 1: 48669 cancelled.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,mbl_advance_notice,jev,all_notified,all_notified,1,yes,0.68,1,6;7;8;22;25;26;87;88,25,,1879 of 1879 successful positive notification (Table 5).
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,wind_threshold_cited,jev,met,met,1,yes,1.0,0,6;7;8;9;10;11;12;55,12,,Alert speed criteria were met for all but three of the 21 devices.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,0,6;7;8;40;41;137;138;161,40,,20 complaints.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,claims_reported,jev,zero,zero,1,yes,1.0,0,6;7;8;40;41;42;137;162,41,,Zero claims.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,canceled_after_notice,jev,yes,yes,1,yes,1.0,0,6;7;8;21;22;27;28;52,7,,Table 1: 23477 cancelled.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,customers_deenergized,luna,30154,30154,1,yes,,,,4;25,0,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,first_deenergization,luna,2020-10-21 17:33,2020-10-21 17:33,1,yes,,,,73,1,Minimum de-energization time in Appendix A.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,last_restoration,luna,2020-10-23 15:56,2020-10-23 15:56,1,yes,,,,74,1,Maximum restoration time in Appendix A.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,counties_deenergized,luna,7,7,1,yes,,,,4;24;69,1,Cited page 69 lists the 7 impacted counties.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2020_10_21,event_duration_hours,code,46.38,46.38,1,yes,,,,,,Computed from the Luna timestamps.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,customers_deenergized,luna,23504,23504,1,yes,,,,6;39,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,first_deenergization,luna,2021-10-11 01:34,2021-10-11 01:34,1,no,,,,102,1,Appendix B circuit table (Corning 1102). The narrative on page 4 says de-energization began at 06:00; the report is internally inconsistent.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,last_restoration,luna,2021-10-14 15:22,2021-10-14 15:22,1,yes,,,,102,1,Calpine 1144 was not restored until after the next event (page 82).
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,counties_deenergized,luna,23,23,1,yes,,,,6;39,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2021_10_11,event_duration_hours,code,85.8,85.8,1,no,,,,,,Computed from the Luna timestamps.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,customers_deenergized,luna,1171,1171,1,yes,,,,4;6;29,0,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,first_deenergization,luna,2023-09-20 23:19,2023-09-20 23:19,1,yes,,,,4;29;94,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,last_restoration,luna,2023-09-21 17:05,2023-09-21 17:05,1,yes,,,,29;94,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,counties_deenergized,luna,3,3,1,yes,,,,6;29,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2023_09_20,event_duration_hours,code,17.77,17.77,1,yes,,,,,,Computed from the Luna timestamps.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,customers_deenergized,luna,583,583,1,yes,,,,7;9;26,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,first_deenergization,luna,2025-01-20 13:14,2025-01-20 13:14,1,yes,,,,7;75,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,last_restoration,luna,2025-01-21 14:17,2025-01-21 14:17,1,no,,,,75,1,Appendix B maximum. Page 37 says SCE shared customers were not restored until after the next PSPS (restore notice 1/24 16:12).
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,counties_deenergized,luna,1,1,1,yes,,,,9,0,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",pge_2025_01_20,event_duration_hours,code,25.05,25.05,1,no,,,,,,Computed from the Luna timestamps.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,customers_deenergized,luna,78514,78514,1,yes,,,,8;22,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,first_deenergization,luna,2021-11-24 11:58,2021-11-24 11:58,1,yes,,,,22,0,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,last_restoration,luna,2021-11-26 19:48,2021-11-26 19:48,1,yes,,,,8;22,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,counties_deenergized,luna,5,5,1,no,,,,22,1,Section 3 lists 5 counties; the introduction on page 8 lists 6 including Kern which was in scope only.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2021_11_24,event_duration_hours,code,55.83,55.83,1,yes,,,,,,Computed from the Luna timestamps.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,customers_deenergized,luna,2780,2780,1,yes,,,,7;8;9,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,first_deenergization,luna,2023-11-20 06:18,2023-11-20 06:18,1,yes,,,,22,1,Taiwan circuit in Table 5.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,last_restoration,luna,2023-11-21 10:14,2023-11-21 10:14,1,yes,,,,20;22,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,counties_deenergized,luna,3,3,1,yes,,,,8;9,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2023_11_20,event_duration_hours,code,27.93,27.93,1,yes,,,,,,Computed from the Luna timestamps.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,customers_deenergized,luna,1223,1223,1,yes,,,,7;8,0,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,first_deenergization,luna,2025-09-02 11:10,2025-09-02 11:10,1,yes,,,,62,1,Rankin circuit in the Section 3 table.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,last_restoration,luna,2025-09-10 12:49,2025-09-10 12:49,1,yes,,,,62,1,The 16:00 end time on page 19 is event close not restoration.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,counties_deenergized,luna,4,4,1,yes,,,,8,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sce_2025_09_02,event_duration_hours,code,193.65,193.65,1,yes,,,,,,Computed from the Luna timestamps.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,customers_deenergized,luna,49,49,1,yes,,,,10,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,first_deenergization,luna,2020-09-08 20:56,2020-09-08 20:56,1,yes,,,,8,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,last_restoration,luna,2020-09-09 10:26,2020-09-09 10:26,1,yes,,,,8,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,counties_deenergized,luna,1,1,1,yes,,,,8,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2020_09_08,event_duration_hours,code,13.5,13.5,1,yes,,,,,,Computed from the Luna timestamps.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,customers_deenergized,luna,5858,5858,1,yes,,,,7,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,first_deenergization,luna,2021-11-24 21:53,2021-11-24 21:53,1,no,,,,124,1,Circuit table minimum. Section 3 (page 20) says the event began at 11:47 and page 6 says PSPS activation began at 18:00.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,last_restoration,luna,2021-11-26 16:37,2021-11-26 16:37,1,yes,,,,6;20;124,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,counties_deenergized,luna,1,1,1,yes,,,,7,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2021_11_24,event_duration_hours,code,42.73,42.73,1,no,,,,,,Computed from the Luna timestamps.
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,customers_deenergized,luna,1263,1263,1,yes,,,,6;7,0,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,first_deenergization,luna,2024-11-06 08:47,2024-11-06 08:47,1,yes,,,,139,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,last_restoration,luna,2024-11-08 08:18,2024-11-08 08:18,1,yes,,,,41;139,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,counties_deenergized,luna,1,1,1,yes,,,,7,1,
+"orig10 (pilot reports, round 2 Jev pipeline; used for design, not clean)",sdge_2024_11_06,event_duration_hours,code,47.52,47.52,1,yes,,,,,,Computed from the Luna timestamps.

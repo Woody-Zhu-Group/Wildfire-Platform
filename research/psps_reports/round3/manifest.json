@@ -1,0 +1,43 @@
+{
+  "pipeline_version": "round3-v1",
+  "question_hash": "31960117558a",
+  "file_sha256_16": {
+    "round3\\pipeline3.py": "b1c3397b881039f9",
+    "round3\\image_pages.py": "2ec41589bac60d91",
+    "round3\\workbooks.py": "24be923798e4e0b2",
+    "round3\\inventory.py": "87f3bd1f4464e599",
+    "round2\\pipeline.py": "e40c47b56c9b4f2d",
+    "common.py": "74ad9ef52bfc3e42",
+    "llm_extract.py": "102ea7b5f13e1362"
+  },
+  "events": 155,
+  "events_using_amendment": 15,
+  "events_file_sha256_16": "a4e51935bc83252c",
+  "models": {
+    "jev": "jev-latest",
+    "luna": "openai/gpt-6-luna"
+  },
+  "spend_cap_usd": 6.0,
+  "review_rule": [
+    "Jev confidence below 0.9",
+    "no page matched the question topic (Jev not called)",
+    "a relevant table page was image-only and could not be transcribed (unreadable, or over the per-report cap)",
+    "conflicting sources: workbook and PDF times differ by more than 30 minutes; a partial correction was filed for the event; the extracted version is a redline (struck text may be read)"
+  ],
+  "accuracy_sample": {
+    "seed": 20260924,
+    "population": 127,
+    "report_ids": [
+      "pge__10_17_2024_psps_post_event_report",
+      "sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019",
+      "sdge__sdge_oct_26_27_2020_psps_post_event_report",
+      "sce__sce_oct_16_2020_psps_post_event_report",
+      "sdge__sdge_de_energization_report_nov_89_2018",
+      "sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event",
+      "sce__sce_jun_25_28_2020_psps_post_event_report",
+      "sce__sce_post_event_reporting_september_4_through_september_8_2019",
+      "pge__psps_event_12_07_20_de_energization_report",
+      "sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization"
+    ]
+  }
+}

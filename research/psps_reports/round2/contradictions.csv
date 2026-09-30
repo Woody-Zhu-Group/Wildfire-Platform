@@ -1,0 +1,22 @@
+set,report_id,field,value_a,source_a,value_b,source_b,note
+pilot,pge_2021_10_11,first_deenergization,06:00 on 10/11/2021,p4 narrative,01:34 on 10/11/2021 (Corning 1102),p102 Appendix B,Narrative start is 4.5 hours after the first circuit in the table.
+pilot,pge_2025_01_20,last_restoration,all restored 1/21 by 14:17 and 100 percent within 24 hours,p8 and p75,shared SCE customers restored 1/24 16:12,p37 notification table,Shared customers restored after the next event.
+pilot,sce_2021_11_24,counties_deenergized,6 counties including Kern,p8 introduction,5 counties; Kern in scope only,p22 Section 3,
+pilot,sce_2025_09_02,last_restoration,event ended 9/10 16:00 with all restored,p19 Section 3,last circuit restored 9/10 12:49,p62 circuit table,SCE uses the event close time as the restoration time.
+pilot,sdge_2021_11_24,first_deenergization,event began 11/24 11:47,p20 Section 3,PSPS activation 11/24 18:00; first circuit 21:53,p6 and p124,Three different start times.
+clean15,r2_pge_2017_2019,customers_deenergized,approximately 177000,p2 and p9 text,176620,p9 Table 2,
+clean15,r2_pge_2017_2019,last_restoration,10/25 18:20,p8 and p9 Table 2,10/25 approximately 18:01,p21 Section 10,
+clean15,r2_pge_2020,mbl_advance_notice,30 de-energized MBL customers without direct notification,p35,51 MBL customers without an attempted notification,p36 Table 3,
+clean15,r2_pge_2023_2024,customers_deenergized (breakdown),112 residential; 92 commercial; 18 AFN; 24 other,p23 Section 3,110 residential; 82 commercial; 17 AFN; 19 other,p76 Appendix B totals,Total 212 agrees; the breakdown does not.
+clean15,r2_pge_2025_2026,first_deenergization,began de-energizing 1/12 22:45,p7 narrative,first circuit 1/12 23:13,p78 Appendix B,
+clean15,r2_pge_2025_2026,customers without notification,one customer did not receive any notification,p9 footnote,three customers unable to receive notifications (invalid contact),p41 Section 5.5,
+clean15,r2_sce_2020,customers_deenergized,36307,p3 executive summary,36037,p22 Section 17,Transposed digits.
+clean15,r2_sce_2020,last_restoration,Atento re-energized 10/28 07:30,p7 circuit table,Atento restored 10/29 11:53,p12 Section 5,The table time is the handoff to the fire restoration team.
+clean15,r2_sce_2021_2022,last_restoration,event ended 10/22 at 3 pm,p8 introduction,restored 10/22 at 4:29 pm,p21 and p41,Page 21 says all restored; page 41 says one seasonal customer was not restored.
+clean15,r2_sce_2023_2024,counties_deenergized,6 counties including Kern,p4 introduction and p6 Table 1,5 counties,p5 executive summary and p18 Section 3,
+clean15,r2_sce_2023_2024,first_deenergization,de-energization started 10/29 06:31,p4 introduction,earliest circuit 10/29 07:42,p20 Table 5,Table 5 lists only 5 of 41 de-energized circuits.
+clean15,r2_sce_2025_2026,first_deenergization and last_restoration,Table 5 circuit times,p19,225 circuits de-energized,p6 At a Glance,Table 5 lists only 5 of 225 circuits; neither time is stated elsewhere.
+clean15,r2_sdge_2017_2019,last_restoration,final restoration 10/20 09:38,p3 table,PSPS Restore message 10/19 14:52,p10 attachment,
+clean15,r2_sdge_2020,customers_deenergized,6797 customer accounts impacted,p11 table and p128 notice,sectionalization averted PSPS impacts for approximately 6797 accounts,p10 Section 5,Same number used for opposite quantities.
+clean15,r2_sdge_2025_2026,counties_deenergized,3 counties,p8 Table 1,4 counties named (San Diego; Orange; Riverside; Imperial),p6 introduction,
+clean15,r2_sdge_2025_2026,customers_deenergized,29980 total customers,p6 and p8,27015 unique customers,p6,Both stated; total counts customers de-energized twice.

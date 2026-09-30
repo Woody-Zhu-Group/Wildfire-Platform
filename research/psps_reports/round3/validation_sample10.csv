@@ -1,0 +1,101 @@
+report_id,field,extractor,extracted,gold,correct,gold_certain,jev_confidence,source,flagged,note
+pge__10_17_2024_psps_post_event_report,mbl_advance_notice,jev,all_notified,all_notified,1,no,0.64,PDF pages 4;5;9;27;54;55;56;57,low_confidence,1116 attempted; 2 not delivered received doorbell rings (footnote 42); the label rule counts door visits as notified.
+pge__10_17_2024_psps_post_event_report,wind_threshold_cited,jev,not_stated,not_stated,1,no,0.94,PDF pages 4;5;9;11;12;13;15;87,,Gusts near 88 mph recorded; no statement that wind met a threshold.
+pge__10_17_2024_psps_post_event_report,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,PDF pages 3;4;5;9;78;79,,Table 16.
+pge__10_17_2024_psps_post_event_report,claims_reported,jev,one_or_more,one_or_more,1,yes,1.0,PDF pages 3;4;5;9;78;79,,28 claims.
+pge__10_17_2024_psps_post_event_report,canceled_after_notice,jev,yes,yes,1,yes,1.0,PDF pages 4;5;9;10;34;35;48;63,,Table 1: 17850 canceled.
+pge__10_17_2024_psps_post_event_report,customers_deenergized,luna/workbook,17367,17367,1,yes,,PDF page 4,conflicting_sources,
+pge__10_17_2024_psps_post_event_report,first_deenergization,luna/workbook,2024-10-17 12:57,2024-10-17 12:57,1,yes,,PDF page 4,conflicting_sources,
+pge__10_17_2024_psps_post_event_report,last_restoration,luna/workbook,2024-10-20 13:18,2024-10-20 13:18,1,no,,PDF page 109,conflicting_sources,Appendix B maximum (Silverado 2104); the extracted version is a redline and shared SCE customers are not in the table.
+pge__10_17_2024_psps_post_event_report,counties_deenergized,luna/workbook,21,21,1,yes,,PDF page 9,conflicting_sources,
+pge__10_17_2024_psps_post_event_report,event_duration_hours,code,72.35,72.35,1,no,,computed,conflicting_sources,
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,mbl_advance_notice,jev,not_applicable,not_applicable,1,yes,1.0,PDF pages 3;4;9;10,,No circuits were de-energized.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,wind_threshold_cited,jev,not_stated,not_stated,1,yes,0.83,PDF pages 2;3;4;5;6;7;8;10,low_confidence,No de-energization.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,complaints_reported,jev,zero,zero,1,no,0.99,PDF pages 3;4;8;9,,Not applicable; no customers lodged formal complaints with Consumer Affairs.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,claims_reported,jev,zero,not_stated,0,no,0.78,PDF pages 3;4;8;9,low_confidence,Claims not mentioned.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,canceled_after_notice,jev,yes,yes,1,yes,1.0,PDF pages 3;4,,About 7751 customers notified; none de-energized.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,customers_deenergized,luna/workbook,0,0,1,yes,,PDF page 8,,
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,first_deenergization,luna/workbook,null,null,1,yes,,,,No de-energization.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,last_restoration,luna/workbook,null,null,1,yes,,,,No de-energization.
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,counties_deenergized,luna/workbook,0,0,1,yes,,PDF page 8,,
+sce__sce_psps_postevent_reportjuly_29aug_2_2019_8162019,event_duration_hours,code,null,null,1,yes,,computed,,
+sdge__sdge_oct_26_27_2020_psps_post_event_report,mbl_advance_notice,jev,some_not_notified,some_not_notified,1,yes,1.0,PDF pages 6;9;12;14;16;17;86;88,,Three MBL customers had no notification before de-energization on October 26 (clerical error).
+sdge__sdge_oct_26_27_2020_psps_post_event_report,wind_threshold_cited,jev,met,not_stated,0,yes,0.68,PDF pages 3;4;5;6;8;9;10;21,low_confidence,Gusts in the top 1 percent; no threshold statement.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,complaints_reported,jev,zero,zero,1,yes,0.98,PDF pages 20;21,,No complaints as of November 10.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,claims_reported,jev,one_or_more,one_or_more,1,yes,1.0,PDF pages 20;21,,Two food loss claims.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,canceled_after_notice,jev,not_stated,yes,0,yes,0.69,PDF pages 29;30,low_confidence,Monitored circuits not de-energized; no longer at risk message sent.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,customers_deenergized,luna/workbook,4373,4373,1,yes,,PDF page 12,,
+sdge__sdge_oct_26_27_2020_psps_post_event_report,first_deenergization,luna/workbook,2020-10-26 08:48,2020-10-26 08:48,1,yes,,PDF page 10,,
+sdge__sdge_oct_26_27_2020_psps_post_event_report,last_restoration,luna/workbook,2020-10-27 17:19,2020-10-27 17:19,1,yes,,PDF page 10,,
+sdge__sdge_oct_26_27_2020_psps_post_event_report,counties_deenergized,luna/workbook,1,1,1,no,,PDF page 6,,Not stated as a count; all devices are in San Diego County.
+sdge__sdge_oct_26_27_2020_psps_post_event_report,event_duration_hours,code,32.52,32.52,1,yes,,computed,,
+sce__sce_oct_16_2020_psps_post_event_report,mbl_advance_notice,jev,not_stated,some_not_notified,0,yes,0.22,PDF pages 38,low_confidence,No advance notifications to any customer; the one critical care customer was contacted after de-energization.
+sce__sce_oct_16_2020_psps_post_event_report,wind_threshold_cited,jev,met,met,1,yes,1.0,PDF pages 8,,Wind exceeded the 31-46 mph threshold on both circuits.
+sce__sce_oct_16_2020_psps_post_event_report,complaints_reported,jev,zero,zero,1,yes,0.96,PDF pages 6,,No formal complaints and Consumer Affairs received none.
+sce__sce_oct_16_2020_psps_post_event_report,claims_reported,jev,zero,zero,1,yes,1.0,PDF pages 6,,No claims submitted.
+sce__sce_oct_16_2020_psps_post_event_report,canceled_after_notice,jev,NO_MATCHING_PAGE,no,0,no,,,no_matching_page,No pre-event notifications were sent at all; no circuits were in scope beforehand.
+sce__sce_oct_16_2020_psps_post_event_report,customers_deenergized,luna/workbook,86,86,1,yes,,PDF page 3,,
+sce__sce_oct_16_2020_psps_post_event_report,first_deenergization,luna/workbook,2020-10-16 08:27,2020-10-16 08:27,1,yes,,PDF page 5,,
+sce__sce_oct_16_2020_psps_post_event_report,last_restoration,luna/workbook,2020-10-16 18:12,2020-10-16 18:12,1,yes,,PDF page 5,,
+sce__sce_oct_16_2020_psps_post_event_report,counties_deenergized,luna/workbook,2,2,1,yes,,PDF page 3,,Los Angeles and Ventura.
+sce__sce_oct_16_2020_psps_post_event_report,event_duration_hours,code,9.75,9.75,1,yes,,computed,,
+sdge__sdge_de_energization_report_nov_89_2018,mbl_advance_notice,jev,not_applicable,not_applicable,1,yes,1.0,PDF pages 5,,No customers were de-energized.
+sdge__sdge_de_energization_report_nov_89_2018,wind_threshold_cited,jev,not_stated,not_stated,1,yes,0.96,PDF pages 2;3,,Forecast gusts only; no de-energization.
+sdge__sdge_de_energization_report_nov_89_2018,complaints_reported,jev,zero,zero,1,yes,1.0,PDF pages 12;13,,No complaints or claims were filed.
+sdge__sdge_de_energization_report_nov_89_2018,claims_reported,jev,zero,zero,1,yes,1.0,PDF pages 12;13,,No complaints or claims were filed.
+sdge__sdge_de_energization_report_nov_89_2018,canceled_after_notice,jev,NO_MATCHING_PAGE,yes,0,yes,,,no_matching_page,7313 customers notified; none de-energized.
+sdge__sdge_de_energization_report_nov_89_2018,customers_deenergized,luna/workbook,0,0,1,yes,,PDF page 2,,
+sdge__sdge_de_energization_report_nov_89_2018,first_deenergization,luna/workbook,null,null,1,yes,,,,No de-energization.
+sdge__sdge_de_energization_report_nov_89_2018,last_restoration,luna/workbook,null,null,1,yes,,,,No de-energization.
+sdge__sdge_de_energization_report_nov_89_2018,counties_deenergized,luna/workbook,0,0,1,yes,,PDF page 2,,
+sdge__sdge_de_energization_report_nov_89_2018,event_duration_hours,code,null,null,1,yes,,computed,,
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,mbl_advance_notice,jev,not_applicable,not_applicable,1,yes,1.0,PDF pages 8;9;21;22;42;43;44;61,,No customers were de-energized.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,wind_threshold_cited,jev,not_stated,not_stated,1,yes,0.75,PDF pages 8;9;10;11;12;57;58;61,low_confidence,No de-energization.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,complaints_reported,jev,zero,zero,1,yes,1.0,PDF pages 6;8;9;27;28;61;62,,Zero complaints.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,claims_reported,jev,zero,zero,1,yes,1.0,PDF pages 6;8;9;15;27;28;61;62,,Zero claims.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,canceled_after_notice,jev,yes,yes,1,yes,1.0,PDF pages 8;9;10;12;24;27;29;61,,Table 1: 191 notified; 191 cancelled.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,customers_deenergized,luna/workbook,0,0,1,yes,,PDF page 8,,
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,first_deenergization,luna/workbook,null,null,1,yes,,,,No de-energization.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,last_restoration,luna/workbook,null,null,1,yes,,,,No de-energization.
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,counties_deenergized,luna/workbook,0,0,1,yes,,PDF page 8,,
+sce__r1812005sce_psps_postevent_for_november_28_2024_highthreat_event,event_duration_hours,code,null,null,1,yes,,computed,,
+sce__sce_jun_25_28_2020_psps_post_event_report,mbl_advance_notice,jev,not_applicable,not_applicable,1,yes,1.0,PDF pages 3;4;9;10;20;24;27;30,,No circuits were de-energized.
+sce__sce_jun_25_28_2020_psps_post_event_report,wind_threshold_cited,jev,not_stated,not_stated,1,yes,0.87,PDF pages 3;4;5;9,low_confidence,No de-energization; forecasts no longer expected to breach criteria.
+sce__sce_jun_25_28_2020_psps_post_event_report,complaints_reported,jev,zero,zero,1,yes,0.96,PDF pages 3;4;7;8,,No formal complaints lodged.
+sce__sce_jun_25_28_2020_psps_post_event_report,claims_reported,jev,zero,not_stated,0,no,0.78,PDF pages 3;4;7;8,low_confidence,The complaints item does not mention claims.
+sce__sce_jun_25_28_2020_psps_post_event_report,canceled_after_notice,jev,yes,yes,1,yes,0.99,PDF pages 3;4,,35 circuits in scope and customers notified; none de-energized.
+sce__sce_jun_25_28_2020_psps_post_event_report,customers_deenergized,luna/workbook,0,0,1,yes,,PDF page 3,,
+sce__sce_jun_25_28_2020_psps_post_event_report,first_deenergization,luna/workbook,null,null,1,yes,,,,No de-energization.
+sce__sce_jun_25_28_2020_psps_post_event_report,last_restoration,luna/workbook,null,null,1,yes,,,,No de-energization.
+sce__sce_jun_25_28_2020_psps_post_event_report,counties_deenergized,luna/workbook,0,0,1,yes,,PDF page 3,,
+sce__sce_jun_25_28_2020_psps_post_event_report,event_duration_hours,code,null,null,1,yes,,computed,,
+sce__sce_post_event_reporting_september_4_through_september_8_2019,mbl_advance_notice,jev,NO_MATCHING_PAGE,all_notified,0,no,,,no_matching_page,No critical care customers on either de-energized circuit; customers got initial and update notices before; no MBL-specific statement.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,wind_threshold_cited,jev,met,met,1,yes,0.91,PDF pages 5;10;13,,Wind and FPI forecast to exceed PSPS criteria and then observed in the field.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,complaints_reported,jev,zero,zero,1,yes,0.94,PDF pages 12,,Not aware of any complaints or claims.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,claims_reported,jev,zero,zero,1,yes,0.91,PDF pages 12,,Not aware of any complaints or claims.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,canceled_after_notice,jev,not_stated,yes,0,yes,1.0,PDF pages 1;2,,Up to 16000 customers in scope; about 632 de-energized.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,customers_deenergized,luna/workbook,650,650|632,1,no,,PDF page 3,,Summary says approximately 650; the two circuits add to 632.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,first_deenergization,luna/workbook,2019-09-07 17:37,2019-09-07 17:37,1,yes,,PDF page 5,,Concepcion circuit.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,last_restoration,luna/workbook,2019-09-08 14:18,2019-09-08 14:18,1,yes,,PDF page 14,,
+sce__sce_post_event_reporting_september_4_through_september_8_2019,counties_deenergized,luna/workbook,1,1,1,yes,,PDF page 3,,Santa Barbara.
+sce__sce_post_event_reporting_september_4_through_september_8_2019,event_duration_hours,code,20.68,20.68,1,yes,,computed,,
+pge__psps_event_12_07_20_de_energization_report,mbl_advance_notice,jev,not_applicable,not_applicable,1,yes,0.98,PDF pages 4;5;14;15;17;18;19;43,,No customers were de-energized.
+pge__psps_event_12_07_20_de_energization_report,wind_threshold_cited,jev,not_stated,not_stated,1,yes,0.8,PDF pages 4;5;8;9;10;31;34;38,low_confidence,No de-energization.
+pge__psps_event_12_07_20_de_energization_report,complaints_reported,jev,zero,zero,1,no,0.92,PDF pages 3;4;5;27;28,,No complaints received from the CPUC; other channels not reported.
+pge__psps_event_12_07_20_de_energization_report,claims_reported,jev,zero,not_stated,0,yes,0.85,PDF pages 3;4;5;27;28,low_confidence,Claims: not applicable.
+pge__psps_event_12_07_20_de_energization_report,canceled_after_notice,jev,yes,yes,1,yes,1.0,PDF pages 1;2;4;5;19;22;26;43,,Event canceled; cancellation notices sent.
+pge__psps_event_12_07_20_de_energization_report,customers_deenergized,luna/workbook,0,0,1,yes,,PDF page 12,,
+pge__psps_event_12_07_20_de_energization_report,first_deenergization,luna/workbook,null,null,1,yes,,,,No de-energization.
+pge__psps_event_12_07_20_de_energization_report,last_restoration,luna/workbook,null,null,1,yes,,,,No de-energization.
+pge__psps_event_12_07_20_de_energization_report,counties_deenergized,luna/workbook,0,0,1,yes,,PDF page 12,,
+pge__psps_event_12_07_20_de_energization_report,event_duration_hours,code,null,null,1,yes,,computed,,
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,mbl_advance_notice,jev,all_notified,all_notified,1,yes,0.49,PDF pages 8;9;10;21;25;26;31;50,low_confidence,21 of 21 successful positive notification.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,wind_threshold_cited,jev,met,met,1,no,0.7,PDF pages 8;9;10;11;12;13;19;35,low_confidence,Observed wind and FPI no longer met de-energization thresholds as of 6:07 on November 6 (implies they had).
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,complaints_reported,jev,one_or_more,one_or_more,1,yes,1.0,PDF pages 8;9;10;31;32;56;57;67,,Eight complaints.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,claims_reported,jev,zero,zero,1,yes,1.0,PDF pages 8;9;10;31;32;56;57;67,,Zero claims.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,canceled_after_notice,jev,yes,yes,1,yes,1.0,PDF pages 8;9;10;20;21;27;28;40,,1601 notified; 1145 de-energized.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,customers_deenergized,luna/workbook,1145,1145,1,yes,,PDF page 8,,
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,first_deenergization,luna/workbook,2025-11-05 05:17,2025-11-05 05:17,1,yes,,PDF page 21,,Birchim circuit; table lists both de-energized circuits.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,last_restoration,luna/workbook,2025-11-06 09:17,2025-11-06 09:17,1,yes,,PDF page 21,,
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,counties_deenergized,luna/workbook,2,2,1,yes,,PDF page 8,,Inyo and Mono.
+sce__r1812005sce_psps_postevent_for_november_5_2025_deenergization,event_duration_hours,code,28.0,28.0,1,yes,,computed,,

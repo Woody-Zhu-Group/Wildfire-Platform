@@ -1,0 +1,91 @@
+report_id,field,gold,gold_pages,certain,llm_page_ok,note
+pge_2020_10_21,mbl_advance_notice,some_not_notified,33;35,yes,,One de-energized MBL customer had no notification attempted (Table 3 and false negative text).
+pge_2020_10_21,wind_threshold_cited,false,8;54,no,,Cites gusts up to 56 mph and model guidance exceeded; never states wind met a de-energization threshold.
+pge_2020_10_21,complaints_reported,not_stated,47,yes,,Complaints deferred to the October 25 event report.
+pge_2020_10_21,claims_reported,one_or_more,47,yes,,6 claims.
+pge_2020_10_21,canceled_after_notice,yes,8;29,yes,,De-energization cancelled for TPs as conditions waned (about 5900 customers); cancellation notices sent.
+pge_2020_10_21,customers_deenergized,30154,4;25,yes,yes,
+pge_2020_10_21,first_deenergization,2020-10-21 17:33,73,yes,yes,Minimum de-energization time in Appendix A.
+pge_2020_10_21,last_restoration,2020-10-23 15:56,74,yes,yes,Maximum restoration time in Appendix A.
+pge_2020_10_21,counties_deenergized,7,4;24;69,yes,yes,Cited page 69 lists the 7 impacted counties.
+pge_2021_10_11,mbl_advance_notice,some_not_notified,53,yes,,54 de-energized MBL customers had no notification attempted (Table 6).
+pge_2021_10_11,wind_threshold_cited,false,12;14;89,no,,PG&E threshold is composite CFPD guidance; wind is only a minimum condition and is not stated as met for this event.
+pge_2021_10_11,complaints_reported,one_or_more,78,yes,,389 complaints.
+pge_2021_10_11,claims_reported,one_or_more,79,yes,,13 claims.
+pge_2021_10_11,canceled_after_notice,yes,6,yes,,Table 1: 22428 cancelled.
+pge_2021_10_11,customers_deenergized,23504,6;39,yes,yes,
+pge_2021_10_11,first_deenergization,2021-10-11 01:34,102,no,yes,Appendix B circuit table (Corning 1102). The narrative on page 4 says de-energization began at 06:00; the report is internally inconsistent.
+pge_2021_10_11,last_restoration,2021-10-14 15:22,102,yes,yes,Calpine 1144 was not restored until after the next event (page 82).
+pge_2021_10_11,counties_deenergized,23,6;39,yes,yes,
+pge_2023_09_20,mbl_advance_notice,all_notified,48,no,,All 127 de-energized MBL customers had a delivered notification (0 not attempted and 0 not delivered); 1 did not confirm receipt. The question option wording 'not reached' overlaps with unconfirmed receipt.
+pge_2023_09_20,wind_threshold_cited,false,9;16,no,,mFPC includes sustained wind above 19 mph; the report implies but does not state that the de-energized TPs met it.
+pge_2023_09_20,complaints_reported,one_or_more,72,yes,,Table 17.
+pge_2023_09_20,claims_reported,zero,72,yes,,No claims as of September 27 2023.
+pge_2023_09_20,canceled_after_notice,yes,6;16,yes,,Table 1: 4187 cancelled.
+pge_2023_09_20,customers_deenergized,1171,4;6;29,yes,yes,
+pge_2023_09_20,first_deenergization,2023-09-20 23:19,4;29;94,yes,yes,
+pge_2023_09_20,last_restoration,2023-09-21 17:05,29;94,yes,yes,
+pge_2023_09_20,counties_deenergized,3,6;29,yes,yes,
+pge_2025_01_20,mbl_advance_notice,all_notified,38,yes,,26 of 26 MBL customers had successful positive notification (Table 5).
+pge_2025_01_20,wind_threshold_cited,false,7,no,,Gusts up to nearly 45 mph recorded; no statement that wind met a threshold.
+pge_2025_01_20,complaints_reported,one_or_more,52,yes,,13 complaints.
+pge_2025_01_20,claims_reported,one_or_more,53,yes,,1 claim.
+pge_2025_01_20,canceled_after_notice,no,9;40,yes,,Table 1: notified 583; de-energized 583; cancelled 0.
+pge_2025_01_20,customers_deenergized,583,7;9;26,yes,yes,
+pge_2025_01_20,first_deenergization,2025-01-20 13:14,7;75,yes,yes,
+pge_2025_01_20,last_restoration,2025-01-21 14:17,75,no,yes,Appendix B maximum. Page 37 says SCE shared customers were not restored until after the next PSPS (restore notice 1/24 16:12).
+pge_2025_01_20,counties_deenergized,1,9,yes,yes,
+sce_2021_11_24,mbl_advance_notice,all_notified,30,yes,,9035 of 9035 successful positive notification (Table 9).
+sce_2021_11_24,wind_threshold_cited,true,9,yes,,Actual fire weather conditions met or exceeded SCE PSPS thresholds.
+sce_2021_11_24,complaints_reported,one_or_more,39,yes,,3591 complaints.
+sce_2021_11_24,claims_reported,one_or_more,39,yes,,477 claims.
+sce_2021_11_24,canceled_after_notice,yes,22,yes,,283454 in scope; 78514 de-energized; Kern in scope but not de-energized.
+sce_2021_11_24,customers_deenergized,78514,8;22,yes,yes,
+sce_2021_11_24,first_deenergization,2021-11-24 11:58,22,yes,yes,
+sce_2021_11_24,last_restoration,2021-11-26 19:48,8;22,yes,yes,
+sce_2021_11_24,counties_deenergized,5,22,no,yes,Section 3 lists 5 counties; the introduction on page 8 lists 6 including Kern which was in scope only.
+sce_2023_11_20,mbl_advance_notice,all_notified,29,yes,,The one MBL customer not contacted was not de-energized.
+sce_2023_11_20,wind_threshold_cited,true,20,yes,,5 circuits met FPI criteria when sustained or gust wind de-energization thresholds were exceeded.
+sce_2023_11_20,complaints_reported,one_or_more,38,yes,,53 complaints.
+sce_2023_11_20,claims_reported,one_or_more,38,yes,,7 claims.
+sce_2023_11_20,canceled_after_notice,yes,9,yes,,Table 1: 38277 cancelled.
+sce_2023_11_20,customers_deenergized,2780,7;8;9,yes,yes,
+sce_2023_11_20,first_deenergization,2023-11-20 06:18,22,yes,yes,Taiwan circuit in Table 5.
+sce_2023_11_20,last_restoration,2023-11-21 10:14,20;22,yes,yes,
+sce_2023_11_20,counties_deenergized,3,8;9,yes,yes,
+sce_2025_09_02,mbl_advance_notice,some_not_notified,24;25,yes,,MBL customers not contacted were due to emergent weather requiring immediate de-energization; the sentence spans pages 24 and 25.
+sce_2025_09_02,wind_threshold_cited,true,10;14,yes,,Observed wind and FPI no longer met de-energization threshold criteria as of 7:53 on September 10.
+sce_2025_09_02,complaints_reported,one_or_more,31,yes,,15 complaints.
+sce_2025_09_02,claims_reported,zero,31,yes,,Zero claims.
+sce_2025_09_02,canceled_after_notice,yes,9,yes,,Table 1: 12501 cancelled.
+sce_2025_09_02,customers_deenergized,1223,7;8,yes,yes,
+sce_2025_09_02,first_deenergization,2025-09-02 11:10,62,yes,yes,Rankin circuit in the Section 3 table.
+sce_2025_09_02,last_restoration,2025-09-10 12:49,62,yes,yes,The 16:00 end time on page 19 is event close not restoration.
+sce_2025_09_02,counties_deenergized,4,8,yes,yes,
+sdge_2020_09_08,mbl_advance_notice,all_notified,13,yes,,Affirmative notifications made to MBL customers not reached by phone.
+sdge_2020_09_08,wind_threshold_cited,false,6;12,yes,,Lists potential gusts above 50 mph; the only threshold mention (page 12) is circuit 157 meeting the notification threshold.
+sdge_2020_09_08,complaints_reported,one_or_more,17,yes,,2 complaints.
+sdge_2020_09_08,claims_reported,one_or_more,17,yes,,2 claims.
+sdge_2020_09_08,canceled_after_notice,yes,12;29,no,,Implicit only: about 16700 customers notified and 49 de-energized; no cancellation wording.
+sdge_2020_09_08,customers_deenergized,49,10,yes,yes,
+sdge_2020_09_08,first_deenergization,2020-09-08 20:56,8,yes,yes,
+sdge_2020_09_08,last_restoration,2020-09-09 10:26,8,yes,yes,
+sdge_2020_09_08,counties_deenergized,1,8,yes,yes,
+sdge_2021_11_24,mbl_advance_notice,all_notified,23,yes,,47 of 47 successful positive notification (Table 4).
+sdge_2021_11_24,wind_threshold_cited,true,16,yes,,PSPS implemented in real time once alert speeds were reached.
+sdge_2021_11_24,complaints_reported,one_or_more,34,yes,,39 complaints.
+sdge_2021_11_24,claims_reported,one_or_more,34,yes,,18 claims.
+sdge_2021_11_24,canceled_after_notice,yes,7,yes,,Table 1: 48669 cancelled.
+sdge_2021_11_24,customers_deenergized,5858,7,yes,yes,
+sdge_2021_11_24,first_deenergization,2021-11-24 21:53,124,no,yes,Circuit table minimum. Section 3 (page 20) says the event began at 11:47 and page 6 says PSPS activation began at 18:00.
+sdge_2021_11_24,last_restoration,2021-11-26 16:37,6;20;124,yes,yes,
+sdge_2021_11_24,counties_deenergized,1,7,yes,yes,
+sdge_2024_11_06,mbl_advance_notice,all_notified,25,yes,,1879 of 1879 successful positive notification (Table 5).
+sdge_2024_11_06,wind_threshold_cited,true,12,yes,,Alert speed criteria were met for all but three of the 21 devices.
+sdge_2024_11_06,complaints_reported,one_or_more,40,yes,,20 complaints.
+sdge_2024_11_06,claims_reported,zero,41,yes,,Zero claims.
+sdge_2024_11_06,canceled_after_notice,yes,7,yes,,Table 1: 23477 cancelled.
+sdge_2024_11_06,customers_deenergized,1263,6;7,yes,yes,
+sdge_2024_11_06,first_deenergization,2024-11-06 08:47,139,yes,yes,
+sdge_2024_11_06,last_restoration,2024-11-08 08:18,41;139,yes,yes,
+sdge_2024_11_06,counties_deenergized,1,7,yes,yes,

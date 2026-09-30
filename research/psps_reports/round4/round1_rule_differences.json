@@ -1,0 +1,42 @@
+[
+  {
+    "id": "R1",
+    "rule": "Wind was yes/no (true/false); round 3 has met, not_met, and not_stated.",
+    "handling": "mechanical: true -> met. Not mechanical: false could be not_met or not_stated, so every false row is excluded."
+  },
+  {
+    "id": "R2",
+    "rule": "Wind: round 3 counts only a threshold met in a de-energized area, and treats an implied threshold ('no longer met', 'failed to reach') as not_stated.",
+    "handling": "not mechanical: exclude true rows whose note rests on an implication or does not tie a wind threshold to de-energized areas."
+  },
+  {
+    "id": "R3",
+    "rule": "Times: round 1 used the earliest and latest times in the circuit table; round 3 uses a circuit table only when it lists every de-energized circuit, or a sentence, and null for a partial table.",
+    "handling": "not mechanical: whether each table is complete needs the report, so every first and last time row is excluded."
+  },
+  {
+    "id": "R4",
+    "rule": "MBL: round 1 had two options; round 3 adds not_stated and not_applicable (nobody de-energized), and counts no advance notice as some_not_notified.",
+    "handling": "no row changes: no round 1 event had zero customers, and every round 1 MBL note records the statement it rests on."
+  },
+  {
+    "id": "R5",
+    "rule": "Cancellation: round 3 adds the notified-versus-de-energized gap rule, no when everyone notified was de-energized or Cancelled = 0, and not_stated.",
+    "handling": "no row changes: the gap rule only adds yes, and the one no row records notified 583, de-energized 583, cancelled 0."
+  },
+  {
+    "id": "R6",
+    "rule": "Complaints and claims: round 1 had no written rule; round 3 spells out deferred, not-applicable, and channel-limited counts.",
+    "handling": "no row changes: every round 1 note agrees with the round 3 rule (the deferred count is not_stated)."
+  },
+  {
+    "id": "R7",
+    "rule": "Customers: round 3 uses the summary-table total when a report gives two. Counties: only counties where power was cut.",
+    "handling": "no row changes: no pilot report has a recorded customer-total contradiction, and the SCE Nov 2021 county label already leaves out Kern (in scope only)."
+  },
+  {
+    "id": "R8",
+    "rule": "Document: round 3 uses the latest full amendment.",
+    "handling": "no row changes: all 10 pilot PDFs are byte-identical to the files round 3 used."
+  }
+]

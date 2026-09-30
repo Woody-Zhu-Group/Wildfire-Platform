@@ -1,0 +1,136 @@
+report_id,field,gold,gold_pages,certain,note
+r2_pge_2017_2019,mbl_advance_notice,some_not_notified,17,yes,15 of about 1900 de-energized customers with no notification were MBL.
+r2_pge_2017_2019,wind_threshold_cited,not_stated,21,no,Only says winds decreased below outage-producing thresholds at all clear.
+r2_pge_2017_2019,complaints_reported,not_stated,20,yes,Complaints deferred to the October 26 event report.
+r2_pge_2017_2019,claims_reported,one_or_more,20,yes,22 claims.
+r2_pge_2017_2019,canceled_after_notice,yes,17,yes,Some customers came out of scope including Sutter County.
+r2_pge_2017_2019,customers_deenergized,177000|176620,2;9,no,Text says approximately 177000; Table 2 totals 176620.
+r2_pge_2017_2019,first_deenergization,2019-10-23 13:54,8;9,yes,
+r2_pge_2017_2019,last_restoration,2019-10-25 18:20,8;9,no,Section 10 (page 21) says all restored at approximately 1801.
+r2_pge_2017_2019,counties_deenergized,17,23,no,Stated only in the CRC section as 17 impacted counties.
+r2_pge_2020,mbl_advance_notice,some_not_notified,35;36,yes,30 de-energized MBL customers had no direct notification.
+r2_pge_2020,wind_threshold_cited,not_stated,10;60,no,Gusts up to 89 mph and model guidance; no statement that wind met a threshold.
+r2_pge_2020,complaints_reported,zero,49,no,Zero complaints received from the CPUC; other channels not reported.
+r2_pge_2020,claims_reported,one_or_more,49,yes,58 claims.
+r2_pge_2020,canceled_after_notice,yes,32;33,yes,Cancellations sent to about 7500 and 103000 customers.
+r2_pge_2020,customers_deenergized,345470,10;26,yes,
+r2_pge_2020,first_deenergization,2020-10-25 10:00,84,yes,Appendix A minimum.
+r2_pge_2020,last_restoration,2020-10-28 22:25,95,yes,Appendix A maximum (Silverado 2104).
+r2_pge_2020,counties_deenergized,35,25,yes,
+r2_pge_2021_2022,mbl_advance_notice,some_not_notified,50,yes,58 of 234 de-energized MBL had no notification attempted (Table 6).
+r2_pge_2021_2022,wind_threshold_cited,not_stated,74,no,No statement that wind met a threshold.
+r2_pge_2021_2022,complaints_reported,one_or_more,73,yes,Table 17.
+r2_pge_2021_2022,claims_reported,one_or_more,73,yes,1 claim.
+r2_pge_2021_2022,canceled_after_notice,yes,5;6,yes,Table 1: 14848 cancelled.
+r2_pge_2021_2022,customers_deenergized,2968,6;38,yes,
+r2_pge_2021_2022,first_deenergization,2021-09-20 06:05,94,yes,
+r2_pge_2021_2022,last_restoration,2021-09-21 16:46,94,yes,
+r2_pge_2021_2022,counties_deenergized,8,6;38,yes,
+r2_pge_2023_2024,mbl_advance_notice,all_notified,39,yes,9 of 9 de-energized MBL attempted and notified (Table 6).
+r2_pge_2023_2024,wind_threshold_cited,not_stated,56,no,TP 5 de-energized for catastrophic fire behavior factors; no wind threshold statement.
+r2_pge_2023_2024,complaints_reported,one_or_more,55,yes,Table 16.
+r2_pge_2023_2024,claims_reported,zero,55,yes,No claims as of July 25 2024.
+r2_pge_2023_2024,canceled_after_notice,yes,7,yes,Table 1 cancelled count and cancel notices.
+r2_pge_2023_2024,customers_deenergized,212,4;23,yes,
+r2_pge_2023_2024,first_deenergization,2024-07-20 14:37,4;76,yes,
+r2_pge_2023_2024,last_restoration,2024-07-21 08:22,76,yes,Last line with customers; a zero-customer transmission line was restored at 08:30.
+r2_pge_2023_2024,counties_deenergized,3,23,yes,
+r2_pge_2025_2026,mbl_advance_notice,all_notified,39,yes,27 of 27 successful positive notification (Table 5).
+r2_pge_2025_2026,wind_threshold_cited,not_stated,7,no,Gusts up to 58 mph recorded; no threshold statement.
+r2_pge_2025_2026,complaints_reported,one_or_more,55,yes,Table 12.
+r2_pge_2025_2026,claims_reported,one_or_more,56,yes,4 claims.
+r2_pge_2025_2026,canceled_after_notice,no,9,yes,Table 1: canceled 0.
+r2_pge_2025_2026,customers_deenergized,583,8;27,yes,
+r2_pge_2025_2026,first_deenergization,2025-01-12 23:13,78,no,Appendix B minimum; narrative on page 7 says de-energization began at 22:45.
+r2_pge_2025_2026,last_restoration,2025-01-15 16:29,78,yes,
+r2_pge_2025_2026,counties_deenergized,1,9;27,yes,
+r2_sce_2017_2019,mbl_advance_notice,all_notified,3;12,no,No customers were de-energized; all MBL customers were contacted. The question has no not-applicable option.
+r2_sce_2017_2019,wind_threshold_cited,not_stated,7;11,no,No de-energization; thresholds not met.
+r2_sce_2017_2019,complaints_reported,not_stated,10,yes,Not applicable.
+r2_sce_2017_2019,claims_reported,not_stated,10,yes,Not applicable.
+r2_sce_2017_2019,canceled_after_notice,yes,3;7,yes,4307 customers notified; none de-energized.
+r2_sce_2017_2019,customers_deenergized,0,10,yes,
+r2_sce_2017_2019,first_deenergization,null,,yes,No de-energization.
+r2_sce_2017_2019,last_restoration,null,,yes,No de-energization.
+r2_sce_2017_2019,counties_deenergized,0,10,yes,
+r2_sce_2020,mbl_advance_notice,not_stated,22,no,Only the critical care subset is tracked; 14 were contacted during the event with no before-shutoff statement.
+r2_sce_2020,wind_threshold_cited,met,6,yes,Circuits exceeding wind and FPI thresholds.
+r2_sce_2020,complaints_reported,zero,12,no,No formal complaints; inquiries from cities are described.
+r2_sce_2020,claims_reported,one_or_more,12,yes,About 147 claims.
+r2_sce_2020,canceled_after_notice,yes,22,yes,67957 in potential scope; 36307 de-energized.
+r2_sce_2020,customers_deenergized,36307,3,no,Section 17 (page 22) says 36037.
+r2_sce_2020,first_deenergization,2020-10-26 06:23,3;6;8,yes,
+r2_sce_2020,last_restoration,2020-10-29 11:53,12,no,Table on page 7 gives Atento 10/28 07:30 (handoff time).
+r2_sce_2020,counties_deenergized,6,3;7,yes,
+r2_sce_2021_2022,mbl_advance_notice,all_notified,32,yes,Table 9 (image only): 2 of 2 successful.
+r2_sce_2021_2022,wind_threshold_cited,met,9;16,yes,Fire weather conditions met SCE PSPS thresholds.
+r2_sce_2021_2022,complaints_reported,one_or_more,40,yes,4 complaints.
+r2_sce_2021_2022,claims_reported,zero,40,yes,Zero claims.
+r2_sce_2021_2022,canceled_after_notice,yes,10,yes,Table 1 (image only): 781 cancelled.
+r2_sce_2021_2022,customers_deenergized,112,8;22,yes,
+r2_sce_2021_2022,first_deenergization,2021-10-22 09:26,22,yes,
+r2_sce_2021_2022,last_restoration,2021-10-22 16:29,21;22;41,no,Introduction says the event ended at 3 pm; one seasonal customer was left off.
+r2_sce_2021_2022,counties_deenergized,1,21,yes,
+r2_sce_2023_2024,mbl_advance_notice,all_notified,27,yes,Seven MBL customers not contacted were not de-energized.
+r2_sce_2023_2024,wind_threshold_cited,met,18,yes,41 circuits met FPI criteria when wind thresholds were exceeded.
+r2_sce_2023_2024,complaints_reported,one_or_more,38,yes,224 complaints.
+r2_sce_2023_2024,claims_reported,one_or_more,38,yes,38 claims.
+r2_sce_2023_2024,canceled_after_notice,yes,6,yes,Table 1: 179446 cancelled.
+r2_sce_2023_2024,customers_deenergized,25504,4;6,yes,
+r2_sce_2023_2024,first_deenergization,2023-10-29 06:31,4,no,Introduction start time. Table 5 lists only 5 of 41 circuits (earliest 07:42).
+r2_sce_2023_2024,last_restoration,2023-11-02 09:08,4;18;39,yes,
+r2_sce_2023_2024,counties_deenergized,5|6,6;18,no,Table 1 and introduction: 6 including Kern; Section 1 and Section 3: 5.
+r2_sce_2025_2026,mbl_advance_notice,some_not_notified,24;25,no,Missed MBL notifications under 1 percent; about 62 delayed because circuits were de-energized before winds hit thresholds.
+r2_sce_2025_2026,wind_threshold_cited,met,5;8,yes,Stronger than expected winds exceeding de-energization thresholds.
+r2_sce_2025_2026,complaints_reported,one_or_more,34,yes,1362 complaints.
+r2_sce_2025_2026,claims_reported,one_or_more,34,yes,132 claims.
+r2_sce_2025_2026,canceled_after_notice,yes,6,yes,509245 notified; 152393 de-energized.
+r2_sce_2025_2026,customers_deenergized,152393|152394,4;6,no,152393 SCE customers plus one SDG&E customer.
+r2_sce_2025_2026,first_deenergization,null,19,no,Table 5 lists 5 of 225 circuits; the report never states the first de-energization.
+r2_sce_2025_2026,last_restoration,null,18,no,Only the event close (4:00 pm January 27) is stated; it is not a restoration time.
+r2_sce_2025_2026,counties_deenergized,7,6,yes,
+r2_sdge_2017_2019,mbl_advance_notice,not_stated,4;10,no,MBL customers got a Red Flag Warning advisory before; the PSPS message came after de-energization.
+r2_sdge_2017_2019,wind_threshold_cited,not_stated,3,yes,Gust readings (61 mph) with no threshold.
+r2_sdge_2017_2019,complaints_reported,zero,7,yes,No claims or complaints.
+r2_sdge_2017_2019,claims_reported,zero,7,yes,No claims or complaints.
+r2_sdge_2017_2019,canceled_after_notice,yes,4;10,yes,Warning messages sent to devices that were not turned off.
+r2_sdge_2017_2019,customers_deenergized,19,3,yes,
+r2_sdge_2017_2019,first_deenergization,2018-10-19 03:06,3,yes,
+r2_sdge_2017_2019,last_restoration,2018-10-20 09:38,3,no,Attachment (page 10) shows PSPS Restore at 10/19 14:52.
+r2_sdge_2017_2019,counties_deenergized,null,,no,County count not stated; the circuit is in San Diego County.
+r2_sdge_2020,mbl_advance_notice,all_notified,15,yes,Affirmative notifications made to MBL customers not reached by phone.
+r2_sdge_2020,wind_threshold_cited,met,13,yes,Wind speeds exceeded their thresholds for several circuits.
+r2_sdge_2020,complaints_reported,one_or_more,20,yes,4 complaints.
+r2_sdge_2020,claims_reported,one_or_more,20,yes,3 claims.
+r2_sdge_2020,canceled_after_notice,yes,29,yes,No longer at risk for PSPS notice sent to 10786 customers.
+r2_sdge_2020,customers_deenergized,6797,11,yes,
+r2_sdge_2020,first_deenergization,2020-12-23 15:12,8,yes,
+r2_sdge_2020,last_restoration,2020-12-24 14:55,8;9,yes,
+r2_sdge_2020,counties_deenergized,1,128,no,Not stated as a count; notices name San Diego County only.
+r2_sdge_2021_2022,mbl_advance_notice,all_notified,12,no,No customers were de-energized; MBL customers not reached by phone were notified in person.
+r2_sdge_2021_2022,wind_threshold_cited,not_stated,3;4,yes,No de-energization.
+r2_sdge_2021_2022,complaints_reported,zero,16,yes,Zero complaints.
+r2_sdge_2021_2022,claims_reported,one_or_more,16,yes,1 generator claim.
+r2_sdge_2021_2022,canceled_after_notice,yes,1;2,yes,Customer notifications sent; no customers de-energized.
+r2_sdge_2021_2022,customers_deenergized,0,1;2,yes,
+r2_sdge_2021_2022,first_deenergization,null,,yes,No de-energization.
+r2_sdge_2021_2022,last_restoration,null,,yes,No de-energization.
+r2_sdge_2021_2022,counties_deenergized,0,1,yes,
+r2_sdge_2023_2024,mbl_advance_notice,all_notified,46,yes,7103 of 7103 successful positive notification.
+r2_sdge_2023_2024,wind_threshold_cited,met,12,yes,Circuits forecast to exceed alert speed criteria; actual winds stronger than forecast.
+r2_sdge_2023_2024,complaints_reported,one_or_more,63,yes,326 complaints.
+r2_sdge_2023_2024,claims_reported,one_or_more,63,yes,362 claims.
+r2_sdge_2023_2024,canceled_after_notice,yes,8,yes,Table 1: 64391 cancelled.
+r2_sdge_2023_2024,customers_deenergized,51922,8,yes,
+r2_sdge_2023_2024,first_deenergization,null,26,no,Circuit table only in the Excel appendix; 15:02 on page 154 is a status update time.
+r2_sdge_2023_2024,last_restoration,2024-12-11 19:00,64,yes,
+r2_sdge_2023_2024,counties_deenergized,3,8,yes,
+r2_sdge_2025_2026,mbl_advance_notice,all_notified,44,yes,5927 of 5927 successful positive notification.
+r2_sdge_2025_2026,wind_threshold_cited,met,11,no,Devices forecast to have the potential to meet or exceed alert speed thresholds.
+r2_sdge_2025_2026,complaints_reported,one_or_more,72,yes,103 complaints.
+r2_sdge_2025_2026,claims_reported,one_or_more,72,yes,43 claims.
+r2_sdge_2025_2026,canceled_after_notice,yes,8,yes,Table 1: 53645 cancelled.
+r2_sdge_2025_2026,customers_deenergized,29980|27015,6;8,no,29980 total customers; 27015 unique customers.
+r2_sdge_2025_2026,first_deenergization,null,32,no,Circuit table only in the Excel appendix; 08:25 on page 202 is a status update time.
+r2_sdge_2025_2026,last_restoration,2025-01-24 15:48,235,no,From a restoration notice; Section 8 gives the day only.
+r2_sdge_2025_2026,counties_deenergized,3|4,6;8,no,Table 1: 3 counties; introduction names 4.

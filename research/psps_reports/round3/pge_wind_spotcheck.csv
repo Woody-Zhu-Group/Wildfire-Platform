@@ -1,0 +1,11 @@
+queue_item,report_id,jev_answer,jev_confidence,verdict,evidence
+248,pge__pge_post_event_report_9_20_2023,not_stated,0.83,holds,Only implicit: remaining TPs delayed because wind or humidity failed to reach mFPC (p16); no statement that de-energized TPs met a wind criterion. Same judgment as the round 1 gold.
+261,pge__pge_esrb8_report_for_oct_26_29_2019,not_stated,0.86,holds,Describes the OPW model and FPI ratings (p34 to p35); no statement that winds met outage-producing or other wind criteria in de-energized areas.
+235,pge__psps_event_12_07_20_de_energization_report,not_stated,0.80,holds,No customers were de-energized (p4).
+147,pge__pge_public_safety_power_shutoff_nov_2021_2019_report,not_stated,0.55,FAILS,p9: several areas in which breezy to gusty offshore winds at or above outage producing levels would combine with dry fuels; that scope was then de-energized. Outage-producing wind is PG&E's 2019 wind criterion so the correct answer is met (forecast).
+231,pge__final_psps_10_22_22_weather_post_event_report_20221107,not_stated,0.79,holds,Only the PSPS risk model analysis threshold (p21) and protocol descriptions; no wind criterion stated as met.
+164,pge__pge_psps_report_8_30_2023_event,not_stated,0.59,holds,Partly garbled text layer. p15: conditions trending toward PSPS model guidance; other TPs failing to reach mFPC. Implicit only.
+220,pge__pge_oct_14_17_2020_psps_post_event_report,not_stated,0.77,holds,Composite guidance only; p70 says PSPS criteria were not reaching de-energization thresholds for TP12. No met statement.
+257,pge__pge_psps_report_event_nov_6_8_2018,not_stated,0.85,holds,PG&E did not initiate a PSPS (p4); lists wind criteria only in general.
+148,pge__psps_event_12_02_20_de_energization_report_final,not_stated,0.55,holds,Scope based on locations near or exceeding PSPS guidance (composite FPI and OPW); no wind criterion stated as met.
+171,pge__07_05_2024_psps_post_event_report_20240719,not_stated,0.63,holds,Protocol description only (p11 to p12).

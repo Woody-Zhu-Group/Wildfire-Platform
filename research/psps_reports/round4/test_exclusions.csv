@@ -1,0 +1,15 @@
+report_id,gold_report_id,field,gold_original,certain,exclusion_reason
+pge__pge_public_safety_power_shutoff_oct_2325_2019_report,r2_pge_2017_2019,canceled_after_notice,yes,yes,"D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+pge__pge_public_safety_power_shutoff_oct_2325_2019_report,r2_pge_2017_2019,claims_reported,one_or_more,yes,"D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+pge__pge_public_safety_power_shutoff_oct_2325_2019_report,r2_pge_2017_2019,complaints_reported,not_stated,yes,"D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+pge__pge_public_safety_power_shutoff_oct_2325_2019_report,r2_pge_2017_2019,counties_deenergized,17,no,"D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+pge__pge_public_safety_power_shutoff_oct_2325_2019_report,r2_pge_2017_2019,customers_deenergized,177000|176620,no,"D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+pge__pge_public_safety_power_shutoff_oct_2325_2019_report,r2_pge_2017_2019,first_deenergization,2019-10-23 13:54,yes,"D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+pge__pge_public_safety_power_shutoff_oct_2325_2019_report,r2_pge_2017_2019,last_restoration,2019-10-25 18:20,no,"D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+pge__pge_public_safety_power_shutoff_oct_2325_2019_report,r2_pge_2017_2019,mbl_advance_notice,some_not_notified,yes,"D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+pge__pge_public_safety_power_shutoff_oct_2325_2019_report,r2_pge_2017_2019,wind_threshold_cited,not_stated,no,"D9: round 3 used the amended PDF, which differs from the file round 2 labeled."
+pge__r1812005pge1132025_psps_postevent_report01020224,r2_pge_2025_2026,canceled_after_notice,no,yes,D4: gold no from 'Table 1: canceled 0'; the round 3 gap rule may make it yes.
+sce__sce_oct_23_28_2020_psps_post_event_report,r2_sce_2020,mbl_advance_notice,not_stated,no,D2: SCE 2020 tracks only critical care customers; the gold note relies on that subset.
+sce__20231029_sce_psps_post_event_reportdeenergizedfinal,r2_sce_2023_2024,first_deenergization,2023-10-29 06:31,no,D5: gold is the introduction start time (the table lists 5 of 41 circuits).
+sdge__sdge_de_energization_report_oct_19_20_2018,r2_sdge_2017_2019,mbl_advance_notice,not_stated,no,D3: the PSPS message reached MBL customers after de-energization; under round 3 this may be some_not_notified.
+sdge__r1812005_sdge_psps_postevent_report_jan_2024_2025_e_serve_2_24_2025,r2_sdge_2025_2026,last_restoration,2025-01-24 15:48,no,D5: gold is from a restoration notice; Section 8 gives the day only.
