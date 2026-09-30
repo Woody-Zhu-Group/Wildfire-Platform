@@ -129,7 +129,7 @@ The test and queue commands use the frozen limits and refuse to run if a code fi
 | `verify.py` | The code checks on each answer and the agreement rule. |
 | `score.py` | Gold conversion (`test_gold.csv`, `test_exclusions.csv`), development scoring, the freeze, and the test scoring. |
 | `apply.py` | Applies the decisions: `reviewed_queue.csv`, `dataset_reviewed.csv`, and the contradiction notes. |
-| `hand_labels.py` | Converts the round 1 gold to round 3 rules (`round1_gold_converted.csv`, `round1_rule_differences.json`), then puts the hand labels into `dataset_reviewed.csv` after `apply.py` and records the previous values. |
+| `hand_labels.py` | Converts the round 1 gold to round 3 rules (`round1_gold_converted.csv`, `round1_rule_differences.json`), then puts the old gold labels into `dataset_reviewed.csv` after `apply.py` and records the previous values. The labels are model-written; the file name is historical. |
 | `no_change.py` | After `hand_labels.py`: marks fields that only an agreed whole-event item covered, and that it left unchanged, as `model_review_no_change`. |
 | `inputs.py` | Records (`write`) and checks (`check`) the SHA-256 of every gitignored round 3 input that round 4 reads, in `inputs_sha256.json`. |
 

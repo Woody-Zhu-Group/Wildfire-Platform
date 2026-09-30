@@ -1,12 +1,12 @@
 # Round 4: model-assisted review of the round 3 queue
 
-> **Note (2026-09-29):** the "hand-checked" labels this design relies on were written by a Claude Opus 5.5 session, not by a person (`../round5/AUDIT_PLAN.md`). The design text below is unchanged.
+> **Note (2026-09-29):** the "hand-checked" labels this design relies on were written by a Claude Opus 5.5 session, not by a person (`../round5/AUDIT_PLAN.md`). The design text below is unchanged, except that "two independent models" now reads "two different models" (2026-09-29).
 
 Status: design, committed before any round 4 code or model call.
 
 ## Why
 
-Round 3 flagged 286 items across 145 events for human review (`round3/review_queue.csv`). This round replaces the two human reviewers with two independent models. Each model answers every flagged item from the report itself, code checks their evidence, and items where they agree are accepted.
+Round 3 flagged 286 items across 145 events for human review (`round3/review_queue.csv`). This round replaces the two human reviewers with two different models (one of them, Claude Opus 5.5, also wrote the old gold labels). Each model answers every flagged item from the report itself, code checks their evidence, and items where they agree are accepted.
 
 The method is measured once, on reports that already have hand-checked labels, before it touches the queue. No new human labeling is part of this round.
 

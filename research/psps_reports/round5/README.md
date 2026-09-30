@@ -13,13 +13,24 @@ A person verified 60 values in the PSPS dataset against the report PDFs. **Metho
 | Old model-written test labels (15) | old gold label | 13/14 (92.9%, 68.5 to 98.7) | 13/13 |
 | Same rows, round 4 agreed answers | round 4 answer | 12/12 (100%, 75.8 to 100) | 12/12 |
 
-- **Rows left out (as submitted):** A22 (blank) and A10 (unreadable: `2020/09/25 02:46` for a 2019 event; it differs from the dataset's 2019-09-23 17:06 either way). None was marked `SEEN:`, and 4 were marked `UNSURE:`.
+- **Rows left out (as submitted):** A22 (blank) and A10 (unreadable: `2020/09/25 02:46` for a 2019 event; it differs from the dataset's 2019-09-23 17:06 either way). None was marked `SEEN:`, and 4 were marked `UNSURE:`. A26's agreed answer appeared in a tool output during the first review of this PR, before the audit. A26 was not marked `SEEN:`, so the "without SEEN" results still include it.
 - **Differences (as submitted):**
   - **A05** (queue, PG&E Sept 30 2023 complaints): `zero` against `not_stated`. The verifier's note says "not applicable", which the rules count as `not_stated`.
   - **A08** (unflagged, PG&E Sept 7-10 2020 first de-energization): 14:31 against 04:25. The table has PUEBLO 2103 at 9/7 4:25 (p56). As submitted, the verifier treated it as an error.
   - **A54** (unflagged, SDG&E Oct 19-20 2018 MBL): `all_notified` (UNSURE) against `not_stated`.
   - **A31** (old label, SCE Oct 16 2020 cancellation): `not_stated` (UNSURE) against the old label `no`. The verifier's note says nobody was de-energized, but p5 lists 37 and 49 customers.
-- **After rechecking the rows flagged in the first scoring:** only A05, A08, A10, A22, and A31 were rechecked, in a second model-assisted, human-verified pass. The other 55 rows are as submitted.
+- **After rechecking the rows flagged in the first scoring:** only A05, A08, A10, A22, and A31 were rechecked, in a second model-assisted, human-verified pass: a separate Opus chat proposed answers, and Michael verified them against the PDFs. The other 55 rows are as submitted.
+  - The recheck chat saw:
+    - the five reports' PDF links and each row's question;
+    - the verifier's earlier answer, page, and note for each row;
+    - excerpts of the labeling rules for times, complaints, cancellation, and contradictions;
+    - row-specific hints:
+      - A08: the Pueblo 2103 9/7 4:25 entry (p56), which is the dataset's value, and the neighbor-circuit reasoning from the earlier note;
+      - A31: that p5 says 37 and 49 customers were de-energized;
+      - A10: its time was unreadable and said 2020 for a 2019 event;
+      - A22: its note was copied from another row's;
+      - A05: its answer was zero while its note said "not applicable", which the rules count as `not_stated`.
+  - It did not see the answer key, the sample list, the dataset, or the old labels, apart from A08's 4:25, which is the dataset value.
   - Files: `audit_sheet_rechecked.xlsx`, scored into `audit_results_rechecked.md` and `audit_scored_rechecked.csv` with `audit.py score --sheet audit_sheet_rechecked.xlsx --tag _rechecked`.
   - Results: queue 30/30 (100%, 88.6 to 100); unflagged 14/15 (93.3%, 70.2 to 98.8); old model-written labels 15/15 (100%, 79.6 to 100); round 4 12/12. All 60 rows are scored.
   - **A05:** `not_stated`. The report says Section 7 is not applicable because PSPS protocols weren't initiated.
@@ -62,7 +73,7 @@ Expect about 3 to 5 minutes a row, so 3 to 5 hours in all. You can stop and come
 python research/psps_reports/round5/audit.py score --sheet <path to the filled sheet>
 ```
 
-This checks `audit_key.csv` against `key_sha256.txt`, compares each group with your answers, and writes `audit_results.md` (Wilson 95% intervals, with and without `UNSURE:` and `SEEN:` rows) and `audit_scored.csv`. `FINDINGS.md` is then updated to describe the old test labels as model-written and this audit as the human check.
+This checks `audit_key.csv` against `key_sha256.txt`, compares each group with your answers, and writes `audit_results.md` (Wilson 95% intervals, with and without `UNSURE:` and `SEEN:` rows) and `audit_scored.csv`. `FINDINGS.md` is then updated to describe the old test labels as model-written and this audit as model-assisted and human-verified.
 
 ## Files
 

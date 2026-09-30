@@ -54,7 +54,7 @@ Every value carries its source (PDF page or Excel sheet and row). Uncertain valu
 
 ## Model-assisted review of the queue (round 4)
 
-Round 4 replaced the two human reviewers with two independent models: Claude Opus 5.5, run as fresh headless Claude Code sessions confined to a packet folder, and GPT-6 Sol on OpenRouter. Each model answered every flagged item from the report itself, without seeing the gold labels or the other model's output. On the blind items, neither model saw Jev's answers or confidences. Two exceptions apply:
+Round 4 replaced the two human reviewers with two different models: Claude Opus 5.5, run as fresh headless Claude Code sessions confined to a packet folder, and GPT-6 Sol on OpenRouter. Claude Opus 5.5 is also the model that wrote the old gold labels. Each model answered every flagged item from the report itself, without seeing the gold labels or the other model's output. On the blind items, neither model saw Jev's answers or confidences. Two exceptions apply:
 
 - **Special items.** Sessions for special items (partial corrections, unreadable pages, workbook times) also received the event's current values from `round3/dataset.csv`, as `round4/DESIGN.md` allows. Those values include Jev's answers for the five categorical fields, on 23 events.
 - **Item reason.** Every item showed its `reason`. For `low_confidence`, which the guide explains as "Jev answered, but not confidently", that reveals Jev's confidence was below 0.9, though not the answer or the number. An item's `page_refs` are the pages Jev was shown.
@@ -111,7 +111,7 @@ Code checked that each answer was an allowed value, that its quote appears on a 
 - **Rows left out (as submitted):**
   - A22 was left blank.
   - A10's answer could not be read: it was written `2020/09/25 02:46` for a September 2019 event. Read either way, it differs from the dataset value (2019-09-23 17:06).
-  - No row was marked `SEEN:`, and 4 were marked `UNSURE:`.
+  - No row was marked `SEEN:`, and 4 were marked `UNSURE:`. A26's agreed answer appeared in a tool output during the first review of this PR, before the audit. A26 was not marked `SEEN:`, so the "without SEEN" results still include it.
 - **Rows where the verified label differs from the dataset or the old label (as submitted):**
 
   | Row | Report and field | Verified label | Dataset (or old label) | Note on the report |
@@ -121,7 +121,20 @@ Code checked that each answer was an allowed value, that its quote appears on a 
   | A54 | SDG&E Oct 19-20 2018, MBL (unflagged) | `all_notified` (UNSURE) | `not_stated` | The verifier noted the report is "not really specific". |
   | A31 | SCE Oct 16 2020, cancellation (old label) | `not_stated` (UNSURE) | `no` (old label, marked uncertain) | The verifier's note says no customers were de-energized, but p5 says 37 and 49 customers were. No advance notices were sent, which the rules treat as `not_stated`. |
 
-- **After rechecking the rows flagged in the first scoring** (`round5/audit_sheet_rechecked.xlsx`, `round5/audit_results_rechecked.md`): only the five flagged rows were rechecked: A05, A08, A10, A22, and A31. The other 55 rows were not rechecked and are as submitted. The recheck was a second model-assisted, human-verified pass: a separate Opus chat proposed answers from the PDFs, and Michael verified them.
+- **After rechecking the rows flagged in the first scoring** (`round5/audit_sheet_rechecked.xlsx`, `round5/audit_results_rechecked.md`): only the five flagged rows were rechecked: A05, A08, A10, A22, and A31. The other 55 rows were not rechecked and are as submitted. The recheck was a second model-assisted, human-verified pass: a separate Opus chat proposed answers, and Michael verified them against the PDFs.
+
+  The recheck chat saw:
+  - the five reports' PDF links and each row's question;
+  - the verifier's earlier answer, page, and note for each row;
+  - excerpts of the labeling rules for times, complaints, cancellation, and contradictions;
+  - row-specific hints:
+    - A08: the Pueblo 2103 9/7 4:25 entry (p56), which is the dataset's value, and the neighbor-circuit reasoning from the earlier note;
+    - A31: that p5 says 37 and 49 customers were de-energized;
+    - A10: its time was unreadable and said 2020 for a 2019 event;
+    - A22: its note was copied from another row's;
+    - A05: its answer was zero while its note said "not applicable", which the rules count as `not_stated`.
+
+  It did not see the answer key, the sample list, the dataset, or the old labels, apart from A08's 4:25, which is the dataset value.
 
   | Group (rows) | As submitted (headline) | After rechecking the flagged rows |
   |---|---|---|
