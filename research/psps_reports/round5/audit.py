@@ -354,7 +354,7 @@ def read_answers(path: Path) -> dict[str, dict]:
     return out
 
 
-def cmd_score(sheet: Path, tag: str = "", version: str = "") -> None:
+def cmd_score(sheet: Path, tag: str = "", version: str = "", method: str = "") -> None:
     if not KEY.exists():
         raise SystemExit("STOP: audit_key.csv is missing; run `audit.py build` only if the sheet was built from the same commit")
     expected = KEY_HASH.read_text(encoding="utf-8").split()[0]
@@ -395,8 +395,8 @@ def cmd_score(sheet: Path, tag: str = "", version: str = "") -> None:
 
     by = {g: [r for r in rows if r["group"] == g] for g in SIZES}
     out = ["# Round 5: model-assisted, human-verified audit results", "",
-           "Method: for every row, Claude Opus 5.5 proposed an answer and page from the rules and the report PDF only, "
-           "and Michael verified it against the PDF (`AUDIT_PLAN.md`, \"Amendment\"). This is not a blind or independent human audit.", "",
+           method or ("Method: for every row, Claude Opus 5.5 proposed an answer and page from the rules and the report PDF only, "
+           "and Michael verified it against the PDF (`AUDIT_PLAN.md`, \"Amendment\"). This is not a blind or independent human audit."), "",
            f"Sheet: `{sheet.name}`. Plan: `AUDIT_PLAN.md`. Scored by `audit.py score`; row-level results in `audit_scored{tag}.csv`.", "",
            *([f"Version: {version}", ""] if version else []),
            f"- Rows answered: {sum(r['answered'] for r in rows)} of {len(rows)}; blank: "
@@ -426,9 +426,10 @@ def main() -> None:
     ap.add_argument("--sheet", type=Path, default=SHEET)
     ap.add_argument("--tag", default="", help="suffix for the output files, e.g. _rechecked")
     ap.add_argument("--version", default="", help="one line saying which version of the labels this is")
+    ap.add_argument("--method", default="", help="replaces the method line, for a version whose rows were labeled differently")
     args = ap.parse_args()
     if args.command == "score":
-        cmd_score(args.sheet, args.tag, args.version)
+        cmd_score(args.sheet, args.tag, args.version, args.method)
     else:
         {"sample": cmd_sample, "build": cmd_build}[args.command]()
 

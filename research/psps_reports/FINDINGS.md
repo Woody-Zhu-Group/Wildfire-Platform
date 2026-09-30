@@ -57,9 +57,9 @@ Every value carries its source (PDF page or Excel sheet and row). Uncertain valu
 Round 4 replaced the two human reviewers with two different models: Claude Opus 5.5, run as fresh headless Claude Code sessions confined to a packet folder, and GPT-6 Sol on OpenRouter. Claude Opus 5.5 is also the model that wrote the old gold labels. Each model answered every flagged item from the report itself, without seeing the gold labels or the other model's output. On the blind items, neither model saw Jev's answers or confidences. Two exceptions apply:
 
 - **Special items.** Sessions for special items (partial corrections, unreadable pages, workbook times) also received the event's current values from `round3/dataset.csv`, as `round4/DESIGN.md` allows. Those values include Jev's answers for the five categorical fields, on 23 events.
-- **Item reason.** Every item showed its `reason`. For `low_confidence`, which the guide explains as "Jev answered, but not confidently", that reveals Jev's confidence was below 0.9, though not the answer or the number. An item's `page_refs` are the pages Jev was shown.
+- **Item reason.** Every item showed its `reason`. For `low_confidence`, which the guide explains as "Jev answered, but not confidently", that reveals Jev's confidence was below 0.9, though not the answer or the number. For `no_matching_page`, it reveals that the pipeline found no page on the topic, so Jev was not asked. An item's `page_refs` are the pages Jev was shown, and they are empty for most no-matching-page items.
 
-Code checked that each answer was an allowed value, that its quote appears on a cited page, and that the model was not unsure. A `not_stated` or `null` answer needs no quote, only the pages read and the search terms used. Items where both answers passed and matched were accepted. Details are in `round4/README.md` and `round4/DESIGN.md`.
+Code checked that each answer was an allowed value, that its quote appears on a cited page, and that the model was not unsure. **The quote check confirms only that the quote is on a cited page, not that it supports the value.** A `not_stated` or `null` answer needs no quote, only the pages read and the search terms used. Items where both answers passed and matched were accepted. Details are in `round4/README.md` and `round4/DESIGN.md`.
 
 **These values are model-reviewed; accuracy was measured against 211 model-written gold values from 24 reports.** Round 4 itself had no human audit; round 5 is a model-assisted, human-verified check. The design planned 25 reports. One round 2 report was excluded because round 3 used an amended PDF.
 
@@ -70,11 +70,12 @@ Code checked that each answer was an allowed value, that its quote appears on a 
   - Both agreed errors are SDG&E MBL items.
 - **SDG&E MBL caveat:** Both agreed errors in the test were SDG&E Medical Baseline items (queue items 117 and 141). 8 SDG&E mbl_advance_notice items were accepted in the queue. Six of them now carry their old gold label: 117 and 141, where the gold label replaced the agreed answer, and 204, 230, 253, and 260, where the agreed answer already matched it. The caveat applies to the two accepted SDG&E Medical Baseline items without a gold label, 184 and 203. The review rules were not changed after the test.
 - **Queue:**
-  - 206 of the 286 items were accepted as `model_review_agreed`.
-  - 80 remain unresolved, mostly because Opus marked them unsure (60).
-  - In the dataset, 145 field values are `model_review_agreed`, 112 are `model_review_no_change`, 270 are `model_labeled` (they carry an old gold label, which a model wrote; see `round5/AUDIT_PLAN.md`), 107 are unresolved, and 761 were never flagged, out of 1,395 (155 events × 9 fields).
+  - 205 of the 286 items are accepted as `model_review_agreed`. `apply.py` accepted 206; one was moved to unresolved afterward (next bullet).
+  - 81 remain unresolved, mostly because Opus marked them unsure (60).
+  - **Queue item 5 is unresolved after a post-check.** This is SCE's Jan 20 2025 last restoration, a workbook-versus-PDF item. Both reviewers chose the workbook time, 2025-01-27 14:34. The workbook is not in the packet, so neither quote contains that time; each quote passed only because it appears on a cited page. DESIGN.md expected such an answer to end unresolved. `round4/quote_support.py` (added after the second review of this work; the frozen code is unchanged) now requires an agreed time or number to appear in at least one reviewer's quote. Only item 5 fails. Its field keeps the workbook value, becomes `unresolved`, and carries the flag `last_restoration:agreed_value_not_in_quote`. The other workbook item, 22, passes: both quotes say "as of 3:48 p.m."
+  - In the dataset, 144 field values are `model_review_agreed`, 112 are `model_review_no_change`, 270 are `model_labeled` (they carry an old gold label, which a model wrote; see `round5/AUDIT_PLAN.md`), 108 are unresolved, and 761 were never flagged, out of 1,395 (155 events × 9 fields).
   - `model_review_no_change` marks the 112 fields, on 17 events, that no reviewer answered on its own. An agreed whole-event item (a correction letter, a table page, or a report cut for length) left them unchanged, and the reviewers had the current values in view. `apply.py` had counted them as `model_review_agreed`. They were relabeled after the review of this work (`round4/no_change.py`), and no value changed.
-  - **Agreed `not_stated` answers need no quote.** 88 of the 206 accepted queue items are `not_stated`. In 44 of them neither reviewer quoted a page, so the only evidence check was that both listed the pages they read and their search terms. In the other 44, at least one reviewer's quote was found on a cited page. The test backs these less than other values: only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer).
+  - **Agreed `not_stated` answers need no quote.** 88 of the 205 accepted queue items are `not_stated`. In 44 of them neither reviewer quoted a page, so the only evidence check was that both listed the pages they read and their search terms. In the other 44, at least one reviewer's quote was found on a cited page. The test backs these less than other values: only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer).
   - Model review changed 82 values and the old gold labels changed 8. In all, 87 values differ from `round3/dataset.csv`, since some fields changed in both steps.
   - The old gold labels were applied after the test (`round4/hand_labels.py`), so errors they identify do not stay in the dataset. They are model-written, so a value they replaced was not necessarily wrong. They come from the test gold and from the round 1 gold. The round 1 gold was converted to round 3 rules the same way as round 2: 63 of 90 rows kept, and 27 excluded (every time row, and 7 wind rows).
   - A gold `null` does not replace a time taken from a utility workbook, because the gold was written from the PDF alone. That case applies to 4 fields.
@@ -93,11 +94,11 @@ Code checked that each answer was an allowed value, that its quote appears on a 
 
 ## Model-assisted, human-verified audit (round 5)
 
-**Method, for all 60 rows: model-assisted, human-verified.** Claude Opus 5.5 proposed an answer and a page for each row. Michael then verified each proposal against the report PDF and recorded the final answer.
+**Method, for all 60 rows: model-assisted, human-verified.** In the first pass, Claude Opus 5.5 proposed an answer and a page for each row. Michael then verified each proposal against the report PDF and recorded the final answer. Five rows were later rechecked in three further steps (below), with more model involvement.
 
-- **What the proposing model saw:** only the labeling rules and the report PDFs. It did not see the answer key, the sample list, the dataset, this memo, or the PR text.
+- **What the first-pass proposing model saw:** only the labeling rules and the report PDFs. It did not see the answer key, the sample list, the dataset, this memo, or the PR text.
 - **This is not a blind or independent human audit.** The same model wrote the old gold labels and was round 4's Reviewer 1, and a person checking a proposed answer tends to accept it. The rates below are agreement with model-assisted, human-verified labels, and they are likely higher than agreement with independent human labels would be.
-- **Records:** the plan, the sample (seed 20260929), and the scoring rules were committed before the sheet was built. The method amendment was committed after labeling and before scoring (`round5/AUDIT_PLAN.md`). Results are in `round5/audit_results.md`, and row-level detail is in `round5/audit_scored.csv`.
+- **Records:** the plan, the sample (seed 20260929), and the scoring rules were committed before the sheet was built. The method amendment was committed after labeling and before scoring (`round5/AUDIT_PLAN.md`). Results are in `round5/audit_results.md`, and row-level detail is in `round5/audit_scored.csv`. The sample was drawn from `round4/dataset_reviewed.csv` as of 6f16dd3, when the queue population had 145 fields. After the item 5 post-check it has 144, so `audit.py sample` reproduces the sample only on that earlier dataset.
 
 **Headline, as submitted** (`round5/audit_sheet_filled.xlsx`):
 
@@ -121,20 +122,23 @@ Code checked that each answer was an allowed value, that its quote appears on a 
   | A54 | SDG&E Oct 19-20 2018, MBL (unflagged) | `all_notified` (UNSURE) | `not_stated` | The verifier noted the report is "not really specific". |
   | A31 | SCE Oct 16 2020, cancellation (old label) | `not_stated` (UNSURE) | `no` (old label, marked uncertain) | The verifier's note says no customers were de-energized, but p5 says 37 and 49 customers were. No advance notices were sent, which the rules treat as `not_stated`. |
 
-- **After rechecking the rows flagged in the first scoring** (`round5/audit_sheet_rechecked.xlsx`, `round5/audit_results_rechecked.md`): only the five flagged rows were rechecked: A05, A08, A10, A22, and A31. The other 55 rows were not rechecked and are as submitted. The recheck was a second model-assisted, human-verified pass: a separate Opus chat proposed answers, and Michael verified them against the PDFs.
+- **After rechecking the rows flagged in the first scoring** (`round5/audit_sheet_rechecked.xlsx`, `round5/audit_results_rechecked.md`):
+  - **Which rows:** the rechecked rows were A05, A08, A10, A22, and A31, and only those. This Claude Code session chose them after it had scored the first pass against the answer key. It flagged the rows whose notes conflicted with the rules or the report, plus the unreadable and blank rows. A54 also differed and was not rechecked. The other 55 rows are as submitted.
+  - **The recheck took three steps:**
+    1. **39505be, Michael's own recheck.** He filled A22 (`not_stated`), fixed a typo in A08's note (Pueblo 2102 to 2103), and changed A10 to `2020/09-25 02:46`, which was still unreadable. Intermediate result: queue 29/30, unflagged 12/14, old labels 14/15 (93.3%, 70.2 to 98.8), round 4 12/12.
+    2. **6ccc416, A08's note, written by this session.** This session had already scored the sheet against the answer key. Michael had stated a timeline reason: the entry is earlier than when the report says de-energization began. The session showed that 14:31 is also earlier than that, found the 10-hour gap and the neighbor-circuit evidence itself, and offered them as the reason. Michael chose that wording, and the session wrote A08's note from it. The answer stayed 14:31.
+    3. **d4aff3b, a separate Opus chat, then Michael's verification.** This session wrote the prompt for that chat. The chat proposed answers, and Michael verified them against the PDFs. The chat saw:
+       - the five reports' PDF links and each row's question;
+       - Michael's earlier answer, page, and note for each row, including the A08 note from step 2;
+       - excerpts of the labeling rules for times, complaints, cancellation, and contradictions;
+       - row-specific hints:
+         - A08: the Pueblo 2103 9/7 4:25 entry (p56), which is the dataset's value, the neighbor-circuit reasoning, and a request to say which first time the rule gives;
+         - A31: that p5 says 37 and 49 customers were de-energized;
+         - A10: its time was unreadable and said 2020 for a 2019 event;
+         - A22: its note was copied from another row's;
+         - A05: its answer was zero while its note said "not applicable", which the rules count as `not_stated`.
 
-  The recheck chat saw:
-  - the five reports' PDF links and each row's question;
-  - the verifier's earlier answer, page, and note for each row;
-  - excerpts of the labeling rules for times, complaints, cancellation, and contradictions;
-  - row-specific hints:
-    - A08: the Pueblo 2103 9/7 4:25 entry (p56), which is the dataset's value, and the neighbor-circuit reasoning from the earlier note;
-    - A31: that p5 says 37 and 49 customers were de-energized;
-    - A10: its time was unreadable and said 2020 for a 2019 event;
-    - A22: its note was copied from another row's;
-    - A05: its answer was zero while its note said "not applicable", which the rules count as `not_stated`.
-
-  It did not see the answer key, the sample list, the dataset, or the old labels, apart from A08's 4:25, which is the dataset value.
+       It did not see the answer key, the sample list, the dataset, or the old labels, apart from A08's 4:25, which is the dataset value.
 
   | Group (rows) | As submitted (headline) | After rechecking the flagged rows |
   |---|---|---|
@@ -152,6 +156,7 @@ Code checked that each answer was an allowed value, that its quote appears on a 
   - **Why this version is not the headline:**
     - Only rows that disagreed were rechecked, which can raise agreement but never lower it. The 55 rows that agreed were not rechecked for errors in the other direction.
     - The first scoring had already shown the verifier the compared value for A05, A08, A10, and A31.
+    - The session that chose the rows, wrote A08's step 2 note, and wrote the step 3 prompt had seen the answer key.
     - All five rechecked rows now match the compared value.
     - So the rechecked figures are an upper bound on agreement for this sample, not a better estimate than the as-submitted figures.
 - **What it says:** on this small sample, the values the two models agreed on and the old model-written labels mostly match what a person accepted after checking a model's proposal. The pipeline's unflagged values had the most differences as submitted (2 of 14). The intervals are wide, and none of these rates is an independent measure of accuracy.
@@ -215,7 +220,7 @@ The Claude Opus 5.5 session that wrote the gold labels found and checked these 2
 
 Most of these are small. They matter because a dataset built from these reports silently picks one value unless it has a stated precedence rule. Ours prefers the circuit table when complete, then the section that answers the CPUC template question. The contradictions also bear on reporting quality in their own right.
 
-Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". Round 5 added 1 possible report error, found by the verifier: in PG&E's Sept 7 to 10, 2020 report, Pueblo 2103's 9/7 4:25 (p56) is about 10 hours before every other circuit dated 9/7 and may be a date error for 9/8. Nothing in the report says so, and the audit answer follows the rule (04:25). A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been checked by a person or a model.
+Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". Round 5 added 1 possible report error (set "round 5 audit, possible report error"). Michael's as-submitted audit note flagged the entry, and this Claude Code session, which had already scored the audit against the answer key, added the supporting evidence: in PG&E's Sept 7 to 10, 2020 report, Pueblo 2103's 9/7 4:25 (p56) is about 10 hours before every other circuit dated 9/7 and may be a date error for 9/8. Nothing in the report says so, and the audit answer follows the rule (04:25). A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been checked by a person or a model.
 
 ## Gaps in what utilities publish
 
@@ -267,7 +272,7 @@ In every large disagreement we checked, the report pages support the dataset's v
 
 ## What the dataset could support after review
 
-Round 4 settled 206 of the 286 flagged items by model review. Once the remaining 80 are resolved by a person, the table would be a consistent, sourced event record of PSPS use by the three utilities from 2017 to 2026. It could support:
+Round 4 settled 205 of the 286 flagged items by model review. Even once a person resolves the remaining 81, the 526 fields settled by models (144 `model_review_agreed`, 112 `model_review_no_change`, and 270 `model_labeled`) would still not have been checked by a person, apart from the few in the round 5 audit sample, and neither would the 761 unflagged values. With that caveat, the table would be a consistent, sourced event record of PSPS use by the three utilities from 2017 to 2026. It could support:
 
 - **An event panel:** frequency, size (customers), duration, and geographic spread (counties) of shutoffs by utility and year. Events where notices went out but no one was shut off are included, which matters for studying notification burden.
 - **Compliance-style indicators:** how often de-energized MBL customers were not notified in advance, how often events generated complaints or claims, and how often notified customers were never shut off. These are presence or absence indicators, not counts. The pipeline does not yet extract complaint and claim counts, though the reports usually give them.

@@ -6,7 +6,7 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
 
 **What the reviewers saw.** Neither reviewer saw the gold labels, the answer key, or the other reviewer's output. On blind items, neither saw Jev's answers or confidences. There are two exceptions:
 - The 23 queue special sessions (partial corrections, unreadable pages, workbook times) also received `current_values.json`, as `DESIGN.md` allows. It holds the event's values from `round3/dataset.csv`, which include Jev's answers for the five categorical fields.
-- Every item showed its `reason`. The guide explains `low_confidence` as "Jev answered, but not confidently", which reveals that Jev's confidence was below 0.9, though not the answer or the number. An item's `page_refs` are the pages Jev was shown.
+- Every item showed its `reason`. The guide explains `low_confidence` as "Jev answered, but not confidently", which reveals that Jev's confidence was below 0.9, though not the answer or the number. `no_matching_page` reveals that the pipeline found no page on the topic, so Jev was not asked. An item's `page_refs` are the pages Jev was shown, and they are empty for most no-matching-page items.
 
 ## Results
 
@@ -23,17 +23,18 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
 
 **Queue** (`reviewed_queue.csv`, `dataset_reviewed.csv`):
 
-- **206 of 286 items accepted** (`model_review_agreed`):
-  - 175 from the queue run,
+- **205 of 286 items accepted** (`model_review_agreed`; `apply.py` accepted 206, and `quote_support.py` moved item 5 to unresolved):
+  - 174 from the queue run,
   - 31 reused from the test run, since they ask the same question on the same report.
-- **80 unresolved:**
+- **81 unresolved:**
   - 62 where a reviewer marked the item unsure (60 of them Opus),
   - 9 read only from an image,
   - 5 where both answers were valid but different,
   - 3 redlines, which were not asked,
-  - 1 correction that listed fields outside the correction syntax (item 16).
+  - 1 correction that listed fields outside the correction syntax (item 16),
+  - 1 agreed time that neither reviewer's quote contains (item 5, the post-check below).
 
-  In 59 of the 80, the two reviewers gave the same value.
+  In 60 of the 81, the two reviewers gave the same value.
 - **Dataset fields after model review (155 events × 9 fields):** 962 unflagged, 304 `model_review_agreed` as `apply.py` writes them (123 of these are whole-event fields; see `model_review_no_change` below), 129 `unresolved`. 82 values changed:
   - 32 `NO_MATCHING_PAGE` placeholders now have an answer.
   - Wind moved from `met` or `not_met` to `not_stated` 13 times.
@@ -58,7 +59,12 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
 - **Whole-event fields** (`no_change.py`, added after the PR #29 review on 2026-09-28): `apply.py` marks every field an agreed whole-event item covers ("all fields", "table pages", "numeric fields") as `model_review_agreed`. Those items ask whether a correction letter or table page changes the event, with the current values in view.
   - A field that such an item left unchanged, and that no agreed item asked about directly, is now `model_review_no_change`: 112 fields on 17 events.
   - A field stays `model_review_agreed` when an agreed item asks about it directly or an agreed correction names it. No value changed.
-- **Final dataset fields:** 761 unflagged, 270 `model_labeled` (called `hand_labeled` before 2026-09-29; a Claude Opus 5.5 session wrote these gold labels, see `../round5/AUDIT_PLAN.md`), 145 `model_review_agreed`, 112 `model_review_no_change`, 107 `unresolved`. 87 values differ from `round3/dataset.csv`.
+- **Final dataset fields:** 761 unflagged, 270 `model_labeled` (called `hand_labeled` before 2026-09-29; a Claude Opus 5.5 session wrote these gold labels, see `../round5/AUDIT_PLAN.md`), 144 `model_review_agreed`, 112 `model_review_no_change`, 108 `unresolved`. 87 values differ from `round3/dataset.csv`.
+- **Quote post-check** (`quote_support.py`, added after the second review of PR #29 on 2026-09-29): the frozen quote check confirms only that a quote is on a cited page, not that it supports the value.
+  - The post-check requires an agreed time or number to appear in at least one reviewer's quote.
+  - Only item 5 fails: SCE Jan 20 2025, last restoration. Both reviewers chose the workbook time 2025-01-27 14:34, which is not in the packet, and neither quote contains it. DESIGN.md expected this item to end unresolved.
+  - Item 5 is now `unresolved` in `reviewed_queue.csv` (column `post_check`). The field keeps its workbook value, becomes `unresolved`, and carries the flag `last_restoration:agreed_value_not_in_quote`.
+  - Workbook item 22 passes: both quotes say "as of 3:48 p.m."
 - **Agreed `not_stated` answers need no quote.** The check accepts a `not_stated` or `null` answer with the pages read and the search terms used, and no quote.
   - 88 of the 206 accepted queue items are `not_stated`. In 44, neither reviewer quoted a page. In the other 44, at least one reviewer's quote was found on a cited page.
   - Only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer), so the test says less about these than about other values.
@@ -115,6 +121,7 @@ python research/psps_reports/round4/run_sol.py run --set queue
 python research/psps_reports/round4/apply.py
 python research/psps_reports/round4/hand_labels.py   # always right after apply.py
 python research/psps_reports/round4/no_change.py     # after hand_labels.py
+python research/psps_reports/round4/quote_support.py # after no_change.py
 ```
 
 The test and queue commands use the frozen limits and refuse to run if a code file or the Claude Code version changed. A rerun resumes: sessions already in `runs/*.jsonl` are skipped. The test was run once and must not be rerun on the same gold.
@@ -131,6 +138,7 @@ The test and queue commands use the frozen limits and refuse to run if a code fi
 | `apply.py` | Applies the decisions: `reviewed_queue.csv`, `dataset_reviewed.csv`, and the contradiction notes. |
 | `hand_labels.py` | Converts the round 1 gold to round 3 rules (`round1_gold_converted.csv`, `round1_rule_differences.json`), then puts the old gold labels into `dataset_reviewed.csv` after `apply.py` and records the previous values. The labels are model-written; the file name is historical. |
 | `no_change.py` | After `hand_labels.py`: marks fields that only an agreed whole-event item covered, and that it left unchanged, as `model_review_no_change`. |
+| `quote_support.py` | After `no_change.py`: moves an agreed time or number that no reviewer quote contains to `unresolved` (item 5). |
 | `inputs.py` | Records (`write`) and checks (`check`) the SHA-256 of every gitignored round 3 input that round 4 reads, in `inputs_sha256.json`. |
 
 ## Packet isolation check

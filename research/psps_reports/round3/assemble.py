@@ -188,7 +188,7 @@ def main() -> None:
 
     hand = p3.read_csv(HERE.parent / "round2" / "contradictions.csv")
     extra = p3.read_csv(HERE / "contradictions_sample10.csv") if (HERE / "contradictions_sample10.csv").exists() else []
-    rows = [{**r, "set": r["set"] + " (hand-checked)"} for r in hand + extra] + auto_contradictions
+    rows = [{**r, "set": r["set"] + " (model-checked)"} for r in hand + extra] + auto_contradictions
     fields = ["set", "report_id", "field", "value_a", "source_a", "value_b", "source_b", "note"]
     with open(HERE / "contradictions.csv", "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=fields)
@@ -201,7 +201,7 @@ def main() -> None:
         counts[q["reason"]] = counts.get(q["reason"], 0) + 1
     print(f"events {len(dataset)}; review queue {len(queue)} items {counts}; "
           f"at 2-3 min per item: {len(queue) * 2 / 60:.1f} to {len(queue) * 3 / 60:.1f} hours")
-    print(f"contradictions: hand-checked {len(hand) + len(extra)}, automatic candidates {len(auto_contradictions)}")
+    print(f"contradictions: model-checked {len(hand) + len(extra)}, automatic candidates {len(auto_contradictions)}")
     print("spend", p3.spend())
 
 

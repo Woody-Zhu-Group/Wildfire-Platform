@@ -1,6 +1,6 @@
 # Round 4: model-assisted review of the round 3 queue
 
-> **Note (2026-09-29):** the "hand-checked" labels this design relies on were written by a Claude Opus 5.5 session, not by a person (`../round5/AUDIT_PLAN.md`). The design text below is unchanged, except that "two independent models" now reads "two different models" (2026-09-29).
+> **Note (2026-09-29):** the "hand-checked" labels this design relies on were written by a Claude Opus 5.5 session, not by a person (`../round5/AUDIT_PLAN.md`). The design text below is unchanged, except that "two independent models" now reads "two different models (one of them, Claude Opus 5.5, also wrote the old gold labels)" (2026-09-29).
 
 Status: design, committed before any round 4 code or model call.
 

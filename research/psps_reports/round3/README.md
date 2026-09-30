@@ -10,7 +10,7 @@ Round 3 fixes the problems found in round 2 and runs the pipeline over every PG&
 |---|---|
 | `dataset.csv` | One row per event (155). Every field, its value, its source (PDF pages shown to Jev, the PDF page Luna cited, or the Excel sheet and row), Jev confidence, the PDF value next to any workbook value, and the event's flags. |
 | `review_queue.csv` | Only flagged items (286). Each has the question, Jev's answer, its confidence, page references, and the document URL. Sorted in this order: conflicting sources, unreadable pages, no matching page, then low confidence (lowest first). |
-| `contradictions.csv` | 22 hand-checked contradictions (21 from rounds 1 and 2, plus 1 found in the accuracy sample), plus 28 automatic candidates. The candidates are either workbook versus PDF time conflicts or reports that state several different "customers de-energized" totals. |
+| `contradictions.csv` | 22 model-checked contradictions (21 from rounds 1 and 2, plus 1 found in the accuracy sample), plus 28 automatic candidates. The candidates are either workbook versus PDF time conflicts or reports that state several different "customers de-energized" totals. |
 | `accuracy_sample_summary.md`, `validation_sample10.csv`, `gold_sample10.csv` | The accuracy check (step 4). |
 | `manifest.json`, `versions.csv`, `accuracy_sample.csv` | The frozen run: pipeline version, event list, and sample. Committed before the run (commit 78d6e63). |
 | `amendments.csv`, `amendment_links.csv` | Every amendment and correction, linked to its original, with the rule applied. |
@@ -79,7 +79,7 @@ Ten events were drawn with seed 20260924 from the 127 never read in rounds 1 and
 
 ## Review queue
 
-**Round 4 update:** two models (Claude Opus 5.5 and GPT-6 Sol) reviewed this queue on their own, after a one-time test against model-written gold values (queue-matched items: 27/29 agreed answers right, 93.1%, 95% interval 78.0 to 98.1; bar 90%). 206 of the 286 items were accepted as `model_review_agreed` and 80 remain unresolved. See [`../round4/README.md`](../round4/README.md). The reviewed dataset is `../round4/dataset_reviewed.csv`, and this folder's `dataset.csv` is unchanged. The round 4 reviewers' `CONTRADICTION:` notes were appended to `contradictions.csv` as "round 4 model-found, unchecked".
+**Round 4 update:** two models (Claude Opus 5.5 and GPT-6 Sol) reviewed this queue on their own, after a one-time test against model-written gold values (queue-matched items: 27/29 agreed answers right, 93.1%, 95% interval 78.0 to 98.1; bar 90%). 205 of the 286 items are accepted as `model_review_agreed` and 81 remain unresolved (item 5 was moved to unresolved by a later quote post-check). See [`../round4/README.md`](../round4/README.md). The reviewed dataset is `../round4/dataset_reviewed.csv`, and this folder's `dataset.csv` is unchanged. The round 4 reviewers' `CONTRADICTION:` notes were appended to `contradictions.csv` as "round 4 model-found, unchecked".
 
 **286 items across 145 of the 155 events. At 2 to 3 minutes per item, that is 9.5 to 14.3 hours.**
 
@@ -99,7 +99,7 @@ Wind and MBL account for 170 of the 212 low-confidence items. Most are PG&E wind
 - **Partial corrections** are flagged, not applied.
 - **Image tables.** Detection is a heuristic. It found the known SCE image and vector tables in the 25 read reports, but it can miss others, and it transcribes some tables whose text was already present.
 - **Question wording.** The cancellation question still misses reports that describe notified customers without any cancellation word, which is the error the review rule missed.
-- **Automatic contradiction candidates** in `contradictions.csv` are not hand-checked. Some are partial counts, such as per-phase totals.
+- **Automatic contradiction candidates** in `contradictions.csv` are not model-checked. Some are partial counts, such as per-phase totals.
 - **Gold labels** are one reviewer's (mine). Uncertain labels are marked `certain = no`.
 - **Luna prompt changed.** Its rules for times changed between rounds, so round 1 and 2 Luna accuracy do not carry over directly. The 40 of 40 above is the round 3 number.
 
