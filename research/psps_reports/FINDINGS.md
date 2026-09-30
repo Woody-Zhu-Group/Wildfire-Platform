@@ -117,24 +117,31 @@ Code checked that each answer was an allowed value, that its quote appears on a 
   | Row | Report and field | Verified label | Dataset (or old label) | Note on the report |
   |---|---|---|---|---|
   | A05 | PG&E Sept 30 2023, complaints (queue) | `zero` | `not_stated` | The verifier's note says "not applicable". Under the rules, "Not applicable" counts as `not_stated`. |
-  | A08 | PG&E Sept 7-10 2020, first de-energization (unflagged) | 2020-09-07 14:31 | 2020-09-07 04:25 | The full circuit table lists PUEBLO 2103 at 9/7/2020 4:25 (p56) and KANAKA 1101 at 14:31 (p54). The verifier treats the 4:25 entry as an error: it is about 10 hours before every other 9/7 circuit, and its Napa neighbor Pueblo 2102 is 9/8 4:07 (p56), so the date is likely 9/8. The rules take the earliest time in a complete table, so the dataset keeps 04:25. Listed in `round3/contradictions.csv` as human-found. |
+  | A08 | PG&E Sept 7-10 2020, first de-energization (unflagged) | 2020-09-07 14:31 | 2020-09-07 04:25 | The full circuit table lists PUEBLO 2103 at 9/7/2020 4:25 (p56) and KANAKA 1101 at 14:31 (p54). As submitted, the verifier treated the 4:25 entry as an error. After the recheck, the answer follows the rule (04:25), because nothing in the report says the entry is wrong. It is listed in `round3/contradictions.csv` as a possible report error. |
   | A54 | SDG&E Oct 19-20 2018, MBL (unflagged) | `all_notified` (UNSURE) | `not_stated` | The verifier noted the report is "not really specific". |
   | A31 | SCE Oct 16 2020, cancellation (old label) | `not_stated` (UNSURE) | `no` (old label, marked uncertain) | The verifier's note says no customers were de-energized, but p5 says 37 and 49 customers were. No advance notices were sent, which the rules treat as `not_stated`. |
 
-- **After rechecking the rows flagged in the first scoring** (`round5/audit_sheet_rechecked.xlsx`, `round5/audit_results_rechecked.md`): only the five flagged rows were rechecked: A05, A08, A10, A22, and A31. The other 55 rows were not rechecked and are as submitted.
+- **After rechecking the rows flagged in the first scoring** (`round5/audit_sheet_rechecked.xlsx`, `round5/audit_results_rechecked.md`): only the five flagged rows were rechecked: A05, A08, A10, A22, and A31. The other 55 rows were not rechecked and are as submitted. The recheck was a second model-assisted, human-verified pass: a separate Opus chat proposed answers from the PDFs, and Michael verified them.
 
-  | Group (rows) | As submitted | After rechecking the flagged rows |
+  | Group (rows) | As submitted (headline) | After rechecking the flagged rows |
   |---|---|---|
-  | Queue values the two round 4 models agreed on (30) | 29/30 (96.7%, 83.3 to 99.4) | 29/30 (96.7%, 83.3 to 99.4) |
-  | Unflagged pipeline values (15) | 12/14 (85.7%, 60.1 to 96.0) | 12/14 (85.7%, 60.1 to 96.0) |
-  | Old model-written test labels (15) | 13/14 (92.9%, 68.5 to 98.7) | 14/15 (93.3%, 70.2 to 98.8) |
+  | Queue values the two round 4 models agreed on (30) | 29/30 (96.7%, 83.3 to 99.4) | 30/30 (100%, 88.6 to 100) |
+  | Unflagged pipeline values (15) | 12/14 (85.7%, 60.1 to 96.0) | 14/15 (93.3%, 70.2 to 98.8) |
+  | Old model-written test labels (15) | 13/14 (92.9%, 68.5 to 98.7) | 15/15 (100%, 79.6 to 100) |
   | Same rows, round 4 agreed answers | 12/12 (100%, 75.8 to 100) | 12/12 (100%, 75.8 to 100) |
 
-  - **A22** is now `not_stated`, which matches the old label (`null`).
-  - **A05, A08, and A31** keep their submitted answers after the recheck, so they still differ.
-  - **A10** was changed to `2020/09-25 02:46`. It still cannot be read under the scoring rules and is still left out; read either way, it differs from the dataset value.
-  - The differences above stand in both versions. The notes on A05 and A31 still conflict with the rules or the report pages, as described in the table.
-- **What it says:** on this small sample, the values the two models agreed on and the old model-written labels mostly match what a person accepted after checking a model's proposal. The pipeline's unflagged values had the most differences (2 of 14). The intervals are wide, and none of these rates is an independent measure of accuracy.
+  - **A05** (complaints) is now `not_stated`, the dataset value. The report says Section 7 is not applicable because PSPS protocols weren't initiated, and the rules code that as `not_stated`.
+  - **A08** (first de-energization) is now 2020-09-07 04:25, the dataset value, following the rule (earliest time in the complete circuit table). Pueblo 2103's 9/7 4:25 (p56) is about 10 hours before any other 9/7 circuit and may be a report error, but nothing in the report says so. `round3/contradictions.csv` keeps it as a possible report error.
+  - **A10** (first de-energization) is now 2019-09-23 17:06, the dataset value (p7: "On September 23 at approximately 1706, de-energization was initiated"; p15). The p4 table's 02:46 is the second (Bravo) phase only, and the table misprints the year as 2020.
+  - **A22** (first de-energization) is `not_stated`, the old label: no customers were de-energized (p7; Table 1 shows 0, p8).
+  - **A31** (cancellation) is now `no`, the old label, marked `UNSURE:`. No advance notices were sent, and shutoff notices went only to the 86 customers who were de-energized (p38).
+  - **A54** is the only remaining difference.
+  - **Why this version is not the headline:**
+    - Only rows that disagreed were rechecked, which can raise agreement but never lower it. The 55 rows that agreed were not rechecked for errors in the other direction.
+    - The first scoring had already shown the verifier the compared value for A05, A08, A10, and A31.
+    - All five rechecked rows now match the compared value.
+    - So the rechecked figures are an upper bound on agreement for this sample, not a better estimate than the as-submitted figures.
+- **What it says:** on this small sample, the values the two models agreed on and the old model-written labels mostly match what a person accepted after checking a model's proposal. The pipeline's unflagged values had the most differences as submitted (2 of 14). The intervals are wide, and none of these rates is an independent measure of accuracy.
 
 ## Cost
 
@@ -195,7 +202,7 @@ The Claude Opus 5.5 session that wrote the gold labels found and checked these 2
 
 Most of these are small. They matter because a dataset built from these reports silently picks one value unless it has a stated precedence rule. Ours prefers the circuit table when complete, then the section that answers the CPUC template question. The contradictions also bear on reporting quality in their own right.
 
-Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". Round 5 added 1 human-found contradiction: in PG&E's Sept 7 to 10, 2020 report, Pueblo 2103's 9/7 4:25 (p56) is about 10 hours before every other circuit dated 9/7 and is likely a date error for 9/8. A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been checked by a person or a model.
+Round 4's reviewers added 16 `CONTRADICTION:` notes, marked "model-found, unchecked". Round 5 added 1 possible report error, found by the verifier: in PG&E's Sept 7 to 10, 2020 report, Pueblo 2103's 9/7 4:25 (p56) is about 10 hours before every other circuit dated 9/7 and may be a date error for 9/8. Nothing in the report says so, and the audit answer follows the rule (04:25). A further 28 automatic candidates (workbook versus PDF time conflicts, and reports stating several customer totals) are listed in `round3/contradictions.csv` and have not been checked by a person or a model.
 
 ## Gaps in what utilities publish
 

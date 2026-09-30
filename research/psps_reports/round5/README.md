@@ -16,15 +16,19 @@ A person verified 60 values in the PSPS dataset against the report PDFs. **Metho
 - **Rows left out (as submitted):** A22 (blank) and A10 (unreadable: `2020/09/25 02:46` for a 2019 event; it differs from the dataset's 2019-09-23 17:06 either way). None was marked `SEEN:`, and 4 were marked `UNSURE:`.
 - **Differences (as submitted):**
   - **A05** (queue, PG&E Sept 30 2023 complaints): `zero` against `not_stated`. The verifier's note says "not applicable", which the rules count as `not_stated`.
-  - **A08** (unflagged, PG&E Sept 7-10 2020 first de-energization): 14:31 against 04:25. The table has PUEBLO 2103 at 9/7 4:25 (p56). The verifier treats it as an error: it is about 10 hours before every other 9/7 circuit, and its Napa neighbor Pueblo 2102 is 9/8 4:07, so the date is likely 9/8. This is in `round3/contradictions.csv` as human-found. The note in `audit_sheet_rechecked.xlsx` was rewritten after the rescore. The scores did not change, because A08's `UNSURE:` status stayed the same, so `audit_results_rechecked.md` still shows the earlier note text.
+  - **A08** (unflagged, PG&E Sept 7-10 2020 first de-energization): 14:31 against 04:25. The table has PUEBLO 2103 at 9/7 4:25 (p56). As submitted, the verifier treated it as an error.
   - **A54** (unflagged, SDG&E Oct 19-20 2018 MBL): `all_notified` (UNSURE) against `not_stated`.
   - **A31** (old label, SCE Oct 16 2020 cancellation): `not_stated` (UNSURE) against the old label `no`. The verifier's note says nobody was de-energized, but p5 lists 37 and 49 customers.
-- **After rechecking the rows flagged in the first scoring:** only A05, A08, A10, A22, and A31 were rechecked, and the other 55 rows are as submitted.
+- **After rechecking the rows flagged in the first scoring:** only A05, A08, A10, A22, and A31 were rechecked, in a second model-assisted, human-verified pass. The other 55 rows are as submitted.
   - Files: `audit_sheet_rechecked.xlsx`, scored into `audit_results_rechecked.md` and `audit_scored_rechecked.csv` with `audit.py score --sheet audit_sheet_rechecked.xlsx --tag _rechecked`.
-  - A22 is now `not_stated` and matches the old label, so the old model-written labels agree with 14/15 (93.3%, 70.2 to 98.8).
-  - The queue (29/30), unflagged (12/14), and round 4 (12/12) results are unchanged.
-  - A05, A08, and A31 keep their answers.
-  - A10 (`2020/09-25 02:46`) still cannot be read and is left out.
+  - Results: queue 30/30 (100%, 88.6 to 100); unflagged 14/15 (93.3%, 70.2 to 98.8); old model-written labels 15/15 (100%, 79.6 to 100); round 4 12/12. All 60 rows are scored.
+  - **A05:** `not_stated`. The report says Section 7 is not applicable because PSPS protocols weren't initiated.
+  - **A08:** 2020-09-07 04:25, following the rule. The 4:25 entry may be a report error, but nothing in the report says so. `round3/contradictions.csv` keeps it as a possible report error.
+  - **A10:** 2019-09-23 17:06 (p7, p15). The p4 table's 02:46 is the Bravo phase only, and it misprints the year.
+  - **A22:** `not_stated`, because no customers were de-energized (p7, p8).
+  - **A31:** `no` (UNSURE). Shutoff notices went only to the 86 de-energized customers (p38).
+  - **A54** is the only remaining difference.
+  - **Not the headline:** only rows that disagreed were rechecked, which can only raise agreement. The first scoring had already shown the verifier the compared values for A05, A08, A10, and A31, and all five rechecked rows now match them. Read these figures as an upper bound, not a better estimate.
 
 The steps below are the instructions the verifier followed.
 
