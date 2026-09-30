@@ -1,4 +1,8 @@
-"""Jev checks an exact router proposal before it is executed."""
+"""Archived router_gate payload and policy for offline historical replay only.
+
+This module is not imported by the agent runtime and has no live-call entry.
+Keep its request wording and pure policy unchanged for captured-data verification.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +12,6 @@ from services.agent.decisions.backend import QuestionSpec
 from services.agent.decisions.decide_mode import (
     DecideResult,
     _answer_confidence,
-    ask_jev,
     code_verified_missing,
     exemption as legacy_exemption,
 )
@@ -177,42 +180,3 @@ def decide_from_answers(
         **base,
     )
 
-
-def decide_live(
-    question: str,
-    decision: RouteDecision,
-    *,
-    backend,
-    gate: float,
-    answer_gate: float = 0.9,
-    today: date | None = None,
-    timeout=None,
-    budget=None,
-):
-    if exemption(decision, question):
-        return decide_from_answers(question, decision, None)
-    day = today or date.today()
-    if budget is not None and not budget.reserve(1):
-        result = decide_from_answers(question, decision, None, error="daily_cap")
-        result.why = "daily_cap"
-        return result
-    answers, error, tokens = ask_jev(
-        backend,
-        question,
-        day.isoformat(),
-        timeout=timeout,
-        calls=calls_for(question, day.isoformat(), decision),
-    )
-    result = decide_from_answers(
-        question,
-        decision,
-        answers,
-        gate=gate,
-        answer_gate=answer_gate,
-        error=error,
-        today=day,
-    )
-    if error and error.startswith("timeout"):
-        result.why = "timeout"
-    result.input_tokens = tokens
-    return result

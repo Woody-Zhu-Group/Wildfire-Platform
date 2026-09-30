@@ -1,7 +1,12 @@
 # Router-gate experiment
 
-`AGENT_JEV_MODE=router_gate` is a separate experiment. Production `decide`
-retains its v3 calls, gates, safety rules, fallback and exact tool execution.
+**Archived experiment, offline replay only.** `AGENT_JEV_MODE=router_gate`
+is rejected at startup. The current experiment uses `AGENT_JEV_MODE=v4`,
+documented in [JEV_V4_ROUTER.md](JEV_V4_ROUTER.md). Production `decide` remains V3.
+
+The historical payload and pure policy are retained in
+`services/agent/eval/legacy_router_gate.py`. The description below records the
+former behavior; there is no live-call entry or deployment option for it.
 Nothing changes the default mode or deployment configuration.
 
 1. The rule router proposes a plan without querying data. Existing hard
@@ -43,22 +48,21 @@ The report separates:
   not evidence that a final answer is correct; this does not score Luna answers.
 - Variation across five repeats. Repeats are not independent new questions.
 
-Preview without network:
+Replay the original captured requests and decisions without network:
 
 ```powershell
-python -m services.agent.eval.router_gate_compare
+python -m services.agent.eval.router_gate_compare --replay services/agent/eval/runs/router_gate_review_20260928/captures.jsonl.gz --output <new-directory>
 ```
 
-Live runs require an OpenRouter key, explicit budget and a new output directory:
+Preview the current V4 benchmark without network:
 
 ```powershell
-python -m services.agent.eval.router_gate_compare --run --repeats 5 --cap-usd 5 --output <new-directory>
+python -m services.agent.eval.router_gate_compare --cases services/agent/eval/v4_router_cases_v1.json
 ```
 
-The runner checks account usage between small batches and reserves a conservative
-input-token estimate before sending more requests. Capture files preserve request
-bodies, typed answers, raw responses, timing and payload hashes. The API key is
-never included. Review actual classification results before changing production.
+New live `router_gate` runs are rejected before loading provider keys. The original
+captures preserve request bodies, typed answers, raw responses, timing and
+payload hashes. No gold labels or historical results were changed by retirement.
 
 The first live comparison is in
 [`JEV_ROUTER_GATE_RESULTS_20260928.md`](JEV_ROUTER_GATE_RESULTS_20260928.md).

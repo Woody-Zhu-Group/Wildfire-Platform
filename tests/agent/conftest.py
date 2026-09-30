@@ -26,13 +26,16 @@ _REACHABLE: dict[tuple[str, int], bool] = {}
 
 
 @pytest.fixture(params=["typesafe", "openrouter"])
-def fake_jev_credentials(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
+def fake_jev_credentials(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> None:
     """Mode validation must work without the developer's real provider keys."""
     monkeypatch.setenv("AGENT_JEV_BACKEND", request.param)
     monkeypatch.setenv("AGENT_LLM_PROVIDER", "openrouter")
     monkeypatch.setenv("AGENT_ALLOW_REMOTE_PROVIDER", "true")
     monkeypatch.setenv("TYPESAFE_API_KEY", "typesafe-test-not-a-real-key")
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test-not-a-real-key")
+
 
 _START_HINTS = {
     8000: "uvicorn services.data_query.app:app --port 8000 --app-dir .",

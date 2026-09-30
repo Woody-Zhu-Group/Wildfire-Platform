@@ -1,6 +1,7 @@
 """Production v3 decide policy and the shared bounded Jev call executor.
 
-The separate router_gate mode audits an exact proposal without replacing this policy.
+The retired router_gate prototype is preserved under eval/legacy_router_gate.py
+for offline replay and does not replace this policy.
 
 Order for one question:
 1. Router hard backstops (BACKSTOP_RULES) decide. Jev is not called. These are

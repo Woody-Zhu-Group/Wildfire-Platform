@@ -1,4 +1,4 @@
-"""Budgeted Jev-only comparison: router, v3 decide, prior v4, and router_gate."""
+"""Jev-only comparisons; retired router_gate supports recorded replay only."""
 
 from __future__ import annotations
 
@@ -13,7 +13,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
-from services.agent.decisions import decide_mode, jev_first, router_gate, v4, v4_scope, v4_router
+from services.agent.decisions import decide_mode, jev_first, v4, v4_scope, v4_router
+from services.agent.eval import legacy_router_gate as router_gate
 from services.agent.decisions.canonical import payload_hash
 from services.agent.decisions.integrity import answer_to_json, question_hash
 from services.agent.decisions.mapping import regex_labels
@@ -61,6 +62,8 @@ def request_calls(case: dict, mode: str, today: str, answers=None) -> list[dict]
 
 
 def capture(case: dict, mode: str, repeat: int, today: str) -> dict:
+    if mode == "router_gate":
+        raise ValueError("router_gate is archived; replay recorded captures instead of making live calls")
     calls = request_calls(case, mode, today)
     backend = OpenRouterJevBackend(model=MODEL, timeout_seconds=20)
     record = {
@@ -319,9 +322,12 @@ def main():
     parser.add_argument("--modes", nargs="+", choices=MODES)
     args = parser.parse_args()
     cases = json.loads(args.cases.read_text(encoding="utf-8"))
-    modes = args.modes or cases.get("comparison_modes", list(MODES[:3]))
+    defaults = list(MODES[:3]) if args.replay else ["decide_v3", "v4_router"]
+    modes = args.modes or cases.get("comparison_modes", defaults)
     if not modes or len(set(modes)) != len(modes) or set(modes) - set(MODES):
         parser.error("Comparison modes must be unique supported modes")
+    if "router_gate" in modes and not args.replay:
+        parser.error("router_gate is archived and only available with --replay")
     if args.replay:
         if args.run or args.output is None:
             parser.error("Replay requires --output and must not use --run")

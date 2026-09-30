@@ -256,7 +256,9 @@ def test_runtime_error_never_calls_agent_or_tools(tmp_path):
     assert not provider.mock_calls and not executor.mock_calls
 
 
-def test_v4_is_separate_from_v3_and_change_detection_ignores_confidence(monkeypatch, fake_jev_credentials):
+def test_v4_is_separate_from_v3_and_change_detection_ignores_confidence(
+    monkeypatch, fake_jev_credentials
+):
     from dataclasses import replace
     from unittest.mock import MagicMock
     from services.agent.config import AgentSettings
@@ -317,6 +319,37 @@ def test_supported_count_executes_without_contacting_the_agent(tmp_path):
     ]
     assert len(primary) == 1 and primary[0]["arguments"]["year"] == 2024
     assert not provider.mock_calls
+
+
+def test_log_write_failure_does_not_fail_v4_question(monkeypatch, tmp_path):
+    import asyncio
+    from dataclasses import replace
+    from unittest.mock import MagicMock
+    from services.agent.config import AgentSettings
+    from services.agent.orchestrator import AgentOrchestrator
+    from services.agent.decisions.shadow_log import ShadowLog
+    from tests.agent.test_jev_decide import FakeBackend
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("logging failure")
+
+    monkeypatch.setattr(ShadowLog, "write", broken)
+    agent = AgentOrchestrator(
+        replace(
+            AgentSettings(), jev_mode="v4", jev_log_path=str(tmp_path / "jev.jsonl")
+        ),
+        MagicMock(),
+        MagicMock(),
+        decide_backend=FakeBackend(answers()),
+    )
+    seen = []
+
+    async def routed(question, *, decision, **kwargs):
+        seen.append(decision)
+
+    monkeypatch.setattr(agent, "_ask_routed", routed)
+    asyncio.run(agent.ask("Count PG&E ignitions in 2024."))
+    assert seen[0].path == "deterministic"
 
 
 ROUTER_CASES = [

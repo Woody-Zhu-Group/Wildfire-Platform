@@ -89,6 +89,8 @@ class AgentSettings:
             )
         model_api_key = _required_openrouter_key("AGENT_LLM_PROVIDER")
         jev_mode = os.getenv("AGENT_JEV_MODE", "off").strip().lower()
+        if jev_mode == "router_gate":
+            raise ValueError("AGENT_JEV_MODE=router_gate was removed; use v4 for the current experiment or decide for V3")
         if jev_mode != "off":
             # Fail at startup, not on the first question, so a missing key cannot
             # silently disable Jev while the service looks healthy.
@@ -180,9 +182,9 @@ class AgentSettings:
                 f"AGENT_JEV_MODE={self.jev_mode} is reserved and not implemented. "
                 "Use off, shadow, tool_pick, tool_pick_template, or decide."
             )
-        if self.jev_mode not in {"off", "shadow", "tool_pick", "tool_pick_template", "decide", "router_gate", "v4"}:
+        if self.jev_mode not in {"off", "shadow", "tool_pick", "tool_pick_template", "decide", "v4"}:
             raise ValueError(
-                "AGENT_JEV_MODE must be off, shadow, tool_pick, tool_pick_template, decide, router_gate, or v4"
+                "AGENT_JEV_MODE must be off, shadow, tool_pick, tool_pick_template, decide, or v4"
             )
         if not 0 <= self.jev_decide_min_confidence <= 1:
             raise ValueError("AGENT_JEV_DECIDE_MIN_CONFIDENCE must be between 0 and 1")
