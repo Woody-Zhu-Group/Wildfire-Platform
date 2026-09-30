@@ -75,7 +75,7 @@ def test_one_gate_call_per_question():
     assert result.decision.path == "deterministic" and backend.calls == 1
 
 
-def test_new_mode_validates_without_replacing_decide(monkeypatch):
+def test_new_mode_validates_without_replacing_decide(monkeypatch, fake_jev_credentials):
     monkeypatch.setenv("AGENT_JEV_MODE", "router_gate")
     assert AgentSettings.from_env().jev_mode == "router_gate"
     monkeypatch.setenv("AGENT_JEV_MODE", "decide")

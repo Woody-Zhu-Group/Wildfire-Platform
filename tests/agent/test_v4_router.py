@@ -256,7 +256,7 @@ def test_runtime_error_never_calls_agent_or_tools(tmp_path):
     assert not provider.mock_calls and not executor.mock_calls
 
 
-def test_v4_is_separate_from_v3_and_change_detection_ignores_confidence(monkeypatch):
+def test_v4_is_separate_from_v3_and_change_detection_ignores_confidence(monkeypatch, fake_jev_credentials):
     from dataclasses import replace
     from unittest.mock import MagicMock
     from services.agent.config import AgentSettings
