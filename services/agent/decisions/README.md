@@ -8,7 +8,8 @@ imports `typesafe_sdk`, and the default `off` mode never imports it.
 
 Production `decide` remains V3. Experimental `v4` compiles and validates fixed
 plans, then asks Jev to check completeness with no confidence threshold. It
-currently has no pre-Jev backstops or router fallback on errors. See
+currently has no pre-Jev backstops. Jev faults restore the original keyword
+Router decision, including normal Agent handoff when no fixed route is selected. See
 [`JEV_V4_ROUTER.md`](../../../docs/JEV_V4_ROUTER.md) for behavior and open review items.
 
 The retired `router_gate` payload/policy is under `services/agent/eval/` and

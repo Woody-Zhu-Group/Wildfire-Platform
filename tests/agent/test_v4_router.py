@@ -138,7 +138,7 @@ def test_rejected_harness_only_plan_is_not_sent_to_an_incapable_agent():
     assert result.path == "clarification" and not result.tool_calls
 
 
-def test_missing_location_clarifies_and_missing_backend_is_not_a_model_handoff():
+def test_missing_location_clarifies_and_missing_backend_returns_keyword_router():
     result = decide(
         "Identify the utility territory containing my current location.",
         answers(
@@ -153,7 +153,7 @@ def test_missing_location_clarifies_and_missing_backend_is_not_a_model_handoff()
         error="timeout",
         today=TODAY,
     )
-    assert result.decision.path == "error" and not result.decision.tool_calls
+    assert result.winner == "router" and result.decision.path == "deterministic"
 
 
 def test_obsolete_proximity_fact_cannot_override_complete_scope():
@@ -189,11 +189,11 @@ def test_composite_arithmetic_outside_fixed_templates_goes_to_agent():
     assert result.path == "model" and not result.tool_calls
 
 
-def test_fixed_plan_needs_an_actual_fit_decision():
+def test_missing_fit_decision_returns_the_original_keyword_router():
     data = answers()
     del data["plan_fit"]
     result = decide("Count PG&E ignitions in 2024.", data)
-    assert result.path == "error" and not result.tool_calls
+    assert result.path == "deterministic" and result.rule == "filtered_records"
 
 
 def test_live_path_asks_about_the_generated_plan():
@@ -229,7 +229,9 @@ def test_live_path_asks_about_the_generated_plan():
     assert backend.states[-1]["tool_calls"] == result.decision.tool_calls
 
 
-def test_runtime_error_never_calls_agent_or_tools(tmp_path):
+def test_runtime_error_returns_keyword_router_without_claiming_a_jev_decision(
+    monkeypatch, tmp_path
+):
     import asyncio
     from dataclasses import replace
     from unittest.mock import MagicMock
@@ -246,10 +248,16 @@ def test_runtime_error_never_calls_agent_or_tools(tmp_path):
         executor,
         decide_backend=FakeBackend(error="unavailable"),
     )
-    result = asyncio.run(agent.ask("Count PG&E ignitions in 2024."))
-    assert result.response["status"] == "error"
-    assert result.response["decision_source"] == {
-        "source": "jev",
+    seen = []
+
+    async def routed(question, *, decision, **kwargs):
+        seen.append(decision)
+
+    monkeypatch.setattr(agent, "_ask_routed", routed)
+    asyncio.run(agent.ask("Count PG&E ignitions in 2024."))
+    assert seen[0].path == "deterministic"
+    assert seen[0].slots["decision_source"] == {
+        "source": "router",
         "why": "jev_error",
         "mode": "v4",
     }

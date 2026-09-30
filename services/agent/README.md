@@ -351,6 +351,9 @@ card per count rather than a utility-by-year comparison.
   a binary router/agent Choice and no confidence threshold. Complete fixed plans
   stay deterministic; only missing capabilities or incomplete plans go to the
   agent. See [`docs/JEV_V4_ROUTER.md`](../../docs/JEV_V4_ROUTER.md).
+  Jev faults restore the pre-Jev keyword Router: fixed plans execute, model routes
+  go to the Agent, and clarification/refusal returns directly. Technical errors
+  remain visible in Router provenance; this does not use partial Jev results.
   The old `router_gate` mode is retired; only its offline replay policy remains.
 - `AGENT_SLOT_PLAN` (off by default) plans a deferred multi-entity question as
   several deterministic calls from router slots

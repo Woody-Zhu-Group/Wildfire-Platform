@@ -37,14 +37,54 @@ cross-result operations beyond these templates use the agent.
 
 The initial three Jev payloads run concurrently at runtime; the plan check is
 conditional and sequential. Daily-call reservations count three plus one when
-needed. Timeouts/backend failures return an explicit error with no tools or
-agent call. They never silently re-enable the old keyword plan. The slot planner
+needed. On timeout, backend failure, missing/invalid answers or daily cap, V4
+restores the original keyword Router decision captured before Jev. Fixed plans
+execute normally; a model route invokes the Agent; clarification/refusal returns
+directly. Partial Jev intent/plan data is discarded. The slot planner
 does not override V4. Forced-model and disabled-router evaluation switches
 remain explicit evaluation overrides, not normal V4 operation.
 
-Pre-Jev backstops, safe router fallback, injection protection, cancellation/quota
+Pre-Jev backstops, injection protection, cancellation/quota
 accounting, and logging retention are still open review items. This document
 describes the current draft implementation, not a completed production rollout.
+
+## Jev fault fallback
+
+The existing keyword/regex Router remains in `services/agent/routing.py` and
+`AgentOrchestrator.ask()` runs it before Jev. V4 now reuses that decision on a
+technical fault, rather than calling Jev again or accepting an unfinished V4
+candidate. An original model route goes to the Agent with the normal tool
+catalog and parameter grounding. Keyword clarifications/refusals are not
+overridden by an Agent. A valid Jev decision to clarify, refuse or delegate is
+not a technical fault and does not activate fallback.
+
+Provenance is `source=router` with `jev_timeout`, `jev_error`, or `jev_daily_cap`.
+The original decision is copied so a late worker cannot mutate the route being
+used by its caller. Existing tool validation, measured coverage and caveat checks
+still apply. This deliberately inherits the legacy Router's semantic limitations,
+including known comparison/output omissions; it is not a new accuracy guarantee
+for degraded operation. Late-call cancellation and reservation refunds remain
+separate pending work.
+
+The Agent has tool-result and retry context within one request, but no cross-query
+chat history: `/ask` and `/ask/stream` receive only `question`, and the website
+sends only the latest query. Model routing failure returns an error; synthesis
+failure after successful tool reads can fall back to a deterministic evidence
+summary. Agent timeout wording and multi-turn memory were not changed here.
+
+```mermaid
+flowchart TD
+    J[Jev timeout, error or daily cap] --> R[Existing keyword Router]
+    R -->|Fixed plan|T[Execute fixed tools]
+    R -->|Needs model planning|A[Agent handles current request]
+    R -->|Missing inputs|C[Return clarification]
+    R -->|Unsupported|U[Return refusal]
+```
+
+The earlier interactive diagram under `docs/diagrams/jev-v4-workflow.*` is a
+pre-fallback historical snapshot. Its new branching layout did not pass the
+diagram validator; the original checked artifact was preserved. The flow above
+and this document describe the current fault behavior.
 
 `services/agent/decisions/v4_router.py` owns the typed schema, compiler and
 shared live/replay policy (current schema `v4_router_v2`). It reuses the historical V4 structural

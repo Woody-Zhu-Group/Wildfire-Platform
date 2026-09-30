@@ -36,12 +36,17 @@ draft PR #113, not a production mode switch. Its current flow is:
    confidence rejection gates. Accepted plans execute through the fixed harness.
 4. Missing capabilities or an incomplete ordinary plan lead to agent planning;
    missing inputs and unavailable harness-only outputs can clarify or refuse.
-5. Timeout, backend failure or daily cap currently returns an explicit Jev error,
-   with no router fallback. V4 does not yet run V3 backstops before Jev.
+5. Timeout, backend failure, missing/invalid answers or daily cap restores the
+   pre-Jev keyword Router decision: fixed calls execute, a model route goes to
+   the Agent, and clarification/refusal returns directly. Partial Jev readings
+   are discarded. V4 does not yet run V3 backstops before Jev.
 
-The missing pre-Jev safety rules, safe fallback, injection protection, cancellation
+The missing pre-Jev safety rules, injection protection, cancellation
 and quota accounting, and question-log retention remain review items. They are
 not implied to be fixed by the mode cleanup. V4 skips the separate slot planner.
+Fault fallback now explicitly uses the legacy Router and inherits its semantic
+limitations. It does not imply independent validation of every fallback plan.
+The Agent has within-request tool/retry context, but receives no prior chat turns.
 See `docs/JEV_V4_ROUTER.md`, `docs/JEV_V4_PROMPTS.md`, and
 `docs/JEV_V4_ROUTER_RESULTS_20260929.md`; reported results are development-set
 results, not independent production acceptance.
@@ -73,7 +78,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 - `AGENT_JEV_DECIDE_MIN_CONFIDENCE` (0.8) and `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE` (0.9): decide mode's decline and answer gates. The answer gate is a stated default, not chosen from any eval set; v3 was not used.
 - `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`: default 0.8
 - `AGENT_JEV_BACKEND`: typesafe (default) or openrouter
-- `AGENT_JEV_DAILY_CALL_CAP`: default 5000 API calls per process per UTC day, not questions. V3 reserves three calls; V4 reserves three, then one if plan-fit is needed. V4 can fail after the first stage when its fourth call does not fit. Actual production capacity depends on configured cap and worker count.
+- `AGENT_JEV_DAILY_CALL_CAP`: default 5000 API calls per process per UTC day, not questions. V3 reserves three calls; V4 reserves three, then one if plan-fit is needed. V4 falls back to the original keyword Router if either reservation fails. Actual production capacity depends on configured cap and worker count.
 - `AGENT_JEV_LOG_PATH`: shadow log location
 - `AGENT_LLM_PROVIDER`: openrouter is the only value; `OPENROUTER_API_KEY` is required and `AGENT_ALLOW_REMOTE_PROVIDER=true` must be set or startup fails loudly (`docs/OPENROUTER.md`). `AGENT_LLM_MODEL` (openai/gpt-6-luna) and `AGENT_LLM_FALLBACK_MODEL` (openai/gpt-6-sol) override the models
 - `AGENT_SLOT_PLAN`: deterministic multi-entity planner, default off (`docs/JEV_MULTI_TOOL.md`); with decide on, decide runs first

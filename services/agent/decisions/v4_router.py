@@ -1,7 +1,8 @@
 """V4: typed Jev meaning -> fixed tool plan -> binary completeness check.
 
-No confidence thresholds, natural-language rewriting, or V3 fallback. Historical
-schemas/policies remain frozen. Every accepted plan executes through the usual
+No confidence thresholds or natural-language rewriting. Jev faults restore the
+original keyword Router, which executes fixed plans or delegates to the Agent.
+Historical schemas/policies remain frozen. Every accepted plan executes through the usual
 harness validation, coverage checks, evidence and view rendering.
 """
 
@@ -9,6 +10,7 @@ from __future__ import annotations
 
 import calendar
 import re
+from dataclasses import replace
 from datetime import date
 
 from pydantic import ValidationError
@@ -421,12 +423,47 @@ def _handoff(decision, reason):
     )
 
 
+def _fallback(decision: RouteDecision, error: str) -> DecideResult:
+    """Use the pre-Jev keyword decision, never a partial Jev interpretation."""
+    if error == "daily_cap":
+        why = "daily_cap"
+    elif "timeout" in error.lower():
+        why = "timeout"
+    else:
+        why = "error"
+    # A worker can finish after the caller timed out. Keep its metadata changes
+    # separate from the original route already being used by the caller.
+    result = replace(
+        decision,
+        slots={
+            **decision.slots,
+            "v4_router": {
+                "schema_version": SCHEMA_VERSION,
+                "executor": decision.path,
+                "fallback": "keyword_router",
+                "error": error,
+            },
+        },
+    )
+    return DecideResult(
+        "router",
+        why,
+        result,
+        decision.path,
+        decision.rule,
+        error=error,
+        extra={"schema_version": SCHEMA_VERSION},
+    )
+
+
 def decide_from_answers(
     question, decision, answers, *, today=None, error=None, gate=None, answer_gate=None
 ):
     today = today or date.today()
+    if error or not answers:
+        return _fallback(decision, error or "missing_answers")
     try:
-        selected = jev_first.highest_choices(answers) if answers and not error else {}
+        selected = jev_first.highest_choices(answers)
         result = prepare(question, selected, today=today, error=error)
         if result.slots.get("v4_plan_pending"):
             fit = _value(selected, "plan_fit")
@@ -448,9 +485,7 @@ def decide_from_answers(
                 else:
                     result = _handoff(result, "v4_plan_incomplete")
     except ValueError:
-        error = "invalid_jev_answers"
-        result = jev_first.decide_from_answers(question, None, error=error, today=today)
-        selected = {}
+        return _fallback(decision, "invalid_jev_answers")
     extra = {
         "intent": _value(selected, "intent"),
         "intent_confidence": selected.get("intent", {}).get("confidence"),
