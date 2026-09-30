@@ -4,15 +4,18 @@ Code that asks Jev (TypeSafe System One) for routing facts and tool picks. It is
 used only when `AGENT_JEV_MODE` is not `off`. Nothing outside this package
 imports `typesafe_sdk`, and the default `off` mode never imports it.
 
-## Modes on main
+## Runtime modes on this branch
 
-The experimental `router_gate` mode audits the router proposal with one Jev
-request, then retains the exact plan or hands it to the agent. Errors fall back
-to the router. Production `decide` remains v3; see
-[`JEV_ROUTER_GATE.md`](../../../docs/JEV_ROUTER_GATE.md).
+Production `decide` remains V3. Experimental `v4` compiles and validates fixed
+plans, then asks Jev to check completeness with no confidence threshold. It
+currently has no pre-Jev backstops or router fallback on errors. See
+[`JEV_V4_ROUTER.md`](../../../docs/JEV_V4_ROUTER.md) for behavior and open review items.
+
+The retired `router_gate` payload/policy is under `services/agent/eval/` and
+available for historical `--replay` only. It cannot be selected as a runtime mode.
 
 `AGENT_JEV_MODE` accepts `off` (default), `shadow`, `tool_pick`, and
-`tool_pick_template` (`services/agent/config.py`, `validate()`). `verify`,
+`tool_pick_template`, `decide`, and `v4` (`services/agent/config.py`, `validate()`). `verify`,
 `fallback`, and `route` are reserved names that abort startup.
 
 - `shadow`: `shadow.py` runs Jev in the background next to the regex router

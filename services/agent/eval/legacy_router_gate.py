@@ -179,4 +179,3 @@ def decide_from_answers(
         extra=extra,
         **base,
     )
-

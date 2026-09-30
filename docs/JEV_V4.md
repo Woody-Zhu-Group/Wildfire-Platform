@@ -1,8 +1,9 @@
 # Jev-first decide mode (v4)
 
 **Historical experiment, not the current `decide` runtime.** PR #113's review
-rejected replacing production v3. `decide` retains v3; the new experiment is
-`router_gate`, documented in [JEV_ROUTER_GATE.md](JEV_ROUTER_GATE.md).
+rejected replacing production v3. `decide` retains v3; the current experiment is
+`v4`, documented in [JEV_V4_ROUTER.md](JEV_V4_ROUTER.md). The interim
+`router_gate` mode is now offline replay only.
 The v4 policy and runner below are retained only as a comparison baseline.
 The following sections describe the previous prototype, not deployed behavior.
 An offline [argmax ablation](JEV_V4_ARGMAX_RESULTS_20260928.md) disables confidence

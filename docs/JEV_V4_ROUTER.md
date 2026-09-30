@@ -1,7 +1,9 @@
 # V4: retain complete fixed plans before considering an agent
 
 Enable explicitly with `AGENT_JEV_MODE=v4`. Production `decide` remains V3;
-`router_gate` and all historical V4 payloads stay available for reproduction.
+`router_gate` is retired from runtime configuration. Its payload and pure policy
+are archived under `services/agent/eval/legacy_router_gate.py`; recorded captures
+remain reproducible through the evaluator's `--replay` path only.
 The previous offline `v4_scope_argmax` experiment is not this new mode.
 
 ## Request flow
@@ -39,6 +41,10 @@ needed. Timeouts/backend failures return an explicit error with no tools or
 agent call. They never silently re-enable the old keyword plan. The slot planner
 does not override V4. Forced-model and disabled-router evaluation switches
 remain explicit evaluation overrides, not normal V4 operation.
+
+Pre-Jev backstops, safe router fallback, injection protection, cancellation/quota
+accounting, and logging retention are still open review items. This document
+describes the current draft implementation, not a completed production rollout.
 
 `services/agent/decisions/v4_router.py` owns the typed schema, compiler and
 shared live/replay policy (current schema `v4_router_v2`). It reuses the historical V4 structural
