@@ -53,7 +53,7 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
   - The previous value is kept in `<field>_value_before_hand_label`, and the field's round 4 disagreement flag is removed.
   - A gold `null` does not replace a time taken from a utility workbook, since the gold was written from the PDF alone. This keeps 4 workbook times (SCE Jan 20 2025, first and last; SDG&E Dec 9 2024, first; SDG&E Jan 20 2025, first).
   - A gold `a|b` keeps the current value when it is one of the alternatives.
-  - **PG&E Oct 21 2020 first de-energization.** Its round 1 label (17:33) was dropped by the conversion. The report states both 14:42 (a transmission line, p75) and 17:33 (the earliest distribution circuit in Appendix A, p73). The field keeps 14:42, is `unresolved` with the flag `first_deenergization:contradiction_in_report`, and is listed in `round3/contradictions.csv` as "round 4 hand-label check".
+  - **PG&E Oct 21 2020 first de-energization.** Its round 1 label (17:33) was dropped by the conversion. The report states both 14:42 (a transmission line, p75) and 17:33 (the earliest distribution circuit in Appendix A, p73). The field keeps 14:42, is `unresolved` with the flag `first_deenergization:contradiction_in_report`, and is listed in `round3/contradictions.csv` as "round 4 old-gold-label check". That set was named "round 4 hand-label check" until 2026-09-29; `hand_labels.py` now writes the new name, so a rerun keeps it.
   - Gold labels changed 8 values, all from `test_gold.csv`, including the two agreed test errors (items 117 and 141, SDG&E MBL, now `all_notified`).
   - The test scoring and `calibration_results.md` are unchanged.
 - **Whole-event fields** (`no_change.py`, added after the PR #29 review on 2026-09-28): `apply.py` marks every field an agreed whole-event item covers ("all fields", "table pages", "numeric fields") as `model_review_agreed`. Those items ask whether a correction letter or table page changes the event, with the current values in view.
@@ -66,7 +66,7 @@ Two models, Claude Opus 5.5 and GPT-6 Sol, each answered the round 3 review queu
   - Item 5 is now `unresolved` in `reviewed_queue.csv` (column `post_check`). The field keeps its workbook value, becomes `unresolved`, and carries the flag `last_restoration:agreed_value_not_in_quote`.
   - Workbook item 22 passes: both quotes say "as of 3:48 p.m."
 - **Agreed `not_stated` answers need no quote.** The check accepts a `not_stated` or `null` answer with the pages read and the search terms used, and no quote.
-  - 88 of the 206 accepted queue items are `not_stated`. In 44, neither reviewer quoted a page. In the other 44, at least one reviewer's quote was found on a cited page.
+  - 88 of the 205 accepted queue items are `not_stated`. In 44, neither reviewer quoted a page. In the other 44, at least one reviewer's quote was found on a cited page.
   - Only 18 of the 179 agreed test values were `not_stated` (all 18 right, 6 with no quote from either reviewer), so the test says less about these than about other values.
 - **Contradictions:** 16 `CONTRADICTION:` notes were appended to `round3/contradictions.csv`, marked "round 4 model-found, unchecked".
 

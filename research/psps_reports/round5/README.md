@@ -36,7 +36,7 @@ A person verified 60 values in the PSPS dataset against the report PDFs. **Metho
          - A05: its answer was zero while its note said "not applicable", which the rules count as `not_stated`.
 
        It did not see the answer key, the sample list, the dataset, or the old labels, apart from A08's 4:25, which is the dataset value.
-  - Files: `audit_sheet_rechecked.xlsx`, scored into `audit_results_rechecked.md` and `audit_scored_rechecked.csv` with `audit.py score --sheet audit_sheet_rechecked.xlsx --tag _rechecked`.
+  - Files: `audit_sheet_rechecked.xlsx`, scored into `audit_results_rechecked.md` and `audit_scored_rechecked.csv` with `audit.py score --sheet audit_sheet_rechecked.xlsx --tag _rechecked --version "<Version line>" --method "<Method line>"`. The exact `--version` and `--method` texts are the Version and Method lines at the top of `audit_results_rechecked.md`; without them the file gets the first-pass method line and no version line.
   - Results: queue 30/30 (100%, 88.6 to 100); unflagged 14/15 (93.3%, 70.2 to 98.8); old model-written labels 15/15 (100%, 79.6 to 100); round 4 12/12. All 60 rows are scored.
   - **A05:** `not_stated`. The report says Section 7 is not applicable because PSPS protocols weren't initiated.
   - **A08:** 2020-09-07 04:25, following the rule. The 4:25 entry may be a report error, but nothing in the report says so. `round3/contradictions.csv` keeps it as a possible report error.

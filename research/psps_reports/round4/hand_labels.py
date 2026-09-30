@@ -69,7 +69,7 @@ REPORT_STATES_BOTH = {
         "note": "The earliest distribution circuit is 17:33, but a transmission line was de-energized at 14:42. "
                 "The round 1 hand label (17:33) was dropped by the round 3 conversion (R3); the dataset keeps 14:42, unresolved."},
 }
-CONTRADICTION_SET = "round 4 hand-label check"
+CONTRADICTION_SET = "round 4 old-gold-label check"  # "round 4 hand-label check" until 2026-09-29
 
 
 def convert_round1() -> list[dict]:

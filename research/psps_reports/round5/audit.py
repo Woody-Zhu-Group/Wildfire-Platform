@@ -3,7 +3,9 @@
     python research/psps_reports/round5/audit.py sample   # sample.csv (committed before the sheet is built)
     python research/psps_reports/round5/audit.py build    # audit_sheet.xlsx, audit_key.csv (gitignored), key_sha256.txt
     python research/psps_reports/round5/audit.py score --sheet <filled .xlsx>   # audit_results.md, audit_scored.csv
-    python research/psps_reports/round5/audit.py score --sheet audit_sheet_rechecked.xlsx --tag _rechecked \n        --version "..."   # audit_results_rechecked.md, audit_scored_rechecked.csv
+    python research/psps_reports/round5/audit.py score --sheet audit_sheet_rechecked.xlsx --tag _rechecked
+        --version "<Version line>" --method "<Method line>"   # audit_results_rechecked.md, audit_scored_rechecked.csv
+        (the exact texts are the Version and Method lines of audit_results_rechecked.md)
 
 The sheet never shows a model answer, dataset value, gold label, flag, or sample group; build() checks that.
 """
