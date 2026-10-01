@@ -1,0 +1,1704 @@
+{
+  "schema_version": "jev_v3_v4_comparison_v1",
+  "today": "2026-09-29",
+  "comparison_modes": [
+    "decide_v3",
+    "v4_scope_argmax"
+  ],
+  "set_status": "50 previously observed regression cases plus 30 new unrun challenge cases. Human-reviewable draft labels. Not a blind or statistically representative holdout.",
+  "context": "Each question is an independent English single turn with no user location or previous messages.",
+  "scoring": "Score shared intent vocabulary and answer/clarification/unsupported separately. Answer accepts deterministic or model. Review concrete plans against plan_requirements; model handoff does not prove a correct plan or answer. Special-tool intents absent in v3 are excluded from shared-intent accuracy but remain in disposition and plan evaluation.",
+  "cases": [
+    {
+      "id": "v4_001",
+      "group": "comparison",
+      "question": "How did the number of PG&E ignitions change from 2019 to 2023?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_001",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+      ],
+      "label_rationale": "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+    },
+    {
+      "id": "v4_002",
+      "group": "comparison",
+      "question": "What happened to SCE's CPUC ignition count between 2020 and 2023?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_002",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+      ],
+      "label_rationale": "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+    },
+    {
+      "id": "v4_003",
+      "group": "comparison",
+      "question": "How much did SDG&E's ignition tally move from 2020 to 2024?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_003",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+      ],
+      "label_rationale": "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+    },
+    {
+      "id": "v4_004",
+      "group": "comparison",
+      "question": "Give the numerical difference between PG&E's 2020 and 2023 ignition counts.",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_004",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+      ],
+      "label_rationale": "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+    },
+    {
+      "id": "v4_005",
+      "group": "comparison",
+      "question": "Compare Butte and Shasta County ignition counts for 2023.",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_005",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+      ],
+      "label_rationale": "Preserve each named utility/county and both comparison periods; a single total over their union is insufficient."
+    },
+    {
+      "id": "v4_006",
+      "group": "month_endpoints",
+      "question": "Did EPSS outages go up from September 2023 to September 2024?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_006",
+      "split": "regression",
+      "plan_requirements": [
+        "Compare separate complete endpoint months, preserving utilities and dataset; do not sum the intervening span."
+      ],
+      "label_rationale": "Compare separate complete endpoint months, preserving utilities and dataset; do not sum the intervening span."
+    },
+    {
+      "id": "v4_007",
+      "group": "month_endpoints",
+      "question": "How did PG&E's ignition count change from March 2021 to November 2022?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_007",
+      "split": "regression",
+      "plan_requirements": [
+        "Compare separate complete endpoint months, preserving utilities and dataset; do not sum the intervening span."
+      ],
+      "label_rationale": "Compare separate complete endpoint months, preserving utilities and dataset; do not sum the intervening span."
+    },
+    {
+      "id": "v4_008",
+      "group": "month_endpoints",
+      "question": "By how much did PG&E ignitions differ from July to August 2024?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_008",
+      "split": "regression",
+      "plan_requirements": [
+        "Compare separate complete endpoint months, preserving utilities and dataset; do not sum the intervening span."
+      ],
+      "label_rationale": "Compare separate complete endpoint months, preserving utilities and dataset; do not sum the intervening span."
+    },
+    {
+      "id": "v4_009",
+      "group": "month_endpoints",
+      "question": "Compare EPSS counts in February and June 2024.",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_009",
+      "split": "regression",
+      "plan_requirements": [
+        "Compare separate complete endpoint months, preserving utilities and dataset; do not sum the intervening span."
+      ],
+      "label_rationale": "Compare separate complete endpoint months, preserving utilities and dataset; do not sum the intervening span."
+    },
+    {
+      "id": "v4_010",
+      "group": "count_controls",
+      "question": "How many PG&E ignitions were there from 2020 through 2023?",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_010",
+      "split": "regression",
+      "plan_requirements": [
+        "Return one total for exactly the requested dataset, utility and full inclusive period."
+      ],
+      "label_rationale": "Return one total for exactly the requested dataset, utility and full inclusive period."
+    },
+    {
+      "id": "v4_011",
+      "group": "count_controls",
+      "question": "Total EPSS outages from September 2023 through September 2024.",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_011",
+      "split": "regression",
+      "plan_requirements": [
+        "Return one total for exactly the requested dataset, utility and full inclusive period."
+      ],
+      "label_rationale": "Return one total for exactly the requested dataset, utility and full inclusive period."
+    },
+    {
+      "id": "v4_012",
+      "group": "count_controls",
+      "question": "Count all SCE ignitions in 2024.",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_012",
+      "split": "regression",
+      "plan_requirements": [
+        "Return one total for exactly the requested dataset, utility and full inclusive period."
+      ],
+      "label_rationale": "Return one total for exactly the requested dataset, utility and full inclusive period."
+    },
+    {
+      "id": "v4_013",
+      "group": "count_controls",
+      "question": "For our budget meeting, how many PG&E ignitions were recorded in 2024?",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_013",
+      "split": "regression",
+      "plan_requirements": [
+        "Return one total for exactly the requested dataset, utility and full inclusive period."
+      ],
+      "label_rationale": "Return one total for exactly the requested dataset, utility and full inclusive period."
+    },
+    {
+      "id": "v4_014",
+      "group": "views",
+      "question": "Plot monthly PG&E ignition counts from 2020 through 2023.",
+      "expected": {
+        "intent": [
+          "trend"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_014",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "label_rationale": "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+    },
+    {
+      "id": "v4_015",
+      "group": "views",
+      "question": "Show where CAL FIRE incidents occurred in Butte County in 2024.",
+      "expected": {
+        "intent": [
+          "map"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_015",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "label_rationale": "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+    },
+    {
+      "id": "v4_016",
+      "group": "views",
+      "question": "List the individual EPSS outages in July 2024.",
+      "expected": {
+        "intent": [
+          "records_list"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_016",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "label_rationale": "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+    },
+    {
+      "id": "v4_017",
+      "group": "views",
+      "question": "Rank California counties by CPUC ignition count in 2024.",
+      "expected": {
+        "intent": [
+          "rank"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_017",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "label_rationale": "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+    },
+    {
+      "id": "v4_018",
+      "group": "views",
+      "question": "Map CPUC ignitions and plot their monthly counts for 2024.",
+      "expected": {
+        "intent": [
+          "map_plus_trend",
+          "multi_intent"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "Either composite label is valid; both requested results must remain available.",
+      "source": "router_gate_cases.json#v4_018",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve all requested outputs (map, time chart, records or ranking) and every named filter."
+      ],
+      "label_rationale": "Either composite label is valid; both requested results must remain available."
+    },
+    {
+      "id": "v4_019",
+      "group": "special_tools",
+      "question": "How well does the fitted ignition model perform?",
+      "expected": {
+        "intent": [
+          "model_metrics"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_019",
+      "split": "regression",
+      "plan_requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "label_rationale": "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+    },
+    {
+      "id": "v4_020",
+      "group": "special_tools",
+      "question": "Compare the held-out evaluation scores of HPP, NHPP and cNHPP.",
+      "expected": {
+        "intent": [
+          "model_metrics"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_020",
+      "split": "regression",
+      "plan_requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "label_rationale": "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+    },
+    {
+      "id": "v4_021",
+      "group": "special_tools",
+      "question": "Show the statewide fitted ignition risk surface for 2024-08-15.",
+      "expected": {
+        "intent": [
+          "risk_surface"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_021",
+      "split": "regression",
+      "plan_requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "label_rationale": "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+    },
+    {
+      "id": "v4_022",
+      "group": "special_tools",
+      "question": "Map the model residuals across California for 2024-08-15.",
+      "expected": {
+        "intent": [
+          "risk_surface"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_022",
+      "split": "regression",
+      "plan_requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "label_rationale": "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+    },
+    {
+      "id": "v4_023",
+      "group": "special_tools",
+      "question": "What was the fitted ignition risk in Butte County on 2024-08-15?",
+      "expected": {
+        "intent": [
+          "risk"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_023",
+      "split": "regression",
+      "plan_requirements": [
+        "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+      ],
+      "label_rationale": "Model scores require risk_metrics; statewide grid/residuals require risk_surface with the correct kind/date; a county score is not a statewide surface."
+    },
+    {
+      "id": "v4_024",
+      "group": "lookups",
+      "question": "Which utility territory and HFTD tier contain 38.5, -121.5?",
+      "expected": {
+        "intent": [
+          "spatial_context"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_024",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve the requested point, inventory identifier or boundary; circuit inventory is not CPZ."
+      ],
+      "label_rationale": "Preserve the requested point, inventory identifier or boundary; circuit inventory is not CPZ."
+    },
+    {
+      "id": "v4_025",
+      "group": "lookups",
+      "question": "Show the PG&E utility service-area boundary.",
+      "expected": {
+        "intent": [
+          "territory_boundary"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_025",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve the requested point, inventory identifier or boundary; circuit inventory is not CPZ."
+      ],
+      "label_rationale": "Preserve the requested point, inventory identifier or boundary; circuit inventory is not CPZ."
+    },
+    {
+      "id": "v4_026",
+      "group": "lookups",
+      "question": "Inspect circuit 043371102.",
+      "expected": {
+        "intent": [
+          "circuit_detail"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_026",
+      "split": "regression",
+      "plan_requirements": [
+        "Preserve the requested point, inventory identifier or boundary; circuit inventory is not CPZ."
+      ],
+      "label_rationale": "Preserve the requested point, inventory identifier or boundary; circuit inventory is not CPZ."
+    },
+    {
+      "id": "v4_027",
+      "group": "unsupported_advice",
+      "question": "Should PG&E be held responsible for its 2023 ignitions?",
+      "expected": {
+        "off_topic": [
+          "advice_or_judgment"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label.",
+      "source": "router_gate_cases.json#v4_027",
+      "split": "regression",
+      "plan_requirements": [
+        "Do not invent a responsibility judgment, penalty recommendation or operational advice."
+      ],
+      "label_rationale": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_028",
+      "group": "unsupported_advice",
+      "question": "Which utility should the CPUC penalize based on its wildfire record?",
+      "expected": {
+        "off_topic": [
+          "advice_or_judgment"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label.",
+      "source": "router_gate_cases.json#v4_028",
+      "split": "regression",
+      "plan_requirements": [
+        "Do not invent a responsibility judgment, penalty recommendation or operational advice."
+      ],
+      "label_rationale": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_029",
+      "group": "unsupported_advice",
+      "question": "What should SCE do about its ignition history?",
+      "expected": {
+        "off_topic": [
+          "advice_or_judgment"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label.",
+      "source": "router_gate_cases.json#v4_029",
+      "split": "regression",
+      "plan_requirements": [
+        "Do not invent a responsibility judgment, penalty recommendation or operational advice."
+      ],
+      "label_rationale": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_030",
+      "group": "unsupported_topics",
+      "question": "What were PG&E wildfire mitigation costs in 2024?",
+      "expected": {
+        "off_topic": [
+          "cost_or_budget"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label.",
+      "source": "router_gate_cases.json#v4_030",
+      "split": "regression",
+      "plan_requirements": [
+        "Do not fabricate unavailable live information, budget or CPZ data."
+      ],
+      "label_rationale": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_031",
+      "group": "unsupported_topics",
+      "question": "Which fires are burning currently?",
+      "expected": {
+        "off_topic": [
+          "live_or_web"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label.",
+      "source": "router_gate_cases.json#v4_031",
+      "split": "regression",
+      "plan_requirements": [
+        "Do not fabricate unavailable live information, budget or CPZ data."
+      ],
+      "label_rationale": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_032",
+      "group": "constraints",
+      "question": "How many PG&E ignitions were there?",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "clarification"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_032",
+      "split": "regression",
+      "plan_requirements": [
+        "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+      ],
+      "label_rationale": "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+    },
+    {
+      "id": "v4_033",
+      "group": "constraints",
+      "question": "What was the fitted ignition risk in Butte County in 2024?",
+      "expected": {
+        "intent": [
+          "risk"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "clarification"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_033",
+      "split": "regression",
+      "plan_requirements": [
+        "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+      ],
+      "label_rationale": "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+    },
+    {
+      "id": "v4_034",
+      "group": "constraints",
+      "question": "Show the statewide risk surface for 2027-08-15.",
+      "expected": {
+        "intent": [
+          "risk_surface"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "unsupported",
+          "clarification"
+        ]
+      },
+      "expectation_note": "The date cannot be scored; either a refusal or a request for a supported past day is safe.",
+      "source": "router_gate_cases.json#v4_034",
+      "split": "regression",
+      "plan_requirements": [
+        "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+      ],
+      "label_rationale": "The date cannot be scored; either a refusal or a request for a supported past day is safe."
+    },
+    {
+      "id": "v4_035",
+      "group": "constraints",
+      "question": "Show model evaluation scores just for Butte County.",
+      "expected": {
+        "intent": [
+          "model_metrics"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "clarification"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_035",
+      "split": "regression",
+      "plan_requirements": [
+        "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+      ],
+      "label_rationale": "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+    },
+    {
+      "id": "v4_036",
+      "group": "constraints",
+      "question": "Show the statewide risk grid restricted to SCE territory on 2024-08-15.",
+      "expected": {
+        "intent": [
+          "risk_surface"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "clarification"
+        ]
+      },
+      "expectation_note": "",
+      "source": "router_gate_cases.json#v4_036",
+      "split": "regression",
+      "plan_requirements": [
+        "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+      ],
+      "label_rationale": "Keep every requested restriction; explain the missing or unsupported input instead of silently broadening the request."
+    },
+    {
+      "id": "scope_01",
+      "question": "Render fitted ignition intensity for every California grid cell on 2024-08-15.",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_01",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expected_scope_missing": false,
+      "label_rationale": "The scope is defined, or this operation needs no narrower geographic restriction.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_02",
+      "question": "I need the full California model-risk map for 2024-08-15.",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_02",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expected_scope_missing": false,
+      "label_rationale": "The scope is defined, or this operation needs no narrower geographic restriction.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_03",
+      "question": "Display model residuals over the entire state of California on 2024-08-15.",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_03",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expected_scope_missing": false,
+      "label_rationale": "The scope is defined, or this operation needs no narrower geographic restriction.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_04",
+      "question": "Map CAL FIRE incidents across Los Angeles County in 2024.",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_04",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expected_scope_missing": false,
+      "label_rationale": "The scope is defined, or this operation needs no narrower geographic restriction.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_05",
+      "question": "Count 2024 CPUC ignitions attributed to PG&E.",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_05",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expected_scope_missing": false,
+      "label_rationale": "The scope is defined, or this operation needs no narrower geographic restriction.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_06",
+      "question": "How many CAL FIRE incidents occurred in 2024?",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_06",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expected_scope_missing": false,
+      "label_rationale": "The scope is defined, or this operation needs no narrower geographic restriction.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_07",
+      "question": "What was the fitted ignition risk on 2024-08-15?",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_07",
+      "expected": {
+        "path": [
+          "clarification"
+        ]
+      },
+      "expected_scope_missing": true,
+      "label_rationale": "Clarify an unresolved required location/boundary.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_08",
+      "question": "Show CPUC ignitions near my house in 2024.",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_08",
+      "expected": {
+        "path": [
+          "clarification"
+        ]
+      },
+      "expected_scope_missing": true,
+      "label_rationale": "Clarify an unresolved required location/boundary.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_09",
+      "question": "Count CPUC ignitions up north in 2024.",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_09",
+      "expected": {
+        "path": [
+          "clarification"
+        ]
+      },
+      "expected_scope_missing": true,
+      "label_rationale": "Clarify an unresolved required location/boundary.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_10",
+      "question": "Map CAL FIRE incidents around Sacramento in 2024.",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_10",
+      "expected": {
+        "path": [
+          "clarification"
+        ]
+      },
+      "expected_scope_missing": true,
+      "label_rationale": "Clarify an unresolved required location/boundary.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_11",
+      "question": "What was the fitted ignition risk at 38.5, -121.5 on 2024-08-15?",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_11",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expected_scope_missing": false,
+      "label_rationale": "The scope is defined, or this operation needs no narrower geographic restriction.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_12",
+      "question": "Which utility territory contains 38.5, -121.5?",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_12",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ]
+      },
+      "expected_scope_missing": false,
+      "label_rationale": "The scope is defined, or this operation needs no narrower geographic restriction.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_13",
+      "question": "How many CPUC ignitions were recorded in the county in 2024?",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_13",
+      "expected": {
+        "path": [
+          "clarification"
+        ]
+      },
+      "expected_scope_missing": true,
+      "label_rationale": "Clarify an unresolved required location/boundary.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "scope_14",
+      "question": "Compare CAL FIRE incident counts in my county and the neighboring county for 2024.",
+      "group": "geographic_scope",
+      "split": "regression",
+      "source": "scope_check_cases.json#scope_14",
+      "expected": {
+        "path": [
+          "clarification"
+        ]
+      },
+      "expected_scope_missing": true,
+      "label_rationale": "Clarify an unresolved required location/boundary.",
+      "plan_requirements": [
+        "Preserve the exact requested geography and output; do not invent a county, point or radius."
+      ]
+    },
+    {
+      "id": "cross_01a",
+      "pair_id": "contrast_01",
+      "question": "Give one total for SCE CPUC ignitions over 2021 through 2023.",
+      "group": "total_vs_change",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "count"
+        ]
+      },
+      "label_rationale": "One total over the inclusive 2021-2023 span, utility SCE, CPUC records.",
+      "plan_requirements": [
+        "One total over the inclusive 2021-2023 span, utility SCE, CPUC records."
+      ]
+    },
+    {
+      "id": "cross_01b",
+      "pair_id": "contrast_01",
+      "question": "Give the change in SCE CPUC ignition counts between 2021 and 2023.",
+      "group": "total_vs_change",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "compare"
+        ]
+      },
+      "label_rationale": "Separate 2021 and 2023 counts and their difference; a span total fails.",
+      "plan_requirements": [
+        "Separate 2021 and 2023 counts and their difference; a span total fails."
+      ]
+    },
+    {
+      "id": "cross_02a",
+      "pair_id": "contrast_02",
+      "question": "Count all PG&E CPUC ignitions from April through June 2024.",
+      "group": "span_vs_endpoint_months",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "count"
+        ]
+      },
+      "label_rationale": "One count from April 1 through June 30, including May.",
+      "plan_requirements": [
+        "One count from April 1 through June 30, including May."
+      ]
+    },
+    {
+      "id": "cross_02b",
+      "pair_id": "contrast_02",
+      "question": "Compare PG&E CPUC ignition counts in April and June 2024.",
+      "group": "span_vs_endpoint_months",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "compare"
+        ]
+      },
+      "label_rationale": "Separate April 1-30 and June 1-30 counts; May is not a comparison endpoint.",
+      "plan_requirements": [
+        "Separate April 1-30 and June 1-30 counts; May is not a comparison endpoint."
+      ]
+    },
+    {
+      "id": "cross_03a",
+      "pair_id": "contrast_03",
+      "question": "Map CPUC ignitions throughout California for 2023.",
+      "group": "defined_vs_undefined_region",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "map"
+        ]
+      },
+      "label_rationale": "Statewide CPUC event map for 2023; no county is required.",
+      "plan_requirements": [
+        "Statewide CPUC event map for 2023; no county is required."
+      ]
+    },
+    {
+      "id": "cross_03b",
+      "pair_id": "contrast_03",
+      "question": "Map CPUC ignitions somewhere up north for 2023.",
+      "group": "defined_vs_undefined_region",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "clarification"
+        ],
+        "intent": [
+          "map"
+        ]
+      },
+      "label_rationale": "Ask for a defined geographic area; do not invent northern California boundaries.",
+      "plan_requirements": [
+        "Ask for a defined geographic area; do not invent northern California boundaries."
+      ]
+    },
+    {
+      "id": "cross_04a",
+      "pair_id": "contrast_04",
+      "question": "Count CAL FIRE incidents in Shasta County during 2023.",
+      "group": "named_vs_missing_county",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "count"
+        ]
+      },
+      "label_rationale": "CAL FIRE count, Shasta County, 2023, dataset default incident definition.",
+      "plan_requirements": [
+        "CAL FIRE count, Shasta County, 2023, dataset default incident definition."
+      ]
+    },
+    {
+      "id": "cross_04b",
+      "pair_id": "contrast_04",
+      "question": "Count CAL FIRE incidents in that county during 2023.",
+      "group": "named_vs_missing_county",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "clarification"
+        ],
+        "intent": [
+          "count"
+        ]
+      },
+      "label_rationale": "No conversation history is supplied; ask which county.",
+      "plan_requirements": [
+        "No conversation history is supplied; ask which county."
+      ]
+    },
+    {
+      "id": "cross_05a",
+      "pair_id": "contrast_05",
+      "question": "Identify the utility territory containing the point 39.0, -121.0.",
+      "group": "point_vs_missing_location",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "spatial_context"
+        ]
+      },
+      "label_rationale": "Point containment at lat 39.0, lon -121.0; no distance is needed.",
+      "plan_requirements": [
+        "Point containment at lat 39.0, lon -121.0; no distance is needed."
+      ]
+    },
+    {
+      "id": "cross_05b",
+      "pair_id": "contrast_05",
+      "question": "Identify the utility territory containing my current location.",
+      "group": "point_vs_missing_location",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "clarification"
+        ],
+        "intent": [
+          "spatial_context"
+        ]
+      },
+      "label_rationale": "No location/device context is supplied; request a point or location.",
+      "plan_requirements": [
+        "No location/device context is supplied; request a point or location."
+      ]
+    },
+    {
+      "id": "cross_06a",
+      "pair_id": "contrast_06",
+      "question": "Open the inventory details for circuit ID 043371102.",
+      "group": "circuit_vs_cpz",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "circuit_detail"
+        ]
+      },
+      "label_rationale": "Circuit inventory lookup preserving the leading zero; not a CPZ request.",
+      "plan_requirements": [
+        "Circuit inventory lookup preserving the leading zero; not a CPZ request."
+      ]
+    },
+    {
+      "id": "cross_06b",
+      "pair_id": "contrast_06",
+      "question": "Open the circuit protection zone polygon for circuit ID 043371102.",
+      "group": "circuit_vs_cpz",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "unsupported"
+        ]
+      },
+      "label_rationale": "CPZ polygons are unavailable; do not substitute circuit lines or HFTD polygons.",
+      "plan_requirements": [
+        "CPZ polygons are unavailable; do not substitute circuit lines or HFTD polygons."
+      ]
+    },
+    {
+      "id": "cross_07a",
+      "pair_id": "contrast_07",
+      "question": "Map PG&E CPUC ignitions in 2023.",
+      "group": "map_vs_two_outputs",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "map"
+        ]
+      },
+      "label_rationale": "Map CPUC records with utility PG&E and year 2023.",
+      "plan_requirements": [
+        "Map CPUC records with utility PG&E and year 2023."
+      ]
+    },
+    {
+      "id": "cross_07b",
+      "pair_id": "contrast_07",
+      "question": "Map PG&E CPUC ignitions in 2023 and chart their monthly counts.",
+      "group": "map_vs_two_outputs",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "map_plus_trend",
+          "multi_intent"
+        ]
+      },
+      "label_rationale": "Both a map and monthly count chart with the same utility/year filters.",
+      "plan_requirements": [
+        "Both a map and monthly count chart with the same utility/year filters."
+      ]
+    },
+    {
+      "id": "cross_08a",
+      "pair_id": "contrast_08",
+      "question": "Show the saved held-out scores for the fitted ignition models.",
+      "group": "metrics_vs_scoped_metrics",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "model_metrics"
+        ]
+      },
+      "label_rationale": "Read saved risk_metrics; no new model fit and no event-count substitute.",
+      "plan_requirements": [
+        "Read saved risk_metrics; no new model fit and no event-count substitute."
+      ]
+    },
+    {
+      "id": "cross_08b",
+      "pair_id": "contrast_08",
+      "question": "Show the saved held-out scores for the fitted ignition models for Shasta County only.",
+      "group": "metrics_vs_scoped_metrics",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "clarification"
+        ],
+        "intent": [
+          "model_metrics"
+        ]
+      },
+      "label_rationale": "County-restricted metrics are unavailable; do not return global scores as county scores.",
+      "plan_requirements": [
+        "County-restricted metrics are unavailable; do not return global scores as county scores."
+      ]
+    },
+    {
+      "id": "cross_09a",
+      "pair_id": "contrast_09",
+      "question": "Display the fitted ignition risk grid over all California on 2024-07-15.",
+      "group": "surface_vs_filtered_surface",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "risk_surface"
+        ]
+      },
+      "label_rationale": "risk_surface for 2024-07-15 with risk kind, covering the full grid.",
+      "plan_requirements": [
+        "risk_surface for 2024-07-15 with risk kind, covering the full grid."
+      ]
+    },
+    {
+      "id": "cross_09b",
+      "pair_id": "contrast_09",
+      "question": "Display the fitted ignition risk grid over only PG&E territory on 2024-07-15.",
+      "group": "surface_vs_filtered_surface",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "clarification"
+        ],
+        "intent": [
+          "risk_surface"
+        ]
+      },
+      "label_rationale": "A territory-filtered grid is unsupported; do not substitute a scalar territory score.",
+      "plan_requirements": [
+        "A territory-filtered grid is unsupported; do not substitute a scalar territory score."
+      ]
+    },
+    {
+      "id": "cross_10a",
+      "pair_id": "contrast_10",
+      "question": "Give the fitted ignition risk for Shasta County on 2024-07-15.",
+      "group": "risk_day_vs_year",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "risk"
+        ]
+      },
+      "label_rationale": "County fitted risk at the exact supported day.",
+      "plan_requirements": [
+        "County fitted risk at the exact supported day."
+      ]
+    },
+    {
+      "id": "cross_10b",
+      "pair_id": "contrast_10",
+      "question": "Give the fitted ignition risk for Shasta County for 2024.",
+      "group": "risk_day_vs_year",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "clarification"
+        ],
+        "intent": [
+          "risk"
+        ]
+      },
+      "label_rationale": "An exact day is required; do not choose a day or aggregate daily risk silently.",
+      "plan_requirements": [
+        "An exact day is required; do not choose a day or aggregate daily risk silently."
+      ]
+    },
+    {
+      "id": "cross_11a",
+      "pair_id": "contrast_11",
+      "question": "List CAL FIRE incidents in Shasta County in July 2024.",
+      "group": "historical_vs_live",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "records_list"
+        ]
+      },
+      "label_rationale": "Historical individual incident records with county and complete July window.",
+      "plan_requirements": [
+        "Historical individual incident records with county and complete July window."
+      ]
+    },
+    {
+      "id": "cross_11b",
+      "pair_id": "contrast_11",
+      "question": "List CAL FIRE incidents burning right now in Shasta County.",
+      "group": "historical_vs_live",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "unsupported"
+        ]
+      },
+      "label_rationale": "Live fire status is unavailable; historical records are not a substitute.",
+      "plan_requirements": [
+        "Live fire status is unavailable; historical records are not a substitute."
+      ]
+    },
+    {
+      "id": "cross_12a",
+      "pair_id": "contrast_12",
+      "question": "For a budget presentation, count CPUC ignitions attributed to SCE in 2023.",
+      "group": "budget_context_vs_budget_request",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "count"
+        ]
+      },
+      "label_rationale": "The deliverable is a historical count; budget is context, not the requested measure.",
+      "plan_requirements": [
+        "The deliverable is a historical count; budget is context, not the requested measure."
+      ]
+    },
+    {
+      "id": "cross_12b",
+      "pair_id": "contrast_12",
+      "question": "For a budget presentation, calculate dollars SCE should spend to prevent ignitions.",
+      "group": "budget_context_vs_budget_request",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "unsupported"
+        ]
+      },
+      "label_rationale": "No cost/optimization model or spending recommendation is available.",
+      "plan_requirements": [
+        "No cost/optimization model or spending recommendation is available."
+      ]
+    },
+    {
+      "id": "cross_13a",
+      "pair_id": "contrast_13",
+      "question": "How many CPUC ignitions were attributed to SDG&E in 2023?",
+      "group": "count_vs_blame",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "count"
+        ]
+      },
+      "label_rationale": "Historical attribute-based count; include normal attribution caveats.",
+      "plan_requirements": [
+        "Historical attribute-based count; include normal attribution caveats."
+      ]
+    },
+    {
+      "id": "cross_13b",
+      "pair_id": "contrast_13",
+      "question": "Should SDG&E be blamed for the CPUC ignitions attributed to it in 2023?",
+      "group": "count_vs_blame",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "unsupported"
+        ]
+      },
+      "label_rationale": "Recorded attribution does not establish normative blame or liability.",
+      "plan_requirements": [
+        "Recorded attribution does not establish normative blame or liability."
+      ]
+    },
+    {
+      "id": "cross_14a",
+      "pair_id": "contrast_14",
+      "question": "List PG&E EPSS outage records for June 2024.",
+      "group": "time_present_vs_absent",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "records_list"
+        ]
+      },
+      "label_rationale": "Individual outage records, PG&E, complete June 2024 window.",
+      "plan_requirements": [
+        "Individual outage records, PG&E, complete June 2024 window."
+      ]
+    },
+    {
+      "id": "cross_14b",
+      "pair_id": "contrast_14",
+      "question": "List PG&E EPSS outage records.",
+      "group": "time_present_vs_absent",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "clarification"
+        ],
+        "intent": [
+          "records_list"
+        ]
+      },
+      "label_rationale": "Ask for the required time window; do not silently select a year.",
+      "plan_requirements": [
+        "Ask for the required time window; do not silently select a year."
+      ]
+    },
+    {
+      "id": "cross_15a",
+      "pair_id": "contrast_15",
+      "question": "Show the California fitted risk surface on 2024-06-15.",
+      "group": "past_vs_future_surface",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "model",
+          "deterministic"
+        ],
+        "intent": [
+          "risk_surface"
+        ]
+      },
+      "label_rationale": "risk_surface for a supported past day, preserving the statewide grid output.",
+      "plan_requirements": [
+        "risk_surface for a supported past day, preserving the statewide grid output."
+      ]
+    },
+    {
+      "id": "cross_15b",
+      "pair_id": "contrast_15",
+      "question": "Show the California fitted risk surface on 2027-06-15.",
+      "group": "past_vs_future_surface",
+      "split": "new_challenge",
+      "source": "Authored 2026-09-29 before live evaluation; capability-contract contrast.",
+      "expected": {
+        "path": [
+          "unsupported",
+          "clarification"
+        ],
+        "intent": [
+          "risk_surface"
+        ]
+      },
+      "label_rationale": "No future prediction; either decline or request a supported past day.",
+      "plan_requirements": [
+        "No future prediction; either decline or request a supported past day."
+      ]
+    }
+  ]
+}

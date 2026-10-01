@@ -1,4 +1,7 @@
-"""AGENT_JEV_MODE=decide: router backstops first, then Jev's derived disposition.
+"""Production v3 decide policy and the shared bounded Jev call executor.
+
+The retired router_gate prototype is preserved under eval/legacy_router_gate.py
+for offline replay and does not replace this policy.
 
 Order for one question:
 1. Router hard backstops (BACKSTOP_RULES) decide. Jev is not called. These are
@@ -68,7 +71,7 @@ from services.agent.clarify_missing import (
 )
 from services.agent.measure_clarify import measure_clarification, measure_group
 from services.agent.decisions.backend import Answer
-from services.agent.decisions.call_budget import DailyCallBudget
+from services.agent.decisions.call_budget import CallReservation, DailyCallBudget
 from services.agent.decisions.jev_policy import (
     OFF_TOPIC_RULES,
     REGEX_ONLY,
@@ -729,34 +732,88 @@ def shared_executor() -> concurrent.futures.ThreadPoolExecutor:
         return _EXECUTOR
 
 
+class JevRequest:
+    """Serialize request termination with permission to start a backend call."""
+
+    def __init__(self, timeout: float | None = None) -> None:
+        self._lock = threading.Lock()
+        self.deadline = None if timeout is None else time.monotonic() + timeout
+        self.stopped = threading.Event()
+
+    def stop(self) -> None:
+        with self._lock:
+            self.stopped.set()
+
+    def active(self) -> bool:
+        with self._lock:
+            if self.deadline is not None and time.monotonic() >= self.deadline:
+                self.stopped.set()
+            return not self.stopped.is_set()
+
+    def start(self, reservation: CallReservation | None) -> bool:
+        with self._lock:
+            if self.deadline is not None and time.monotonic() >= self.deadline:
+                self.stopped.set()
+            return not self.stopped.is_set() and (reservation is None or reservation.start())
+
+
 def ask_jev(
     backend: Any,
     question: str,
     today: str,
     *,
     timeout: float | None = None,
+    calls: list[dict[str, Any]] | None = None,
+    request: JevRequest | None = None,
+    budget: DailyCallBudget | None = None,
 ) -> tuple[dict[str, Answer], str | None, int]:
-    """Run the three calls on the shared pool. Any failed call is an error for the question.
+    """Run a batch on the shared pool; any failed call fails the question.
 
     With a timeout, the question gives up after that many seconds; calls that have
-    not started are cancelled, and the answer is a timeout error.
+    not started are cancelled, unsent reservations are released, and the shared
+    request is stopped. Already-started provider calls remain counted.
     """
     from services.agent.decisions.integrity import question_hash
 
-    calls = jev_calls(question, today)
+    calls = jev_calls(question, today) if calls is None else calls
     digest = question_hash(question)
+    request = request or JevRequest()
+    if not request.active():
+        return {}, "timeout: request ended", 0
+    reservation = None if budget is None else budget.allocate(len(calls))
+    if budget is not None and reservation is None:
+        return {}, "daily_cap", 0
 
     def one(call: dict[str, Any]):
+        if not request.start(reservation):
+            return None
         return backend.evaluate(call["state"], call["questions"], request_id=call["name"], question_hash=digest)
 
     pool = shared_executor()
-    futures = [pool.submit(one, call) for call in calls]
-    done, pending = concurrent.futures.wait(futures, timeout=timeout)
-    if pending:
+    futures = []
+    pending = set()
+    try:
+        for call in calls:
+            future = pool.submit(one, call)
+            futures.append(future)
+            pending.add(future)
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while pending and request.active():
+            remaining = None if deadline is None else deadline - time.monotonic()
+            if remaining is not None and remaining <= 0:
+                break
+            _, pending = concurrent.futures.wait(
+                pending, timeout=0.05 if remaining is None else min(0.05, remaining)
+            )
+        if pending or not request.active():
+            request.stop()
+            return {}, f"timeout after {timeout}s", 0
+        results = [future.result() for future in futures]
+    finally:
         for future in pending:
             future.cancel()
-        return {}, f"timeout after {timeout}s", 0
-    results = [future.result() for future in futures]
+        if reservation is not None:
+            reservation.close()
     answers: dict[str, Answer] = {}
     tokens = 0
     for call, result in zip(calls, results):
@@ -779,6 +836,7 @@ def decide_live(
     today: date | None = None,
     timeout: float | None = None,
     budget: DailyCallBudget | None = None,
+    request: JevRequest | None = None,
 ) -> DecideResult:
     """Runtime decide: skip Jev for exempt routes, otherwise ask it and apply the policy.
 
@@ -789,15 +847,11 @@ def decide_live(
     if exemption(decision, question):
         return decide_from_answers(question, decision, None, gate=gate, answer_gate=answer_gate)
     day = today or date.today()
-    if budget is not None and not budget.reserve(len(jev_calls(question, day.isoformat()))):
-        result = decide_from_answers(
-            question, decision, None, gate=gate, answer_gate=answer_gate, error="daily_cap"
-        )
-        result.why = "daily_cap"
-        return result
     started = time.perf_counter()
     try:
-        answers, error, tokens = ask_jev(backend, question, day.isoformat(), timeout=timeout)
+        answers, error, tokens = ask_jev(
+            backend, question, day.isoformat(), timeout=timeout, request=request, budget=budget
+        )
     except Exception as exc:  # noqa: BLE001
         answers, error, tokens = {}, f"{type(exc).__name__}: {exc}", 0
     result = decide_from_answers(
@@ -805,6 +859,8 @@ def decide_live(
     )
     if error and error.startswith("timeout"):
         result.why = "timeout"
+    if error == "daily_cap":
+        result.why = "daily_cap"
     result.latency_ms = (time.perf_counter() - started) * 1000
     result.input_tokens = tokens
     return result

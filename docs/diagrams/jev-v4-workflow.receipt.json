@@ -1,0 +1,52 @@
+{
+  "diagram_type": "workflow",
+  "output": "D:\\Research\\Wildfire-Platform\\docs\\diagrams\\jev-v4-workflow.html",
+  "specification_sha256": "07a6bf95262c8e06d44c824cf29b2744c2a93d7e6ee185f1ae39782ee8291e2b",
+  "artifact_sha256": "2d9aa48fec27a49a324a9597218c9db262b60d68640a4178e37168d65b4df338",
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "visual_review": "passed",
+  "reviewed_screenshots": [
+    "1440x900 dark",
+    "2048x1320 light"
+  ],
+  "containment_viewports": [
+    {
+      "width": 1440,
+      "height": 900,
+      "overflowX": false,
+      "overflowY": false
+    },
+    {
+      "width": 1600,
+      "height": 1000,
+      "overflowX": false,
+      "overflowY": false
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "overflowX": false,
+      "overflowY": false
+    },
+    {
+      "width": 2048,
+      "height": 1320,
+      "overflowX": false,
+      "overflowY": false
+    }
+  ],
+  "correction_rounds": 2,
+  "evidence": [
+    "services/agent/decisions/v4_router.py:prepare",
+    "services/agent/decisions/v4_router.py:decide_live",
+    "services/agent/decisions/v4_router.py:decide_from_answers"
+  ],
+  "note": "Edges without labels connect query intake or final fixed execution to their directly implied next step."
+}

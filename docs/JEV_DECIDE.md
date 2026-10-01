@@ -1,5 +1,8 @@
 # Jev decide mode
 
+This remains the production v3 mode. The separate router/agent selection
+experiment is [`router_gate`](JEV_ROUTER_GATE.md); it does not replace `decide`.
+
 `AGENT_JEV_MODE=decide` is the runtime version of the combined decider that was scored
 offline (`services/agent/eval/_v3_gap_score.py`): router backstops first, then Jev's derived
 disposition. It is off by default. Code: `services/agent/decisions/decide_mode.py`, wired in

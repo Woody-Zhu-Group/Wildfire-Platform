@@ -346,6 +346,15 @@ card per count rather than a utility-by-year comparison.
   ([`docs/JEV_DECIDE.md`](../../docs/JEV_DECIDE.md), `decisions/decide_mode.py`).
   Jev owns the disposition and the router owns the clarification or refusal wording,
   except that the generic `ranking_missing_slots` question yields to Jev's more specific one.
+- `AGENT_JEV_MODE=v4` selects the separate router-first mode: Jev meaning is
+  compiled into a validated fixed plan, then Jev checks its completeness with
+  a binary router/agent Choice and no confidence threshold. Complete fixed plans
+  stay deterministic; only missing capabilities or incomplete plans go to the
+  agent. See [`docs/JEV_V4_ROUTER.md`](../../docs/JEV_V4_ROUTER.md).
+  Jev faults restore the pre-Jev keyword Router: fixed plans execute, model routes
+  go to the Agent, and clarification/refusal returns directly. Technical errors
+  remain visible in Router provenance; this does not use partial Jev results.
+  The old `router_gate` mode is retired; only its offline replay policy remains.
 - `AGENT_SLOT_PLAN` (off by default) plans a deferred multi-entity question as
   several deterministic calls from router slots
   ([`docs/JEV_MULTI_TOOL.md`](../../docs/JEV_MULTI_TOOL.md)). With decide on,
@@ -414,3 +423,13 @@ responses and direct-answer attempts before evidence, and the harness blocks
 either from becoming a factual answer. Earlier local-model runs and their
 Ollama workarounds are historical records under `eval/` and are not comparable
 to hosted runs.
+
+## Runtime records
+
+Agent tool/retry context is constructed in memory per request. No cross-query
+chat thread is persisted or sent to the model. Jev logs default outside the
+checkout and omit query text/payloads; raw capture is explicit and bounded by
+age and size. Evaluation traces are external, with compact reports in Git.
+See [log policy](../../docs/JEV_SHADOW.md) and
+[evaluation storage](eval/README.md). V3/V4 cancellation prevents later calls
+for an ended request; unsent reservations are released and sent calls still count.

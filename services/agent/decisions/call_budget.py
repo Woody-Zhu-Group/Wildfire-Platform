@@ -30,11 +30,7 @@ class DailyCallBudget:
             self.calls_today = 0
 
     def reserve(self, calls: int) -> bool:
-        """Reserve `calls` API calls for one question, or none of them.
-
-        A question is admitted only if every call it will make fits under the cap,
-        so a question never runs partially and a blocked question spends nothing.
-        """
+        """Count a whole batch, or none of it (legacy shadow callers)."""
         calls = max(0, int(calls))
         with self._lock:
             self._roll()
@@ -44,8 +40,43 @@ class DailyCallBudget:
             self.calls_today += calls
             return True
 
+    def allocate(self, calls: int) -> CallReservation | None:
+        """Admit a batch while allowing its unsent calls to be released."""
+        with self._lock:
+            self._roll()
+            if self.calls_today + calls > self.cap:
+                self.blocked += 1
+                return None
+            self.calls_today += calls
+            return CallReservation(self, self._day, calls)
+
     @property
     def remaining(self) -> int:
         with self._lock:
             self._roll()
             return max(0, self.cap - self.calls_today)
+
+
+class CallReservation:
+    def __init__(self, budget: DailyCallBudget, day: date, calls: int) -> None:
+        self.budget = budget
+        self.day = day
+        self.unsent = calls
+        self.closed = False
+        self._lock = threading.Lock()
+
+    def start(self) -> bool:
+        with self._lock:
+            if self.closed or not self.unsent:
+                return False
+            self.unsent -= 1
+            return True
+
+    def close(self) -> None:
+        with self._lock, self.budget._lock:
+            if self.closed:
+                return
+            self.closed = True
+            self.budget._roll()
+            if self.day == self.budget._day:
+                self.budget.calls_today -= self.unsent

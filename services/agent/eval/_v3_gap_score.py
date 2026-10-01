@@ -15,8 +15,10 @@ from services.agent.decisions.typesafe_backend import TypeSafeBackend
 from services.agent.eval.jev_ablation import _calls, _run_calls
 from services.agent.routing import UNSUPPORTED, candidate_tools
 
+from services.agent.runtime_paths import eval_runs_dir
+
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "runs" / "v3_gap_score.json"
+OUT = eval_runs_dir() / "v3_gap_score.json"
 PRICE = 0.042 / 1_000_000
 CAP = 1.0
 

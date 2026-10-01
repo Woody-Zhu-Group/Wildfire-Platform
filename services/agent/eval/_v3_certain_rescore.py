@@ -16,9 +16,11 @@ from services.agent.decisions.typesafe_backend import TypeSafeBackend
 from services.agent.eval.jev_ablation import _run_calls
 from services.agent.routing import candidate_tools, route_question
 
+from services.agent.runtime_paths import eval_runs_dir
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-OUT = HERE / "runs" / "v3_certain_jev.json"
+OUT = eval_runs_dir() / "v3_certain_jev.json"
 PRICE = 0.042 / 1_000_000
 SPEND_CAP = 1.0
 # One pass. Use 5 only when question wording or facts change.

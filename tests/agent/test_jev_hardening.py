@@ -308,7 +308,7 @@ _WRITER = """
 import sys
 from services.agent.decisions.shadow_log import ShadowLog
 path, proc, count, max_bytes = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
-log = ShadowLog(path, max_bytes=max_bytes)
+log = ShadowLog(path, max_bytes=max_bytes, raw=True)
 for n in range(count):
     log.write({"type": "routing", "proc": proc, "n": n, "pad": "x" * 80})
 """
@@ -361,7 +361,7 @@ def test_the_lock_file_sits_beside_the_log(tmp_path):
 def test_the_log_redacts_both_backend_keys(tmp_path, monkeypatch):
     monkeypatch.setenv("TYPESAFE_API_KEY", "ts-secret-value")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-secret-value")
-    log = ShadowLog(str(tmp_path / "x.jsonl"), max_bytes=10_000)
+    log = ShadowLog(str(tmp_path / "x.jsonl"), max_bytes=10_000, raw=True)
     log.write({"error": "auth failed for ts-secret-value and or-secret-value"})
     text = (tmp_path / "x.jsonl").read_text(encoding="utf-8")
     assert "ts-secret-value" not in text and "or-secret-value" not in text

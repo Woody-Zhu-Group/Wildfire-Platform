@@ -2534,13 +2534,11 @@ def _route_question(
     return decision
 
 
-def _route_rules(
-    question: str, *, force_model: bool = False, skip_topic_judgments: bool = False
-) -> RouteDecision:
+def question_context(question: str, *, today: date | None = None):
+    """Parse explicit entities and dates without choosing an intent or a tool."""
     text = " ".join(question.strip().split())
-    lower = text.lower()
     utilities = _utilities(text)
-    time_resolution = resolve_time(text)
+    time_resolution = resolve_time(text, today=today)
     year = time_resolution.year
     years = list(time_resolution.years)
     dataset = _dataset(text)
@@ -2560,6 +2558,18 @@ def _route_rules(
         "start_date": time_resolution.start_date,
         "end_date": time_resolution.end_date,
     }
+    return slots, time_resolution
+
+
+def _route_rules(
+    question: str, *, force_model: bool = False, skip_topic_judgments: bool = False
+) -> RouteDecision:
+    text = " ".join(question.strip().split())
+    lower = text.lower()
+    slots, time_resolution = question_context(text)
+    utilities, year, years = slots["utilities"], slots["year"], slots["years"]
+    dataset, coords = slots["dataset"], slots["coords"]
+    county, counties = slots["county"], slots["counties"]
 
     for key, pattern in UNSUPPORTED.items():
         if skip_topic_judgments:
