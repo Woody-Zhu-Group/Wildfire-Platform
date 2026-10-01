@@ -72,6 +72,17 @@ dataset/metric, scope, and required time/location slots are explicit:
 Compositions, cross-dataset questions, and requests not matching those strict
 rules go to the model. Every response logs `path`, `rule`, and tool trajectory.
 
+Date extraction shares one deterministic numeric-span filter across calendar
+parsing, per-year detection and the router's year checks. It masks formatted
+quantities (money, decimals and coordinates) and numbers followed by a unit or
+noun in quantity syntax before scanning for years. ISO dates, named months,
+year ranges, calendar prefixes and registered dataset/utility modifiers retain
+their date interpretation. Thus `fires bigger than 2000 acres in 2023` resolves
+only to 2023, and `fires over 2000 acres` leaves time unspecified. A quantity
+cannot introduce a false future-year refusal or an extra yearly breakdown.
+The original question remains available to Jev and tool/filter grounding; this
+filter changes only the text used for calendar parsing. It adds no model call.
+
 On the model path the harness holds tool calls to the resolved years and date
 range (`time_resolve.apply_harness_years`), strips invented utilities
 (`tools._strip_ungrounded_utilities`), and drops model-proposed filters (circuit
