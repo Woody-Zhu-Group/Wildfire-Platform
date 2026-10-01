@@ -23,8 +23,14 @@ export interface TimeSeriesViewParams extends ScopedParams {
   series_mode?: 'yearly' | 'seasonal' | 'cumulative_acres' | 'customer_events' | 'regional' | 'timeline' | null;
   datasets?: string[] | null;
 }
+export interface ComparisonGrid {
+  label: string;
+  rows: string[];
+  columns: string[];
+  cells: {row: string; column: string; value: number | null; evidence_id: string; reason?: string | null}[];
+}
 export interface ComparisonViewParams extends Record<string, unknown> {
-  kind: 'utilities' | 'regions' | 'periods' | 'ranking';
+  kind: 'utilities' | 'regions' | 'periods' | 'ranking' | 'grid';
   metric: string;
   normalize?: 'none' | 'per_circuit' | 'per_km2';
   ignition_definition?: 'attribute' | 'spatial' | null;
@@ -43,6 +49,7 @@ export interface ComparisonViewParams extends Record<string, unknown> {
   group_by?: string | null;
   year?: number | null;
   limit?: number | null;
+  grid?: ComparisonGrid | null;
 }
 export interface RecordTableViewParams extends ScopedParams {
   dataset: string;

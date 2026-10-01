@@ -7,6 +7,7 @@ render_view tool. Invalid specs are rejected; the answer still stands.
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from typing import Any, Literal
 
@@ -26,6 +27,8 @@ from services.shared.dataset_registry import (
     DQ_TO_VIZ as _DQ_TO_VIZ,
     HDW_YEARS as _HDW_YEARS,
     INCIDENT_TYPE_MODES,
+    MEASURE_DATASETS,
+    MEASURE_LABELS,
     STAT_LABELS as _STAT_LABELS,
 )
 
@@ -155,8 +158,51 @@ class TimeSeriesViewParams(StrictModel):
         return self
 
 
+class ComparisonCell(StrictModel):
+    row: str = Field(min_length=1)
+    column: str = Field(min_length=1)
+    value: float | None = Field(allow_inf_nan=False)
+    evidence_id: str = Field(min_length=1)
+    reason: str | None = None
+
+    @model_validator(mode="after")
+    def validate_missing(self) -> "ComparisonCell":
+        if (self.value is None) != bool(self.reason):
+            raise ValueError(
+                "a comparison cell needs a value or a missing-value reason"
+            )
+        return self
+
+
+class ComparisonGrid(StrictModel):
+    label: str = Field(min_length=1)
+    rows: list[str] = Field(min_length=1)
+    columns: list[str] = Field(min_length=1)
+    cells: list[ComparisonCell] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_cells(self) -> "ComparisonGrid":
+        if len(set(self.rows)) != len(self.rows) or len(set(self.columns)) != len(
+            self.columns
+        ):
+            raise ValueError("comparison axes must be unique")
+        seen = set()
+        for cell in self.cells:
+            key = (cell.row, cell.column)
+            if (
+                cell.row not in self.rows
+                or cell.column not in self.columns
+                or key in seen
+            ):
+                raise ValueError(
+                    "comparison cells must have unique coordinates on the axes"
+                )
+            seen.add(key)
+        return self
+
+
 class ComparisonViewParams(StrictModel):
-    kind: Literal["utilities", "regions", "periods", "ranking"]
+    kind: Literal["utilities", "regions", "periods", "ranking", "grid"]
     metric: Metric
     normalize: Literal["none", "per_circuit", "per_km2"] = "none"
     ignition_definition: Literal["attribute", "spatial"] | None = None
@@ -175,6 +221,7 @@ class ComparisonViewParams(StrictModel):
     group_by: str | None = None
     year: int | None = Field(None, ge=1900, le=2100)
     limit: int | None = Field(None, ge=1, le=25)
+    grid: ComparisonGrid | None = None
 
 
 class RecordTableViewParams(StrictModel):
@@ -579,7 +626,10 @@ def plan_views(
         visuals = _cap_visuals(visuals)
         _stamp_series_mode(visuals, slots.get("series_mode"))
         _stamp_hdw(visuals, slots.get("show_hdw"))
-        views = _cap_stats(stats) + visuals
+        comparisons = _count_comparisons(primary)
+        compared_ids = {eid for spec in comparisons for eid in spec.evidence_ids}
+        stats = [spec for spec in stats if not set(spec.evidence_ids) <= compared_ids]
+        views = _cap_stats(stats) + comparisons + visuals
         if not views:
             return PlannedViews(views=[], view_status="none", view_scope=scope)
         grounded = ground_views(views, executions)
@@ -929,9 +979,17 @@ def _ground_time_series(spec: ComponentSpec, cited: list[ToolExecution]) -> None
 
 
 def _ground_comparison(spec: ComponentSpec, cited: list[ToolExecution]) -> None:
+    if spec.params.get("kind") == "grid":
+        expected = _count_comparisons(cited)
+        if len(expected) != 1 or spec.params != expected[0].params:
+            raise GroundingError("comparison cells or filters differ from cited counts")
+        return
     item = cited[0]
     args = item.arguments or {}
     params = spec.params
+    if params.get("grid") is not None:
+        if item.tool != "comparison_run" or params["grid"] != _comparison_grid(item):
+            raise GroundingError("comparison cells differ from cited comparison results")
     if item.tool == "data_query_rank":
         if params.get("kind") != "ranking":
             raise GroundingError("comparison kind does not match ranking evidence")
@@ -1130,6 +1188,8 @@ def _specs_for_execution(item: ToolExecution) -> list[ComponentSpec]:
             period_a_end=_date_str(args.get("period_a_end")),
             period_b_start=_date_str(args.get("period_b_start")),
             period_b_end=_date_str(args.get("period_b_end")),
+            dataset=MEASURE_DATASETS.get(args.get("metric") or summary.get("metric")),
+            grid=_comparison_grid(item),
         )
         return [
             ComponentSpec(
@@ -1307,13 +1367,140 @@ def _specs_for_execution(item: ToolExecution) -> list[ComponentSpec]:
     return []
 
 
+def _count_comparisons(primary: list[ToolExecution]) -> list[ComponentSpec]:
+    """Combine only counts with identical non-entity, non-period filters."""
+    groups: dict[str, list[ToolExecution]] = {}
+    axes = {"utility", "county", "year", "start_date", "end_date"}
+    for item in primary:
+        if (
+            item.tool != "data_query_records"
+            or item.summary.get("result_mode") != "count"
+        ):
+            continue
+        dataset = item.summary.get("dataset") or item.arguments.get("dataset")
+        signature = {
+            "dataset": dataset,
+            "args": {
+                k: v
+                for k, v in item.arguments.items()
+                if k not in axes and v is not None
+            },
+            "filters": {
+                k: v
+                for k, v in (item.summary.get("filters") or {}).items()
+                if k not in axes and v is not None
+            },
+        }
+        groups.setdefault(json.dumps(signature, sort_keys=True), []).append(item)
+    specs = []
+    for items in groups.values():
+        if len(items) < 2:
+            continue
+        dataset = items[0].summary.get("dataset") or items[0].arguments.get("dataset")
+        metric = next(
+            (
+                m
+                for m, d in MEASURE_DATASETS.items()
+                if d == dataset and m.endswith("_count")
+            ),
+            None,
+        )
+        if metric is None:
+            continue
+        cards = [_specs_for_execution(item)[0] for item in items]
+        rows = list(dict.fromkeys(card.params["scope"] for card in cards))
+        columns = list(dict.fromkeys(card.params["period"] for card in cards))
+        if not all(columns) or len(rows) * len(columns) < 2:
+            continue
+        coordinates = [(c.params["scope"], c.params["period"]) for c in cards]
+        if len(set(coordinates)) != len(cards):
+            continue
+        grid = ComparisonGrid(
+            label=cards[0].params["label"],
+            rows=rows,
+            columns=columns,
+            cells=[
+                ComparisonCell(
+                    row=c.params["scope"],
+                    column=c.params["period"],
+                    value=c.params["value"],
+                    reason=c.params["unavailable_reason"],
+                    evidence_id=c.evidence_ids[0],
+                )
+                for c in cards
+            ],
+        )
+        params = ComparisonViewParams(
+            kind="grid", metric=metric, dataset=dataset, grid=grid
+        )
+        spec = ComponentSpec(
+            type="comparison",
+            params=params.model_dump(mode="json"),
+            evidence_ids=[i.evidence_id for i in items],
+        )
+        try:
+            for card, item in zip(cards, items):
+                _ground_stat(card, [item])
+        except GroundingError:
+            continue
+        specs.append(spec)
+    return specs
+
+
+def _comparison_grid(item: ToolExecution) -> dict[str, Any] | None:
+    args, summary = item.arguments, item.summary
+    kind = args.get("kind") or summary.get("kind")
+    metric = args.get("metric") or summary.get("metric")
+    label = MEASURE_LABELS.get(metric, str(metric))
+    normalization = args.get("normalize") or summary.get("normalize") or "none"
+    if normalization != "none":
+        label += " per circuit" if normalization == "per_circuit" else " per km²"
+    cells = []
+    if kind == "periods":
+        for key in ("period_a", "period_b"):
+            result = summary.get(key)
+            if not result or "value" not in result:
+                return None
+            period_args = {
+                "start_date": args.get(key + "_start"),
+                "end_date": args.get(key + "_end"),
+            }
+            cells.append(
+                ComparisonCell(
+                    row=str(args.get("scope") or summary.get("scope")),
+                    column=_period_label(period_args, {}),
+                    value=result["value"],
+                    reason=result.get("reason"),
+                    evidence_id=item.evidence_id,
+                )
+            )
+    else:
+        for result in summary.get("results") or []:
+            cells.append(
+                ComparisonCell(
+                    row=str(result.get("label") or result["key"]),
+                    column=_period_label(args, summary),
+                    value=result["value"],
+                    reason=result.get("reason"),
+                    evidence_id=item.evidence_id,
+                )
+            )
+    if not cells:
+        return None
+    return ComparisonGrid(
+        label=label,
+        rows=list(dict.fromkeys(c.row for c in cells)),
+        columns=list(dict.fromkeys(c.column for c in cells)),
+        cells=cells,
+    ).model_dump(mode="json")
+
+
 def _cap_stats(stats: list[ComponentSpec]) -> list[ComponentSpec]:
-    """Keep every count card; cap the other stat kinds at _MAX_STATS.
+    """Keep count cards not folded into comparisons; cap other stat kinds.
 
     A multi-entity count answer (PG&E and SCE in 2020 and 2023) has one count
-    per entity and period. The website renders only ranking comparisons, so
-    there is no utility-by-year view to fold them into, and a global cap
-    silently dropped the fourth count.
+    per entity and period. Counts that cannot share a grounded comparison
+    remain visible rather than being silently dropped by a global cap.
     """
     kept: list[ComponentSpec] = []
     others = 0
