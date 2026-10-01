@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 from shared.db import REPO_ROOT
+from services.agent.runtime_paths import runtime_dir
 
 load_dotenv(REPO_ROOT / ".env")
 
@@ -67,8 +68,10 @@ class AgentSettings:
     jev_sample_rate: float = 1.0
     jev_max_concurrency: int = 4
     jev_daily_call_cap: int = 5000
-    jev_log_path: str = "services/agent/logs/jev_shadow.jsonl"
+    jev_log_path: str = str(runtime_dir() / "logs/jev_shadow.jsonl")
     jev_log_max_mb: float = 50.0
+    jev_log_raw: bool = False
+    jev_log_retention_days: int = 7
     jev_ablation: str = "v3_hybrid"
     jev_tool_pick_min_confidence: float = 0.8
     # decide mode: a Jev clarify or refuse wins only at or above this confidence.
@@ -151,10 +154,10 @@ class AgentSettings:
             jev_sample_rate=float(os.getenv("AGENT_JEV_SAMPLE_RATE", "1")),
             jev_max_concurrency=int(os.getenv("AGENT_JEV_MAX_CONCURRENCY", "4")),
             jev_daily_call_cap=int(os.getenv("AGENT_JEV_DAILY_CALL_CAP", "5000")),
-            jev_log_path=os.getenv(
-                "AGENT_JEV_LOG_PATH", "services/agent/logs/jev_shadow.jsonl"
-            ),
+            jev_log_path=os.getenv("AGENT_JEV_LOG_PATH") or str(runtime_dir() / "logs/jev_shadow.jsonl"),
             jev_log_max_mb=float(os.getenv("AGENT_JEV_LOG_MAX_MB", "50")),
+            jev_log_raw=_bool("AGENT_JEV_LOG_RAW", False),
+            jev_log_retention_days=int(os.getenv("AGENT_JEV_LOG_RETENTION_DAYS", "7")),
             jev_ablation=os.getenv("AGENT_JEV_ABLATION", "v3_hybrid").strip(),
             jev_tool_pick_min_confidence=float(
                 os.getenv("AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE", "0.8")
@@ -196,6 +199,8 @@ class AgentSettings:
             raise ValueError("AGENT_JEV_BACKEND must be typesafe or openrouter")
         if self.jev_timeout_seconds <= 0:
             raise ValueError("AGENT_JEV_TIMEOUT_SECONDS must be positive")
+        if self.jev_log_retention_days < 1:
+            raise ValueError("AGENT_JEV_LOG_RETENTION_DAYS must be positive")
         if not 0 <= self.jev_sample_rate <= 1:
             raise ValueError("AGENT_JEV_SAMPLE_RATE must be between 0 and 1")
         if self.jev_max_concurrency < 1:

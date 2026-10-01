@@ -176,7 +176,7 @@ class AgentOrchestrator:
         # acts only on a question decide left as an answer (apply_slot_plan skips
         # clarifications and refusals, and rewrites only multi_entity_deferred).
         if self.settings.jev_mode in {"decide", "v4"} and not force_model:
-            decision = await self._jev_decide(question, decision, request_id)
+            decision = await self._jev_decide(question, decision, request_id, cancel_event)
         if self.settings.slot_plan and not force_model and self.settings.jev_mode != "v4":
             from services.agent.eval.slot_plan import apply_slot_plan
 
@@ -238,7 +238,7 @@ class AgentOrchestrator:
                     )
             except Exception as exc:  # noqa: BLE001
                 _shadow_log.warning(
-                    "Jev shadow submit failed: %s: %s", type(exc).__name__, exc
+                    "Jev shadow submit failed: %s", type(exc).__name__
                 )
         result: OrchestrationResult | None = None
         try:
@@ -258,30 +258,34 @@ class AgentOrchestrator:
                     shadow.record_outcome(request_id, question, response)
                 except Exception as exc:  # noqa: BLE001
                     _shadow_log.warning(
-                        "Jev shadow outcome failed: %s: %s",
+                        "Jev shadow outcome failed: %s",
                         type(exc).__name__,
-                        exc,
                     )
 
     async def _jev_decide(
-        self, question: str, decision: RouteDecision, request_id: str
+        self, question: str, decision: RouteDecision, request_id: str,
+        cancel_event: asyncio.Event | None = None,
     ) -> RouteDecision:
         """Apply the selected V3/V4 policy; each mode owns its failure behavior."""
         from services.agent.decisions.decide_mode import (
             decide_from_answers,
             decide_live,
             exemption,
+            JevRequest,
         )
         if self.settings.jev_mode == "v4":
             from services.agent.decisions.v4_router import decide_from_answers, decide_live, exemption
 
         gate = self.settings.jev_decide_min_confidence
         answer_gate = self.settings.jev_decide_answer_confidence
+        self._raise_if_cancelled(cancel_event)
         if exemption(decision, question):
             result = decide_from_answers(
                 question, decision, None, gate=gate, answer_gate=answer_gate
             )
         else:
+            total_timeout = self.settings.jev_timeout_seconds * (2 if self.settings.jev_mode == "v4" else 1) + 1.0
+            request = JevRequest(total_timeout)
             try:
                 backend = self.decide_backend
                 if backend is None:
@@ -293,8 +297,8 @@ class AgentOrchestrator:
                         timeout_seconds=self.settings.jev_timeout_seconds,
                     )
                     self.decide_backend = backend
-                result = await asyncio.wait_for(
-                    asyncio.to_thread(
+                async def run_decision():
+                    worker = asyncio.create_task(asyncio.to_thread(
                         decide_live,
                         question,
                         decision,
@@ -304,8 +308,23 @@ class AgentOrchestrator:
                         # ask_jev gives up here and returns; the pool stays bounded.
                         timeout=self.settings.jev_timeout_seconds,
                         budget=self.jev_budget,
-                    ),
-                    timeout=self.settings.jev_timeout_seconds * (2 if self.settings.jev_mode == "v4" else 1) + 1.0,
+                        request=request,
+                    ))
+                    cancelled = None if cancel_event is None else asyncio.create_task(cancel_event.wait())
+                    try:
+                        if cancelled is not None:
+                            await asyncio.wait({worker, cancelled}, return_when=asyncio.FIRST_COMPLETED)
+                            self._raise_if_cancelled(cancel_event)
+                        return await worker
+                    finally:
+                        request.stop()
+                        tasks = [worker] if cancelled is None else [worker, cancelled]
+                        for task in tasks:
+                            task.cancel()
+                        await asyncio.gather(*tasks, return_exceptions=True)
+
+                result = await asyncio.wait_for(
+                    run_decision(), timeout=total_timeout,
                 )
             except (TimeoutError, asyncio.TimeoutError):
                 result = decide_from_answers(
@@ -320,21 +339,28 @@ class AgentOrchestrator:
                     gate=gate,
                     error=f"{type(exc).__name__}: {exc}",
                 )
+            finally:
+                request.stop()
+        self._raise_if_cancelled(cancel_event)
         record = result.log_record(question, request_id)
         # A decline with a different reason is logged even when the router's
         # wording was kept, so Jev's reason is recorded somewhere.
         if self.settings.jev_mode == "v4" or result.disagrees or result.error or result.reason_differs:
-            print(json.dumps(record, default=str))
+            from services.agent.decisions.shadow_log import audit_record
+
+            print(json.dumps(audit_record(record), default=str))
             try:
                 from services.agent.decisions.shadow_log import ShadowLog, resolve_log_path
 
                 ShadowLog(
                     str(resolve_log_path(self.settings.jev_log_path)),
                     int(self.settings.jev_log_max_mb * 1024 * 1024),
+                    raw=self.settings.jev_log_raw,
+                    retention_days=self.settings.jev_log_retention_days,
                 ).write(record)
             except Exception as exc:  # noqa: BLE001
                 _shadow_log.warning(
-                    "Jev decide log failed: %s: %s", type(exc).__name__, exc
+                    "Jev decide log failed: %s", type(exc).__name__
                 )
         final = result.decision
         final.slots = {
@@ -397,8 +423,6 @@ class AgentOrchestrator:
                     "request_id": request_id,
                     "path": decision.path,
                     "rule": decision.rule,
-                    "reason": decision.reason,
-                    "slots": decision.slots,
                 },
                 default=str,
             )
@@ -1505,7 +1529,7 @@ class AgentOrchestrator:
                             **item,
                         }
                         trajectory.append(event)
-                        print(json.dumps({"event": "filter_dropped", **event}, default=str))
+                        print(json.dumps({"event": "filter_dropped", "tool": tool}))
                     canonical_args = json.dumps(args, sort_keys=True, default=str)
                 except json.JSONDecodeError as exc:
                     routing_messages.append(

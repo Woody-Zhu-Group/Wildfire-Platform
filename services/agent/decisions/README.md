@@ -56,7 +56,7 @@ backend: [`docs/OPENROUTER.md`](../../../docs/OPENROUTER.md). Deferred work:
 | `expected_facts.py` | Expected fact labels derived from question text, for scoring. |
 | `mapping.py` | Projects router decisions and eval cases onto Jev's label space (`regex_labels`, `derive_case_labels`, `agreement`). |
 | `shadow.py` | `ShadowRunner` and `get_runner()`: background thread pool, sample rate, concurrency and daily caps, timeout. User requests never wait on it. |
-| `shadow_log.py` | Append-only JSONL log at `AGENT_JEV_LOG_PATH`, rotated by size (5 backups), redacts `TYPESAFE_API_KEY`. |
+| `shadow_log.py` | Metadata-only JSONL by default, external path, seven-day segment expiry and size rotation (5 backups); explicit raw mode redacts both backend keys. |
 | `decide_mode.py` | `AGENT_JEV_MODE=decide`: `BACKSTOP_RULES`, router-only exemptions, the decline and answer gates, the slot-contradiction, slot-unused (`route_uses`), and code-verified rules, reason texts, the bounded shared executor, and `decide_live()` / `decide_from_answers()`. |
 | `tool_pick_mode.py` | `decide_tool_pick()`, slot-filled arguments per tool, the multi-tool refusal, template intents, and `tool_pick_decision` log lines. |
 | `canonical.py` | Canonical JSON bytes and hashes, so a replay can prove two payloads are the same. |

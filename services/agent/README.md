@@ -423,3 +423,13 @@ responses and direct-answer attempts before evidence, and the harness blocks
 either from becoming a factual answer. Earlier local-model runs and their
 Ollama workarounds are historical records under `eval/` and are not comparable
 to hosted runs.
+
+## Runtime records
+
+Agent tool/retry context is constructed in memory per request. No cross-query
+chat thread is persisted or sent to the model. Jev logs default outside the
+checkout and omit query text/payloads; raw capture is explicit and bounded by
+age and size. Evaluation traces are external, with compact reports in Git.
+See [log policy](../../docs/JEV_SHADOW.md) and
+[evaluation storage](eval/README.md). V3/V4 cancellation prevents later calls
+for an ended request; unsent reservations are released and sent calls still count.

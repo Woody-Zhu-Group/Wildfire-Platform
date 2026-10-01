@@ -171,9 +171,8 @@ class TypeSafeBackend:
                 )
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "Jev call failed: %s: %s",
+                "Jev call failed: %s",
                 type(exc).__name__,
-                _redact(str(exc)),
             )
             return DecisionResult(
                 answers={},

@@ -524,18 +524,20 @@ def decide_live(
     budget=None,
     gate=None,
     answer_gate=None,
+    request=None,
 ):
+    from services.agent.decisions.decide_mode import JevRequest
+
+    request = request or JevRequest(None if timeout is None else 2 * timeout + 1)
     today = today or date.today()
-    if budget is not None and not budget.reserve(3):
-        return decide_from_answers(
-            question, decision, None, today=today, error="daily_cap"
-        )
     answers, error, tokens = ask_jev(
         backend,
         question,
         today.isoformat(),
         timeout=timeout,
         calls=calls_for(question, today.isoformat()),
+        request=request,
+        budget=budget,
     )
     if not error:
         try:
@@ -544,21 +546,19 @@ def decide_live(
             error = "invalid_jev_answers"
         else:
             if candidate.slots.get("v4_plan_pending"):
-                if budget is not None and not budget.reserve(1):
-                    result = decide_from_answers(
-                        question, decision, None, today=today, error="daily_cap"
-                    )
-                    result.input_tokens = tokens
-                    return result
                 fit, error, fit_tokens = ask_jev(
                     backend,
                     question,
                     today.isoformat(),
                     timeout=timeout,
                     calls=[plan_call(question, today.isoformat(), candidate)],
+                    request=request,
+                    budget=budget,
                 )
                 answers.update(fit or {})
                 tokens += fit_tokens
+    if not request.active():
+        error = "timeout: request ended"
     result = decide_from_answers(question, decision, answers, today=today, error=error)
     result.input_tokens = tokens
     return result

@@ -44,8 +44,9 @@ directly. Partial Jev intent/plan data is discarded. The slot planner
 does not override V4. Forced-model and disabled-router evaluation switches
 remain explicit evaluation overrides, not normal V4 operation.
 
-Pre-Jev backstops, injection protection, cancellation/quota
-accounting, and logging retention are still open review items. This document
+Pre-Jev backstop and injection policy, and independent acceptance remain review
+items. Request cancellation, unsent-call accounting and metadata logging are
+implemented on this branch. This document
 describes the current draft implementation, not a completed production rollout.
 
 ## Jev fault fallback
@@ -63,8 +64,22 @@ The original decision is copied so a late worker cannot mutate the route being
 used by its caller. Existing tool validation, measured coverage and caveat checks
 still apply. This deliberately inherits the legacy Router's semantic limitations,
 including known comparison/output omissions; it is not a new accuracy guarantee
-for degraded operation. Late-call cancellation and reservation refunds remain
-separate pending work.
+for degraded operation.
+
+The async caller and worker share a stop signal and an overall deadline. An
+outer timeout, task cancellation or SSE disconnect stops queued calls and the
+conditional fourth call. Explicit cancellation does not execute fallback tools
+or start an Agent request. Already-started synchronous provider calls may finish
+at their provider timeout; their results cannot resume planning for the ended
+request. V3 uses the same bounded executor lifecycle without changing its gates.
+Batch reservations release only calls that never started, safely across the UTC
+day boundary. Calls that reached the backend still count, including failures;
+this is local admission accounting, not a refund from the provider.
+
+Runtime logs default to external storage and metadata only. Raw logging is
+explicit and age/size bounded. Captures are external; compact reports remain in
+Git. See [log policy](JEV_SHADOW.md) and
+[evaluation storage](../services/agent/eval/README.md).
 
 The Agent has tool-result and retry context within one request, but no cross-query
 chat history: `/ask` and `/ask/stream` receive only `question`, and the website
@@ -129,7 +144,7 @@ python -m services.agent.eval.router_gate_compare --cases services/agent/eval/v4
 Fresh paired V3/V4 run, five repeats with alternating version order:
 
 ```powershell
-python -m services.agent.eval.router_gate_compare --cases services/agent/eval/v4_router_cases_v1.json --run --repeats 5 --cap-usd 1 --output services/agent/eval/runs/v4_router_review_20260929
+python -m services.agent.eval.router_gate_compare --cases services/agent/eval/v4_router_cases_v1.json --run --repeats 5 --cap-usd 1 --output "$env:LOCALAPPDATA/Wildfire-Platform/eval/runs/new-v4-run"
 ```
 
 Use a new output directory and the remaining authorized budget. The capture
