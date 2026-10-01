@@ -14,6 +14,7 @@ import { ExportActions } from './ExportActions';
 import { lineSvg, barSvg, type ExportRow } from './exports.ts';
 import { CumulativeAcres } from './CumulativeAcres.tsx';
 import { CustomerEventsSeries } from './CustomerEventsSeries.tsx';
+import { AnswerComparison } from './AnswerComparison';
 
 export function TimeSeries() {
   const { settings } = usePanel();
@@ -105,6 +106,11 @@ function TimelineSeries() {
 }
 
 export function Comparison() {
+  const { settings } = usePanel();
+  return settings.answerComparison ? <AnswerComparison /> : <RankingComparison />;
+}
+
+function RankingComparison() {
   const { settings, update, expanded, expand, title } = usePanel();
   const { dataset, groupBy, measure, filters } = settings;
   const setFilters = (filters: typeof settings.filters) => update({ filters });

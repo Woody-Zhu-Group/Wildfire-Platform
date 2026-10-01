@@ -210,7 +210,7 @@ test('a ranking without evidence, dataset, group, or dates does not invent a pan
   assert.deepEqual(panelsFromAnswer(answer([noGroup])), []);
 });
 
-test('period comparisons and two-utility compares stay on the notice', () => {
+test('legacy comparisons without cited cells stay on the notice', () => {
   const period = answer([{
     type: 'comparison',
     evidence_ids: ['ev_period'],

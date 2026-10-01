@@ -1,5 +1,6 @@
 ## Learned User Preferences
 
+- Keep UI free of redundant explanatory small print, repeated labels, and captions that restate the panel title. Do not display missing-data explanations or implementation notes by default; put necessary reasons in hover hints or an on-demand disclosure. Preserve clear `No data` labels and meaningful units. Apply this preference to future UI work without asking the user to repeat it.
 - Do not modify `models.py` or `grid_data_prep.py`; wrap them with new service code instead.
 - Keep superseded circuit-level modules (`data_prep.py`, `main.py`, `prep_hrrr.py`) for reference only; do not build new work on them.
 - Treat sibling `dataset_demo/` as read-only reference; never modify or commit there: new code goes only in Wildfire Services.
