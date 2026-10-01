@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { panelsFromAnswer } from '../src/answerPanels.ts';
+import { panelsFromAnswer, unsupportedViewNotice } from '../src/answerPanels.ts';
+import { validComparisonGrid } from '../src/comparisonGrid.ts';
+import { panelUsesGlobalYear } from '../src/globalFilters.ts';
+import { viewSettings } from '../src/panelViews.ts';
 import type { AgentAnswer } from '../src/api.ts';
 import { DEFAULT_FILTERS } from '../src/data.ts';
 import { currentView, PANEL_VIEWS } from '../src/panelViews.ts';
@@ -8,6 +11,7 @@ import type { PanelId } from '../src/PanelPicker';
 import type { PanelSettings } from '../src/state';
 
 type Spec = NonNullable<AgentAnswer['views']>[number];
+type ComparisonSpec = Extract<Spec, {type: 'comparison'}>;
 const answer = (views: Spec[]): AgentAnswer => ({status: 'ok', answer_text: 'Recorded results.', views});
 
 // Same defaults as newPanel in state.tsx, which App.tsx merges answer settings onto.
@@ -24,6 +28,58 @@ function viewIds(spec: Spec): string[] {
 }
 
 const ev = (...ids: string[]) => ({evidence_ids: ids, artifact_refs: []});
+
+const countGrid = (): ComparisonSpec => ({type: 'comparison', ...ev('ev_pge', 'ev_sce'), params: {
+  kind: 'grid', metric: 'ignition_count', dataset: 'cpuc_ignitions', grid: {
+    label: 'CPUC ignitions', rows: ['PGE', 'SCE'], columns: ['2020', '2023'], cells: [
+      {row: 'PGE', column: '2020', value: 510, evidence_id: 'ev_pge'},
+      {row: 'PGE', column: '2023', value: 374, evidence_id: 'ev_pge'},
+      {row: 'SCE', column: '2020', value: 145, evidence_id: 'ev_sce'},
+      {row: 'SCE', column: '2023', value: 90, evidence_id: 'ev_sce'},
+    ],
+  },
+}});
+
+test('multi-entity counts reach a frozen comparison with every value and citation', () => {
+  const spec = countGrid();
+  const response = answer([spec]);
+  const [panel] = panelsFromAnswer(response);
+  assert.equal(panel.type, 'comparison');
+  assert.deepEqual(panel.settings.answerComparison, spec.params.grid);
+  assert.equal(unsupportedViewNotice(response), null);
+  assert.equal(panelUsesGlobalYear(panel.type, applied(panel.type, panel.settings)), false);
+  panel.settings.answerComparison!.cells[0].value = 1;
+  assert.equal((spec.params.grid as {cells: {value: number}[]}).cells[0].value, 510);
+  assert.equal(viewSettings(applied(panel.type, panel.settings), PANEL_VIEWS.find(v => v.id === 'utility-comparison')!).answerComparison, undefined);
+});
+
+test('comparison cells require cited evidence, real values and unique coordinates', () => {
+  for (const mutate of [
+    (s: ComparisonSpec) => { s.evidence_ids = []; },
+    (s: ComparisonSpec) => { s.params.grid!.cells[0].evidence_id = 'uncited'; },
+    (s: ComparisonSpec) => { s.params.grid!.cells[0].value = NaN; },
+    (s: ComparisonSpec) => { s.params.grid!.cells[0].value = null; },
+    (s: ComparisonSpec) => { s.params.grid!.cells.push(s.params.grid!.cells[0]); },
+  ]) {
+    const spec = countGrid();
+    // Mutations exercise malformed incoming wire data.
+    mutate(spec);
+    assert.deepEqual(panelsFromAnswer(answer([spec])), []);
+    assert.match(unsupportedViewNotice(answer([spec]))!, /Comparison/);
+  }
+});
+
+test('county, period and null comparisons use cited cells without becoming zero', () => {
+  for (const kind of ['regions', 'periods', 'utilities'] as const) {
+    const spec = countGrid();
+    spec.params.kind = kind;
+    spec.params.grid!.cells[0] = {...spec.params.grid!.cells[0], value: null, reason: 'No coverage'};
+    const [panel] = panelsFromAnswer(answer([spec]));
+    assert.equal(panel.settings.answerComparison!.cells[0].value, null);
+    assert.equal(panel.settings.answerComparison!.cells[0].reason, 'No coverage');
+    assert.equal(validComparisonGrid(panel.settings.answerComparison), true);
+  }
+});
 const eventMap = (dataset: string, extra: Record<string, unknown> = {}): Spec => ({type: 'map', ...ev('ev_map'), params: {datasets: [dataset], year: 2024, extent: 'statewide', ...extra}});
 const series = (mode: string, dataset: string): Spec => ({type: 'time_series', ...ev('ev_series'), params: {dataset, year: 2024, interval: 'monthly', series_mode: mode as 'yearly'}});
 const ranking = (groupBy: string, dataset: string): Spec => ({type: 'comparison', ...ev('ev_rank'), params: {kind: 'ranking', metric: 'ignition_count', dataset, group_by: groupBy, year: 2024, start_date: '2024-01-01', end_date: '2024-12-31'}});

@@ -24,6 +24,7 @@ setup, warehouse prerequisites and historical model limitations.
 | `src/globalFilters.ts`, `src/WorkspaceFilters.tsx`, `src/PanelYearPin.tsx` | Workspace year bar, year inheritance and per-panel year pins |
 | `src/RiskSurfaceMap.tsx`, `src/ResidualMap.tsx`, `src/riskSurface.ts`, `src/residual.ts` | Modeled risk surface and residual grid maps from the Historical Risk API |
 | `src/AnalysisCharts.tsx`, `src/YearComparison.tsx`, `src/RegionalSeries.tsx`, `src/SeasonalSeries.tsx` | Grouped and temporal visualizations |
+| `src/AnswerComparison.tsx`, `src/comparisonGrid.ts` | Evidence-backed entity and period comparisons from Ask |
 | `src/data.ts`, `src/stats.ts`, `src/annual.ts`, `src/temporal.ts` | Record normalization, counts and time aggregation |
 | `src/RecordPanels.tsx` | Record tables and summary metrics |
 | `src/ExportActions.tsx`, `src/exports.ts` | CSV and chart PNG exports |
@@ -34,6 +35,19 @@ profiles set `VITE_DATA_QUERY_URL`, so grouped comparisons, summary metrics and
 regional time series use geometry-free Data Query aggregates. Calendar alignment
 and seasonal profiles retain the existing daily time-series API. The browser does
 not call the Comparison API directly. Ask uses Agent and its downstream services.
+
+Ask comparison answers carry their exact values rather than refetching them.
+Compatible primary counts for one dataset and the same remaining filters are
+combined into one entity-by-period panel with grouped bars and an exact-value
+table. Utility, region and period Comparison API results use the same display.
+Each cell cites its tool result; the planner rejects mismatched values, scopes,
+periods and missing-value reasons. Counts with different filters, duplicate
+coordinates or incompatible datasets keep their individual cards.
+Null or absent cells show a hatched `No data` placeholder with the reason in a
+hover hint and accessible label, while a
+real zero stays zero. These answer panels ignore the workspace year and retain
+their cited values when reopened or duplicated. Change view clears the cited
+comparison and opens the selected ordinary workspace analysis.
 
 ## Development
 

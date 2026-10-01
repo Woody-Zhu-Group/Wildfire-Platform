@@ -8,6 +8,7 @@ const CONTENT = { map: EventMap, time_series: TimeSeries, comparison: Comparison
 
 function viewScope(panel: PanelInstance): string {
   const { filters } = panel.settings;
+  if (panel.settings.answerComparison) return panel.settings.answerComparison.columns.join(' · ');
   const period = filters.start === filters.end ? filters.start : filters.start.slice(0, 4) === filters.end.slice(0, 4)
     ? filters.start.slice(0, 4) : `${filters.start} – ${filters.end}`;
   return [filters.county, filters.utility, period].filter(Boolean).join(' · ');

@@ -14,6 +14,7 @@ import { ThemeToggle } from './ThemeToggle.tsx';
 import { GLOBAL_FILTERS_STORAGE_KEY, parseStoredGlobalFilters } from './globalFilters.ts';
 import { selectInlineViews, snapshotInlinePanel } from './inlineViews.ts';
 import { InlineAnswerViews } from './InlineAnswerViews.tsx';
+import { validComparisonGrid } from './comparisonGrid.ts';
 
 interface Message { id: string; role: 'user' | 'assistant'; content: string; error?: boolean; response?: AgentAnswer; events?: AgentStreamEvent[]; inlineViews?: PanelInstance[] }
 const STORAGE_KEY = 'wildfire-workspace-v1';
@@ -40,6 +41,7 @@ function initialPanels(): PanelInstance[] {
       && (p.settings.seriesMode === undefined || ['timeline','yearly','regional','seasonal','cumulative_acres','customer_events'].includes(p.settings.seriesMode))
       && (p.settings.seasonYears === undefined || (Array.isArray(p.settings.seasonYears) && p.settings.seasonYears.every((year: unknown) => Number.isInteger(year) && Number(year) >= 1900 && Number(year) <= 2100)))
       && (p.settings.comparisonYears === undefined || (Array.isArray(p.settings.comparisonYears) && p.settings.comparisonYears.every((year: unknown) => Number.isInteger(year) && Number(year) >= 1900 && Number(year) <= 2100)))
+      && (p.settings.answerComparison === undefined || (p.type === 'comparison' && validComparisonGrid(p.settings.answerComparison)))
       && !p.settings.answerStat) && new Set(saved.map(p => p.id)).size === saved.length) return saved;
   } catch { /* Storage is optional; unavailable or old state opens the default workspace. */ }
   return PANELS.map((p, index) => newPanel(index + 1, p.id));
