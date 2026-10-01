@@ -8,7 +8,14 @@ from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Any
 
-from services.shared.dataset_registry import warehouse_year_range
+from services.shared.dataset_registry import (
+    ALIASES,
+    BARE_IGNITIONS_PATTERN,
+    DATASET_QUESTION_PATTERNS,
+    IGNITION_QUALIFIER_PATTERN,
+    UTILITY_ARGUMENT_ALIASES,
+    warehouse_year_range,
+)
 
 # The first calendar year in which any dataset has rows, from the measured
 # coverage (shared/dataset_coverage.json); never declared here. A year before
@@ -61,6 +68,78 @@ _MONTH_ALT = "|".join(
     re.escape(name) for name, _ in sorted(MONTHS.items(), key=lambda item: -len(item[0]))
 )
 _RANGE_SEP = r"(?:to|through|until|–|—|-)"
+
+_NUMBER = re.compile(r"(?<!\w)[+-]?\d+(?:,\d{3})*(?:\.\d+)?")
+_CALENDAR_NUMBERS = re.compile(
+    rf"\b(?:19|20)\d{{2}}-\d{{2}}-\d{{2}}\b"
+    rf"|\b(?:{_MONTH_ALT})\s+(?:\d{{1,2}}(?:st|nd|rd|th)?,?\s+)?(?:19|20)\d{{2}}\b"
+    rf"|\b\d{{1,2}}\s+(?:{_MONTH_ALT})\s+(?:19|20)\d{{2}}\b"
+    rf"|\b(?:19|20)\d{{2}}\s*(?:to|through|until|and|or|vs\.?|versus|[-–—])\s*(?:19|20)\d{{2}}\b",
+    re.IGNORECASE,
+)
+_DATE_PREFIX = re.compile(
+    r"\b(?:in|during|for|on|since|from|before|after|year|the)\s*$", re.I
+)
+_QUANTITY_PREFIX = re.compile(
+    r"(?:[<>]=?|\b\w+\s+than|\b(?:over|under|above|below))(?:\s+(?:the|an?))?\s*$", re.I
+)
+# Closed grammatical/calendar continuations, not a list of measurement units.
+_DATE_CONTINUATIONS = frozenset(
+    "and or to through until versus vs in on at by for of with within without before after since "
+    "during is are was were had have has did do does period year quarter season".split()
+)
+
+
+def calendar_text(text: str) -> str:
+    """Mask quantity numbers while preserving calendar syntax and text offsets."""
+    protected = [match.span() for match in _CALENDAR_NUMBERS.finditer(text)]
+    masked = list(text)
+    for match in _NUMBER.finditer(text):
+        number = match.group()
+        if not re.search(r"(?:19|20)\d{2}", number):
+            continue
+        prefix, suffix = text[: match.start()], text[match.end() :]
+        formatted = bool(re.search(r"[.,]", number) or re.search(r"[$€£¥]\s*$", prefix))
+        if not formatted and any(
+            first <= match.start() < last for first, last in protected
+        ):
+            continue
+        word = re.match(r"[\s-]+([A-Za-z][A-Za-z_&/]*)\b", suffix)
+        quantity = (
+            formatted
+            or bool(re.search(r"[<>]=?\s*$", prefix))
+            or bool(
+                word
+                and word.group(1).lower() not in _DATE_CONTINUATIONS
+                and _QUANTITY_PREFIX.search(prefix)
+            )
+        )
+        if word and not quantity:
+            unit = word.group(1)
+            lower = unit.lower()
+            following = suffix.lstrip()
+            ignition = re.search(BARE_IGNITIONS_PATTERN, following, re.I)
+            qualified = ignition and IGNITION_QUALIFIER_PATTERN.match(
+                following[: ignition.start()]
+            )
+            calendar = (
+                lower in _DATE_CONTINUATIONS
+                or lower in MONTHS
+                or lower in ALIASES
+                or unit.upper() in UTILITY_ARGUMENT_ALIASES
+                or any(
+                    re.match(pattern, suffix.lstrip(), re.I)
+                    for _, pattern in DATASET_QUESTION_PATTERNS
+                )
+                or bool(qualified)
+                or bool(_DATE_PREFIX.search(prefix))
+                or bool(re.search(r"(?:^|[.:;!?])\s*(?:was|is|were)\s+$", prefix, re.I))
+                or (unit[0].isupper() and not unit.isupper())
+            )
+            quantity = not calendar
+        if quantity:
+            masked[match.start() : match.end()] = " " * len(number)
+    return "".join(masked)
 
 
 @dataclass(frozen=True)
@@ -119,7 +198,7 @@ _MONTH_IN_CONTEXT = re.compile(
 
 def months_from_text(text: str) -> list[tuple[int, str]]:
     """Every (month_number, word) named as a month, in the order written."""
-    lower = " ".join(text.lower().split())
+    lower = " ".join(calendar_text(text).lower().split())
     found: list[tuple[int, str]] = []
     for match in _MONTH_IN_CONTEXT.finditer(lower):
         name = next(group for group in match.groups() if group)
@@ -150,7 +229,7 @@ def named_months(text: str) -> list[tuple[int, str]]:
     month, or inside a list of months that ends in a year ("July and August
     2023"). "may" and "march" as verbs are never months.
     """
-    lower = " ".join(text.lower().split())
+    lower = " ".join(calendar_text(text).lower().split())
     found: dict[int, tuple[int, int, str]] = {}
 
     def add(number: int, position: int, name: str) -> None:
@@ -177,7 +256,7 @@ def named_month_periods(text: str) -> list[str]:
     periods, and returns an empty list. Fewer than two periods also returns
     an empty list: one month is covered by the year check.
     """
-    lower = " ".join(text.lower().split())
+    lower = " ".join(calendar_text(text).lower().split())
     if explicit_month_range_in_year(lower) is not None or explicit_month_year_range(lower) is not None:
         return []
     periods: list[str] = []
@@ -196,6 +275,7 @@ def explicit_calendar_day(text: str) -> date | None:
     Accepts ISO ``YYYY-MM-DD``, ``August 15th 2024``, ``August 15, 2024``,
     and ``15 August 2024``. A month with no day (``August 2024``) is not a day.
     """
+    text = calendar_text(text)
     iso = re.search(r"\b(20\d{2})-(\d{2})-(\d{2})\b", text)
     if iso:
         try:
@@ -243,7 +323,7 @@ def _range_for_year_month(year: int, month: int) -> tuple[str, str]:
 
 def explicit_month_year_range(text: str) -> tuple[str, str, str] | None:
     """``August 2023 to September 2024`` → first-of-start-month … last-of-end-month."""
-    lower = " ".join(text.lower().split())
+    lower = " ".join(calendar_text(text).lower().split())
     match = re.search(
         rf"\b({_MONTH_ALT})\s+(20\d{{2}})\s*{_RANGE_SEP}\s*({_MONTH_ALT})\s+(20\d{{2}})\b",
         lower,
@@ -269,7 +349,7 @@ def explicit_month_range_in_year(text: str) -> tuple[int, int, int, str] | None:
     Two months that share one written year. Returns (year, first month, last
     month, phrase); the caller decides what a backwards range means.
     """
-    lower = " ".join(text.lower().split())
+    lower = " ".join(calendar_text(text).lower().split())
     match = re.search(
         rf"\b(?:from\s+)?({_MONTH_ALT})\s*{_MONTH_RANGE_SEP}\s*({_MONTH_ALT})"
         rf",?\s+(?:of\s+|in\s+)?(20\d{{2}})\b",
@@ -291,7 +371,7 @@ def explicit_month_range_in_year(text: str) -> tuple[int, int, int, str] | None:
 
 def explicit_year_range(text: str) -> tuple[str, str, str] | None:
     """``2021 to 2025`` / ``2021-2025`` → full inclusive calendar years."""
-    lower = " ".join(text.lower().split())
+    lower = " ".join(calendar_text(text).lower().split())
     match = re.search(rf"\b(20\d{{2}})\s+(?:to|through|until)\s+(20\d{{2}})\b", lower)
     if not match:
         match = re.search(rf"\bbetween\s+(20\d{{2}})\s+and\s+(20\d{{2}})\b", lower)
@@ -378,10 +458,7 @@ def expand_apostrophe_year(text: str) -> str:
 
 # A written 1900s year. Decimals (a coordinate like 38.1985), thousands
 # separators, money, and acreage are numbers, not years.
-_BARE_1900S_YEAR = re.compile(
-    r"(?<![\d.,$])\b(19\d{2})\b(?![.,]\d)(?!\s*(?:acres?|ac)\b)",
-    re.IGNORECASE,
-)
+_BARE_1900S_YEAR = re.compile(r"\b(19\d{2})\b")
 
 
 def _pre_2000_apostrophe_year(text: str) -> tuple[int, str] | None:
@@ -395,6 +472,7 @@ def _pre_2000_apostrophe_year(text: str) -> tuple[int, str] | None:
 
 def _pre_2000_year(text: str) -> tuple[int, str] | None:
     """The first pre-2000 year in the question, written '99 or 1999."""
+    text = calendar_text(text)
     written = _pre_2000_apostrophe_year(text)
     if written is not None:
         return written
@@ -444,6 +522,7 @@ def open_ended_range(lower: str, *, today: date) -> TimeResolution | None:
     start followed by a named end (``since 2020 to 2022``) is a bounded range
     and is left to the bounded parsers.
     """
+    lower = calendar_text(lower)
     match = _OPEN_RANGE_WITH_END.search(lower)
     if match is None:
         match = _SINCE_START.search(lower)
@@ -498,7 +577,7 @@ _PER_YEAR_WORDS = re.compile(
 
 def _asks_per_year(text: str, resolution: TimeResolution) -> bool:
     """Breakdown words, or years named apart from the span's own endpoints."""
-    lower = " ".join(expand_apostrophe_year(text).lower().split())
+    lower = " ".join(calendar_text(expand_apostrophe_year(text)).lower().split())
     if _PER_YEAR_WORDS.search(lower):
         return True
     named = {int(value) for value in re.findall(r"\b(20\d{2})\b", lower)}
@@ -510,6 +589,7 @@ def _asks_per_year(text: str, resolution: TimeResolution) -> bool:
 
 def resolve_time(text: str, *, today: date | None = None) -> TimeResolution:
     """Resolve explicit or relative time. Never guess vague phrases."""
+    text = calendar_text(text)
     resolution = _resolve_time(text, today=today)
     if _asks_per_year(text, resolution):
         return replace(resolution, per_year=True)
