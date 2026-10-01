@@ -77,7 +77,11 @@ def test_all_original_captures_still_replay_without_network(tmp_path, monkeypatc
 
     monkeypatch.setattr(router_gate_compare, "account_usage", forbid_network)
     monkeypatch.setattr(router_gate_compare, "OpenRouterJevBackend", forbid_network)
-    source = EVAL / "runs/router_gate_review_20260928/captures.jsonl.gz"
+    from services.agent.runtime_paths import eval_runs_dir
+
+    source = eval_runs_dir() / "router_gate_review_20260928/captures.jsonl.gz"
+    if not source.is_file():
+        pytest.skip("Historical archive unavailable; set WILDFIRE_EVAL_RUNS_DIR to replay it")
     with gzip.open(source, "rt", encoding="utf-8") as stream:
         assert len([json.loads(line) for line in stream]) == 540
     target = tmp_path / "replay"

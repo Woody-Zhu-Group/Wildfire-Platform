@@ -32,7 +32,9 @@ from services.agent.routing import route_question
 from services.agent.tools import ToolExecutor
 from services.shared.dataset_registry import COUNT_MAP_DATASETS
 
-RUNS = Path(__file__).resolve().parent / "runs"
+from services.agent.runtime_paths import eval_runs_dir
+
+RUNS = eval_runs_dir()
 STATUS_FOR = {"answer": "answer", "clarify": "clarification", "unsupported": "unsupported"}
 # visualization_* dataset names mapped to warehouse names used in labels.
 DATASET_ALIASES = {viz: key for key, viz in COUNT_MAP_DATASETS.items()}

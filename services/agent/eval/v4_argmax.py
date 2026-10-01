@@ -13,8 +13,10 @@ from services.agent.decisions.canonical import payload_hash
 from services.agent.decisions.jev_first import decide_from_answers, highest_choices
 from services.agent.eval.jev_v4 import requests_for
 
+from services.agent.runtime_paths import eval_runs_dir
+
 HERE = Path(__file__).resolve().parent
-CAPTURE = HERE / "runs/router_gate_review_20260928/captures.jsonl.gz"
+CAPTURE = eval_runs_dir() / "router_gate_review_20260928/captures.jsonl.gz"
 CASES = HERE / "router_gate_cases.json"
 
 

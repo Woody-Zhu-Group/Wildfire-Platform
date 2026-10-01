@@ -58,9 +58,10 @@ V1 and V2 each have their own fresh V3 comparison; the second run did not reuse 
 - Enable and architecture: [JEV_V4_ROUTER.md](JEV_V4_ROUTER.md).
 - Real full request/output example: `services/agent/eval/jev_v4_router_request_example.json`.
 - Frozen executor/plan dataset: `services/agent/eval/v4_router_cases_v1.json`.
-- V1 run: `services/agent/eval/runs/v4_router_review_20260929/` (source 2d574ec).
-- V2 run: `services/agent/eval/runs/v4_router_v2_review_20260929/` (capture source 6a24ba9; identical-payload replay verified after the coverage registry correction).
-- Each directory contains requests/responses, probability outputs, report, manifest and billing receipt. The report contains strict executor scoring and per-question tool plans.
+- V1 compact report: `services/agent/eval/reports/v4_router_review_20260929/` (source 2d574ec).
+- V2 compact report: `services/agent/eval/reports/v4_router_v2_review_20260929/` (capture source 6a24ba9; identical-payload replay verified after the coverage registry correction).
+- Exact captures, manifests and billing receipts now live in the external runtime archive. The [eval storage guide](../services/agent/eval/README.md) documents checksums and how to replay them. This migration did not change these development-set results.
+- Each archived directory contains requests/responses, probability outputs, full report, manifest and billing receipt. The compact tracked report retains numeric metrics; per-question tool plans remain in the archive.
 
 PR #113 remains a draft and production configuration was not switched. The remaining 16 failed trials are explicitly listed rather than hidden by answer/clarify/refuse accuracy.
 

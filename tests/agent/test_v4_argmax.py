@@ -6,6 +6,9 @@ import pytest
 
 from services.agent.decisions.jev_first import decide_from_answers, highest_choices
 from services.agent.eval.v4_argmax import CAPTURE, CASES, compare
+from services.agent.decisions.canonical import payload_hash
+from services.agent.decisions.integrity import answer_to_json
+from services.agent.eval.jev_v4 import requests_for
 from tests.agent.test_jev_decide import _noul
 from tests.agent.test_jev_first import facts
 
@@ -73,6 +76,8 @@ def test_no_confidence_mode_keeps_missing_input_and_backend_checks():
 
 
 def test_same_recorded_answers_are_compared_without_touching_the_capture():
+    if not CAPTURE.is_file():
+        pytest.skip("Historical archive unavailable; set WILDFIRE_EVAL_RUNS_DIR to replay it")
     with gzip.open(CAPTURE, "rt", encoding="utf-8") as stream:
         records = [json.loads(line) for line in stream]
     report = compare(json.loads(CASES.read_text(encoding="utf-8")), records)
@@ -83,3 +88,20 @@ def test_same_recorded_answers_are_compared_without_touching_the_capture():
     broken["payload_hash"] = "changed"
     with pytest.raises(ValueError):
         compare(json.loads(CASES.read_text(encoding="utf-8")), [broken])
+
+
+def test_synthetic_replay_rejects_a_modified_payload_without_an_archive():
+    cases = json.loads(CASES.read_text(encoding="utf-8"))
+    case = cases["cases"][0]
+    model = "typesafe/jev-1.13-20260917"
+    requests = [call["payload"] for call in requests_for(case["question"], cases["today"], model)]
+    record = {"id": case["id"], "mode": "prior_v4", "repeat": 1,
+              "question": case["question"], "today": cases["today"], "model": model,
+              "requests": requests, "payload_hash": payload_hash(requests), "error": None,
+              "answers": {key: answer_to_json(value) for key, value in facts().items()}}
+    report = compare(cases, [record])
+    assert report["network_calls"] == 0
+    assert report["metrics"]["argmax"]["n"] == 1
+    record["requests"][0]["state"]["question"] = "changed query"
+    with pytest.raises(ValueError, match="mismatched"):
+        compare(cases, [record])

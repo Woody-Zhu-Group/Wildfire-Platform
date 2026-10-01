@@ -14,6 +14,7 @@ from typing import Any
 from services.agent.decisions.backend import QuestionSpec
 from services.agent.decisions.integrity import question_hash, replay_mismatch
 from services.agent.decisions.shadow_log import ShadowLog, resolve_log_path
+from services.agent.runtime_paths import runtime_dir
 from services.agent.eval.jev_metrics import (
     categorized_summary,
     check_record_parse,
@@ -200,9 +201,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--log",
-        default=os.environ.get(
-            "AGENT_JEV_LOG_PATH", "services/agent/logs/jev_shadow.jsonl"
-        ),
+        default=os.environ.get("AGENT_JEV_LOG_PATH") or str(runtime_dir() / "logs/jev_shadow.jsonl"),
     )
     parser.add_argument("--since", default="")
     parser.add_argument("--rule", default="")

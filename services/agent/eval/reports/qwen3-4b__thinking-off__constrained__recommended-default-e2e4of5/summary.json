@@ -1,0 +1,39 @@
+{
+  "cell": {
+    "model": "qwen3:4b",
+    "thinking": "off",
+    "mode": "constrained"
+  },
+  "model_tier_cases": 6,
+  "routing_accuracy_all": 1.0,
+  "routing_accuracy_deterministic_tier": 1.0,
+  "routing_accuracy_model_tier": 1.0,
+  "caveat_surfacing_rate": 0.8333333333333334,
+  "caveat_surfacing_rate_deterministic_tier": 1.0,
+  "caveat_surfacing_rate_model_tier": 0.5,
+  "caveat_cases": 12,
+  "status_accuracy": 0.8888888888888888,
+  "refusal_clarification_accuracy": 1.0,
+  "schema_validity_first_pass": 0.5,
+  "schema_validity_eventual": 0.5,
+  "recovery_rate": 0.3333333333333333,
+  "recovery_cases": 3,
+  "direct_answer_without_tool_attempts": 0,
+  "no_tool_response_attempts_before_evidence": 0,
+  "direct_answer_without_tool_rate_per_model_turn": 0.0,
+  "no_tool_response_rate_per_model_turn": 0.0,
+  "model_turns": 13,
+  "latency_ms": {
+    "request_p50": 102.18,
+    "request_p95": 92306.01,
+    "model_call_p50": 19168.1,
+    "model_call_p95": 63803.39,
+    "warmup": 6372.73
+  },
+  "runtime_seconds": 402.39,
+  "runner_segment_runtime_seconds": 412.56,
+  "planned_cases": 27,
+  "planned_model_tier_cases": 6,
+  "stopped_within_cell": false,
+  "run_tag": "recommended-default-e2e4of5"
+}
