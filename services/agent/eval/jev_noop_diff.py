@@ -7,8 +7,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from services.agent.runtime_paths import eval_runs_dir
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
-RUNS = REPO_ROOT / "services" / "agent" / "eval" / "runs"
+RUNS = eval_runs_dir()
 
 IGNORE = {
     "elapsed_ms",

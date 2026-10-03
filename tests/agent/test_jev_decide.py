@@ -403,9 +403,9 @@ def test_decide_runs_before_the_slot_planner_on_the_router_decision(monkeypatch)
     decided = {}
     original = orchestrator._jev_decide
 
-    async def spy(question, decision, request_id):
+    async def spy(question, decision, request_id, cancel_event=None):
         decided["rule"] = decision.rule
-        return await original(question, decision, request_id)
+        return await original(question, decision, request_id, cancel_event)
 
     monkeypatch.setattr(orchestrator, "_jev_decide", spy)
     seen = _routed_capture(orchestrator, monkeypatch)

@@ -28,6 +28,7 @@ from services.agent.grounding import (
     named_entities,
     question_allows_untagged,
     uncovered_entities,
+    uncovered_periods,
 )
 from services.agent.provider import OpenAICompatibleProvider, SynthesisTimeoutError
 from services.agent.routing import (
@@ -151,7 +152,7 @@ class AgentOrchestrator:
         # decide mode: today's Jev API call budget (AGENT_JEV_DAILY_CALL_CAP,
         # counted per call). Shadow mode keeps its own inside the runner.
         self.jev_budget = None
-        if settings.jev_mode == "decide":
+        if settings.jev_mode in {"decide", "v4"}:
             from services.agent.decisions.call_budget import DailyCallBudget
 
             self.jev_budget = DailyCallBudget(settings.jev_daily_call_cap)
@@ -174,9 +175,9 @@ class AgentOrchestrator:
         # decide runs first, on the router's own decision. The slot planner then
         # acts only on a question decide left as an answer (apply_slot_plan skips
         # clarifications and refusals, and rewrites only multi_entity_deferred).
-        if self.settings.jev_mode == "decide" and not force_model:
-            decision = await self._jev_decide(question, decision, request_id)
-        if self.settings.slot_plan and not force_model:
+        if self.settings.jev_mode in {"decide", "v4"} and not force_model:
+            decision = await self._jev_decide(question, decision, request_id, cancel_event)
+        if self.settings.slot_plan and not force_model and self.settings.jev_mode != "v4":
             from services.agent.eval.slot_plan import apply_slot_plan
 
             decision = apply_slot_plan(decision, question)
@@ -237,7 +238,7 @@ class AgentOrchestrator:
                     )
             except Exception as exc:  # noqa: BLE001
                 _shadow_log.warning(
-                    "Jev shadow submit failed: %s: %s", type(exc).__name__, exc
+                    "Jev shadow submit failed: %s", type(exc).__name__
                 )
         result: OrchestrationResult | None = None
         try:
@@ -257,28 +258,34 @@ class AgentOrchestrator:
                     shadow.record_outcome(request_id, question, response)
                 except Exception as exc:  # noqa: BLE001
                     _shadow_log.warning(
-                        "Jev shadow outcome failed: %s: %s",
+                        "Jev shadow outcome failed: %s",
                         type(exc).__name__,
-                        exc,
                     )
 
     async def _jev_decide(
-        self, question: str, decision: RouteDecision, request_id: str
+        self, question: str, decision: RouteDecision, request_id: str,
+        cancel_event: asyncio.Event | None = None,
     ) -> RouteDecision:
-        """AGENT_JEV_MODE=decide. Any Jev failure leaves the router decision standing."""
+        """Apply the selected V3/V4 policy; each mode owns its failure behavior."""
         from services.agent.decisions.decide_mode import (
             decide_from_answers,
             decide_live,
             exemption,
+            JevRequest,
         )
+        if self.settings.jev_mode == "v4":
+            from services.agent.decisions.v4_router import decide_from_answers, decide_live, exemption
 
         gate = self.settings.jev_decide_min_confidence
         answer_gate = self.settings.jev_decide_answer_confidence
+        self._raise_if_cancelled(cancel_event)
         if exemption(decision, question):
             result = decide_from_answers(
                 question, decision, None, gate=gate, answer_gate=answer_gate
             )
         else:
+            total_timeout = self.settings.jev_timeout_seconds * (2 if self.settings.jev_mode == "v4" else 1) + 1.0
+            request = JevRequest(total_timeout)
             try:
                 backend = self.decide_backend
                 if backend is None:
@@ -290,8 +297,8 @@ class AgentOrchestrator:
                         timeout_seconds=self.settings.jev_timeout_seconds,
                     )
                     self.decide_backend = backend
-                result = await asyncio.wait_for(
-                    asyncio.to_thread(
+                async def run_decision():
+                    worker = asyncio.create_task(asyncio.to_thread(
                         decide_live,
                         question,
                         decision,
@@ -301,8 +308,23 @@ class AgentOrchestrator:
                         # ask_jev gives up here and returns; the pool stays bounded.
                         timeout=self.settings.jev_timeout_seconds,
                         budget=self.jev_budget,
-                    ),
-                    timeout=self.settings.jev_timeout_seconds + 1.0,
+                        request=request,
+                    ))
+                    cancelled = None if cancel_event is None else asyncio.create_task(cancel_event.wait())
+                    try:
+                        if cancelled is not None:
+                            await asyncio.wait({worker, cancelled}, return_when=asyncio.FIRST_COMPLETED)
+                            self._raise_if_cancelled(cancel_event)
+                        return await worker
+                    finally:
+                        request.stop()
+                        tasks = [worker] if cancelled is None else [worker, cancelled]
+                        for task in tasks:
+                            task.cancel()
+                        await asyncio.gather(*tasks, return_exceptions=True)
+
+                result = await asyncio.wait_for(
+                    run_decision(), timeout=total_timeout,
                 )
             except (TimeoutError, asyncio.TimeoutError):
                 result = decide_from_answers(
@@ -317,21 +339,28 @@ class AgentOrchestrator:
                     gate=gate,
                     error=f"{type(exc).__name__}: {exc}",
                 )
+            finally:
+                request.stop()
+        self._raise_if_cancelled(cancel_event)
         record = result.log_record(question, request_id)
         # A decline with a different reason is logged even when the router's
         # wording was kept, so Jev's reason is recorded somewhere.
-        if result.disagrees or result.error or result.reason_differs:
-            print(json.dumps(record, default=str))
+        if self.settings.jev_mode == "v4" or result.disagrees or result.error or result.reason_differs:
+            from services.agent.decisions.shadow_log import audit_record
+
+            print(json.dumps(audit_record(record), default=str))
             try:
                 from services.agent.decisions.shadow_log import ShadowLog, resolve_log_path
 
                 ShadowLog(
                     str(resolve_log_path(self.settings.jev_log_path)),
                     int(self.settings.jev_log_max_mb * 1024 * 1024),
+                    raw=self.settings.jev_log_raw,
+                    retention_days=self.settings.jev_log_retention_days,
                 ).write(record)
             except Exception as exc:  # noqa: BLE001
                 _shadow_log.warning(
-                    "Jev decide log failed: %s: %s", type(exc).__name__, exc
+                    "Jev decide log failed: %s", type(exc).__name__
                 )
         final = result.decision
         final.slots = {
@@ -369,6 +398,8 @@ class AgentOrchestrator:
         jev = decision.slots.get("jev_decide") or {}
         intent = jev.get("jev_intent")
         confidence = jev.get("jev_intent_confidence")
+        if self.settings.jev_mode == "v4":
+            return intent in {"compare", "trend"}
         return (
             intent in {"compare", "trend"}
             and isinstance(confidence, (int, float))
@@ -392,8 +423,6 @@ class AgentOrchestrator:
                     "request_id": request_id,
                     "path": decision.path,
                     "rule": decision.rule,
-                    "reason": decision.reason,
-                    "slots": decision.slots,
                 },
                 default=str,
             )
@@ -442,7 +471,7 @@ class AgentOrchestrator:
             await self._emit(on_event, "error", response)
             return OrchestrationResult(response=response, raw_log=raw_log)
 
-        if decision.path in {"clarification", "unsupported"}:
+        if decision.path in {"clarification", "unsupported", "error"}:
             response = self._response(
                 request_id=request_id,
                 decision=decision,
@@ -457,7 +486,7 @@ class AgentOrchestrator:
                 model_turns=0,
                 synthesis_fallback=False,
             )
-            await self._emit(on_event, "answer", response)
+            await self._emit(on_event, "error" if decision.path == "error" else "answer", response)
             return OrchestrationResult(response=response, raw_log=raw_log)
 
         try:
@@ -598,6 +627,7 @@ class AgentOrchestrator:
                         on_event=on_event,
                         cancel_event=cancel_event,
                         range_endpoints_cover=self._jev_reads_change(decision),
+                        jev_request=decision.slots.get("jev_request"),
                     )
                 else:
                     (
@@ -1234,6 +1264,7 @@ class AgentOrchestrator:
         on_event: ProgressCallback | None = None,
         cancel_event: asyncio.Event | None = None,
         range_endpoints_cover: bool = False,
+        jev_request: dict[str, str] | None = None,
     ) -> tuple[
         str,
         str,
@@ -1253,6 +1284,11 @@ class AgentOrchestrator:
             county=county,
             time_resolution=time_resolution,
         )
+        if jev_request:
+            slot_hint += (
+                f"Jev resolved the requested intent and measure: {json.dumps(jev_request)}. "
+                "Follow this intent; do not replace a comparison with one aggregate total.\n"
+            )
         # "untagged" is a valid utility value the model may pick on its own;
         # only a question about untagged or unattributed records keeps it.
         allow_untagged = question_allows_untagged(question)
@@ -1327,7 +1363,11 @@ class AgentOrchestrator:
             years=entity_years,
             months=entity_months,
         )
-        check_coverage = any(len(values) > 1 for values in entities.values())
+        if jev_request:
+            from services.agent.grounding import named_tiers
+
+            entities["tier"] = sorted(named_tiers(question))
+        check_coverage = bool(jev_request) or any(len(values) > 1 for values in entities.values())
         trajectory.append(
             {
                 "type": "tool_catalog",
@@ -1489,7 +1529,7 @@ class AgentOrchestrator:
                             **item,
                         }
                         trajectory.append(event)
-                        print(json.dumps({"event": "filter_dropped", **event}, default=str))
+                        print(json.dumps({"event": "filter_dropped", "tool": tool}))
                     canonical_args = json.dumps(args, sort_keys=True, default=str)
                 except json.JSONDecodeError as exc:
                     routing_messages.append(
@@ -1703,6 +1743,8 @@ class AgentOrchestrator:
                     if check_coverage or _ran_comparison(executions)
                     else []
                 )
+            if not missing and jev_request and range_endpoints_cover:
+                missing += uncovered_periods(call_windows.endpoints, _primary_calls(executions))
             if turn_had_success and not turn_had_failure and missing:
                 trajectory.append(
                     {
@@ -1802,6 +1844,8 @@ class AgentOrchestrator:
             if check_coverage or _ran_comparison(executions)
             else []
         )
+        if not still_missing and jev_request and range_endpoints_cover:
+            still_missing += uncovered_periods(call_windows.endpoints, _primary_calls(executions))
         if still_missing and _primary_calls(executions):
             # Never answer part of a multi-part question as if it were whole.
             trajectory.append(

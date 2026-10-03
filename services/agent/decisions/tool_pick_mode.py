@@ -381,6 +381,8 @@ def log_tool_pick(settings: AgentSettings, question: str, decision: ToolPickDeci
         ShadowLog(
             settings.jev_log_path,
             max_bytes=int(settings.jev_log_max_mb * 1024 * 1024),
+            raw=settings.jev_log_raw,
+            retention_days=settings.jev_log_retention_days,
         ).write(
             {
                 "type": "tool_pick_decision",

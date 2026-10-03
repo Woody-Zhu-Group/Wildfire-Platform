@@ -26,8 +26,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
+from services.agent.runtime_paths import runtime_dir
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_LOG = "services/agent/logs/jev_shadow.jsonl"
+DEFAULT_LOG = str(runtime_dir() / "logs/jev_shadow.jsonl")
 PRICE_PER_MILLION = 0.042
 LOW_CONFIDENCE = 0.8
 ROTATED_BACKUPS = 5
