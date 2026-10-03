@@ -196,11 +196,13 @@ def test_a_change_the_harness_did_not_compute_is_rejected():
     assert "49" not in response["answer_text"]
 
 
-def test_every_count_gets_a_stat_card():
+def test_every_count_is_retained_in_the_comparison():
     response = _ask(ScriptedProvider())
-    cards = [view for view in response["views"] if view["type"] == "stat_card"]
-    assert len(cards) == 4
-    shown = sorted((card["params"]["period"], card["params"]["value"]) for card in cards)
+    comparisons = [view for view in response["views"] if view["type"] == "comparison"]
+    assert len(comparisons) == 1
+    cells = comparisons[0]["params"]["grid"]["cells"]
+    assert len(cells) == 4
+    shown = sorted((cell["column"], cell["value"]) for cell in cells)
     assert shown == sorted((period, float(value)) for (_utility, period), value in ATTRIBUTED.items())
 
 
@@ -308,4 +310,6 @@ def test_cross_entity_rows_need_every_call_in_one_period():
 def test_count_cards_are_not_capped_but_other_stats_are():
     executions = [_count(f"evidence_{i}", "PGE", 2016 + i, i) for i in range(5)]
     planned = plan_views(executions, status="answer", slots={})
-    assert len([v for v in planned.views if v.type == "stat_card"]) == 5
+    comparisons = [v for v in planned.views if v.type == "comparison"]
+    assert len(comparisons) == 1
+    assert len(comparisons[0].params["grid"]["cells"]) == 5

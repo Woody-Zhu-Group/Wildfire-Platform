@@ -370,6 +370,21 @@ html.is-reordering-panels, html.is-reordering-panels * { cursor: grabbing !impor
   .panel-view-option { min-height: 88px; }
 }
 .analysis-chart { padding: 16px; container-type: inline-size; }
+.comparison-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 18px; font-size: 11px; color: var(--muted-strong); }
+.comparison-legend span { display: flex; align-items: center; gap: 6px; }
+.comparison-legend i { width: 12px; height: 4px; border-radius: 2px; }
+.comparison-groups { display: grid; gap: 18px; margin-bottom: 22px; }
+.comparison-group { display: grid; grid-template-columns: minmax(70px, 110px) minmax(0, 1fr); gap: 12px; align-items: center; }
+.comparison-group > strong { font-size: 12px; font-weight: 500; color: var(--text-secondary); overflow-wrap: anywhere; }
+.comparison-group > div { display: grid; gap: 5px; }
+.comparison-series { display: grid; grid-template-columns: minmax(0, 1fr) 64px; gap: 8px; align-items: center; }
+.comparison-series > span { text-align: right; font-size: 11px; color: var(--text-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comparison-table-scroll { overflow-x: auto; }
+.workspace-panel[data-panel-type="comparison"] .panel-body:has(.answer-comparison) { overflow-y: auto; }
+.comparison-values { width: 100%; border-collapse: collapse; font-size: 12px; color: var(--text-body); }
+.comparison-values th, .comparison-values td { padding: 10px 12px; border-bottom: 1px solid var(--overlay-14); text-align: right; vertical-align: top; }
+.comparison-values th { font-weight: 500; color: var(--muted-strong); }
+.comparison-values th:first-child { text-align: left; }
 .analysis-heading { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
 .series-toolbar { justify-content: space-between; }
 .series-toolbar .dataset-switches { padding-bottom: 0; }

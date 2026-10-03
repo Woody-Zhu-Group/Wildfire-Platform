@@ -2,6 +2,7 @@ import type { AgentAnswer } from './api.ts';
 import type { PanelId } from './PanelPicker';
 import type { PanelSettings } from './state';
 import { CALFIRE_DEFAULT_MODE, CHART_DATASETS, DATASETS, utilityLabel } from './data.ts';
+import { validComparisonGrid } from './comparisonGrid.ts';
 
 interface AnswerPanel { type: PanelId; name: string; settings: Partial<PanelSettings> }
 
@@ -74,6 +75,14 @@ function hasEvidence(view: View, count = 1): boolean {
 }
 
 const GRID_PANEL_NAMES = {risk: 'Modeled ignition risk surface', residual: 'Model residual map'} as const;
+
+function evidenceComparison(view: View): AnswerPanel | null {
+  if (view.type !== 'comparison' || !hasEvidence(view) || !validComparisonGrid(view.params.grid, view.evidence_ids)) return null;
+  const dataset = DATASETS.find(item => item.id === view.params.dataset || item.query === view.params.dataset);
+  if (!dataset) return null;
+  return {type: 'comparison', name: `${view.params.grid.label} comparison`,
+    settings: {dataset: dataset.id, filterMode: 'override', answerComparison: structuredClone(view.params.grid)}};
+}
 
 // Risk surface or residual grid for the one day the cited risk_forecast scored.
 function riskGridMap(view: View): AnswerPanel | null {
@@ -214,7 +223,8 @@ export function panelsFromAnswer(answer: AgentAnswer): AnswerPanel[] {
     }
     const ranking = rankingComparison(view);
     if (view.type === 'comparison') {
-      if (ranking) panels.push(ranking);
+      const comparison = evidenceComparison(view) ?? ranking;
+      if (comparison) panels.push(comparison);
       continue;
     }
     if (!['map', 'time_series', 'record_table'].includes(view.type)
@@ -266,7 +276,7 @@ export function panelsFromAnswer(answer: AgentAnswer): AnswerPanel[] {
 export function unsupportedViewNotice(answer: AgentAnswer): string | null {
   const views = answer.views ?? [];
   const names = [
-    views.some(view => view.type === 'comparison' && rankingComparison(view) === null) ? 'comparison' : '',
+    views.some(view => view.type === 'comparison' && evidenceComparison(view) === null && rankingComparison(view) === null) ? 'comparison' : '',
     views.some(view => view.type === 'spatial_context') ? 'spatial context' : '',
   ].filter(Boolean);
   if (!names.length) return null;
