@@ -20,6 +20,7 @@ from services.agent.places import (
 )
 from services.agent.time_resolve import (
     DATA_YEAR_MIN,
+    calendar_text,
     explicit_month_range_in_year,
     explicit_month_year_range,
     month_from_text,
@@ -829,7 +830,7 @@ def _asks_live(lower: str) -> bool:
         return True
     # An explicit year or date in the text makes today or current historical
     # ("up to today" from 2024). A resolved relative date does not count.
-    if re.search(r"\b20\d{2}\b", lower):
+    if re.search(r"\b20\d{2}\b", calendar_text(lower)):
         return False
     return bool(_LIVE_NOW.search(lower))
 
@@ -1097,6 +1098,7 @@ def _enumerated_years(lower: str) -> bool:
     year outside every matched range ("from 2018 to 2020 and in 2022"), is an
     enumeration that one windowed call would silently drop.
     """
+    lower = calendar_text(lower)
     named = sorted({int(item) for item in re.findall(r"\b20\d{2}\b", lower)})
     if len(named) <= 1:
         return False
@@ -1131,7 +1133,7 @@ def _single_call_would_collapse(
     """True when one tool call would drop a named entity or flatten a breakdown."""
     if len(utilities) > 1 or len(counties) > 1:
         return True
-    named_years = set(re.findall(r"\b20\d{2}\b", lower))
+    named_years = set(re.findall(r"\b20\d{2}\b", calendar_text(lower)))
     # "from 2018 to 2020" is one window with start and end dates. Enumerated
     # years, a range plus another year, or a breakdown word defer.
     enumerated = _enumerated_years(lower) or _enumerated_months(lower)
@@ -1558,6 +1560,7 @@ def _future_refusal_phrase(text: str, lower: str) -> str | None:
     predict/forecast of historical risk on a covered date stay historical.
     Years before coverage stay on the out-of-coverage clarify.
     """
+    text = calendar_text(text)
     years = [int(item) for item in re.findall(r"\b(20\d{2})\b", text)]
     today = date.today()
     data_max = today.year
@@ -2509,7 +2512,7 @@ def _predict_word_is_model_skill(text: str, lower: str) -> bool:
     how well the model predicts: no forward phrase, will, forecast, or year
     after coverage. Such a question is about skill, not a future prediction.
     """
-    if any(int(year) > date.today().year for year in re.findall(r"\b(20\d{2})\b", text)):
+    if any(int(year) > date.today().year for year in re.findall(r"\b(20\d{2})\b", calendar_text(text))):
         return False
     tokens = [match.group(0) for match in _FUTURE_DATE.finditer(lower)]
     return (
