@@ -171,6 +171,11 @@ class Store:
         except UniqueViolation as exc:
             raise AccountError(409, "request_pending", "An access request is already awaiting review.") from exc
 
+    def active_admin_emails(self) -> list[str]:
+        with self.pool.connection() as conn:
+            rows = conn.execute("SELECT email FROM app.users WHERE role='admin' AND status='active' ORDER BY email").fetchall()
+            return [row["email"] for row in rows]
+
     def list_rows(self, actor: UUID, table: str, cursor: UUID | None, limit: int, status: str | None = None, search: str | None = None) -> dict:
         if table not in ADMIN_LISTS:
             raise ValueError("Unsupported accounts list")

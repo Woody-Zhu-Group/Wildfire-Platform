@@ -65,6 +65,7 @@ class MailSink:
     def __init__(self):
         self.messages = []
         self.notifications = []
+        self.alerts = []
         self.fail = False
 
     def invite(self, email, raw):
@@ -76,6 +77,11 @@ class MailSink:
         if self.fail:
             raise MailUnavailable("test_failure")
         self.notifications.append((email, status, note))
+
+    def access_requested(self, email, event):
+        if self.fail:
+            raise MailUnavailable("test_failure")
+        self.alerts.append((email, event))
 
 
 @pytest.fixture

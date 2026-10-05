@@ -7,11 +7,12 @@ from contextlib import asynccontextmanager
 from threading import Lock
 from time import monotonic
 from typing import Literal
+from urllib.parse import urlencode
 from uuid import UUID
 
 import httpx
 import psycopg
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from psycopg_pool import PoolTimeout
@@ -19,7 +20,8 @@ from starlette.concurrency import run_in_threadpool
 
 from services.accounts.config import Settings
 from services.accounts.identity import OIDC
-from services.accounts.mail import Mailer, MailUnavailable
+from services.accounts.mail import Mailer
+from services.accounts.notify import AccessRequested, AccessReviewed, InvitationIssued, build_notifier
 from services.accounts.schemas import AccessApplication, Claim, Decision, Invite, UserPatch
 from services.accounts.security import (
     FLOW_COOKIE, INVITE_COOKIE, SAFE_METHODS, SESSION_COOKIE, AccountError,
@@ -70,6 +72,7 @@ def create_app(settings: Settings | None = None, store=None, identity=None, mail
         application.state.store = database
         application.state.identity = identity or OIDC(resolved, client)
         application.state.mailer = mailer or Mailer(resolved)
+        application.state.notifier = build_notifier(database, application.state.mailer)
         application.state.cipher = FlowCipher(resolved.secret)
         application.state.limiter = FlowLimit()
         try:
@@ -124,8 +127,22 @@ def create_app(settings: Settings | None = None, store=None, identity=None, mail
         request.app.state.store.health()
         return {"status": "ok", "service": "accounts"}
 
+    def sign_in_failed(request: Request, code: str) -> RedirectResponse:
+        """The page explaining a failed sign-in shows only this stable code."""
+        response = RedirectResponse(request.app.state.settings.public_origin + "/sign-in-error?" + urlencode({"code": code}), status_code=302)
+        clear_cookie(response, FLOW_COOKIE)
+        return response
+
     @application.get("/auth/login")
     def login(request: Request, return_to: str = "/"):
+        try:
+            return start_login(request, return_to)
+        except AccountError as error:
+            return sign_in_failed(request, error.code)
+        except (psycopg.Error, PoolTimeout):
+            return sign_in_failed(request, "accounts_unavailable")
+
+    def start_login(request: Request, return_to: str) -> RedirectResponse:
         state = request.app.state
         state.limiter.check(request.client.host if request.client else "unknown")
         destination = return_path(return_to)
@@ -148,7 +165,20 @@ def create_app(settings: Settings | None = None, store=None, identity=None, mail
         return response
 
     @application.get("/auth/callback")
-    async def callback(request: Request, state: str = Query(max_length=200), code: str = Query(max_length=4096)):
+    async def callback(request: Request, state: str | None = None, code: str | None = None, error: str | None = None):
+        # The identity provider sends `error` instead of `code` when it did not sign the person in.
+        if error or not state or not code:
+            return sign_in_failed(request, "identity_provider_error")
+        if len(state) > 200 or len(code) > 4096:
+            return sign_in_failed(request, "invalid_login_flow")
+        try:
+            return await finish_login(request, state, code)
+        except AccountError as failure:
+            return sign_in_failed(request, failure.code)
+        except (psycopg.Error, PoolTimeout):
+            return sign_in_failed(request, "accounts_unavailable")
+
+    async def finish_login(request: Request, state: str, code: str) -> RedirectResponse:
         context = request.app.state
         browser = request.cookies.get(FLOW_COOKIE)
         if not browser:
@@ -196,8 +226,11 @@ def create_app(settings: Settings | None = None, store=None, identity=None, mail
         return response
 
     @application.post("/api/access-requests", status_code=201)
-    def apply(body: AccessApplication, request: Request, user: dict = Depends(current_user)):
-        return request.app.state.store.apply(user["id"], body.name, body.organization, body.purpose)
+    def apply(body: AccessApplication, request: Request, tasks: BackgroundTasks, user: dict = Depends(current_user)):
+        row = request.app.state.store.apply(user["id"], body.name, body.organization, body.purpose)
+        # Administrators hear about it after the response; a failed alert never undoes the request.
+        tasks.add_task(request.app.state.notifier.publish, AccessRequested(row["id"], body.name, user["email"], body.organization, body.purpose))
+        return row
 
     @application.get("/api/access-requests/me")
     def my_application(request: Request, user: dict = Depends(current_user)):
@@ -237,11 +270,7 @@ def create_app(settings: Settings | None = None, store=None, identity=None, mail
 
     def send_review(request: Request, result: dict, email: str, public_note: str) -> dict:
         context = request.app.state
-        try:
-            context.mailer.review(email, result["status"], public_note)
-            status = "sent"
-        except MailUnavailable:
-            status = "failed"
+        status = context.notifier.publish(AccessReviewed(result["id"], email, result["status"], public_note))
         context.store.review_delivery(result["id"], status)
         return {**result, "notification_status": status}
 
@@ -253,11 +282,7 @@ def create_app(settings: Settings | None = None, store=None, identity=None, mail
 
     def send_invitation(request: Request, invitation: dict, raw: str) -> dict:
         context = request.app.state
-        try:
-            context.mailer.invite(invitation["email"], raw)
-            status = "sent"
-        except MailUnavailable:
-            status = "failed"
+        status = context.notifier.publish(InvitationIssued(invitation["id"], invitation["email"], raw))
         context.store.delivery(invitation["id"], raw, status)
         return {**invitation, "delivery_status": status}
 
