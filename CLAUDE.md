@@ -11,7 +11,11 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 Accounts foundation on this branch is in `services/accounts/`, loopback port
 8005. It is not connected to the website or deployed. Its PostgreSQL app schema
 and restricted runtime role are separate from warehouse loaders. Frontend and
-real-provider acceptance are required before gateway rollout.
+real-provider acceptance are required before gateway rollout. Draft access pages
+(landing with a Try it snapshot, sign-in dialog, request status) are in
+`website/src/access/`, not mounted; preview them at `/preview/access.html` on the
+website dev server. Regenerate the snapshot with `node scripts/access-snapshot.ts`
+in `website/` after a warehouse reload.
 
 - Never use em dashes in code comments, docs, commit messages, or reports.
 - Push only to the `platform` remote (Woody-Zhu-Group/Wildfire-Platform). `origin` is Michael's old fork (ByteMasterMike/Wildfire-Services); nothing should live only there.

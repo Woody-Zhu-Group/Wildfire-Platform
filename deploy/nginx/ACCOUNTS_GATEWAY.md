@@ -4,9 +4,10 @@ These are staged templates, not the live origin configuration.
 Do not enable them while the website uses anonymous cross-origin API calls.
 
 First configure real Cognito/MFA, verified initial administrator IDs, SES and the
-restricted accounts DB role. Connect the later frontend introduction page,
-login/register modal, status page and Console. Site and /auth/* and /api/* must
-share one HTTPS origin.
+restricted accounts DB role. Connect the frontend introduction page, sign-in /
+request-access dialog and status page (drafted in `website/src/access/`, not
+mounted) and the later Console. Site and /auth/* and /api/* must share one HTTPS
+origin.
 
 Confirm `nginx -V` includes http_auth_request_module. Bind business ports
 to loopback/private interfaces or equivalent security-group restrictions.

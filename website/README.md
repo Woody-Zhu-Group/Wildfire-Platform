@@ -28,6 +28,7 @@ setup, warehouse prerequisites and historical model limitations.
 | `src/data.ts`, `src/stats.ts`, `src/annual.ts`, `src/temporal.ts` | Record normalization, counts and time aggregation |
 | `src/RecordPanels.tsx` | Record tables and summary metrics |
 | `src/ExportActions.tsx`, `src/exports.ts` | CSV and chart PNG exports |
+| `src/access/` | Draft access pages for the accounts service: landing, sign-in dialog, request status. Not mounted |
 
 Maps and records use the Visualization API; the risk surface and residual maps
 use the Historical Risk API. The development and production build
@@ -61,6 +62,39 @@ npm run dev
 ```
 
 Development URL: `http://127.0.0.1:8771/`.
+
+### Access pages (not mounted)
+
+`src/access/` holds the pages a visitor sees before the workspace once the
+accounts service (`services/accounts/`) is connected: a landing page with a
+sign-in / request-access dialog, and the `/access-status` page with the access
+request form, pending review, declined request and suspension states. They reuse
+the workspace tokens and components, follow the light and dark themes, and take
+field limits and `return_to` paths from the service (`tests/access-flow.test.ts`
+compares them with `services/accounts/`). Sign-in and account creation are
+links to `GET /auth/login`, which continues on the identity provider's page.
+`AccessStatus` takes the `GET /api/auth/me` user and application as props and an
+`onSubmit` that posts the request and reads the account again; no API client is
+wired yet.
+
+The landing page draws California as the risk model's 824-cell grid
+(`docs/assets/data/weather_anim/grid_cells.json`), shaded by CPUC ignitions per
+cell, one hue per dataset with opacity for magnitude. Its Try it section is a
+read-only map, monthly time series and comparison for 2022 to 2024. Asking a
+question there opens the sign-in dialog, because answers come from the agent.
+Visitors without an account never call a service: both read
+`src/access/trySnapshot.json`, counts per grid cell, month and group written by
+`node scripts/access-snapshot.ts` from the public services through the
+workspace's own loaders. The script fails without writing when a year's map,
+series and grouped totals disagree, and `tests/access-snapshot.test.ts` fails when
+the snapshot no longer matches `shared/dataset_coverage.json`. Rerun the script
+after a warehouse reload. The snapshot is public by design; it holds aggregates
+only, no record ids, dates or coordinates.
+
+`main.tsx` does not import them, so the production build does not change. Preview
+them with sample accounts at `http://127.0.0.1:8771/preview/access.html`
+(development server only). `src/index.css` keeps `src/access/` and `preview/` out
+of the Tailwind utility scan; they use `src/access/access.css` instead.
 
 The checked-in `.env.development` and `.env.production` set `VITE_DATA_QUERY_URL`
 to `https://d3t70p3if3twy3.cloudfront.net/api/data-query`. Both profiles use PR #3's

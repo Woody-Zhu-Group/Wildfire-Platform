@@ -2,6 +2,8 @@
 
 This branch adds an independent FastAPI accounts service on loopback port 8005.
 The website is not connected to it, and the gateway has not been deployed.
+Draft website pages for it (landing, sign-in dialog, request status) are in
+`website/src/access/` and are not mounted; see the website README.
 Cognito handles passwords/MFA; application membership, invitations, approval,
 sessions and audit history live in PostgreSQL's `app` schema.
 Jev and the existing business services are unchanged.
@@ -133,7 +135,7 @@ credentials. 401: bad session; 403: privilege/CSRF; 409: conflict; 410: unavaila
 invitation; 422: input; 429: flow limit. DB/provider faults fail closed.
 Health checks the DB, not the full deployment.
 
-No frontend, private-static-resource delivery, conversation memory, cloud
+No mounted frontend, private-static-resource delivery, conversation memory, cloud
 workspace persistence or per-user Agent budget is added here.
 
 ## Verification
