@@ -283,8 +283,13 @@ def create_app(settings: Settings | None = None, store=None, identity=None, mail
         return Response(status_code=204)
 
     @application.get("/api/admin/users")
-    def users(request: Request, user: dict = Depends(administrator), cursor: UUID | None = None, limit: int = Query(default=25, ge=1, le=100)):
-        return request.app.state.store.list_rows(user["id"], "users", cursor, limit)
+    def users(
+        request: Request, user: dict = Depends(administrator),
+        status: Literal["pending", "active", "suspended"] | None = None,
+        q: str | None = Query(default=None, max_length=254),
+        cursor: UUID | None = None, limit: int = Query(default=25, ge=1, le=100),
+    ):
+        return request.app.state.store.list_rows(user["id"], "users", cursor, limit, status, q.strip() if q else None)
 
     @application.patch("/api/admin/users/{user_id}")
     def patch_user(user_id: UUID, body: UserPatch, request: Request, user: dict = Depends(administrator)):

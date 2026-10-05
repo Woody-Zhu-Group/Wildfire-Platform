@@ -17,6 +17,30 @@ from services.accounts.security import AccountError, digest
 
 AUTHORIZATION_LOCK = 174832092
 
+# Each administrator list reads one table under an alias, with the people its ids
+# point to beside them. list_rows drops token_hash before anything leaves.
+ADMIN_LISTS = {
+    "access_requests": (
+        "SELECT r.*, u.name AS applicant_name, u.email AS applicant_email, u.status AS applicant_status, "
+        "v.email AS reviewer_email FROM app.access_requests r JOIN app.users u ON u.id=r.applicant_id "
+        "LEFT JOIN app.users v ON v.id=r.reviewer_id", "r"),
+    "invitations": (
+        "SELECT i.*, u.email AS invited_by_email, a.email AS accepted_by_email FROM app.invitations i "
+        "LEFT JOIN app.users u ON u.id=i.invited_by LEFT JOIN app.users a ON a.id=i.accepted_by", "i"),
+    "users": ("SELECT u.* FROM app.users u", "u"),
+    "audit_events": (
+        "SELECT e.*, actor.email AS actor_email, COALESCE(target_user.email, applicant.email, invitation.email) AS target_email "
+        "FROM app.audit_events e LEFT JOIN app.users actor ON actor.id=e.actor_id "
+        "LEFT JOIN app.users target_user ON e.target_type='user' AND target_user.id=e.target_id "
+        "LEFT JOIN app.access_requests request ON e.target_type='access_request' AND request.id=e.target_id "
+        "LEFT JOIN app.users applicant ON applicant.id=request.applicant_id "
+        "LEFT JOIN app.invitations invitation ON e.target_type='invitation' AND invitation.id=e.target_id", "e"),
+}
+
+
+def column(alias: str, name: str) -> sql.Composable:
+    return sql.SQL("{}.{}").format(sql.Identifier(alias), sql.Identifier(name))
+
 
 class Store:
     def __init__(self, settings: Settings):
@@ -147,10 +171,10 @@ class Store:
         except UniqueViolation as exc:
             raise AccountError(409, "request_pending", "An access request is already awaiting review.") from exc
 
-    def list_rows(self, actor: UUID, table: str, cursor: UUID | None, limit: int, status: str | None = None) -> dict:
-        allowed = {"access_requests", "invitations", "users", "audit_events"}
-        if table not in allowed:
+    def list_rows(self, actor: UUID, table: str, cursor: UUID | None, limit: int, status: str | None = None, search: str | None = None) -> dict:
+        if table not in ADMIN_LISTS:
             raise ValueError("Unsupported accounts list")
+        select, alias = ADMIN_LISTS[table]
         with self.pool.connection() as conn:
             user = conn.execute("SELECT role,status FROM app.users WHERE id=%s", (actor,)).fetchone()
             if not user or user["role"] != "admin" or user["status"] != "active":
@@ -162,14 +186,19 @@ class Store:
                     raise AccountError(422, "invalid_cursor", "The page cursor is not valid.")
             clauses, params = [], []
             if before:
-                clauses.append(sql.SQL("(created_at,id)<(%s,%s)"))
+                clauses.append(sql.SQL("({},{})<(%s,%s)").format(column(alias, "created_at"), column(alias, "id")))
                 params.extend((before["created_at"], before["id"]))
             if status is not None:
-                clauses.append(sql.SQL("status=%s"))
+                clauses.append(sql.SQL("{}=%s").format(column(alias, "status")))
                 params.append(status)
+            if search:
+                # Literal text: % and _ in the search do not act as wildcards.
+                pattern = "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+                clauses.append(sql.SQL("({} ILIKE %s OR {} ILIKE %s)").format(column(alias, "email"), column(alias, "name")))
+                params.extend((pattern, pattern))
             where = sql.SQL(" WHERE ") + sql.SQL(" AND ").join(clauses) if clauses else sql.SQL("")
-            statement = sql.SQL("SELECT * FROM app.{}").format(sql.Identifier(table)) + where + sql.SQL(" ORDER BY created_at DESC,id DESC LIMIT %s")
-            rows = conn.execute(statement, (*params, limit + 1)).fetchall()
+            order = sql.SQL(" ORDER BY {} DESC,{} DESC LIMIT %s").format(column(alias, "created_at"), column(alias, "id"))
+            rows = conn.execute(sql.SQL(select) + where + order, (*params, limit + 1)).fetchall()
             more, rows = len(rows) > limit, rows[:limit]
             for row in rows:
                 row.pop("token_hash", None)

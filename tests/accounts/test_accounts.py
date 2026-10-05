@@ -373,3 +373,38 @@ def test_session_and_login_secrets_not_stored_plaintext(client, account, store):
     assert session["token_hash"] == digest(member["raw"]) and session["token_hash"] != member["raw"]
     assert flow["token_hash"] == digest(raw) and flow["token_hash"] != raw
     assert not flow["sealed_payload"].startswith("{")
+
+
+def test_admin_lists_name_the_people_behind_ids(client, account):
+    admin = account("admin", role="admin")
+    applicant = account("applicant", status="pending")
+    rid = client.post("/api/access-requests", headers=applicant["headers"], json={"name": "Ada Applicant", "organization": "Lab", "purpose": "Study"}).json()["id"]
+    client.post(f"/api/admin/access-requests/{rid}/decision", headers=admin["headers"], json={"decision": "approve"})
+    client.post("/api/admin/invitations", headers=admin["headers"], json={"email": "Invited@Example.org"})
+    request = client.get("/api/admin/access-requests", headers=admin["headers"]).json()["items"][0]
+    assert (request["applicant_name"], request["applicant_email"], request["applicant_status"], request["reviewer_email"]) == (
+        "Ada Applicant", "applicant@example.org", "active", "admin@example.org")
+    invitation = client.get("/api/admin/invitations", headers=admin["headers"]).json()["items"][0]
+    assert (invitation["email"], invitation["invited_by_email"], invitation["accepted_by_email"]) == ("invited@example.org", "admin@example.org", None)
+    events = {row["action"]: row for row in client.get("/api/admin/audit-events", headers=admin["headers"]).json()["items"]}
+    assert (events["access_requested"]["actor_email"], events["access_requested"]["target_email"]) == ("applicant@example.org", "applicant@example.org")
+    assert (events["access_approved"]["actor_email"], events["access_approved"]["target_email"]) == ("admin@example.org", "applicant@example.org")
+    assert events["invitation_created"]["target_email"] == "invited@example.org"
+
+
+def test_member_list_filters_by_status_and_searches_literal_text(client, account):
+    admin = account("admin", role="admin")
+    account("alice", status="pending")
+    account("bob_smith", status="suspended")
+    account("carol", status="active")
+
+    def listed(**params):
+        return sorted(row["email"] for row in client.get("/api/admin/users", params=params, headers=admin["headers"]).json()["items"])
+
+    assert listed(status="pending") == ["alice@example.org"]
+    assert listed(q="ALI") == ["alice@example.org"]
+    assert listed(q="_") == ["bob_smith@example.org"]
+    assert listed(q="%") == []
+    assert listed(status="active", q="example.org") == ["admin@example.org", "carol@example.org"]
+    assert client.get("/api/admin/users", params={"status": "admin"}, headers=admin["headers"]).status_code == 422
+    assert client.get("/api/admin/users", params={"q": "x" * 255}, headers=admin["headers"]).status_code == 422
