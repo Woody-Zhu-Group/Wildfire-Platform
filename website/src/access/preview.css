@@ -1,0 +1,5 @@
+/* Development preview only: the sample-state switcher. Kept out of TSX so the
+   Tailwind source scan does not add utilities to the production stylesheet. */
+.access-preview-states { position: fixed; left: 12px; bottom: 12px; z-index: 10; display: flex; gap: 2px; padding: 3px; border: 1px dashed var(--overlay-30); border-radius: 8px; background: var(--surface-well); font-size: 11px; }
+.access-preview-states a { padding: 4px 8px; border-radius: 5px; color: var(--muted-strong); }
+.access-preview-states a[aria-current] { background: var(--surface-pressed); color: var(--text-bright); }
