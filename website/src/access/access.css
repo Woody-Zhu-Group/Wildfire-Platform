@@ -263,3 +263,9 @@ html[data-theme="light"] .access-grid-glow { opacity: .3; }
   .console-toolbar input { flex: 1 1 100%; min-width: 0; }
   .console-request-facts > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+
+/* Sign-in error page */
+.access-error-code { display: flex; align-items: center; gap: 10px; margin-top: 18px !important; }
+.access-error-code span { color: var(--muted); font-size: 12px; }
+.access-error-code code { padding: 4px 8px; border: 1px solid var(--overlay-18); border-radius: 6px; background: var(--surface-inset); color: var(--text-bright-soft); font-size: 13px; user-select: all; }
+.access-card-link { display: inline-block; }

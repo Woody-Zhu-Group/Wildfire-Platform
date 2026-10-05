@@ -3,7 +3,7 @@ import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { AccountsError, acceptInvitation, claimInvitation, decideRequest, getMe, listRequests, listUsers, signOut, submitApplication, updateUser, type Me } from "../src/access/accountsApi.ts"
-import { routeFor } from "../src/access/accessRoute.ts"
+import { routeFor, signInErrorCode, SIGN_IN_ERROR_PATH } from "../src/access/accessRoute.ts"
 import { LOGIN_RETURN_PATHS } from "../src/access/accessFlow.ts"
 
 const me = (status: Me["user"]["status"], role: Me["user"]["role"] = "member"): Me => ({
@@ -142,4 +142,16 @@ test("administrator calls filter by query and write with the session's CSRF toke
     assert.equal(decide.url, "/api/admin/access-requests/r-1/decision")
     assert.deepEqual(JSON.parse(String(decide.init.body)), { decision: "approve", note: "", public_note: "Welcome" })
   } finally { fake.restore() }
+})
+
+test("a failed sign-in lands on the explanation page the service redirects to, with only a safe code", () => {
+  const app = readFileSync(fileURLToPath(new URL("../../services/accounts/app.py", import.meta.url)), "utf8")
+  assert.ok(app.includes(`"${SIGN_IN_ERROR_PATH}?"`), "sign_in_failed in app.py redirects elsewhere")
+  for (const session of [null, me("active"), me("pending"), me("active", "admin")]) {
+    assert.deepEqual(routeFor(SIGN_IN_ERROR_PATH, session), { view: { page: "sign-in-error" }, path: SIGN_IN_ERROR_PATH })
+  }
+  assert.equal(signInErrorCode("?code=invalid_login_flow"), "invalid_login_flow")
+  assert.equal(signInErrorCode("?code=<script>"), "unknown")
+  assert.equal(signInErrorCode(""), "unknown")
+  assert.equal(signInErrorCode("?code=" + "a".repeat(65)), "unknown")
 })

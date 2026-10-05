@@ -17,8 +17,9 @@ function takeToken(): string | null {
 }
 
 /**
- * /invite. Signed out: claim the emailed link, which binds it to this browser,
- * then continue to sign-in. Signed in again after that: accept it.
+ * /invite. With the emailed token in the address: claim it, which binds it to
+ * this browser, then sign in again, whoever is signed in now. Back from that
+ * sign-in, without a token: accept it.
  */
 export function InvitePage({ me, onAccepted, onSignOut }: { me: Me | null; onAccepted: () => Promise<void>; onSignOut: () => Promise<void> }) {
   const [step, setStep] = useState<Step>({ kind: "working", text: me ? "Accepting your invitation…" : "Opening your invitation…" })
@@ -27,12 +28,13 @@ export function InvitePage({ me, onAccepted, onSignOut }: { me: Me | null; onAcc
     // Claiming or accepting twice would fail the second time; run once per page load.
     if (started.current) return
     started.current = true
-    if (!me) {
-      const token = takeToken()
+    const token = takeToken()
+    if (token || !me) {
       if (!token) {
         setStep({ kind: "problem", title: "Open the link from your invitation email", text: "This page needs the full link from the email." })
         return
       }
+      setStep({ kind: "working", text: "Opening your invitation…" })
       claimInvitation(token)
         .then(({ login_url }) => { setStep({ kind: "working", text: "Continuing to sign-in…" }); location.assign(login_url) })
         .catch(error => setStep({ kind: "problem", title: "This invitation cannot be opened", text: `${error instanceof Error ? error.message : ""} ${ASK_AGAIN}`.trim() }))

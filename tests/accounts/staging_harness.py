@@ -68,6 +68,9 @@ class DevMailer:
     def invite(self, email: str, raw: str) -> None:
         MAIL.append({"to": email, "kind": "invitation", "link": ORIGIN + "/invite#token=" + raw})
 
+    def access_requested(self, email: str, event) -> None:
+        MAIL.append({"to": email, "kind": "access_requested", "applicant": event.email, "link": ORIGIN + "/admin"})
+
     def review(self, email: str, status: str, note: str) -> None:
         MAIL.append({"to": email, "kind": "review", "status": status, "note": note, "link": ORIGIN + "/access-status"})
 

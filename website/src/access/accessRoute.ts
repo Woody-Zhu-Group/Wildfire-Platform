@@ -4,6 +4,15 @@
 import type { LoginReturnPath } from "./accessFlow.ts"
 import type { Me } from "./accountsApi.ts"
 
+/** Where the accounts service sends a failed sign-in (`sign_in_failed` in services/accounts/app.py). */
+export const SIGN_IN_ERROR_PATH = "/sign-in-error"
+
+/** The service redirects there with a stable code; anything else reads as unknown. */
+export function signInErrorCode(search: string): string {
+  const code = new URLSearchParams(search).get("code") ?? ""
+  return /^[a-z0-9_]{1,64}$/.test(code) ? code : "unknown"
+}
+
 export type View =
   | { page: "landing"; returnTo: LoginReturnPath }
   | { page: "invite-claim" }
@@ -11,9 +20,12 @@ export type View =
   | { page: "status" }
   | { page: "workspace" }
   | { page: "console" }
+  | { page: "sign-in-error" }
 
 /** The page to show and the path the address bar should read. */
 export function routeFor(path: string, me: Me | null): { view: View; path: string } {
+  // A failed sign-in explains itself whoever is signed in.
+  if (path === SIGN_IN_ERROR_PATH) return { view: { page: "sign-in-error" }, path }
   if (!me) {
     if (path === "/invite") return { view: { page: "invite-claim" }, path }
     // A deep link to the workspace or the console returns there after sign-in.

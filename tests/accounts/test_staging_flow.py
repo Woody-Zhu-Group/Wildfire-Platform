@@ -180,6 +180,8 @@ def test_console_reviews_invites_and_manages_members(browser, base):
     erin.get_by_label("How you plan to use the platform").fill("Comparing EPSS outages by cause.")
     erin.get_by_role("button", name="Submit request").click()
     expect(erin.get_by_role("heading", name="Your request is under review")).to_be_visible()
+    alerts = [m for m in mail_to(lead, "lead@example.org") if m["kind"] == "access_requested"]
+    assert [m["applicant"] for m in alerts] == ["erin@example.org"], "every active administrator hears of a new request"
 
     # Requests: the reviewer sees who applied and why, and the decision is mailed with the message.
     lead.reload()
@@ -244,4 +246,56 @@ def test_console_reviews_invites_and_manages_members(browser, base):
     expect(erin).to_have_url(f"{base}/workspace")
     assert erin.request.get("/api/admin/users").status == 403
     for context in (lead_context, erin_context):
+        context.close()
+
+
+@pytest.mark.parametrize("path,code", [
+    ("/auth/callback?error=access_denied&state=x", "identity_provider_error"),
+    ("/auth/callback?state=x&code=y", "invalid_login_flow"),
+    ("/auth/login?return_to=//attacker.test", "invalid_return_path"),
+])
+def test_sign_in_problems_land_on_the_explanation_page(browser, base, path, code):
+    context, page = person(browser, base)
+    page.goto(path)
+    expect(page).to_have_url(f"{base}/sign-in-error?code={code}")
+    expect(page.get_by_role("heading", name="Sign-in did not complete")).to_be_visible()
+    expect(page.get_by_text("contact a Wildfire administrator", exact=False)).to_be_visible()
+    expect(page.locator("code")).to_have_text(code)
+    context.close()
+
+
+def test_pending_account_moves_on_without_reload_and_invitation_opens_while_signed_in(browser, base):
+    ops_context, ops = person(browser, base)
+    sign_in(ops, "ops@example.org")
+    assert ops.request.post("/dev-idp/bootstrap-admin", form={"email": "ops@example.org"}).ok
+
+    def apply(page, email):
+        page.goto("/")
+        page.get_by_role("button", name="Request access").first.click()
+        page.get_by_role("link", name="Create an account").click()
+        identity_page(page, email)
+        page.get_by_label("Full name").fill(email.split("@")[0].title())
+        page.get_by_label("Organization").fill("Example Lab")
+        page.get_by_label("How you plan to use the platform").fill("Testing.")
+        page.get_by_role("button", name="Submit request").click()
+        expect(page.get_by_role("heading", name="Your request is under review")).to_be_visible()
+
+    # Approval reaches a waiting page when it comes back into view.
+    pat_context, pat = person(browser, base)
+    apply(pat, "pat@example.org")
+    pat_id = account(pat)["user"]["id"]
+    pending = ops.request.get("/api/admin/access-requests?status=pending").json()["items"]
+    request_id = next(row["id"] for row in pending if row["applicant_id"] == pat_id)
+    write(ops, base, "POST", f"/api/admin/access-requests/{request_id}/decision", {"decision": "approve"})
+    pat.evaluate("window.dispatchEvent(new Event('focus'))")
+    expect(pat).to_have_url(f"{base}/workspace")
+
+    # An invitation opened by someone already signed in (here, still pending) is claimed, not misreported.
+    quinn_context, quinn = person(browser, base)
+    apply(quinn, "quinn@example.org")
+    write(ops, base, "POST", "/api/admin/invitations", {"email": "quinn@example.org"})
+    quinn.goto(mail_to(ops, "quinn@example.org")[-1]["link"])
+    identity_page(quinn, "quinn@example.org")
+    expect(quinn).to_have_url(f"{base}/workspace")
+    for context in (ops_context, pat_context, quinn_context):
         context.close()

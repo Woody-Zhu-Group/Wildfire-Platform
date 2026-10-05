@@ -7,9 +7,10 @@ import { AdminConsole } from "./AdminConsole.tsx"
 import { AccountMenu } from "./AccountMenu.tsx"
 import { AccountsError, getMe, signOut, submitApplication, type Me } from "./accountsApi.ts"
 import type { ApplicationDraft } from "./accessFlow.ts"
-import { routeFor } from "./accessRoute.ts"
+import { routeFor, SIGN_IN_ERROR_PATH } from "./accessRoute.ts"
 import { InvitePage } from "./InvitePage.tsx"
 import { Landing } from "./Landing.tsx"
+import { SignInErrorPage } from "./SignInErrorPage.tsx"
 import "./access.css"
 
 type Session =
@@ -53,11 +54,28 @@ export function AccountsRoot() {
   const me = session.state === "signed-in" ? session.me : null
   const route = session.state === "signed-in" || session.state === "anonymous" ? routeFor(path, me) : null
   useEffect(() => {
+    // A new page drops the old fragment, which can hold an invitation token.
     if (route && route.path !== location.pathname) {
-      history.replaceState(null, "", route.path + location.hash)
+      history.replaceState(null, "", route.path)
       setPath(route.path)
     }
   }, [route?.path])
+
+  // A pending account learns of its review without a reload: read the account
+  // again when the page comes back into view, and every minute while it is shown.
+  const waiting = route?.view.page === "status"
+  useEffect(() => {
+    if (!waiting) return
+    const recheck = () => { if (document.visibilityState === "visible") readAccount() }
+    const timer = setInterval(recheck, 60_000)
+    window.addEventListener("focus", recheck)
+    document.addEventListener("visibilitychange", recheck)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener("focus", recheck)
+      document.removeEventListener("visibilitychange", recheck)
+    }
+  }, [waiting, readAccount])
 
   // A full navigation after sign-out drops every request the page still has open,
   // including an Ask stream.
@@ -85,6 +103,8 @@ export function AccountsRoot() {
     setPath("/workspace")
   }, [readAccount])
 
+  // Shown before the account is read: the failure may be that accounts are unavailable.
+  if (path === SIGN_IN_ERROR_PATH) return <SignInErrorPage />
   if (session.state === "loading") return <div className="access-loading" aria-busy="true"><span className="loading-text">Loading…</span></div>
   if (session.state === "unavailable") return (
     <div className="access-page">
@@ -106,5 +126,6 @@ export function AccountsRoot() {
     case "status": return <AccessStatus user={me!.user} application={me!.application} onSubmit={submit} onSignOut={() => { leave().catch(() => undefined) }} />
     case "workspace": return <App account={<AccountMenu user={me!.user} onSignOut={leave} />} />
     case "console": return <AdminConsole me={me!} onSignOut={leave} onSessionLost={lost} />
+    case "sign-in-error": return <SignInErrorPage />
   }
 }
