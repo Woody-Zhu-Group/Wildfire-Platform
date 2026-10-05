@@ -82,11 +82,14 @@ at a same-origin path (`/api/data-query`, `/api/visualization`,
 | Signed in on `/invite` | Accepts the invitation bound to this sign-in |
 | Active | Workspace (`/workspace`), with the account and sign-out in the header |
 | Active administrator on `/admin` | Console: requests, invitations, members, audit |
+| Anyone on `/sign-in-error` | Where a failed sign-in lands: the error code and a request to contact an administrator |
 
 Sign-in and account creation are links to `GET /auth/login`, which continues on
 the identity provider's page. Every write sends the session's CSRF token (Ask
 included); a 401 from any call returns to the landing page with a notice, a 403
-reads the account again, and sign-out reloads the page so open requests end. The
+reads the account again, and sign-out reloads the page so open requests end. A
+pending account's page reads the account again when it comes back into view and
+every minute, so an approval opens the workspace without a reload. The
 pages reuse the workspace tokens and components and follow both themes; field
 limits and `return_to` paths come from the service (`tests/access-flow.test.ts`
 and `tests/access-accounts.test.ts` compare them with `services/accounts/`).

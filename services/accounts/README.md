@@ -93,10 +93,25 @@ already-started flows/sessions. Used/revoked/expired/wrong-email invites fail,
 and invitations cannot restore a suspended account. Pending applications resolved
 by invitation are audited.
 
-SES invitations/review notifications happen after core transactions commit.
-Mail failure does not roll back qualification; its failed delivery is recorded.
-Resend creates a new invitation token; `/notify` retries only the stored
-review recipient/public note. Secrets never enter audit metadata or API errors.
+## Notifications
+
+Notifications follow the observer pattern (`notify.py`). Routes publish an event
+after their transaction commits; observers subscribed at startup decide who hears
+about it and how. Today every observer sends SES mail:
+
+| Event | Published by | Observer |
+|---|---|---|
+| `AccessRequested` | `POST /api/access-requests`, after the response | Mails every active administrator: who asked, organization, intended use, a link to `/admin` |
+| `AccessReviewed` | A decision and `/notify` | Mails the applicant the result and the public note |
+| `InvitationIssued` | Creating and resending an invitation | Mails the invitee the link with the token |
+
+A failing observer never undoes the event or stops the other observers. Review
+and invitation mail record their delivery (`notification_status`,
+`delivery_status`) for the console; a failed administrator alert is logged by
+kind only, and the request still appears in the console. Resend creates a new
+invitation token; `/notify` retries only the stored review recipient/public
+note. Secrets never enter audit metadata, logs or API errors. A new channel is
+one more `subscribe` call in `build_notifier`.
 
 Public login/claim limits are process-local: 100 requests per five minutes per
 transport peer, with bounded key storage. Behind loopback proxying that peer is
@@ -106,7 +121,12 @@ limiter or a per-user paid-Agent quota.
 ## API
 
 Responses are private/no-store. Redirects use 302; payloads are JSON;
-logout/revoke/internal authorization use 204.
+logout/revoke/internal authorization use 204. `/auth/login` and `/auth/callback`
+are browser navigations, so they never answer with JSON: any failure (expired or
+replayed flow, the identity provider returning an error, a rejected identity,
+the flow limit, an unsupported return path, the database being unavailable)
+redirects to `/sign-in-error?code=<error code>`, which shows the code and asks
+the person to contact an administrator.
 
 | Method | Path | Access |
 |---|---|---|

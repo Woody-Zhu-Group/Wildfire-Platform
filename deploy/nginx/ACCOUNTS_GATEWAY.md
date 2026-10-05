@@ -7,7 +7,7 @@ First configure real Cognito/MFA, verified initial administrator IDs, SES and th
 restricted accounts DB role. Serve the website's accounts build
 (`npm run build:accounts`: landing, sign-in dialog, status, invitation and
 administrator console) from the same HTTPS origin as /auth/* and /api/*. Page
-paths (`/workspace`, `/access-status`, `/invite`, `/admin`) must load
+paths (`/workspace`, `/access-status`, `/invite`, `/admin`, `/sign-in-error`) must load
 `index.html`; rewrite them in a CloudFront Function on the site behavior, not
 with custom error pages, which would also turn API 404s into the page. Rehearse
 with `tests/accounts/staging_harness.py` (services/accounts/README.md).
