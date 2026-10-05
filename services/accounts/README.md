@@ -1,9 +1,9 @@
 # Accounts access foundation
 
 This branch adds an independent FastAPI accounts service on loopback port 8005.
-The website is not connected to it, and the gateway has not been deployed.
-Draft website pages for it (landing, sign-in dialog, request status) are in
-`website/src/access/` and are not mounted; see the website README.
+The website's accounts build (`npm run build:accounts`, `website/src/access/`)
+is its frontend, including the administrator console at `/admin`; neither it nor
+the gateway has been deployed, and the GitHub Pages site stays anonymous.
 Cognito handles passwords/MFA; application membership, invitations, approval,
 sessions and audit history live in PostgreSQL's `app` schema.
 Jev and the existing business services are unchanged.
@@ -124,19 +124,23 @@ logout/revoke/internal authorization use 204.
 | GET/POST | /api/admin/invitations | Active admin, CSRF for writes |
 | POST | /api/admin/invitations/{id}/resend | Active admin, CSRF |
 | POST | /api/admin/invitations/{id}/revoke | Active admin, CSRF |
-| GET | /api/admin/users | Active admin |
+| GET | /api/admin/users | Active admin; `status` and `q` (name or email, literal text) filters |
 | PATCH | /api/admin/users/{id} | Active admin, CSRF |
 | GET | /api/admin/audit-events | Active admin |
 | GET | /internal/auth/active | Loopback, trusted original method |
 
-Lists use limit 1..100 and UUID cursors in descending creation order.
+Lists use limit 1..100 and UUID cursors in descending creation order. Each row
+carries the people its ids point to: requests add `applicant_name`,
+`applicant_email`, `applicant_status` and `reviewer_email`; invitations add
+`invited_by_email` and `accepted_by_email`; audit events add `actor_email` and
+`target_email`. Invitation token hashes never leave the service.
 Errors have `{"error":{"code":"...","message":"..."}}` shape without submitted
 credentials. 401: bad session; 403: privilege/CSRF; 409: conflict; 410: unavailable
 invitation; 422: input; 429: flow limit. DB/provider faults fail closed.
 Health checks the DB, not the full deployment.
 
-No mounted frontend, private-static-resource delivery, conversation memory, cloud
-workspace persistence or per-user Agent budget is added here.
+No private-static-resource delivery, conversation memory, cloud workspace
+persistence or per-user Agent budget is added here.
 
 ## Verification
 
@@ -167,6 +171,28 @@ Checks cover four service prefixes, original-method CSRF, denial before dispatch
 identity-header replacement, credential stripping, no-store and internal paths.
 Without an explicit harness URL these optional tests are skipped. Stop with
 SIGTERM and remove only the owned temporary directory.
+
+To rehearse the whole signed-in site, run the local staging harness on Linux
+(WSL works). It serves `website/dist/accounts` on https://localhost:8443 (a
+self-signed stand-in for CloudFront) and forwards `/auth/*` and `/api/*` to the
+real `deploy/nginx` gateway, which admits requests through this service on a
+throwaway PostgreSQL. A development sign-in page stands in for Cognito, mail is
+listed at `/dev-idp/mail`, the data APIs are read-only relays to the public
+services, and the agent is a stub that calls no model:
+
+```sh
+(cd website && npm run build:accounts)
+PYTHONPATH=<linux site-packages>:. python3 tests/accounts/staging_harness.py \
+  --nginx /path/to/nginx --postgres-bin /path/to/postgresql/16/bin \
+  --site website/dist/accounts --directory /tmp/TASK/staging
+ACCOUNTS_STAGING_URL=https://localhost:8443 pytest tests/accounts/test_staging_flow.py
+```
+
+The browser test needs Python Playwright with Chromium and a fresh harness. It
+walks sign-in, applying, review in the console, live data under the verified
+user id, Ask with and without CSRF, invitations for the right and wrong
+address, member changes, suspension, the audit history and sign-out. Without
+`ACCOUNTS_STAGING_URL` it is skipped.
 
 Local acceptance uses PostgreSQL 16.15 and Nginx 1.24.0 from maintained Ubuntu
 packages. Production provider/CDN/network acceptance remains required.

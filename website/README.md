@@ -28,7 +28,7 @@ setup, warehouse prerequisites and historical model limitations.
 | `src/data.ts`, `src/stats.ts`, `src/annual.ts`, `src/temporal.ts` | Record normalization, counts and time aggregation |
 | `src/RecordPanels.tsx` | Record tables and summary metrics |
 | `src/ExportActions.tsx`, `src/exports.ts` | CSV and chart PNG exports |
-| `src/access/` | Draft access pages for the accounts service: landing, sign-in dialog, request status. Not mounted |
+| `src/access/` | Signed-in site for the accounts service (accounts build only): landing, sign-in dialog, request status, invitation, administrator console |
 
 Maps and records use the Visualization API; the risk surface and residual maps
 use the Historical Risk API. The development and production build
@@ -63,19 +63,33 @@ npm run dev
 
 Development URL: `http://127.0.0.1:8771/`.
 
-### Access pages (not mounted)
+### Accounts build (not deployed)
 
-`src/access/` holds the pages a visitor sees before the workspace once the
-accounts service (`services/accounts/`) is connected: a landing page with a
-sign-in / request-access dialog, and the `/access-status` page with the access
-request form, pending review, declined request and suspension states. They reuse
-the workspace tokens and components, follow the light and dark themes, and take
-field limits and `return_to` paths from the service (`tests/access-flow.test.ts`
-compares them with `services/accounts/`). Sign-in and account creation are
-links to `GET /auth/login`, which continues on the identity provider's page.
-`AccessStatus` takes the `GET /api/auth/me` user and application as props and an
-`onSubmit` that posts the request and reads the account again; no API client is
-wired yet.
+`npm run build:accounts` builds the site for one HTTPS origin behind the accounts
+gateway (`services/accounts/`, `deploy/nginx/`) into `website/dist/accounts/`
+(ignored by git). `.env.accounts` turns on `VITE_ACCOUNTS` and points every API
+at a same-origin path (`/api/data-query`, `/api/visualization`,
+`/api/risk-forecasting`, `/api/agent`). The GitHub Pages build (`npm run build`,
+`docs/`) contains none of this code and keeps the anonymous workspace.
+
+`src/access/AccountsRoot.tsx` reads `GET /api/auth/me` and picks the page
+(`src/access/accessRoute.ts`):
+
+| Account | Page |
+|---|---|
+| Signed out | Landing (`/`; `/workspace` and `/admin` return there after sign-in), or `/invite` to claim an emailed invitation |
+| Pending or suspended | `/access-status`: request form, under review, declined with the reviewer's note, suspended |
+| Signed in on `/invite` | Accepts the invitation bound to this sign-in |
+| Active | Workspace (`/workspace`), with the account and sign-out in the header |
+| Active administrator on `/admin` | Console: requests, invitations, members, audit |
+
+Sign-in and account creation are links to `GET /auth/login`, which continues on
+the identity provider's page. Every write sends the session's CSRF token (Ask
+included); a 401 from any call returns to the landing page with a notice, a 403
+reads the account again, and sign-out reloads the page so open requests end. The
+pages reuse the workspace tokens and components and follow both themes; field
+limits and `return_to` paths come from the service (`tests/access-flow.test.ts`
+and `tests/access-accounts.test.ts` compare them with `services/accounts/`).
 
 The landing page draws California as the risk model's 824-cell grid
 (`docs/assets/data/weather_anim/grid_cells.json`), shaded by CPUC ignitions per
@@ -91,10 +105,12 @@ the snapshot no longer matches `shared/dataset_coverage.json`. Rerun the script
 after a warehouse reload. The snapshot is public by design; it holds aggregates
 only, no record ids, dates or coordinates.
 
-`main.tsx` does not import them, so the production build does not change. Preview
-them with sample accounts at `http://127.0.0.1:8771/preview/access.html`
-(development server only). `src/index.css` keeps `src/access/` and `preview/` out
-of the Tailwind utility scan; they use `src/access/access.css` instead.
+Preview the landing and request pages with sample accounts at
+`http://127.0.0.1:8771/preview/access.html` (development server only). To run
+the whole signed-in site with the real accounts service and gateway, use the
+local staging harness described in `services/accounts/README.md`.
+`src/index.css` keeps `src/access/` and `preview/` out of the Tailwind utility
+scan; they use `src/access/access.css` instead.
 
 The checked-in `.env.development` and `.env.production` set `VITE_DATA_QUERY_URL`
 to `https://d3t70p3if3twy3.cloudfront.net/api/data-query`. Both profiles use PR #3's

@@ -4,10 +4,13 @@ These are staged templates, not the live origin configuration.
 Do not enable them while the website uses anonymous cross-origin API calls.
 
 First configure real Cognito/MFA, verified initial administrator IDs, SES and the
-restricted accounts DB role. Connect the frontend introduction page, sign-in /
-request-access dialog and status page (drafted in `website/src/access/`, not
-mounted) and the later Console. Site and /auth/* and /api/* must share one HTTPS
-origin.
+restricted accounts DB role. Serve the website's accounts build
+(`npm run build:accounts`: landing, sign-in dialog, status, invitation and
+administrator console) from the same HTTPS origin as /auth/* and /api/*. Page
+paths (`/workspace`, `/access-status`, `/invite`, `/admin`) must load
+`index.html`; rewrite them in a CloudFront Function on the site behavior, not
+with custom error pages, which would also turn API 404s into the page. Rehearse
+with `tests/accounts/staging_harness.py` (services/accounts/README.md).
 
 Confirm `nginx -V` includes http_auth_request_module. Bind business ports
 to loopback/private interfaces or equivalent security-group restrictions.
