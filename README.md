@@ -1,5 +1,10 @@
 # Wildfire Platform
 
+This branch also contains an independent invitation/approval accounts
+foundation; the existing website is not connected to it. See the
+[accounts service](services/accounts/README.md) and
+[gateway rollout](deploy/nginx/ACCOUNTS_GATEWAY.md) before enabling routing.
+
 A wildfire research platform combining an interactive analysis website, a PostGIS event warehouse, modular FastAPI services, and a historical **cNHPP** (convolutional non-homogeneous Poisson process) ignition-risk model. The website supports recorded fire and outage exploration, weather playback, modeled risk and residual maps, regional and seasonal analysis, and result exports.
 
 The current website offers **19 analysis views in five panel categories**, and the Ask panel can open all 19 from a chat answer. Opening the website does not fit a model or require a local database.

@@ -8,6 +8,11 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 
 ## Hard rules
 
+Accounts foundation on this branch is in `services/accounts/`, loopback port
+8005. It is not connected to the website or deployed. Its PostgreSQL app schema
+and restricted runtime role are separate from warehouse loaders. Frontend and
+real-provider acceptance are required before gateway rollout.
+
 - Never use em dashes in code comments, docs, commit messages, or reports.
 - Push only to the `platform` remote (Woody-Zhu-Group/Wildfire-Platform). `origin` is Michael's old fork (ByteMasterMike/Wildfire-Services); nothing should live only there.
 - Never push to or change `main` directly. Work on branches, open PRs, do not merge.
