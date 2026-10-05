@@ -18,6 +18,7 @@ export function AccountMenu({ user, onSignOut }: { user: AccountUser; onSignOut:
   }
   return <>
     <span className="access-account" title={user.email}>{user.email}</span>
+    {user.role === "admin" && <a className="access-text-button console-header-link" href="/admin">Console</a>}
     <button type="button" className="access-text-button" onClick={signOut} disabled={busy} aria-describedby={failed ? "account-menu-error" : undefined}>
       {busy ? "Signing out…" : "Sign out"}
     </button>

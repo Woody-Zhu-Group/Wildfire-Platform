@@ -3,6 +3,7 @@ import App from "../App.tsx"
 import { setCsrfToken, setSessionGuard } from "../api.ts"
 import { AccessHeader } from "./AccessHeader.tsx"
 import { AccessStatus } from "./AccessStatus.tsx"
+import { AdminConsole } from "./AdminConsole.tsx"
 import { AccountMenu } from "./AccountMenu.tsx"
 import { AccountsError, getMe, signOut, submitApplication, type Me } from "./accountsApi.ts"
 import type { ApplicationDraft } from "./accessFlow.ts"
@@ -77,6 +78,7 @@ export function AccountsRoot() {
     }
     await readAccount()
   }, [me, readAccount])
+  const lost = useCallback((status: number) => { readAccount(status === 401 ? SESSION_ENDED : undefined) }, [readAccount])
   const accepted = useCallback(async () => {
     await readAccount()
     history.replaceState(null, "", "/workspace")
@@ -103,5 +105,6 @@ export function AccountsRoot() {
     case "invite-accept": return <InvitePage me={me} onAccepted={accepted} onSignOut={leave} />
     case "status": return <AccessStatus user={me!.user} application={me!.application} onSubmit={submit} onSignOut={() => { leave().catch(() => undefined) }} />
     case "workspace": return <App account={<AccountMenu user={me!.user} onSignOut={leave} />} />
+    case "console": return <AdminConsole me={me!} onSignOut={leave} onSessionLost={lost} />
   }
 }

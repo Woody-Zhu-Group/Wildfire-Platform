@@ -10,14 +10,15 @@ export type View =
   | { page: "invite-accept" }
   | { page: "status" }
   | { page: "workspace" }
+  | { page: "console" }
 
 /** The page to show and the path the address bar should read. */
 export function routeFor(path: string, me: Me | null): { view: View; path: string } {
   if (!me) {
     if (path === "/invite") return { view: { page: "invite-claim" }, path }
-    // A deep link to the workspace returns there after sign-in.
-    return path === "/workspace"
-      ? { view: { page: "landing", returnTo: "/workspace" }, path }
+    // A deep link to the workspace or the console returns there after sign-in.
+    return path === "/workspace" || path === "/admin"
+      ? { view: { page: "landing", returnTo: path }, path }
       : { view: { page: "landing", returnTo: "/workspace" }, path: "/" }
   }
   const { status } = me.user
@@ -25,5 +26,7 @@ export function routeFor(path: string, me: Me | null): { view: View; path: strin
   // account cannot accept one.
   if (path === "/invite" && status !== "suspended") return { view: { page: "invite-accept" }, path }
   if (status !== "active") return { view: { page: "status" }, path: "/access-status" }
+  // The console is for administrators; the service refuses its calls to anyone else.
+  if (path === "/admin" && me.user.role === "admin") return { view: { page: "console" }, path }
   return { view: { page: "workspace" }, path: "/workspace" }
 }

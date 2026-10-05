@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
-import { AccountsError, acceptInvitation, claimInvitation, getMe, signOut, submitApplication, type Me } from "../src/access/accountsApi.ts"
+import { AccountsError, acceptInvitation, claimInvitation, decideRequest, getMe, listRequests, listUsers, signOut, submitApplication, updateUser, type Me } from "../src/access/accountsApi.ts"
 import { routeFor } from "../src/access/accessRoute.ts"
 import { LOGIN_RETURN_PATHS } from "../src/access/accessFlow.ts"
 
@@ -28,12 +28,19 @@ test("membership status decides the page for a signed-in account", () => {
   assert.deepEqual(routeFor("/invite", me("suspended")).view, { page: "status" })
 })
 
+test("only an active administrator reaches the console; a signed-out link returns there", () => {
+  assert.deepEqual(routeFor("/admin", me("active", "admin")), { view: { page: "console" }, path: "/admin" })
+  assert.deepEqual(routeFor("/admin", me("active")), { view: { page: "workspace" }, path: "/workspace" })
+  assert.deepEqual(routeFor("/admin", me("suspended", "admin")).view, { page: "status" })
+  assert.deepEqual(routeFor("/admin", null), { view: { page: "landing", returnTo: "/admin" }, path: "/admin" })
+})
+
 test("every path the router keeps is one the service can return to or redirects to", () => {
   const app = readFileSync(fileURLToPath(new URL("../../services/accounts/app.py", import.meta.url)), "utf8")
   const serviceDestinations = [...app.matchAll(/destination = "(\/[a-z-]*)"/g)].map(match => match[1])
   assert.ok(serviceDestinations.includes("/invite") && serviceDestinations.includes("/access-status"), "callback destinations not found in app.py")
-  for (const path of ["/", "/workspace", "/invite", "/access-status", ...serviceDestinations]) {
-    for (const session of [null, me("active"), me("pending"), me("suspended")]) {
+  for (const path of ["/", "/workspace", "/admin", "/invite", "/access-status", ...serviceDestinations]) {
+    for (const session of [null, me("active"), me("active", "admin"), me("pending"), me("suspended")]) {
       const kept = routeFor(path, session).path
       assert.ok((LOGIN_RETURN_PATHS as readonly string[]).includes(kept), `${path} -> ${kept}`)
     }
@@ -115,4 +122,24 @@ test("the workspace sends the CSRF token on Ask only when signed in, and reports
     setSessionGuard(null)
     fake.restore()
   }
+})
+
+test("administrator calls filter by query and write with the session's CSRF token", async () => {
+  const fake = stubFetch(() => json(200, { items: [], next_cursor: null }))
+  try {
+    await listUsers({ status: "active", q: "ada lovelace", cursor: undefined })
+    await listUsers({ status: null, q: "" })
+    await listRequests("pending", "c-1")
+    await updateUser("csrf-1", "u-1", { status: "suspended" })
+    await decideRequest("csrf-1", "r-1", { decision: "approve", note: "", public_note: "Welcome" })
+    assert.deepEqual(fake.calls.slice(0, 3).map(call => call.url), [
+      "/api/admin/users?status=active&q=ada+lovelace", "/api/admin/users", "/api/admin/access-requests?status=pending&cursor=c-1",
+    ])
+    const [patch, decide] = fake.calls.slice(3)
+    assert.equal(patch.init.method, "PATCH")
+    assert.equal(header(patch, "X-CSRF-Token"), "csrf-1")
+    assert.deepEqual(JSON.parse(String(patch.init.body)), { status: "suspended" })
+    assert.equal(decide.url, "/api/admin/access-requests/r-1/decision")
+    assert.deepEqual(JSON.parse(String(decide.init.body)), { decision: "approve", note: "", public_note: "Welcome" })
+  } finally { fake.restore() }
 })

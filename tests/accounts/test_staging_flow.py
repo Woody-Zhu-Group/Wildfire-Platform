@@ -139,6 +139,8 @@ def test_request_review_invitation_and_session_end(browser, base):
     expect(dave.get_by_role("heading", name="This invitation is for a different email")).to_be_visible()
 
     # Suspension ends the session: the next data request returns the visitor to the landing page.
+    # Let the panels finish loading first, or one of their requests is that next request.
+    alice.wait_for_load_state("networkidle")
     write(admin, base, "PATCH", f"/api/admin/users/{alice_id}", {"status": "suspended"})
     alice.get_by_label("Workspace year").select_option("2023")
     expect(alice.get_by_text("Your session ended. Sign in again to continue.")).to_be_visible()
@@ -156,4 +158,90 @@ def test_request_review_invitation_and_session_end(browser, base):
     expect(bob.get_by_role("heading", name="California wildfire and utility data, in one workspace.")).to_be_visible()
 
     for context in (admin_context, alice_context, bob_context, dave_context):
+        context.close()
+
+
+def test_console_reviews_invites_and_manages_members(browser, base):
+    lead_context, lead = person(browser, base)
+    sign_in(lead, "lead@example.org")
+    assert lead.request.post("/dev-idp/bootstrap-admin", form={"email": "lead@example.org"}).ok
+    lead.reload()
+    lead.get_by_role("link", name="Console").click()
+    expect(lead).to_have_url(f"{base}/admin")
+    expect(lead.get_by_text("No requests are waiting for review.")).to_be_visible()
+
+    erin_context, erin = person(browser, base)
+    erin.goto("/")
+    erin.get_by_role("button", name="Request access").first.click()
+    erin.get_by_role("link", name="Create an account").click()
+    identity_page(erin, "erin@example.org")
+    erin.get_by_label("Full name").fill("Erin Example")
+    erin.get_by_label("Organization").fill("Example Utility Lab")
+    erin.get_by_label("How you plan to use the platform").fill("Comparing EPSS outages by cause.")
+    erin.get_by_role("button", name="Submit request").click()
+    expect(erin.get_by_role("heading", name="Your request is under review")).to_be_visible()
+
+    # Requests: the reviewer sees who applied and why, and the decision is mailed with the message.
+    lead.reload()
+    request = lead.get_by_role("listitem").filter(has_text="erin@example.org")
+    expect(request).to_contain_text("Erin Example")
+    expect(request).to_contain_text("Comparing EPSS outages by cause.")
+    request.get_by_role("button", name="Approve").click()
+    dialog = lead.get_by_role("dialog")
+    dialog.get_by_label("Message to the applicant").fill("Welcome aboard.")
+    dialog.get_by_role("button", name="Approve").click()
+    expect(lead.get_by_role("status")).to_contain_text("Approved erin@example.org. The applicant was emailed.")
+    assert [(m["status"], m["note"]) for m in mail_to(lead, "erin@example.org")] == [("approved", "Welcome aboard.")]
+    lead.get_by_role("group", name="Request status").get_by_role("button", name="Approved").click()
+    expect(lead.get_by_role("listitem").filter(has_text="erin@example.org")).to_contain_text("lead@example.org")
+
+    # Invitations: send, see the state, revoke.
+    lead.get_by_role("tab", name="Invitations").click()
+    for address in ("frank@example.org", "gina@example.org"):
+        lead.get_by_label("Email address to invite").fill(address)
+        lead.get_by_role("button", name="Send invitation").click()
+        expect(lead.get_by_role("status")).to_contain_text(f"Invitation emailed to {address}.")
+    gina = lead.get_by_role("listitem").filter(has_text="gina@example.org")
+    expect(gina).to_contain_text("Waiting")
+    gina.get_by_role("button", name="Revoke").click()
+    lead.get_by_role("dialog").get_by_role("button", name="Revoke").click()
+    expect(lead.get_by_role("listitem").filter(has_text="gina@example.org")).to_contain_text("Revoked")
+
+    # Members: search, promote and demote, suspend and restore; the administrator's own row has no switches.
+    lead.get_by_role("tab", name="Members").click()
+    expect(lead.get_by_role("listitem").filter(has_text="lead@example.org")).not_to_contain_text("Suspend")
+    lead.get_by_label("Search members by name or email").fill("ERIN")
+    erin_row = lead.get_by_role("listitem").filter(has_text="erin@example.org")
+    expect(lead.get_by_role("list", name="Members").get_by_role("listitem")).to_have_count(1)
+    erin_row.get_by_role("button", name="Make admin").click()
+    lead.get_by_role("dialog").get_by_role("button", name="Make admin").click()
+    expect(erin_row).to_contain_text("Admin")
+    erin_row.get_by_role("button", name="Remove admin").click()
+    lead.get_by_role("dialog").get_by_role("button", name="Remove admin").click()
+    expect(erin_row.get_by_role("button", name="Make admin")).to_be_visible()
+    erin.reload()
+    expect(erin).to_have_url(f"{base}/workspace")
+    erin.wait_for_load_state("networkidle")
+    erin_row.get_by_role("button", name="Suspend").click()
+    lead.get_by_role("dialog").get_by_role("button", name="Suspend").click()
+    expect(erin_row).to_contain_text("Suspended")
+    erin.get_by_label("Workspace year").select_option("2023")
+    expect(erin.get_by_text("Your session ended. Sign in again to continue.")).to_be_visible()
+    erin_row.get_by_role("button", name="Restore").click()
+    lead.get_by_role("dialog").get_by_role("button", name="Restore").click()
+    expect(erin_row).to_contain_text("Active")
+
+    # Audit: every change above, by whom and to whom.
+    lead.get_by_role("tab", name="Audit").click()
+    history = lead.get_by_role("list", name="Audit history")
+    expect(history).to_contain_text("lead@example.org approved the request of erin@example.org")
+    expect(history).to_contain_text("lead@example.org revoked the invitation for gina@example.org")
+    expect(history).to_contain_text("lead@example.org changed the account of erin@example.org (role member, suspended)")
+
+    # A member cannot open the console or call its API.
+    sign_in(erin, "erin@example.org")
+    erin.goto("/admin")
+    expect(erin).to_have_url(f"{base}/workspace")
+    assert erin.request.get("/api/admin/users").status == 403
+    for context in (lead_context, erin_context):
         context.close()
