@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { DATASETS, type DatasetId } from "../data.ts"
+import type { LoginReturnPath } from "./accessFlow.ts"
 import { AccessDialog, type AccessTab } from "./AccessDialog.tsx"
 import { AccessHeader } from "./AccessHeader.tsx"
 import { CaliforniaGrid } from "./CaliforniaGrid.tsx"
@@ -17,8 +18,12 @@ const SOURCES: { dataset?: DatasetId; name: string; detail: string }[] = [
 const color = (id: DatasetId) => DATASETS.find(item => item.id === id)!.color
 const ASK_NOTICE = "Questions are answered by the analysis agent, which needs an account."
 
-/** What a visitor sees before signing in: the platform on its own grid, and a snapshot to try. */
-export function Landing() {
+/**
+ * What a visitor sees before signing in: the platform on its own grid, and a
+ * snapshot to try. `returnTo` is where sign-in comes back to; `notice` says why
+ * the visitor is here, for example after a session ended.
+ */
+export function Landing({ returnTo = "/workspace", notice }: { returnTo?: LoginReturnPath; notice?: string } = {}) {
   const [dialog, setDialog] = useState<{ tab: AccessTab; notice?: string } | null>(null)
   const hero = SNAPSHOT.hero
   const heroYears = `${hero.start.slice(0, 4)}–${hero.end.slice(0, 4)}`
@@ -31,6 +36,7 @@ export function Landing() {
       <main className="landing">
         <section className="landing-hero" aria-labelledby="landing-title">
           <div className="landing-hero-copy">
+            {notice && <p className="landing-notice" role="status">{notice}</p>}
             <h1 id="landing-title">California wildfire and utility data, in one workspace.</h1>
             <p>Map, chart and compare ignitions, fire incidents, outages and power shutoffs, or ask a question in plain language.</p>
             <div className="landing-actions">
@@ -68,7 +74,7 @@ export function Landing() {
         <span>Access is by invitation or approved request.</span>
         <button type="button" className="text-button" onClick={() => setDialog({ tab: "request" })}>Request access</button>
       </footer>
-      {dialog && <AccessDialog initialTab={dialog.tab} notice={dialog.notice} onClose={() => setDialog(null)} />}
+      {dialog && <AccessDialog initialTab={dialog.tab} notice={dialog.notice} signInReturn={returnTo} onClose={() => setDialog(null)} />}
     </div>
   )
 }

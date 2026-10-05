@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent } from "react"
-import { loginUrl } from "./accessFlow.ts"
+import { loginUrl, type LoginReturnPath } from "./accessFlow.ts"
 import "./access.css"
 
 export type AccessTab = "sign-in" | "request"
@@ -21,7 +21,9 @@ const STEPS = [
  * Sign in and request access share one dialog; both continue on the identity
  * provider's page. `notice` says why an action asked for an account.
  */
-export function AccessDialog({ initialTab, notice, onClose }: { initialTab: AccessTab; notice?: string; onClose: () => void }) {
+export function AccessDialog({ initialTab, notice, signInReturn = "/workspace", onClose }: {
+  initialTab: AccessTab; notice?: string; signInReturn?: LoginReturnPath; onClose: () => void
+}) {
   const [tab, setTab] = useState(initialTab)
   const [leaving, setLeaving] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
@@ -90,7 +92,7 @@ export function AccessDialog({ initialTab, notice, onClose }: { initialTab: Acce
               <h2>Welcome back</h2>
               <p>Continue on the secure sign-in page, then return to your workspace.</p>
             </div>
-            {continueLink(loginUrl("/workspace"), "Continue to sign in")}
+            {continueLink(loginUrl(signInReturn), "Continue to sign in")}
             <p className="access-dialog-note">Invited by email? Open the link in your invitation.</p>
           </section>
         ) : (
