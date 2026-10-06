@@ -10,12 +10,24 @@ stands in for Cognito; no model, mail service or production data is touched.
 
 import json
 import os
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
 
 sync_api = pytest.importorskip("playwright.sync_api")
 expect = sync_api.expect
+POLICY = json.loads((Path(__file__).resolve().parents[2] / "deploy/cloudfront/security-headers.json").read_text(encoding="utf-8"))
+CSP = POLICY["SecurityHeadersConfig"]["ContentSecurityPolicy"]["ContentSecurityPolicy"]
+CSP_VIOLATIONS: list[str] = []
+
+
+@pytest.fixture(autouse=True)
+def no_csp_violations():
+    """The harness sends the production CSP; nothing the site does may break it."""
+    CSP_VIOLATIONS.clear()
+    yield
+    assert not CSP_VIOLATIONS, CSP_VIOLATIONS
 
 
 @pytest.fixture(scope="module")
@@ -40,6 +52,7 @@ def person(browser, base):
     context = browser.new_context(ignore_https_errors=True, base_url=base, viewport={"width": 1280, "height": 860})
     page = context.new_page()
     page.set_default_timeout(20_000)
+    page.on("console", lambda message: CSP_VIOLATIONS.append(message.text) if "Content Security Policy" in message.text else None)
     return context, page
 
 
@@ -75,7 +88,9 @@ def mail_to(page, email):
 
 def test_signed_out_visitor_sees_landing_and_no_data(browser, base):
     context, page = person(browser, base)
-    page.goto("/workspace")
+    response = page.goto("/workspace")
+    assert response.headers["content-security-policy"] == CSP
+    assert response.headers["x-frame-options"] == "DENY"
     expect(page.get_by_role("heading", name="California wildfire and utility data, in one workspace.")).to_be_visible()
     assert page.request.get("/api/auth/me").status == 401
     assert page.request.get("/api/data-query/summary?dataset=cpuc_ignitions&start_date=2024-01-01&end_date=2024-12-31").status == 401

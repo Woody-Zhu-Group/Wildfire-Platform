@@ -5,7 +5,9 @@ accounts build of the website and forwards /auth/* and /api/* to the real
 deploy/nginx gateway, which admits requests through the real accounts service
 on a throwaway PostgreSQL. A development identity page stands in for Cognito,
 mail goes to /dev-idp/mail, the data APIs are read-only relays to the public
-services, and the agent is a stub that never calls a model.
+services (or stubs with --relay stub, as in CI), and the agent is a stub that
+never calls a model. Every response carries the CloudFront security headers from
+deploy/cloudfront/security-headers.json, so the browser runs under the real CSP.
 
     PYTHONPATH=<linux site-packages>:<repo> python3 tests/accounts/staging_harness.py \
         --nginx <nginx> --postgres-bin <postgresql/16/bin> --site website/dist/accounts \
@@ -46,6 +48,7 @@ ORIGIN = "https://localhost:8443"
 ISSUER = "https://dev-identity.invalid"
 PG_PORT = 55439
 PUBLIC_API = "https://d3t70p3if3twy3.cloudfront.net/api/"
+SECURITY_HEADERS = Path(__file__).resolve().parents[2] / "deploy/cloudfront/security-headers.json"
 RELAYS = {18000: "data-query", 18001: "risk-forecasting", 18002: "visualization"}
 MAIL: list[dict] = []
 SEEN: dict[str, str | None] = {}
@@ -135,11 +138,16 @@ class DevIdentityPage(Quiet):
 class PublicRelay(Quiet):
     """A business service behind the gateway, answered by the public read-only API."""
 
+    stub = False
+
     def do_GET(self):
         service = RELAYS[self.server.server_port]
         SEEN[service] = self.headers.get("X-Account-User-Id")
         if not SEEN[service] or self.headers.get("Cookie") or self.headers.get("Authorization"):
             return self.reply(500, b'{"detail":"gateway did not replace identity or strip credentials"}')
+        if self.stub:
+            # No outside data: panels show their load error, the gateway contract is still exercised.
+            return self.reply(200, json.dumps({"stub": service}).encode())
         try:
             with urllib.request.urlopen(PUBLIC_API + service + self.path, timeout=60) as response:
                 return self.reply(response.status, response.read(), response.headers.get("Content-Type", "application/json"))
@@ -161,6 +169,23 @@ class AgentStub(Quiet):
         self.reply(200, body, "text/event-stream")
 
 
+def security_headers() -> str:
+    """The CloudFront response headers policy as Nginx add_header lines."""
+    policy = json.loads(SECURITY_HEADERS.read_text(encoding="utf-8"))
+    security = policy["SecurityHeadersConfig"]
+    hsts = security["StrictTransportSecurity"]
+    headers = {
+        "Content-Security-Policy": security["ContentSecurityPolicy"]["ContentSecurityPolicy"],
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": security["FrameOptions"]["FrameOption"],
+        "Referrer-Policy": security["ReferrerPolicy"]["ReferrerPolicy"],
+        "Strict-Transport-Security": f"max-age={hsts['AccessControlMaxAgeSec']}"
+        + ("; includeSubDomains" if hsts["IncludeSubdomains"] else "") + ("; preload" if hsts["Preload"] else ""),
+        **{item["Header"]: item["Value"] for item in policy["CustomHeadersConfig"]["Items"]},
+    }
+    return "".join(f'add_header {name} "{value}" always;\n' for name, value in headers.items())
+
+
 def nginx_config(root: Path, site: Path) -> str:
     source = Path(__file__).resolve().parents[2] / "deploy/nginx"
     for name in ("accounts-proxy.conf", "accounts-protected.conf"):
@@ -170,6 +195,9 @@ def nginx_config(root: Path, site: Path) -> str:
     for old, new in ((8000, 18000), (8001, 18001), (8002, 18002), (8004, 18004), (8005, 18005)):
         gateway = gateway.replace(f"127.0.0.1:{old}", f"127.0.0.1:{new}")
     temp = "".join(f"{kind}_temp_path {root}/{kind};\n" for kind in ("client_body", "proxy", "fastcgi", "scgi", "uwsgi"))
+    # Nginx drops inherited add_header lines in any location with its own, so every location includes them.
+    (root / "security-headers.conf").write_text(security_headers(), encoding="utf-8")
+    secure = f"include {root}/security-headers.conf;"
     front = f"""
 server {{
     # Stands in for CloudFront: one HTTPS origin for the site, /auth/* and /api/*.
@@ -180,12 +208,12 @@ server {{
     error_log {root}/front.log warn;
     access_log off;
     root {site};
-    location /assets/ {{ add_header Cache-Control "public, max-age=31536000, immutable"; }}
-    # Like the CloudFront Function: page paths load index.html; API 404s stay 404s.
-    location / {{ try_files $uri /index.html; add_header Cache-Control "no-cache"; }}
-    location /auth/ {{ proxy_pass http://127.0.0.1:18080; proxy_set_header Host $host; }}
-    location /api/ {{ proxy_pass http://127.0.0.1:18080; proxy_set_header Host $host; proxy_buffering off; proxy_read_timeout 300s; }}
-    location /dev-idp/ {{ proxy_pass http://127.0.0.1:18006; }}
+    location /assets/ {{ {secure} add_header Cache-Control "public, max-age=31536000, immutable"; }}
+    # Like deploy/cloudfront/site-rewrite.js: page paths load index.html; API 404s stay 404s.
+    location / {{ {secure} try_files $uri /index.html; add_header Cache-Control "no-cache"; }}
+    location /auth/ {{ {secure} proxy_pass http://127.0.0.1:18080; proxy_set_header Host $host; }}
+    location /api/ {{ {secure} proxy_pass http://127.0.0.1:18080; proxy_set_header Host $host; proxy_buffering off; proxy_read_timeout 300s; }}
+    location /dev-idp/ {{ {secure} proxy_pass http://127.0.0.1:18006; }}
 }}
 """
     types = "types { text/html html; text/css css; application/javascript js; application/json json; image/svg+xml svg; image/png png; font/woff2 woff2; }\n"
@@ -216,6 +244,8 @@ def main():
     parser.add_argument("--postgres-bin", type=Path, required=True)
     parser.add_argument("--site", type=Path, required=True)
     parser.add_argument("--directory", type=Path, required=True)
+    parser.add_argument("--relay", choices=("public", "stub"), default="public",
+                        help="data APIs: read-only relays to the public services, or stubs that need no network")
     args = parser.parse_args()
     root = args.directory.resolve()
     if root.exists():
@@ -245,6 +275,7 @@ def main():
         app = create_app(settings, store=store, identity=DevIdentity(settings), mailer=DevMailer())
         accounts = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=18005, log_level="warning"))
         Thread(target=accounts.run, daemon=True).start()
+        PublicRelay.stub = args.relay == "stub"
         handlers = {18006: DevIdentityPage, 18004: AgentStub, **{port: PublicRelay for port in RELAYS}}
         servers = [ThreadingHTTPServer(("127.0.0.1", port), handler) for port, handler in handlers.items()]
         for server in servers:
