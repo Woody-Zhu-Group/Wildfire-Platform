@@ -108,6 +108,16 @@ the snapshot no longer matches `shared/dataset_coverage.json`. Rerun the script
 after a warehouse reload. The snapshot is public by design; it holds aggregates
 only, no record ids, dates or coordinates.
 
+Deploy it with the manual "Deploy accounts site" workflow
+(`.github/workflows/deploy-accounts-site.yml`): tests, `build:accounts`, a check
+that the CloudFront CSP allows the built page's inline script, then an upload to
+the site bucket and a CloudFront invalidation. Setup and the distribution layout
+are in `deploy/cloudfront/README.md`. The CSP allows the inline theme script in
+`index.html` by its hash; `.gitattributes` keeps that file LF, and
+`tests/cloudfront.test.ts` fails if the script changes without the hash, if a
+page path would not load `index.html`, or if a map tile host is missing from the
+CSP.
+
 Preview the landing and request pages with sample accounts at
 `http://127.0.0.1:8771/preview/access.html` (development server only). To run
 the whole signed-in site with the real accounts service and gateway, use the

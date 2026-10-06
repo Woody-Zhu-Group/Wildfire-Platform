@@ -208,11 +208,24 @@ PYTHONPATH=<linux site-packages>:. python3 tests/accounts/staging_harness.py \
 ACCOUNTS_STAGING_URL=https://localhost:8443 pytest tests/accounts/test_staging_flow.py
 ```
 
+Every response carries the CloudFront security headers from
+`deploy/cloudfront/security-headers.json`, and the browser test fails on any
+Content-Security-Policy violation. `--relay stub` answers the data APIs without
+the network (CI uses it); the default relays to the public services.
+
 The browser test needs Python Playwright with Chromium and a fresh harness. It
 walks sign-in, applying, review in the console, live data under the verified
 user id, Ask with and without CSRF, invitations for the right and wrong
 address, member changes, suspension, the audit history and sign-out. Without
 `ACCOUNTS_STAGING_URL` it is skipped.
+
+CI (`.github/workflows/accounts.yml`) runs on pull requests and pushes to `main`
+that touch the accounts service, its migrations, `deploy/nginx`,
+`deploy/cloudfront`, `tests/accounts` or `website`: ruff and these service tests
+on a PostgreSQL 16 container, the Nginx contract tests on the runner's Nginx, and
+the browser test against the staging harness with stub relays. It installs only
+`services/accounts/requirements.txt`, which `tests/accounts/test_requirements.py`
+keeps identical to the matching lines of the root `requirements.txt`.
 
 Local acceptance uses PostgreSQL 16.15 and Nginx 1.24.0 from maintained Ubuntu
 packages. Production provider/CDN/network acceptance remains required.

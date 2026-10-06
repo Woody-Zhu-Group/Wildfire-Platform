@@ -16,7 +16,10 @@ website's accounts build (`npm run build:accounts`, `website/src/access/`:
 landing with a Try it snapshot, sign-in dialog, request status, invitation,
 administrator console at `/admin`); the GitHub Pages build stays anonymous and
 contains none of it. Rehearse the signed-in site with
-`tests/accounts/staging_harness.py` and `tests/accounts/test_staging_flow.py`.
+`tests/accounts/staging_harness.py` and `tests/accounts/test_staging_flow.py`;
+CI runs both (`.github/workflows/accounts.yml`). CloudFront layout, security
+headers and the manual deploy and Pages-redirect workflows are in
+`deploy/cloudfront/README.md`; none of it is applied.
 Regenerate the Try it snapshot with `node scripts/access-snapshot.ts` in
 `website/` after a warehouse reload.
 
@@ -75,6 +78,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 
 - `pytest tests/agent`
 - Website tests in `website/tests/` (`npm test`), including the check that `docs/` matches a fresh build
+- Accounts: `.github/workflows/accounts.yml` (service tests on PostgreSQL, the Nginx contract, the browser flow); locally see `services/accounts/README.md`
 
 ## Branches and merge order
 
