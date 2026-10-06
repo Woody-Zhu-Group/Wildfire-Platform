@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+/* The access pages style themselves (access/access.css), so their words stay out
+   of the utility scan and cannot add CSS to this build. */
+@source not "./access";
+@source not "../preview";
 
 :root {
   color-scheme: dark;

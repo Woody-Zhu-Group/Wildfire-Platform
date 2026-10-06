@@ -1,0 +1,3 @@
+# The accounts build's Content-Security-Policy allows the inline theme script in
+# website/index.html by its hash, so the file's bytes must not depend on the checkout.
+website/index.html text eol=lf

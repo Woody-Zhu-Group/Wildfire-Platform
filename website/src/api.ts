@@ -13,12 +13,20 @@ export const DATA_QUERY_URL = (import.meta.env?.VITE_DATA_QUERY_URL || 'https://
 export const RISK_URL = (import.meta.env?.VITE_RISK_URL || 'https://d3t70p3if3twy3.cloudfront.net/api/risk-forecasting').replace(/\/+$/, '');
 const cache = new Map<string, { at: number; promise: Promise<unknown> }>();
 export function clearDataCache() { cache.clear(); }
+// Behind the accounts gateway (VITE_ACCOUNTS=on) a write needs the session's CSRF
+// token, and a 401 or 403 means the session or membership changed. Both stay
+// unset on the anonymous Pages build.
+let csrfToken: string | null = null;
+let sessionGuard: ((status: number) => void) | null = null;
+export function setCsrfToken(token: string | null) { csrfToken = token; }
+export function setSessionGuard(guard: ((status: number) => void) | null) { sessionGuard = guard; }
+function guardSession(status: number) { if (status === 401 || status === 403) sessionGuard?.(status); }
 export async function getJSON<T>(url: string, timeoutMs = 25_000): Promise<T> {
   const found = cache.get(url);
   if (found && Date.now() - found.at < 300_000) return found.promise as Promise<T>;
   const promise = (async () => {
     const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) });
-    if (!response.ok) throw new Error(`Data service returned HTTP ${response.status}. Please retry.`);
+    if (!response.ok) { guardSession(response.status); throw new Error(`Data service returned HTTP ${response.status}. Please retry.`); }
     return await response.json() as T;
   })();
   const entry = { at: Date.now(), promise };
@@ -132,7 +140,7 @@ export async function getModelMetrics(): Promise<ModelMetrics> {
     try { const body = await response.json() as {detail?: unknown}; detail = typeof body?.detail === 'string' ? body.detail : ''; } catch { /* no JSON body */ }
     throw new MetricsUnavailableError(detail || 'the risk service did not give a reason.');
   }
-  if (!response.ok) throw new Error(`Risk service returned HTTP ${response.status}. Please retry.`);
+  if (!response.ok) { guardSession(response.status); throw new Error(`Risk service returned HTTP ${response.status}. Please retry.`); }
   return validateModelMetrics(await response.json());
 }
 export async function getObservedTraining(date: string): Promise<ObservedTraining> {
@@ -179,7 +187,10 @@ export function parseSSE(frame: string): { event: string; data: unknown } | null
   return { event: lines.find(line => line.startsWith('event:'))?.slice(6).trim() ?? 'message', data: JSON.parse(payload) };
 }
 export async function askAgent(question: string, signal: AbortSignal, onProgress: (text: string) => void, onEvent?: (event: AgentStreamEvent) => void): Promise<AgentAnswer> {
-  const response = await fetch(`${AGENT_URL}/ask/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' }, body: JSON.stringify({ question }), signal });
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', Accept: 'text/event-stream' };
+  if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+  const response = await fetch(`${AGENT_URL}/ask/stream`, { method: 'POST', headers, body: JSON.stringify({ question }), signal });
+  if (!response.ok) guardSession(response.status);
   if (!response.ok || !response.body) throw new Error(`Agent unavailable (HTTP ${response.status}). You can still use the data panels.`);
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

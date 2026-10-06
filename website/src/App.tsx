@@ -53,7 +53,8 @@ function AnswerViewNotice({answer}: {answer?: AgentAnswer}) {
   const notice = answer ? unsupportedViewNotice(answer) : null;
   return notice ? <p className="answer-view-notice" role="status">{notice}</p> : null;
 }
-export default function App() {
+/** `account` is the signed-in account's header controls; the anonymous Pages build has none. */
+export default function App({ account }: { account?: React.ReactNode } = {}) {
   const [panels, setPanels] = useState<PanelInstance[]>(initialPanels);
   const [globalFilters, setGlobalFilters] = useState(() => {
     try { return parseStoredGlobalFilters(localStorage.getItem(GLOBAL_FILTERS_STORAGE_KEY)); }
@@ -139,7 +140,7 @@ export default function App() {
     <main className={`demo-app ${panels.length ? 'has-panels' : ''} ${messages.length ? 'has-chat' : ''}`}>
       <header className="site-header">
         <div className="site-brand">Wildfire <span>Analysis workspace</span></div>
-        <ThemeToggle />
+        {account ? <div className="access-header-actions"><ThemeToggle />{account}</div> : <ThemeToggle />}
       </header>
       <section id="workspace-top" className="workspace-intro" aria-label="Ask and choose panels">
         <div ref={stageRef} className="conversation-stage">

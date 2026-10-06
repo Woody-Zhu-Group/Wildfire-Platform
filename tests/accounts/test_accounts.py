@@ -189,6 +189,13 @@ def test_invite_notification_failure_keeps_invitation(client, account):
     assert "token_hash" not in listing.text
 
 
+def assert_sign_in_failed(response, code):
+    """Sign-in routes are navigations: a failure lands on the explanation page, never on JSON or a new session."""
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://accounts.test/sign-in-error?code=" + code
+    assert SESSION_COOKIE not in response.headers.get("set-cookie", "")
+
+
 def sign_in(client, subject):
     login = client.get("/auth/login", follow_redirects=False)
     state = parse_qs(urlsplit(login.headers["location"]).query)["state"][0]
@@ -209,7 +216,8 @@ def test_cookie_flags_rotation_and_flow_replay(client):
     assert "session=" in response.headers["set-cookie"]
     assert client.get("/api/auth/me").json()["user"]["status"] == "pending"
     client.cookies.set(FLOW_COOKIE, cookie)
-    assert client.get("/auth/callback", params={"state": state, "code": "new-user"}, follow_redirects=False).status_code == 401
+    replay = client.get("/auth/callback", params={"state": state, "code": "new-user"}, follow_redirects=False)
+    assert_sign_in_failed(replay, "invalid_login_flow")
 
 
 def test_wrong_browser_cannot_use_stolen_login_state(client):
@@ -217,7 +225,7 @@ def test_wrong_browser_cannot_use_stolen_login_state(client):
     state = parse_qs(urlsplit(login.headers["location"]).query)["state"][0]
     client.cookies.clear()
     client.cookies.set(FLOW_COOKIE, "wrong")
-    assert client.get("/auth/callback", params={"state": state, "code": "new-user"}, follow_redirects=False).status_code == 401
+    assert_sign_in_failed(client.get("/auth/callback", params={"state": state, "code": "new-user"}, follow_redirects=False), "invalid_login_flow")
 
 
 def test_stale_optional_invitation_cookie_does_not_block_normal_login(client):
@@ -288,7 +296,7 @@ def test_privileged_connection_cannot_start_service(settings):
 
 @pytest.mark.parametrize("destination", ["//attacker.test", "https://attacker.test", "http://[", "/\\attacker.test", "/admin?token=secret", "/%2f%2fattacker.test"])
 def test_no_open_redirect(client, destination):
-    assert client.get("/auth/login", params={"return_to": destination}, follow_redirects=False).status_code == 422
+    assert_sign_in_failed(client.get("/auth/login", params={"return_to": destination}, follow_redirects=False), "invalid_return_path")
 
 
 def test_invite_claim_does_not_consume_and_accept_matches_email(client, account, store):
@@ -373,3 +381,110 @@ def test_session_and_login_secrets_not_stored_plaintext(client, account, store):
     assert session["token_hash"] == digest(member["raw"]) and session["token_hash"] != member["raw"]
     assert flow["token_hash"] == digest(raw) and flow["token_hash"] != raw
     assert not flow["sealed_payload"].startswith("{")
+
+
+def test_admin_lists_name_the_people_behind_ids(client, account):
+    admin = account("admin", role="admin")
+    applicant = account("applicant", status="pending")
+    rid = client.post("/api/access-requests", headers=applicant["headers"], json={"name": "Ada Applicant", "organization": "Lab", "purpose": "Study"}).json()["id"]
+    client.post(f"/api/admin/access-requests/{rid}/decision", headers=admin["headers"], json={"decision": "approve"})
+    client.post("/api/admin/invitations", headers=admin["headers"], json={"email": "Invited@Example.org"})
+    request = client.get("/api/admin/access-requests", headers=admin["headers"]).json()["items"][0]
+    assert (request["applicant_name"], request["applicant_email"], request["applicant_status"], request["reviewer_email"]) == (
+        "Ada Applicant", "applicant@example.org", "active", "admin@example.org")
+    invitation = client.get("/api/admin/invitations", headers=admin["headers"]).json()["items"][0]
+    assert (invitation["email"], invitation["invited_by_email"], invitation["accepted_by_email"]) == ("invited@example.org", "admin@example.org", None)
+    events = {row["action"]: row for row in client.get("/api/admin/audit-events", headers=admin["headers"]).json()["items"]}
+    assert (events["access_requested"]["actor_email"], events["access_requested"]["target_email"]) == ("applicant@example.org", "applicant@example.org")
+    assert (events["access_approved"]["actor_email"], events["access_approved"]["target_email"]) == ("admin@example.org", "applicant@example.org")
+    assert events["invitation_created"]["target_email"] == "invited@example.org"
+
+
+def test_member_list_filters_by_status_and_searches_literal_text(client, account):
+    admin = account("admin", role="admin")
+    account("alice", status="pending")
+    account("bob_smith", status="suspended")
+    account("carol", status="active")
+
+    def listed(**params):
+        return sorted(row["email"] for row in client.get("/api/admin/users", params=params, headers=admin["headers"]).json()["items"])
+
+    assert listed(status="pending") == ["alice@example.org"]
+    assert listed(q="ALI") == ["alice@example.org"]
+    assert listed(q="_") == ["bob_smith@example.org"]
+    assert listed(q="%") == []
+    assert listed(status="active", q="example.org") == ["admin@example.org", "carol@example.org"]
+    assert client.get("/api/admin/users", params={"status": "admin"}, headers=admin["headers"]).status_code == 422
+    assert client.get("/api/admin/users", params={"q": "x" * 255}, headers=admin["headers"]).status_code == 422
+
+
+def test_access_request_alerts_every_active_admin_after_commit(client, account):
+    account("admin-a", role="admin")
+    account("admin-b", role="admin")
+    account("admin-c", role="admin", status="suspended")
+    account("member")
+    applicant = account("applicant", status="pending")
+    response = client.post("/api/access-requests", headers=applicant["headers"], json={"name": "Ada", "organization": "Lab", "purpose": "Compare outages"})
+    assert response.status_code == 201
+    assert [email for email, _ in client.mail.alerts] == ["admin-a@example.org", "admin-b@example.org"]
+    event = client.mail.alerts[0][1]
+    assert (str(event.request_id), event.name, event.email, event.organization, event.purpose) == (
+        response.json()["id"], "Ada", "applicant@example.org", "Lab", "Compare outages")
+
+
+def test_failed_admin_alert_keeps_the_request(client, account):
+    account("admin", role="admin")
+    applicant = account("applicant", status="pending")
+    client.mail.fail = True
+    response = client.post("/api/access-requests", headers=applicant["headers"], json={"name": "Ada", "organization": "Lab", "purpose": "Study"})
+    assert response.status_code == 201
+    assert client.get("/api/auth/me", headers=applicant["headers"]).json()["application"]["status"] == "pending"
+
+
+def test_notifier_contains_each_observer_failure():
+    from services.accounts.notify import AccessReviewed, InvitationIssued, Notifier
+    seen, notifier = [], Notifier()
+    event = AccessReviewed(uuid4(), "a@example.org", "approved", "")
+
+    def broken(_):
+        raise RuntimeError("mail down")
+
+    notifier.subscribe(AccessReviewed, broken)
+    notifier.subscribe(AccessReviewed, seen.append)
+    assert notifier.publish(event) == "failed"
+    assert seen == [event]
+    assert notifier.publish(InvitationIssued(uuid4(), "b@example.org", "secret")) == "sent"
+    assert "secret" not in repr(InvitationIssued(uuid4(), "b@example.org", "secret"))
+
+
+@pytest.mark.parametrize("params,code", [
+    ({"error": "access_denied", "state": "s"}, "identity_provider_error"),
+    ({"state": "s"}, "identity_provider_error"),
+    ({"state": "s" * 201, "code": "c"}, "invalid_login_flow"),
+    ({"state": "s", "code": "c"}, "invalid_login_flow"),
+])
+def test_callback_failures_land_on_the_explanation_page(client, params, code):
+    assert_sign_in_failed(client.get("/auth/callback", params=params, follow_redirects=False), code)
+
+
+def test_identity_and_service_failures_land_on_the_explanation_page(client, monkeypatch):
+    login = client.get("/auth/login", follow_redirects=False)
+    state = parse_qs(urlsplit(login.headers["location"]).query)["state"][0]
+
+    async def rejected(*_):
+        raise AccountError(401, "invalid_identity", "Sign-in could not be verified. Please try again.")
+
+    monkeypatch.setattr(client.app.state.identity, "exchange", rejected)
+    assert_sign_in_failed(client.get("/auth/callback", params={"state": state, "code": "x"}, follow_redirects=False), "invalid_identity")
+
+    def unavailable(*_):
+        raise psycopg.OperationalError("connection refused")
+
+    monkeypatch.setattr(client.app.state.store, "save_flow", unavailable)
+    assert_sign_in_failed(client.get("/auth/login", follow_redirects=False), "accounts_unavailable")
+
+
+def test_flow_limit_lands_on_the_explanation_page(client):
+    for _ in range(100):
+        assert client.get("/auth/login", follow_redirects=False).headers["location"].startswith("https://login.test/")
+    assert_sign_in_failed(client.get("/auth/login", follow_redirects=False), "flow_rate_limited")

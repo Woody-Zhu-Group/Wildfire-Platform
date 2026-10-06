@@ -1,0 +1,156 @@
+# Accounts service, gateway contract and the signed-in website, end to end.
+# Runs only throwaway loopback services on the runner; no AWS, mail, model or
+# production data is touched. See services/accounts/README.md (Verification).
+name: Accounts
+
+on:
+  pull_request:
+    paths:
+      - services/accounts/**
+      - db/migrations/accounts/**
+      - deploy/nginx/**
+      - deploy/cloudfront/**
+      - tests/accounts/**
+      - tests/conftest.py
+      - website/**
+      - requirements.txt
+      - .gitattributes
+      - .github/workflows/accounts.yml
+  push:
+    branches: [main]
+    paths:
+      - services/accounts/**
+      - db/migrations/accounts/**
+      - deploy/nginx/**
+      - deploy/cloudfront/**
+      - tests/accounts/**
+      - tests/conftest.py
+      - website/**
+      - requirements.txt
+      - .gitattributes
+      - .github/workflows/accounts.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accounts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  service:
+    name: Accounts service on PostgreSQL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: accounts_test_ci
+          # The tests create restricted login roles without passwords; trust is for this throwaway container only.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/accounts/requirements.txt
+      - run: pip install -r services/accounts/requirements.txt ruff
+      - run: ruff check services/accounts tests/accounts
+      - name: Service tests (real PostgreSQL)
+        env:
+          ACCOUNTS_TEST_DATABASE_URL: postgresql://postgres@localhost:5432/accounts_test_ci
+        run: pytest tests/accounts/test_accounts.py tests/accounts/test_identity.py tests/accounts/test_requirements.py -q
+
+  gateway:
+    name: Nginx gateway contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/accounts/requirements.txt
+      - run: pip install -r services/accounts/requirements.txt
+      - name: Nginx with auth_request
+        run: |
+          command -v nginx >/dev/null || { sudo apt-get update && sudo apt-get install -y nginx-core; }
+          nginx -V 2>&1 | grep -q http_auth_request_module
+      - name: Contract tests against the harness
+        run: |
+          python tests/accounts/gateway_harness.py --nginx "$(command -v nginx)" --directory "$RUNNER_TEMP/gateway" > "$RUNNER_TEMP/gateway.log" 2>&1 &
+          echo "HARNESS=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:18080/ && break; sleep 1; done
+          ACCOUNTS_GATEWAY_TEST_URL=http://127.0.0.1:18080 pytest tests/accounts/test_gateway.py -q
+      - name: Stop the harness
+        if: always()
+        run: |
+          [ -n "${HARNESS:-}" ] && kill -TERM "$HARNESS" 2>/dev/null && wait "$HARNESS" 2>/dev/null || true
+          cat "$RUNNER_TEMP/gateway.log" 2>/dev/null || true
+
+  staging-flow:
+    name: Signed-in website in a browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      # The harness imports services.accounts from the checkout.
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+        working-directory: website
+      - run: npm run build:accounts
+        working-directory: website
+      - run: node deploy/cloudfront/check-csp.mjs website/dist/accounts/index.html
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/accounts/requirements.txt
+      - run: pip install -r services/accounts/requirements.txt playwright
+      - run: python -m playwright install --with-deps chromium
+      - name: Nginx and PostgreSQL binaries
+        run: |
+          command -v nginx >/dev/null || { sudo apt-get update && sudo apt-get install -y nginx-core; }
+          ls -d /usr/lib/postgresql/*/bin >/dev/null 2>&1 || { sudo apt-get update && sudo apt-get install -y postgresql; }
+          echo "PG_BIN=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)" >> "$GITHUB_ENV"
+      - name: Start the staging harness (stub data relays)
+        run: |
+          python tests/accounts/staging_harness.py --nginx "$(command -v nginx)" --postgres-bin "$PG_BIN" \
+            --site website/dist/accounts --directory "$RUNNER_TEMP/staging" --relay stub > "$RUNNER_TEMP/staging.log" 2>&1 &
+          echo "HARNESS=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 60); do
+            [ "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost:8443/api/auth/me)" = 401 ] && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/staging.log"; exit 1
+      - name: Browser flow
+        env:
+          ACCOUNTS_STAGING_URL: https://localhost:8443
+        run: pytest tests/accounts/test_staging_flow.py -v
+      - name: Stop the harness
+        if: always()
+        run: |
+          [ -n "${HARNESS:-}" ] && kill -TERM "$HARNESS" 2>/dev/null && wait "$HARNESS" 2>/dev/null || true
+          cat "$RUNNER_TEMP/staging.log" 2>/dev/null || true
+      - name: Keep harness logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-harness-logs
+          path: |
+            ${{ runner.temp }}/staging.log
+            ${{ runner.temp }}/staging/*.log
+          if-no-files-found: ignore
