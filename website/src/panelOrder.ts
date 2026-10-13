@@ -10,6 +10,12 @@ export function nearestPanelSlot(point: {x: number; y: number}, slots: PanelSlot
   return nearest;
 }
 
+// New panels, from the picker or from an Ask answer, lead the workspace in their given order.
+export function prependPanels<T extends {id: number}>(panels: T[], added: T[]): T[] {
+  const fresh = added.filter(panel => !panels.some(item => item.id === panel.id));
+  return fresh.length ? [...fresh, ...panels] : panels;
+}
+
 export function movePanel<T extends {id: number}>(panels: T[], id: number, index: number): T[] {
   const from = panels.findIndex(panel => panel.id === id);
   const target = Math.max(0, Math.min(index, panels.length - 1));

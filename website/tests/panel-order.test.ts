@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { movePanel, nearestPanelSlot, type PanelSlot } from '../src/panelOrder.ts';
+import { movePanel, nearestPanelSlot, prependPanels, type PanelSlot } from '../src/panelOrder.ts';
 
 const panels = Array.from({length: 5}, (_, index) => ({id: index + 1, settings: {filter: `scope-${index}`}}));
 const slots: PanelSlot[] = panels.map((panel, index) => ({id: panel.id, left: index % 2 * 420, top: Math.floor(index / 2) * 540, width: 400, height: 520}));
@@ -19,6 +19,21 @@ test('edge positions and a removed panel never lose or duplicate workspace state
   assert.equal(movePanel(panels, 3, 2), panels);
   assert.equal(movePanel(panels, 99, 2), panels);
   assert.deepEqual(movePanel([], 1, 0), []);
+});
+
+test('new panels from the picker or an answer lead the workspace in their given order', () => {
+  const picked = {id: 6, settings: {filter: 'picked'}};
+  assert.deepEqual(prependPanels(panels, [picked]).map(panel => panel.id), [6, 1, 2, 3, 4, 5]);
+  const answer = [7, 8, 9].map(id => ({id, settings: {filter: `answer-${id}`}}));
+  assert.deepEqual(prependPanels(panels, answer).map(panel => panel.id), [7, 8, 9, 1, 2, 3, 4, 5]);
+  assert.deepEqual(prependPanels([], answer).map(panel => panel.id), [7, 8, 9]);
+  assert.deepEqual(panels.map(panel => panel.id), [1, 2, 3, 4, 5]);
+});
+
+test('reopening a panel already in the workspace keeps the order and never duplicates it', () => {
+  assert.equal(prependPanels(panels, [panels[2]]), panels);
+  assert.equal(prependPanels(panels, []), panels);
+  assert.deepEqual(prependPanels(panels, [panels[2], {id: 6, settings: {filter: 'new'}}]).map(panel => panel.id), [6, 1, 2, 3, 4, 5]);
 });
 
 test('snap targets follow the closest panel center across rows, gaps and outside the grid', () => {

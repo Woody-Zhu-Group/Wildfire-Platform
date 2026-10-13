@@ -11,7 +11,7 @@ import { ToolTrace } from './ToolTrace';
 import { DATASETS, type EventRecord } from './data.ts';
 import { panelsFromAnswer, unsupportedViewNotice } from './answerPanels.ts';
 import { updatePanelSettings, viewSettings, type PanelView } from './panelViews.ts';
-import { movePanel } from './panelOrder.ts';
+import { movePanel, prependPanels } from './panelOrder.ts';
 import { ThemeToggle } from './ThemeToggle.tsx';
 import { GLOBAL_FILTERS_STORAGE_KEY, parseStoredGlobalFilters } from './globalFilters.ts';
 import { selectInlineViews, snapshotInlinePanel } from './inlineViews.ts';
@@ -95,7 +95,7 @@ export default function App() {
   function addPanel(view: PanelView) {
     const panel = newPanel(nextId.current++, view.type);
     panel.name = view.title; panel.settings = viewSettings(panel.settings, view);
-    setPanels(current => [...current, panel]);
+    setPanels(current => prependPanels(current, [panel]));
   }
   function duplicatePanel(id: number) {
     const original=panels.find(panel=>panel.id===id); if(!original) return;
@@ -108,7 +108,7 @@ export default function App() {
   }
   function openInlinePanel(panel: PanelInstance) {
     if (panels.some(item => item.id === panel.id)) { locatePanel(panel.id); return; }
-    setPanels(current => current.some(item => item.id === panel.id) ? current : [...current, panel]);
+    setPanels(current => prependPanels(current, [panel]));
     requestAnimationFrame(() => locatePanel(panel.id));
   }
   function applyAnswer(answer: AgentAnswer) {
@@ -116,7 +116,7 @@ export default function App() {
       const panel = newPanel(nextId.current++, spec.type);
       return { ...panel, name: spec.name, settings: { ...panel.settings, ...spec.settings } };
     });
-    if (added.length) setPanels(current => [...current, ...added]);
+    if (added.length) setPanels(current => prependPanels(current, added));
     return added;
   }
   async function submit(event: React.FormEvent) {
