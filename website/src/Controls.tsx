@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { COUNTIES, DATASETS, UTILITIES, configFor, filterSupport, type DatasetId, type Filters } from './data.ts';
 import { getCoverage } from './api.ts';
 import { useRemote } from './useRemote';
+import { StudyCitation } from './StudyCitation.tsx';
 
 export function DatasetSelect({ value, onChange, label = 'Dataset', hideLabel = false, all = true }: { value: DatasetId; onChange: (value: DatasetId) => void; label?: string; hideLabel?: boolean; all?: boolean }) {
   return <label>{!hideLabel && label}<select aria-label={label} value={value} onChange={e => onChange(e.target.value as DatasetId)}>{(all ? DATASETS : DATASETS.slice(0, 3)).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>;
@@ -61,5 +62,5 @@ export function DataSources() {
   const [open, setOpen] = useState(false);
   return <footer className="data-sources"><details onToggle={e => setOpen(e.currentTarget.open)}><summary>Data sources & coverage</summary>
     {open && <>{DATASETS.map(d => <SourceRow key={d.id} dataset={d.id} />)}<p>Loaded from the remote wildfire warehouse. These are recorded event dates; last scrape times are not provided by the service.</p><p>CPUC is utility-attributed. CAL FIRE contains posted incidents. National ignitions are an all-cause sample. Their counts should not be added together.</p></>}
-  </details></footer>;
+  </details><StudyCitation /></footer>;
 }

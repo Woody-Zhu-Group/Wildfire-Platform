@@ -117,7 +117,16 @@ test('planner-shaped specs reach all 19 workspace views', () => {
     assert.deepEqual(viewIds(spec), [expected], expected);
     reached.add(expected);
   }
-  assert.deepEqual([...reached].sort(), PANEL_VIEWS.map(view => view.id).sort());
+  // Every view Ask can produce is reached; the planning study views are opened
+  // from the panel picker only and must say so explicitly.
+  assert.deepEqual([...reached].sort(), PANEL_VIEWS.filter(view => !view.workspaceOnly).map(view => view.id).sort());
+});
+
+test('only the planning study views are workspace-only, and Ask never produces them', () => {
+  const workspaceOnly = PANEL_VIEWS.filter(view => view.workspaceOnly);
+  assert.deepEqual(workspaceOnly.map(view => view.id).sort(), ['study-allocation', 'study-map', 'study-methods', 'study-sensitivity', 'study-summary']);
+  assert.ok(workspaceOnly.every(view => view.type === 'optimization'));
+  assert.ok(PANEL_VIEWS.filter(view => view.type === 'optimization').every(view => view.workspaceOnly));
 });
 
 test('risk and residual grids carry the scored day and no invented dataset or window', () => {

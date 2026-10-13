@@ -2,7 +2,7 @@
 
 A wildfire research platform combining an interactive analysis website, a PostGIS event warehouse, modular FastAPI services, and a historical **cNHPP** (convolutional non-homogeneous Poisson process) ignition-risk model. The website supports recorded fire and outage exploration, weather playback, modeled risk and residual maps, regional and seasonal analysis, and result exports.
 
-The current website offers **19 analysis views in five panel categories**, and the Ask panel can open all 19 from a chat answer. Opening the website does not fit a model or require a local database.
+The current website offers **24 analysis views in six panel categories**: 19 data views, which the Ask panel can open from a chat answer, and 5 **Planning study** views over the sectionalization and fast-trip optimization grid of [arXiv:2604.01232](https://arxiv.org/abs/2604.01232), opened from Add panel. Opening the website does not fit a model or require a local database.
 
 ## Architecture
 
@@ -132,7 +132,8 @@ The build updates `docs/index.html` and `docs/assets/workspace/`. Commit the web
 | Time series | Event trends, Year comparison, Regional trends, Seasonal profile, Cumulative acres burned within a season, Customers affected over time |
 | Comparison | County ranking, Utility comparison, Cause breakdown |
 | Record table | Event records |
-| Stat card | Summary metrics, Medical baseline and life support customers affected by EPSS outages |
+| Stat card | Summary metrics, Risk model performance, Medical baseline and life support customers affected by EPSS outages |
+| Planning study | Planning decisions map, Planning methods compared, Planning parameter sensitivity, Reliability budget use, Planning study summary |
 
 The views are defined in [`website/src/panelViews.ts`](website/src/panelViews.ts).
 
@@ -141,6 +142,8 @@ The views are defined in [`website/src/panelViews.ts`](website/src/panelViews.ts
 - **Risk surface and residual map:** the risk surface maps the cNHPP hindcast for one historical date. The residual map compares observed CPUC ignitions with that hindcast using the training cell assignment. Both are statistical hindcasts, not forecasts.
 - **Dataset notes:** panel headers show the dataset caveats (for example EPSS is PG&E-only and PSPS totals are customer-events).
 - **Theme:** a light and dark theme toggle.
+- **Planning study:** five views over the optimization grid ingested by [`analysis/sectionalization/`](analysis/sectionalization/README.md) (137 setups, 5 replications, 8 methods, 803 HFTD circuits): a circuit decision map with setup sliders over the map, methods compared for one setup, a parameter sweep (a slice through the selected setup, or an average over matched setups), SAIFI cap use, and a summary card. The page footer cites the study (Citation fold, with BibTeX). An **As solved / Budget filled** switch shows each plan with its unused sectionalization budget completed. The data is static (`website/data/optimization_grid/`); the views call no service, ignore the workspace year, and are semi-synthetic model outcomes, not recorded events. Findings: [`analysis/sectionalization/FINDINGS.md`](analysis/sectionalization/FINDINGS.md).
+- **Ask hints:** example questions under the Ask box (three, with Show more for the rest). A click fills the box without sending. Each hint is a question the router answers deterministically in the eval set (`website/src/askHints.ts`, checked by `website/tests/ask-hints.test.ts`).
 
 **Seasonal profile:** select one to five years inside Filters. A single year is a solid weekly-count line; multiple years have dashed individual lines and a thicker solid average. The collapsed filter shows the number of selected years. **Regional trends:** PG&E divisions share the same vertical scale, with all regions available in expanded view and exports.
 
@@ -427,6 +430,7 @@ Historical dates only for years with local covariate files. No live HRRR ingesti
 | [`docs/CANVAS.md`](docs/CANVAS.md), [`docs/CANVAS_PANEL_PROPOSAL.md`](docs/CANVAS_PANEL_PROPOSAL.md) | Canvas and panel layout reference and proposal |
 | [`docs/VERIFICATION.md`](docs/VERIFICATION.md) | Verification notes |
 | [`docs/dataset-comparison-cpuc-calfire-us.md`](docs/dataset-comparison-cpuc-calfire-us.md) | How CPUC, CAL FIRE, and US ignitions differ |
+| [`analysis/sectionalization/README.md`](analysis/sectionalization/README.md), [`analysis/sectionalization/FINDINGS.md`](analysis/sectionalization/FINDINGS.md) | The sectionalization and fast-trip optimization study: ingest, realized-cost audit, data contract, and findings |
 | [`db/README.md`](db/README.md), [`docs/DATA_CHANGE_HFTD_IOU.md`](docs/DATA_CHANGE_HFTD_IOU.md) | Warehouse schema and loaders; the HFTD and IOU polygon rebuild from CPUC sources |
 | [`docs/DATA_CHANGE_CALFIRE_DEFAULT.md`](docs/DATA_CHANGE_CALFIRE_DEFAULT.md) | The CAL FIRE default now counts untyped incidents: excluded types and why, and every count that changes by year, county, utility, territory, and tier |
 | [`services/data_query/README.md`](services/data_query/README.md), [`services/visualization/README.md`](services/visualization/README.md), [`services/comparison/README.md`](services/comparison/README.md) | Service APIs |
