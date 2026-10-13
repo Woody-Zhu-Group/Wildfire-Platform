@@ -17,3 +17,9 @@ python analysis/<script>.py
 |---|---|---|
 | `calfire_2024_jump.py` | `calfire_2024_jump_results.json` | [`calfire-2024-jump.md`](calfire-2024-jump.md): the 2023 to 2024 CAL FIRE count jump (133 to 611) is an incident-map posting change, not a fire-occurrence trend |
 | `compare_cpuc_calfire_us.py` | `compare_cpuc_calfire_us_results.json` | [`docs/dataset-comparison-cpuc-calfire-us.md`](../docs/dataset-comparison-cpuc-calfire-us.md): CPUC, CAL FIRE, and US ignitions record different events and cannot be compared or combined as one census |
+
+`sectionalization/` is a module rather than a single script: it reads the
+sectionalization optimization grid (not the warehouse), writes the data behind
+the workspace's Planning study panels, and documents its own run steps. See
+[`sectionalization/README.md`](sectionalization/README.md) and
+[`sectionalization/FINDINGS.md`](sectionalization/FINDINGS.md).

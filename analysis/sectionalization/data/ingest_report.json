@@ -1,0 +1,42 @@
+{
+  "source_grid_dir": "/Volumes/RyanSSD2/optimization_results_grid",
+  "prediction_dir": "a0p4__exp5__train20__cal200__grp5__49ac8c7c07",
+  "prediction_setups_in_grid": [
+    "a0p4__exp5__train20__cal200__grp5__49ac8c7c07",
+    "a0p4__exp5__train20__cal200__grp5__9a2294b515"
+  ],
+  "setups": 138,
+  "setups_ingested": 137,
+  "complete_setups": 137,
+  "incomplete_setups": [],
+  "skipped_setups": [
+    {
+      "slug": "a0p4__C0p2__B0p1__W0p3__ae0p7__g0p9__d1__69e22b7fab",
+      "setup_id": "C20-B10-W30-E70-G90",
+      "reason": "all_comparison.csv lacks avg_circuit_bound_width, avg_group_bound_width, eval_cost, method_slug, z_star_sum, z_sum"
+    }
+  ],
+  "runs": 5480,
+  "circuits": 803,
+  "methods": [
+    "group_conformal_random",
+    "group_conformal_fixed",
+    "group_conformal_oracle",
+    "bonferroni",
+    "maxrank",
+    "ci",
+    "co_optimized",
+    "planning_only"
+  ],
+  "audit": {
+    "max_rel_exposure_diff": 9.984932340174851e-05,
+    "exact_lower_than_recorded": 1004,
+    "exact_higher_than_recorded": 0,
+    "shutoff_count_differs": 906,
+    "max_shutoff_count_diff": 33,
+    "recourse_not_proven_optimal": 0,
+    "note": "exposure_exact re-solves the realized PSPS recourse with HiGHS at a 1e-6 relative MIP gap. The grid's eval_cost came from Gurobi at its default 1e-4 relative gap, so small differences, and different shutoff counts at the same exposure, are expected."
+  },
+  "timed_out_runs": 677,
+  "elapsed_sec": 560.6
+}
