@@ -3,8 +3,8 @@ import { datasetCaveats } from './caveats.ts';
 import type { DatasetId } from './data.ts';
 import { useDismissDetails } from './useDismissDetails.ts';
 
-export function PanelCaveats({datasets, title}: {datasets: readonly DatasetId[]; title: string}) {
-  const notes = datasetCaveats(datasets);
+export function PanelCaveats({datasets, title, extra = []}: {datasets: readonly DatasetId[]; title: string; extra?: readonly string[]}) {
+  const notes = [...datasetCaveats(datasets), ...extra];
   const disclosure = useRef<HTMLDetailsElement>(null);
   const sourceKey = datasets.join('|');
   useDismissDetails(disclosure);

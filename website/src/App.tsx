@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { PANELS, PanelPicker, PanelStrip, panelTitle, type PanelInstance } from './PanelPicker';
+import { DEFAULT_PANEL_TYPES, PANELS, PanelPicker, PanelStrip, panelTitle, type PanelInstance } from './PanelPicker';
+import { validStudySettings } from './studyData.ts';
+import { AskHints } from './AskHints.tsx';
 import { PanelWorkspace } from './PanelWorkspace';
 import { GlobalFiltersContext, SelectionContext, newPanel } from './state';
 import { DataSources } from './Controls';
@@ -42,9 +44,10 @@ function initialPanels(): PanelInstance[] {
       && (p.settings.seasonYears === undefined || (Array.isArray(p.settings.seasonYears) && p.settings.seasonYears.every((year: unknown) => Number.isInteger(year) && Number(year) >= 1900 && Number(year) <= 2100)))
       && (p.settings.comparisonYears === undefined || (Array.isArray(p.settings.comparisonYears) && p.settings.comparisonYears.every((year: unknown) => Number.isInteger(year) && Number(year) >= 1900 && Number(year) <= 2100)))
       && (p.settings.answerComparison === undefined || (p.type === 'comparison' && validComparisonGrid(p.settings.answerComparison)))
+      && validStudySettings(p.settings)
       && !p.settings.answerStat) && new Set(saved.map(p => p.id)).size === saved.length) return saved;
   } catch { /* Storage is optional; unavailable or old state opens the default workspace. */ }
-  return PANELS.map((p, index) => newPanel(index + 1, p.id));
+  return DEFAULT_PANEL_TYPES.map((type, index) => newPanel(index + 1, type));
 }
 function Markdown({ text }: { text: string }) {
   return <>{text.split('\n').map((line, index) => <p key={index} className={line ? '' : 'paragraph-gap'}>{line.split(/(\*\*[^*]+\*\*)/g).map((part, i) => part.startsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : part)}</p>)}</>;
@@ -70,6 +73,7 @@ export default function App() {
   const [showBack, setShowBack] = useState(false);
   const nextId = useRef(Math.max(0, ...panels.map(p => p.id)) + 1);
   const controller = useRef<AbortController | null>(null);
+  const askInput = useRef<HTMLInputElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -144,9 +148,12 @@ export default function App() {
       <section id="workspace-top" className="workspace-intro" aria-label="Ask and choose panels">
         <div ref={stageRef} className="conversation-stage">
           {messages.length > 0 && <div ref={chatRef} className="chat-messages" aria-label="Conversation" aria-live="polite">{messages.map(message => <div key={message.id} className={`chat-message ${message.role} ${message.error ? 'message-error' : ''}`}><div className="chat-message-copy"><Markdown text={message.content} /></div>{message.role === 'assistant' && <><AnswerViewNotice answer={message.response}/>{message.inlineViews?.length ? <InlineAnswerViews views={message.inlineViews} onOpen={openInlinePanel} /> : null}<ToolTrace answer={message.response} events={message.events ?? []} finished /></>}</div>)}{busy && <div><p className="panel-note">{progress}</p><ToolTrace events={streamEvents} finished={false} /></div>}</div>}
-          <form onSubmit={submit} className="search-form"><input aria-label="Ask a question" value={query} onChange={e => setQuery(e.target.value)} placeholder="What do you want to know today~" />
-            {busy ? <button type="button" aria-label="Cancel request" onClick={() => controller.current?.abort(new Error('Request cancelled.'))}>■</button> : query.trim() && <button type="submit" aria-label="Send message">↑</button>}
-          </form>
+          <div className="ask-entry">
+            <form onSubmit={submit} className="search-form"><input ref={askInput} aria-label="Ask a question" value={query} onChange={e => setQuery(e.target.value)} placeholder="What do you want to know today~" />
+              {busy ? <button type="button" aria-label="Cancel request" onClick={() => controller.current?.abort(new Error('Request cancelled.'))}>■</button> : query.trim() && <button type="submit" aria-label="Send message">↑</button>}
+            </form>
+            {!messages.length && !busy && <AskHints onPick={question => { setQuery(question); askInput.current?.focus(); }} />}
+          </div>
           <div className="shortcut-section"><PanelStrip panels={panels} onRemove={removePanel} onLocate={locatePanel} onOpen={() => setShowPicker(true)} /></div>
           {storageError && <p className="panel-note">Browser storage is unavailable. This workspace will reset when you refresh.</p>}
         </div>

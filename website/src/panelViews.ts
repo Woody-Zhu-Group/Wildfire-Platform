@@ -1,6 +1,7 @@
 import type { PanelId, PanelInstance } from './PanelPicker';
 import type { PanelSettings } from './state';
 import { CHART_DATASETS, DATASETS, supportedFilters, type DatasetId } from './data.ts';
+import { STUDY_VIEWS } from './studyData.ts';
 
 export interface PanelView {
   id: string;
@@ -8,6 +9,8 @@ export interface PanelView {
   title: string;
   description: string;
   settings: Partial<PanelSettings>;
+  /** Opened from the panel picker only; Ask answers never produce it. */
+  workspaceOnly?: boolean;
 }
 
 export const PANEL_VIEWS: PanelView[] = [
@@ -30,6 +33,11 @@ export const PANEL_VIEWS: PanelView[] = [
   { id: 'summary-stats', type: 'stat_card', title: 'Summary metrics', description: 'See related totals under one set of filters.', settings: { dataset: 'cpuc', statMode: 'summary' } },
   { id: 'model-metrics', type: 'stat_card', title: 'Risk model performance', description: 'Compare HPP, NHPP and cNHPP on the held-out evaluation year.', settings: { statMode: 'model_metrics' } },
   { id: 'medical-exposure', type: 'stat_card', title: 'Medical baseline and life support customers affected by EPSS outages', description: 'Sum medical-baseline and life-support customer-events during EPSS outages.', settings: { dataset: 'epss', statMode: 'medical_exposure' } },
+  { id: 'study-map', type: 'optimization', title: 'Planning decisions map', description: 'Map the circuits each plan sectionalizes, gives fast-trip, or shuts off.', settings: { studyView: 'map' }, workspaceOnly: true },
+  { id: 'study-methods', type: 'optimization', title: 'Planning methods compared', description: 'Compare the eight planning methods for one budget and reliability setup.', settings: { studyView: 'methods' }, workspaceOnly: true },
+  { id: 'study-sensitivity', type: 'optimization', title: 'Planning parameter sensitivity', description: 'Follow a result across budgets, the SAIFI cap, and fast-trip assumptions.', settings: { studyView: 'sensitivity' }, workspaceOnly: true },
+  { id: 'study-allocation', type: 'optimization', title: 'Reliability budget use', description: 'See how each plan spends the SAIFI cap on fast-trip and PSPS.', settings: { studyView: 'allocation' }, workspaceOnly: true },
+  { id: 'study-summary', type: 'optimization', title: 'Planning study summary', description: 'Headline results for one setup and across the whole grid.', settings: { studyView: 'summary' }, workspaceOnly: true },
 ];
 
 export function viewSettings(current: PanelSettings, view: PanelView): PanelSettings {
@@ -37,6 +45,7 @@ export function viewSettings(current: PanelSettings, view: PanelView): PanelSett
 }
 
 export function currentView(type: PanelId, settings: PanelSettings): string {
+  if (type === 'optimization') return `study-${settings.studyView && STUDY_VIEWS.includes(settings.studyView) ? settings.studyView : 'methods'}`;
   if (type === 'map' && settings.mapMode === 'risk') return 'risk-surface-map';
   if (type === 'map' && settings.mapMode === 'residual') return 'residual-map';
   if (type === 'map') return settings.overlays.includes('hdw') ? 'weather-map' : settings.dataset === 'epss' ? 'outages-map' : settings.dataset === 'psps' ? 'psps-map' : 'events-map';
@@ -58,6 +67,7 @@ export function updatePanelSettings(panel: PanelInstance, patch: Partial<PanelSe
 }
 
 export function panelDatasets(type: PanelId, settings: PanelSettings): DatasetId[] {
+  if (type === 'optimization') return [];
   if (type === 'map' && settings.mapMode === 'risk') return [];
   if (type === 'stat_card' && settings.statMode === 'model_metrics') return [];
   if (type === 'map' && settings.mapMode === 'residual') return ['cpuc'];

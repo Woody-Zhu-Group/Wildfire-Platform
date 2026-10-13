@@ -9,7 +9,10 @@ export const PANELS = [
   { id: "comparison", name: "Comparison", description: "Compare utilities, regions, or periods.", icon: "M3 3v18h18M7 17v-5m5 5V6m5 11V9" },
   { id: "record_table", name: "Record table", description: "Browse individual events and their details.", icon: "M3 4h18v16H3V4zm0 5h18M3 14h18M9 4v16" },
   { id: "stat_card", name: "Stat card", description: "Highlight counts, risk, and key metrics.", icon: "M3 5h18v14H3V5zm4 10V9m4 6v-3m4 3V8" },
+  { id: "optimization", name: "Planning study", description: "Explore the sectionalization and fast-trip optimization study.", icon: "M4 6h5m6 0h5M4 18h16M9 6a3 3 0 106 0 3 3 0 00-6 0M12 9v9" },
 ] as const;
+// Categories a fresh workspace opens with; the planning study is added on request.
+export const DEFAULT_PANEL_TYPES = PANELS.filter(panel => panel.id !== "optimization").map(panel => panel.id);
 
 export type PanelId = typeof PANELS[number]["id"];
 export interface PanelInstance { id: number; type: PanelId; name?: string; nameIsCustom?: boolean; settings: PanelSettings }
