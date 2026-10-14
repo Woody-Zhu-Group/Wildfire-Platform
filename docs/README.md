@@ -58,8 +58,9 @@ the other assets, including the existing HDW files, are retained.
   pagination fits the overview height so its controls remain visible.
 - Ask uses `POST /ask/stream`, without waiting for agent health.
   Supported grounded map (including risk surface and residual), series, ranking
-  comparison, record and metric views append panels. Other view contracts remain
-  in the answer rather than becoming approximate charts.
+  comparison, record and metric views add panels at the front of the workspace.
+  Other view contracts remain in the answer rather than becoming approximate
+  charts.
 - Source metadata reports the first/last recorded event dates, not scrape times.
   The source panel and website guide document data limitations; unavailable
   values are not converted into zeros.

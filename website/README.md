@@ -100,7 +100,8 @@ visible and never trigger a runtime switch back to browser calculations.
 ## Connected panels
 
 Add panel groups ready-to-use views under the six panel categories. Selecting
-a view creates the configured panel immediately. The 24 views, as defined in
+a view creates the configured panel immediately at the front of the workspace.
+The 24 views, as defined in
 `src/panelViews.ts`:
 
 | Category | Views |
@@ -286,7 +287,8 @@ clears it. Incomplete/inconsistent pagination fails instead of reporting a
 partial total. Runtime API failures do not fall back to synthetic data.
 
 Ask uses the deployed SSE endpoint and preserves the answer's qualifications.
-It can append the supported harness-planned views, and can open each of the 18
+It can add the supported harness-planned views at the front of the workspace,
+in the answer's order, and can open each of the 18
 workspace views; it does not execute render
 instructions from model prose. A four-minute timeout or Cancel leaves the data
 panels usable. Generated scalar answers are not saved across page refreshes.
@@ -370,7 +372,9 @@ partial totals. Stat CSV downloads include every displayed metric and its unit.
 Panel settings use `wildfire-workspace-v1` in browser local storage; the workspace
 year uses `wildfire-workspace-global-v1`. Storage
 failure is visible; no chat text, credentials, or fetched datasets are saved.
-Panel order is saved in the same workspace. Drag an overview panel by its title
+Panel order is saved in the same workspace. New panels, from Add panel, an Ask
+answer or an inline answer view, open first; Duplicate places its copy right after
+the original. Drag an overview panel by its title
 bar or grip; release it to insert at the closest grid slot while the intervening
 panels shift in order. The page scrolls near the viewport edges during a drag.
 Escape cancels the move. A simple title click still renames the panel, and header
