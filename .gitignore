@@ -62,6 +62,9 @@ data/boundaries/*.esri.json
 # Jev shadow logs (may contain user questions)
 services/agent/logs/
 
+# Raw execution records belong to external runtime storage, not source control.
+services/agent/eval/runs/
+
 # Editor / local tooling
 .idea/
 .vscode/

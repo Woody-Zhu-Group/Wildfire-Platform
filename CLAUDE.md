@@ -23,7 +23,42 @@ Research platform for California wildfire and utility data (CPUC, CAL FIRE, PG&E
 - Every PR that changes behavior, setup, architecture, endpoints, or env vars must update the affected docs (READMEs, `docs/*.md`, service READMEs, `.env.example`, CLAUDE.md, AGENTS.md) in the same PR, verified against the code on that branch. The PR description must list the docs touched, or say that none were affected. Never describe unmerged work as done.
 - Any PR that changes website source (anything under `website/` that the build reads: `src/`, `index.html`, `package*.json`, `vite.config.ts`, `.env.production`) must run `npm run build` in `website/` and commit the rebuilt `docs/index.html` and `docs/assets/workspace/` in the same PR. The website test `tests/build-freshness.test.ts` (also `npm run check-build`) fails when `docs/` is not the build of the current source.
 
-## Architecture (target design: Jev first)
+## Architecture and runtime modes
+
+Production `decide` remains V3. The separate `v4` mode is experimental work in
+draft PR #113, not a production mode switch. Its current flow is:
+
+1. Three parallel Jev calls identify intent, dataset, measure and scope facts.
+2. Code binds explicit slots to fixed tool plans and validates arguments,
+   measured coverage, dataset definitions and named entities.
+3. When a candidate exists, one additional Jev call chooses router or agent
+   by plan completeness. Choice argmax and binary facts at 0.5 are used without
+   confidence rejection gates. Accepted plans execute through the fixed harness.
+4. Missing capabilities or an incomplete ordinary plan lead to agent planning;
+   missing inputs and unavailable harness-only outputs can clarify or refuse.
+5. Timeout, backend failure, missing/invalid answers or daily cap restores the
+   pre-Jev keyword Router decision: fixed calls execute, a model route goes to
+   the Agent, and clarification/refusal returns directly. Partial Jev readings
+   are discarded. V4 does not yet run V3 backstops before Jev.
+
+Pre-Jev backstop and injection policy and independent acceptance remain review
+items. Shared decide/V4 request stop signals prevent queued or fourth calls after
+timeout/disconnect; unsent reservations are released, sent calls still count.
+Runtime logs default to external OS storage, metadata only, with seven-day
+segment expiry and size rotation. Raw logging requires explicit opt-in. V4 skips
+the separate slot planner.
+Fault fallback now explicitly uses the legacy Router and inherits its semantic
+limitations. It does not imply independent validation of every fallback plan.
+The Agent has within-request tool/retry context, but receives no prior chat turns.
+See `docs/JEV_V4_ROUTER.md`, `docs/JEV_V4_PROMPTS.md`, and
+`docs/JEV_V4_ROUTER_RESULTS_20260929.md`; reported results are development-set
+results, not independent production acceptance.
+
+`router_gate` is retired and rejected by runtime configuration. Its frozen
+payload and pure policy live in `services/agent/eval/legacy_router_gate.py` for
+offline replay only. The evaluator accepts that mode only with `--replay`.
+
+### V3 (`decide`) flow
 
 On main today: steps 1, 3, and 5, and in step 4 the router's deterministic calls, Jev tool pick, and template answers. Jev deciding answer, clarify, or refuse (step 2) is `AGENT_JEV_MODE=decide` (off by default, `docs/JEV_DECIDE.md`); Jev owns the disposition and the router owns the wording, except that the generic `ranking_missing_slots` question yields to Jev's more specific clarification; the slot planner is `AGENT_SLOT_PLAN` (off by default, `docs/JEV_MULTI_TOOL.md`). With both on, decide runs first and the slot planner acts only on questions decide leaves as answer.
 
@@ -38,15 +73,16 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 - Jev confidence is relative to the options offered. If the right option is missing, it can be confidently wrong.
 - For a Noul, confidence is max(p, 1 - p), never raw p.
 - Live and offline payloads must hash the same (`test_live_tool_pick_payload_matches_the_offline_hybrid_call`).
-- Report label accuracy AND mean confidence for any context change; the gate runs on confidence.
+- Report label accuracy AND mean confidence for any context change. V3 gates on confidence; V4 records it but does not gate ordinary routing on it.
 
 ## Env flags (all default off)
 
-- `AGENT_JEV_MODE`: off, shadow, tool_pick, tool_pick_template, decide; plan mode was archived on the `jev-plan-archive` branch and is not accepted (`docs/JEV_MULTI_TOOL.md`).
+- `AGENT_JEV_MODE`: off, shadow, tool_pick, tool_pick_template, decide, v4; router_gate is offline replay only and is rejected at startup. Plan mode was archived on the `jev-plan-archive` branch and is not accepted (`docs/JEV_MULTI_TOOL.md`).
 - `AGENT_JEV_DECIDE_MIN_CONFIDENCE` (0.8) and `AGENT_JEV_DECIDE_ANSWER_CONFIDENCE` (0.9): decide mode's decline and answer gates. The answer gate is a stated default, not chosen from any eval set; v3 was not used.
 - `AGENT_JEV_TOOL_PICK_MIN_CONFIDENCE`: default 0.8
 - `AGENT_JEV_BACKEND`: typesafe (default) or openrouter
-- `AGENT_JEV_LOG_PATH`: shadow log location
+- `AGENT_JEV_DAILY_CALL_CAP`: default 5000 API calls per process per UTC day, not questions. V3 reserves three calls; V4 reserves three, then one if plan-fit is needed. V4 falls back to the original keyword Router if either reservation fails. Actual production capacity depends on configured cap and worker count.
+- `AGENT_JEV_LOG_PATH`: optional absolute log path; empty defaults to the OS runtime directory, outside Git. `AGENT_JEV_LOG_RAW=false` keeps metadata only; `AGENT_JEV_LOG_RETENTION_DAYS=7` expires log segments on activity. Idle host cleanup is documented in `docs/JEV_SHADOW.md`.
 - `AGENT_LLM_PROVIDER`: openrouter is the only value; `OPENROUTER_API_KEY` is required and `AGENT_ALLOW_REMOTE_PROVIDER=true` must be set or startup fails loudly (`docs/OPENROUTER.md`). `AGENT_LLM_MODEL` (openai/gpt-6-luna) and `AGENT_LLM_FALLBACK_MODEL` (openai/gpt-6-sol) override the models
 - `AGENT_SLOT_PLAN`: deterministic multi-entity planner, default off (`docs/JEV_MULTI_TOOL.md`); with decide on, decide runs first
 
@@ -55,7 +91,7 @@ Jev (TypeSafe) is non-generative: it returns typed Choice, Score, and Noul answe
 - Agent: `services/agent/` (routing.py, orchestrator.py, views.py, caveats.py, derived.py, schemas.py)
 - Jev: `services/agent/decisions/`
 - Naming conventions (utilities, counties, tiers, causes, incident types, question wording): `services/shared/naming.py`, re-exported by `services/shared/dataset_registry.py`. Import from the registry; `tests/test_naming_single_source.py` fails on a copied list. See `services/shared/README.md`.
-- Evals: `services/agent/eval/` (cases.json, jev_paraphrases.json, jev_holdout.json, jev_holdout_v2.json, jev_holdout_v3_questions.json, jev_holdout_v3_labels_chatgpt.json, runs/).
+- Evals: `services/agent/eval/` (cases and frozen labels, compact `reports/`). Generated run data is external (`WILDFIRE_EVAL_RUNS_DIR`); see `services/agent/eval/README.md` for archive checksums and replay.
 - Docs: `docs/JEV_SHADOW.md`, `docs/JEV_DECIDE.md`, `docs/JEV_MULTI_TOOL.md`, `docs/JEV_DETERMINISM.md`, `docs/JEV_BACKLOG.md`, `docs/OPENROUTER.md`. The root README has a documentation index.
 - Website: `website/src/` (panelViews.ts, answerPanels.ts, agentContracts.ts, state.tsx)
 
@@ -77,6 +113,7 @@ After each merge, rebase the next branch onto `platform/main`, rerun `pytest tes
 - Holdout v3 (88, 65 certain after independent ChatGPT labels): partly tuned. Router fixes were written from its disagreements.
 - Smoke (6): the `scripts/smoke_test.sh` questions, replayed offline in the decide replay and `tests/agent/test_jev_decide_scope.py`; all six have stored Jev calls (five cross-backend via OpenRouter).
 - Production shadow logs will be the next clean test.
+- The 80-question V3/V4 comparison and 88-question router-first V4 benchmark have been used for development and prompt changes. The 96.36% strict score and 95.77% router retention are dev results. Independent executor/disposition labels must be frozen before a new holdout run.
 
 ## Deployment (EC2, reached by Michael through SSM, not SSH)
 

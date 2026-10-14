@@ -1,0 +1,286 @@
+{
+  "set_status": "50 previously observed regression cases plus 30 new unrun challenge cases. Human-reviewable draft labels. Not a blind or statistically representative holdout.",
+  "router": {
+    "disposition_correct": 66,
+    "intent_correct": 27,
+    "intent_n": 44
+  },
+  "modes": {
+    "decide_v3": {
+      "runs": 400,
+      "errors": 0,
+      "intent_n": 220,
+      "intent_correct": 220,
+      "disposition_correct": 350,
+      "disposition_confusion": {
+        "answer->answer": 245,
+        "unsupported->unsupported": 45,
+        "clarification->clarification": 50,
+        "clarification|unsupported->clarification": 10,
+        "clarification->answer": 35,
+        "answer->clarification": 10,
+        "answer->unsupported": 5
+      },
+      "routes": {
+        "deterministic": 205,
+        "model": 75,
+        "unsupported": 50,
+        "clarification": 70
+      },
+      "mean_intent_confidence": 0.9908636363636364
+    },
+    "v4_scope_argmax": {
+      "runs": 400,
+      "errors": 0,
+      "intent_n": 220,
+      "intent_correct": 220,
+      "disposition_correct": 381,
+      "disposition_confusion": {
+        "answer->answer": 246,
+        "answer->unsupported": 9,
+        "unsupported->unsupported": 45,
+        "clarification->clarification": 80,
+        "clarification|unsupported->unsupported": 10,
+        "answer->clarification": 5,
+        "clarification->unsupported": 5
+      },
+      "routes": {
+        "model": 196,
+        "deterministic": 50,
+        "unsupported": 69,
+        "clarification": 85
+      },
+      "mean_intent_confidence": 0.9754090909090909
+    }
+  },
+  "router_fit": {
+    "n": 0,
+    "correct": 0,
+    "eligible_n": 0,
+    "eligible_correct": 0,
+    "mean_confidence": null
+  },
+  "by_group": {
+    "decide_v3:split:regression": {
+      "n": 250,
+      "correct": 225
+    },
+    "decide_v3:group:comparison": {
+      "n": 25,
+      "correct": 25
+    },
+    "v4_scope_argmax:split:regression": {
+      "n": 250,
+      "correct": 241
+    },
+    "v4_scope_argmax:group:comparison": {
+      "n": 25,
+      "correct": 25
+    },
+    "decide_v3:group:month_endpoints": {
+      "n": 20,
+      "correct": 20
+    },
+    "v4_scope_argmax:group:month_endpoints": {
+      "n": 20,
+      "correct": 20
+    },
+    "decide_v3:group:count_controls": {
+      "n": 20,
+      "correct": 20
+    },
+    "v4_scope_argmax:group:count_controls": {
+      "n": 20,
+      "correct": 20
+    },
+    "decide_v3:group:views": {
+      "n": 25,
+      "correct": 25
+    },
+    "v4_scope_argmax:group:views": {
+      "n": 25,
+      "correct": 25
+    },
+    "decide_v3:group:special_tools": {
+      "n": 25,
+      "correct": 25
+    },
+    "v4_scope_argmax:group:special_tools": {
+      "n": 25,
+      "correct": 25
+    },
+    "decide_v3:group:lookups": {
+      "n": 15,
+      "correct": 15
+    },
+    "v4_scope_argmax:group:lookups": {
+      "n": 15,
+      "correct": 11
+    },
+    "decide_v3:group:unsupported_advice": {
+      "n": 15,
+      "correct": 15
+    },
+    "v4_scope_argmax:group:unsupported_advice": {
+      "n": 15,
+      "correct": 15
+    },
+    "decide_v3:group:unsupported_topics": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:unsupported_topics": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:constraints": {
+      "n": 25,
+      "correct": 15
+    },
+    "v4_scope_argmax:group:constraints": {
+      "n": 25,
+      "correct": 25
+    },
+    "decide_v3:group:geographic_scope": {
+      "n": 70,
+      "correct": 55
+    },
+    "v4_scope_argmax:group:geographic_scope": {
+      "n": 70,
+      "correct": 65
+    },
+    "decide_v3:split:new_challenge": {
+      "n": 150,
+      "correct": 125
+    },
+    "decide_v3:group:total_vs_change": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:split:new_challenge": {
+      "n": 150,
+      "correct": 140
+    },
+    "v4_scope_argmax:group:total_vs_change": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:span_vs_endpoint_months": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:span_vs_endpoint_months": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:defined_vs_undefined_region": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:defined_vs_undefined_region": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:named_vs_missing_county": {
+      "n": 10,
+      "correct": 5
+    },
+    "v4_scope_argmax:group:named_vs_missing_county": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:point_vs_missing_location": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:point_vs_missing_location": {
+      "n": 10,
+      "correct": 5
+    },
+    "decide_v3:group:circuit_vs_cpz": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:circuit_vs_cpz": {
+      "n": 10,
+      "correct": 5
+    },
+    "decide_v3:group:map_vs_two_outputs": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:map_vs_two_outputs": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:metrics_vs_scoped_metrics": {
+      "n": 10,
+      "correct": 5
+    },
+    "v4_scope_argmax:group:metrics_vs_scoped_metrics": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:surface_vs_filtered_surface": {
+      "n": 10,
+      "correct": 0
+    },
+    "v4_scope_argmax:group:surface_vs_filtered_surface": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:risk_day_vs_year": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:risk_day_vs_year": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:historical_vs_live": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:historical_vs_live": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:budget_context_vs_budget_request": {
+      "n": 10,
+      "correct": 5
+    },
+    "v4_scope_argmax:group:budget_context_vs_budget_request": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:count_vs_blame": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:count_vs_blame": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:time_present_vs_absent": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:time_present_vs_absent": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:past_vs_future_surface": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_scope_argmax:group:past_vs_future_surface": {
+      "n": 10,
+      "correct": 10
+    }
+  },
+  "caveat": "Pre-execution classification only. An agent handoff is not proof of a correct final answer. Repeats measure consistency, not independent sample size.",
+  "stopped": null,
+  "input_tokens": 4148080,
+  "estimated_input_cost": 0.17421936000000002,
+  "model": "typesafe/jev-1.13-20260917"
+}

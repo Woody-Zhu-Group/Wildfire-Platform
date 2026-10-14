@@ -1,0 +1,4 @@
+{
+  "stop_threshold": 0.5,
+  "stopped_early": false
+}

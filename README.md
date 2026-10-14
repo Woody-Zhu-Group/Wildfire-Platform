@@ -29,6 +29,9 @@ The loaders read the source files (CPUC ignitions, CAL FIRE incidents, EPSS outa
 
 ### What happens to a question
 
+The experimental `router_gate` mode is separate from production `decide` v3.
+See [its flow and evaluation](docs/JEV_ROUTER_GATE.md) before enabling it.
+
 ```mermaid
 flowchart TD
     Q["Question"] --> Safe["Safety checks"]

@@ -6,6 +6,8 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from services.agent.runtime_paths import eval_runs_dir
+
 from services.agent.eval.jev_metrics import field_applies, labels_match
 from services.agent.eval.label_rules import (
     clarify_alternatives,
@@ -94,7 +96,7 @@ def _score_block(name: str, items: list[dict]) -> None:
 
 def _dev_items() -> list[dict]:
     raw = json.loads(
-        (HERE / "runs" / "jev_hybrid_raw_20260922T204748Z.json").read_text(encoding="utf-8")
+        (eval_runs_dir() / "jev_hybrid_raw_20260922T204748Z.json").read_text(encoding="utf-8")
     )
     items = []
     for row in raw["rows"]:
@@ -116,7 +118,7 @@ def _dev_items() -> list[dict]:
 
 
 def _holdout_items() -> list[dict]:
-    rows = json.loads((HERE / "runs" / "holdout_final_rows.json").read_text(encoding="utf-8"))
+    rows = json.loads((eval_runs_dir() / "holdout_final_rows.json").read_text(encoding="utf-8"))
     grouped = defaultdict(list)
     for row in rows:
         grouped[row["id"]].append(row)

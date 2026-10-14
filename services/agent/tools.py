@@ -12,6 +12,8 @@ from typing import Any
 import httpx
 from pydantic import ValidationError
 
+from services.agent.decisions.shadow_log import audit_record
+
 from services.agent.argument_normalize import prepare_tool_arguments
 from services.agent.artifacts import ArtifactStore
 from services.agent.config import AgentSettings
@@ -163,14 +165,14 @@ class ToolExecutor:
         if tool not in EXECUTABLE_TOOL_MODELS:
             print(
                 json.dumps(
-                    {
+                    audit_record({
                         "event": "tool_attempt",
                         "request_id": request_id,
                         "attempt": attempt,
                         "tool": tool,
                         "arguments": arguments,
                         "qualification_call": qualification_call,
-                    },
+                    }),
                     default=str,
                 )
             )
@@ -191,13 +193,13 @@ class ToolExecutor:
             if hidden:
                 print(
                     json.dumps(
-                        {
+                        audit_record({
                             "event": "harness_arguments_stripped",
                             "request_id": request_id,
                             "attempt": attempt,
                             "tool": tool,
                             "arguments": hidden,
-                        }
+                        })
                     )
                 )
         normalized_arguments = prepare_tool_arguments(
@@ -219,13 +221,13 @@ class ToolExecutor:
         for correction in county_corrections:
             print(
                 json.dumps(
-                    {
+                    audit_record({
                         "event": "harness_county_correction",
                         "request_id": request_id,
                         "attempt": attempt,
                         "tool": tool,
                         **correction,
-                    }
+                    })
                 )
             )
         if not qualification_call:
@@ -242,20 +244,20 @@ class ToolExecutor:
             for correction in time_corrections:
                 print(
                     json.dumps(
-                        {
+                        audit_record({
                             "event": "harness_time_correction",
                             "request_id": request_id,
                             "attempt": attempt,
                             "tool": tool,
                             **correction,
-                        },
+                        }),
                         default=str,
                     )
                 )
             if year_error:
                 print(
                     json.dumps(
-                        {
+                        audit_record({
                             "event": "tool_attempt",
                             "request_id": request_id,
                             "attempt": attempt,
@@ -263,7 +265,7 @@ class ToolExecutor:
                             "arguments": normalized_arguments,
                             "requested_arguments": arguments,
                             "qualification_call": qualification_call,
-                        },
+                        }),
                         default=str,
                     )
                 )
@@ -279,7 +281,7 @@ class ToolExecutor:
                 )
         print(
             json.dumps(
-                {
+                audit_record({
                     "event": "tool_attempt",
                     "request_id": request_id,
                     "attempt": attempt,
@@ -289,7 +291,7 @@ class ToolExecutor:
                     "qualification_call": qualification_call,
                     "stripped_utilities": stripped_utilities,
                     "time_corrections": time_corrections,
-                },
+                }),
                 default=str,
             )
         )
@@ -322,7 +324,7 @@ class ToolExecutor:
             )
             print(
                 json.dumps(
-                    {
+                    audit_record({
                         "event": "tool_result",
                         "request_id": request_id,
                         "tool": tool,
@@ -330,7 +332,7 @@ class ToolExecutor:
                         "error_code": "not_covered",
                         "latency_ms": round(result.latency_ms, 2),
                         "evidence_id": None,
-                    }
+                    })
                 )
             )
             return result
@@ -452,7 +454,7 @@ class ToolExecutor:
 
         print(
             json.dumps(
-                {
+                audit_record({
                     "event": "tool_result",
                     "request_id": request_id,
                     "tool": tool,
@@ -460,7 +462,7 @@ class ToolExecutor:
                     "error_code": (result.error or {}).get("code"),
                     "latency_ms": round(result.latency_ms, 2),
                     "evidence_id": result.evidence_id if result.ok else None,
-                }
+                })
             )
         )
         return result
