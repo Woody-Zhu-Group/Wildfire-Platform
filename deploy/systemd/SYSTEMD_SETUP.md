@@ -1,5 +1,12 @@
 # Systemd units (Ubuntu backend box)
 
+Optional accounts units on this branch are `wildfire-accounts` (loopback
+8005) and `wildfire-accounts-prune.timer`. They are not part of the existing
+enable commands. Configure the dedicated account settings, run migrations and
+runtime grants, and verify provider/frontend/gateway integration before enabling
+them. The timer deletes only expired flows and old invalid sessions, preserving
+user, application and audit history. See [accounts](../../services/accounts/README.md).
+
 Install these on the backend instance (`ubuntu@`, repo at
 `/home/ubuntu/Wildfire-Services`). The agent's model tier is OpenRouter; there
 is no model host.

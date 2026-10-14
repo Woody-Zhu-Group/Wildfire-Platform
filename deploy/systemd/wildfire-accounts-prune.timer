@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily expiry cleanup for Wildfire accounts
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Remove expired Wildfire login flows and old invalid sessions
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/Wildfire-Services
+EnvironmentFile=/home/ubuntu/Wildfire-Services/.env
+Environment=PYTHONPATH=/home/ubuntu/Wildfire-Services
+ExecStart=/home/ubuntu/Wildfire-Services/.venv/bin/python -m services.accounts.cli prune
+NoNewPrivileges=true
+PrivateTmp=true
