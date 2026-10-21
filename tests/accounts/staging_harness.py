@@ -298,7 +298,7 @@ def main():
             server.shutdown()
             server.server_close()
         if (root / "pg/postmaster.pid").exists():
-            subprocess.run([args.postgres_bin / "pg_ctl", "-D", root / "pg", "-w", "stop"], env=environment, stdout=subprocess.DEVNULL)
+            subprocess.run([args.postgres_bin / "pg_ctl", "-D", root / "pg", "-w", "stop"], env=environment, stdout=subprocess.DEVNULL, check=False)
 
 
 if __name__ == "__main__":

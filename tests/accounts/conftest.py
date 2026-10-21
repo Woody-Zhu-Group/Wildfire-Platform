@@ -7,9 +7,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import psycopg
-from psycopg.conninfo import make_conninfo
 import pytest
 from fastapi.testclient import TestClient
+from psycopg.conninfo import make_conninfo
 
 from services.accounts.app import create_app
 from services.accounts.cli import grant_runtime

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
-import boto3
 
 from services.accounts.config import Settings
 

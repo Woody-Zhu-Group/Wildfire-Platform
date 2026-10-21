@@ -90,6 +90,6 @@ the browser tests run under it and fail on any violation.
 3. Deploy to `production`.
 4. An administrator switches the repository's Settings, Pages, Source from "Deploy from a branch" (`main`, `/docs`) to "GitHub Actions", then runs "Pages redirect" with the production origin. The old Pages address then sends visitors to the signed-in site. `docs/` and its build-freshness test stay as they are until the team retires the Pages build.
 
-Rollback: switch the Pages source back to `main`, `/docs`; to undo a site deploy,
-run the deploy workflow on the previous commit. Account and audit data are not
-touched by either.
+Rollback: switch the Pages source back to `main`, `/docs`; to undo a production
+site deploy, revert the affected commits on `main`, then run the deploy workflow
+from `main` again. Account and audit data are not touched by either.

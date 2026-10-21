@@ -10,7 +10,14 @@ import psycopg
 import pytest
 
 from services.accounts.identity import Identity
-from services.accounts.security import FLOW_COOKIE, INVITE_COOKIE, SESSION_COOKIE, AccountError, digest, token
+from services.accounts.security import (
+    FLOW_COOKIE,
+    INVITE_COOKIE,
+    SESSION_COOKIE,
+    AccountError,
+    digest,
+    token,
+)
 
 
 def test_pending_identity_cannot_get_admin_or_platform(client, account):
@@ -243,8 +250,9 @@ def test_sign_in_replaces_previous_browser_session(client, account):
 
 
 def test_audit_failure_rolls_back_approval(store, account):
-    from psycopg import sql
     import psycopg
+    from psycopg import sql
+
     from services.accounts.config import Settings
     from services.accounts.store import Store
     admin = account("admin", role="admin")["user"]["id"]
@@ -275,16 +283,15 @@ def test_audit_failure_rolls_back_approval(store, account):
 
 
 def test_runtime_role_cannot_change_schema_or_audit_history(store):
-    with pytest.raises(psycopg.errors.InsufficientPrivilege):
-        with store.transaction() as conn:
-            conn.execute("CREATE TABLE app.must_not_create(id int)")
-    with pytest.raises(psycopg.errors.InsufficientPrivilege):
-        with store.transaction() as conn:
-            conn.execute("DELETE FROM app.audit_events")
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), store.transaction() as conn:
+        conn.execute("CREATE TABLE app.must_not_create(id int)")
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), store.transaction() as conn:
+        conn.execute("DELETE FROM app.audit_events")
 
 
 def test_privileged_connection_cannot_start_service(settings):
     from dataclasses import replace
+
     from services.accounts.store import Store
     privileged = Store(replace(settings, database_url=os.environ["ACCOUNTS_TEST_DATABASE_URL"]))
     try:

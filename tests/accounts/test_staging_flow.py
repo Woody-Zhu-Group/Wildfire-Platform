@@ -11,7 +11,7 @@ stands in for Cognito; no model, mail service or production data is touched.
 import json
 import os
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -261,6 +261,59 @@ def test_console_reviews_invites_and_manages_members(browser, base):
     expect(erin).to_have_url(f"{base}/workspace")
     assert erin.request.get("/api/admin/users").status == 403
     for context in (lead_context, erin_context):
+        context.close()
+
+
+def test_console_keeps_latest_search_results_and_cursor(browser, base):
+    context, page = person(browser, base)
+    try:
+        sign_in(page, "list-reviewer@example.org")
+        assert page.request.post("/dev-idp/bootstrap-admin", form={"email": "list-reviewer@example.org"}).ok
+        page.goto("/admin")
+
+        def member(name):
+            return {"id": name, "name": name, "email": f"{name}@example.org", "role": "member", "status": "active", "created_at": "2026-10-01T00:00:00Z"}
+
+        delayed = []
+
+        def users(route):
+            params = parse_qs(urlsplit(route.request.url).query)
+            if params.get("q") == ["old"]:
+                delayed.append(route)
+                return
+            if params.get("q") == ["new"]:
+                more = "cursor" in params
+                if more:
+                    assert params["cursor"] == ["new-cursor"]
+                payload = {"items": [member("new-more" if more else "new-member")], "next_cursor": None if more else "new-cursor"}
+            else:
+                payload = {"items": [], "next_cursor": None}
+            route.fulfill(status=200, json=payload)
+
+        page.route("**/api/admin/users*", users)
+        page.get_by_role("tab", name="Members").click()
+        expect(page.get_by_text("No members in this group.")).to_be_visible()
+        search = page.get_by_label("Search members by name or email")
+        with page.expect_request(lambda request: parse_qs(urlsplit(request.url).query).get("q") == ["old"]):
+            search.fill("old")
+        with page.expect_response(lambda response: parse_qs(urlsplit(response.url).query).get("q") == ["new"]):
+            search.fill("new")
+        members = page.get_by_role("list", name="Members")
+        expect(members).to_contain_text("new-member@example.org")
+
+        # The old filter finishes last, with both the wrong rows and the wrong cursor.
+        assert len(delayed) == 1
+        with page.expect_response(lambda response: parse_qs(urlsplit(response.url).query).get("q") == ["old"]) as old_response:
+            delayed[0].fulfill(status=200, json={"items": [member("old-member")], "next_cursor": "old-cursor"})
+        old_response.value.finished()
+        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+        expect(members).to_contain_text("new-member@example.org")
+        expect(members).not_to_contain_text("old-member@example.org")
+        with page.expect_request(lambda request: parse_qs(urlsplit(request.url).query).get("cursor") == ["new-cursor"]):
+            page.get_by_role("button", name="Show more").click()
+        expect(members.get_by_role("listitem")).to_have_count(2)
+        expect(members).to_contain_text("new-more@example.org")
+    finally:
         context.close()
 
 

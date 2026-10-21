@@ -21,20 +21,26 @@ AUTHORIZATION_LOCK = 174832092
 # point to beside them. list_rows drops token_hash before anything leaves.
 ADMIN_LISTS = {
     "access_requests": (
-        "SELECT r.*, u.name AS applicant_name, u.email AS applicant_email, u.status AS applicant_status, "
-        "v.email AS reviewer_email FROM app.access_requests r JOIN app.users u ON u.id=r.applicant_id "
-        "LEFT JOIN app.users v ON v.id=r.reviewer_id", "r"),
+        (
+            "SELECT r.*, u.name AS applicant_name, u.email AS applicant_email, u.status AS applicant_status, "
+            "v.email AS reviewer_email FROM app.access_requests r JOIN app.users u ON u.id=r.applicant_id "
+            "LEFT JOIN app.users v ON v.id=r.reviewer_id"
+        ), "r"),
     "invitations": (
-        "SELECT i.*, u.email AS invited_by_email, a.email AS accepted_by_email FROM app.invitations i "
-        "LEFT JOIN app.users u ON u.id=i.invited_by LEFT JOIN app.users a ON a.id=i.accepted_by", "i"),
+        (
+            "SELECT i.*, u.email AS invited_by_email, a.email AS accepted_by_email FROM app.invitations i "
+            "LEFT JOIN app.users u ON u.id=i.invited_by LEFT JOIN app.users a ON a.id=i.accepted_by"
+        ), "i"),
     "users": ("SELECT u.* FROM app.users u", "u"),
     "audit_events": (
-        "SELECT e.*, actor.email AS actor_email, COALESCE(target_user.email, applicant.email, invitation.email) AS target_email "
-        "FROM app.audit_events e LEFT JOIN app.users actor ON actor.id=e.actor_id "
-        "LEFT JOIN app.users target_user ON e.target_type='user' AND target_user.id=e.target_id "
-        "LEFT JOIN app.access_requests request ON e.target_type='access_request' AND request.id=e.target_id "
-        "LEFT JOIN app.users applicant ON applicant.id=request.applicant_id "
-        "LEFT JOIN app.invitations invitation ON e.target_type='invitation' AND invitation.id=e.target_id", "e"),
+        (
+            "SELECT e.*, actor.email AS actor_email, COALESCE(target_user.email, applicant.email, invitation.email) AS target_email "
+            "FROM app.audit_events e LEFT JOIN app.users actor ON actor.id=e.actor_id "
+            "LEFT JOIN app.users target_user ON e.target_type='user' AND target_user.id=e.target_id "
+            "LEFT JOIN app.access_requests request ON e.target_type='access_request' AND request.id=e.target_id "
+            "LEFT JOIN app.users applicant ON applicant.id=request.applicant_id "
+            "LEFT JOIN app.invitations invitation ON e.target_type='invitation' AND invitation.id=e.target_id"
+        ), "e"),
 }
 
 

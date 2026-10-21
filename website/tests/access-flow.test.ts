@@ -34,7 +34,7 @@ test("login urls carry the return path as one encoded query value", () => {
 })
 
 test("application limits match the service schema", () => {
-  const schema = accounts("schemas.py").match(/class AccessApplication\(Input\):([\s\S]*?)\n\n/)
+  const schema = accounts("schemas.py").match(/class AccessApplication\(Input\):([\s\S]*?)\r?\n\r?\n/)
   assert.ok(schema, "AccessApplication not found in services/accounts/schemas.py")
   const limits = Object.fromEntries([...schema[1].matchAll(/(\w+): str = Field\(min_length=1, max_length=(\d+)\)/g)].map(match => [match[1], Number(match[2])]))
   assert.deepEqual(limits, APPLICATION_LIMITS)

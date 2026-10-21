@@ -93,17 +93,24 @@ function usePages<T>(key: string, load: (cursor?: string) => Promise<Page<T>>, r
   const [next, setNext] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const loadRef = useRef(load)
+  const requestId = useRef(0)
   loadRef.current = load
   const fetchPage = useCallback(async (cursor?: string) => {
+    const id = ++requestId.current
+    if (!cursor) { setItems([]); setNext(null) }
     setLoading(true)
     const page = await run(() => loadRef.current(cursor))
+    if (id !== requestId.current) return
     if (page) {
       setItems(current => cursor ? [...current, ...page.items] : page.items)
       setNext(page.next_cursor)
     }
     setLoading(false)
   }, [run])
-  useEffect(() => { fetchPage() }, [key, fetchPage])
+  useEffect(() => {
+    fetchPage()
+    return () => { requestId.current++ }
+  }, [key, fetchPage])
   const replace = (match: (item: T) => boolean, change: (item: T) => T) => setItems(current => current.map(item => match(item) ? change(item) : item))
   return { items, loading, more: next ? () => fetchPage(next) : null, reload: () => fetchPage(), replace }
 }

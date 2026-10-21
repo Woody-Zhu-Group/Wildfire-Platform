@@ -21,11 +21,30 @@ from starlette.concurrency import run_in_threadpool
 from services.accounts.config import Settings
 from services.accounts.identity import OIDC
 from services.accounts.mail import Mailer
-from services.accounts.notify import AccessRequested, AccessReviewed, InvitationIssued, build_notifier
-from services.accounts.schemas import AccessApplication, Claim, Decision, Invite, UserPatch
+from services.accounts.notify import (
+    AccessRequested,
+    AccessReviewed,
+    InvitationIssued,
+    build_notifier,
+)
+from services.accounts.schemas import (
+    AccessApplication,
+    Claim,
+    Decision,
+    Invite,
+    UserPatch,
+)
 from services.accounts.security import (
-    FLOW_COOKIE, INVITE_COOKIE, SAFE_METHODS, SESSION_COOKIE, AccountError,
-    FlowCipher, check_write, csrf, return_path, token,
+    FLOW_COOKIE,
+    INVITE_COOKIE,
+    SAFE_METHODS,
+    SESSION_COOKIE,
+    AccountError,
+    FlowCipher,
+    check_write,
+    csrf,
+    return_path,
+    token,
 )
 from services.accounts.store import Store
 
