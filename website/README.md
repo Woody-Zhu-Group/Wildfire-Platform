@@ -11,7 +11,7 @@ setup, warehouse prerequisites and historical model limitations.
 | Module | Responsibility |
 |---|---|
 | `src/App.tsx`, `src/state.tsx` | Workspace composition, independent panel settings and browser persistence |
-| `src/panelViews.ts`, `src/PanelPicker.tsx` | Five categories and 19 implemented analysis presets |
+| `src/panelViews.ts`, `src/PanelPicker.tsx` | Six categories and 24 implemented analysis presets (19 data views and 5 planning study views) |
 | `src/PanelWorkspace.tsx`, `src/Controls.tsx` | Panel layout, expansion, filters and common controls |
 | `src/api.ts`, `src/useRemote.ts` | Remote records, pagination, request state and streamed Ask responses |
 | `src/workspaceAggregates.ts` | Configured SQL aggregation; record-based mode when the Data Query URL is empty |
@@ -29,6 +29,9 @@ setup, warehouse prerequisites and historical model limitations.
 | `src/RecordPanels.tsx` | Record tables and summary metrics |
 | `src/ExportActions.tsx`, `src/exports.ts` | CSV and chart PNG exports |
 | `src/access/` | Signed-in site for the accounts service (accounts build only): landing, sign-in dialog, request status, invitation, administrator console |
+| `src/OptimizationStudy.tsx`, `src/studyData.ts` | Planning study panels over the static optimization grid in `data/optimization_grid/` |
+| `src/AskHints.tsx`, `src/askHints.ts` | Example questions under the Ask box |
+| `src/StudyCitation.tsx`, `src/citation.ts` | The planning study citation in the page footer |
 
 Maps and records use the Visualization API; the risk surface and residual maps
 use the Historical Risk API. The development and production build
@@ -159,8 +162,9 @@ visible and never trigger a runtime switch back to browser calculations.
 
 ## Connected panels
 
-Add panel groups ready-to-use views under the five panel categories. Selecting
-a view creates the configured panel immediately. The 19 views, as defined in
+Add panel groups ready-to-use views under the six panel categories. Selecting
+a view creates the configured panel immediately at the front of the workspace.
+The 24 views, as defined in
 `src/panelViews.ts`:
 
 | Category | Views |
@@ -170,8 +174,65 @@ a view creates the configured panel immediately. The 19 views, as defined in
 | Comparison | County ranking, Utility comparison, Cause breakdown |
 | Record table | Event records |
 | Stat card | Summary metrics, Risk model performance, Medical baseline and life support customers affected by EPSS outages |
+| Planning study | Planning decisions map, Planning methods compared, Planning parameter sensitivity, Reliability budget use, Planning study summary |
 
-Only implemented views appear.
+Only implemented views appear. A fresh workspace opens one panel per data
+category; Planning study panels are added from Add panel. Ask answers open the
+19 data views; the Planning study views are marked `workspaceOnly` in
+`src/panelViews.ts`, and `tests/answer-panel-reach.test.ts` checks that exactly
+those five are.
+
+### Planning study
+
+The five Planning study views read the sectionalization and fast-trip
+optimization grid of [arXiv:2604.01232](https://arxiv.org/abs/2604.01232),
+written to `data/optimization_grid/` by
+[`analysis/sectionalization/ingest.py`](../analysis/sectionalization/README.md):
+`study.json` (137 setups x 5 replications x 8 methods, columnar), `circuits.json`
+(803 HFTD circuits with simplified lines and platform circuit IDs), and one
+`decisions/<setup>.json` per setup. Vite emits them as hashed assets; a decision
+file is fetched only when its map is shown. The views call no service, ignore
+the workspace year, and validate the files before drawing
+(`validateStudy`, `validateCircuits`, `validateDecisions` in `src/studyData.ts`).
+
+- **Setup:** one slider per swept parameter (sectionalization budget, fast-trip
+  budget, SAIFI cap, fast-trip effectiveness, fast-trip SAIFI factor), stepping
+  through the levels the grid ran. On the map they sit in a Setup card over the
+  map (folded in the overview, open when expanded), so the map redraws as a
+  slider moves; the other views open them in a Setup dialog. The grid is not a
+  full factorial, so a move can carry other parameters to the nearest run setup
+  (`snapSetup`), and a note names the ones it moved.
+- **Planning methods compared:** one bar per method (mean of 5 replications,
+  ticks for each replication) for the selected metric; gains are paired against
+  the same setup and replication. Expanded view adds the replication table.
+- **Planning parameter sensitivity:** a metric across one parameter's levels,
+  one line per selected method. *Slice* holds the other four at the selected
+  setup; *Matched average* averages each level over exactly the same set of
+  other-parameter combinations (`matchedLevels`), so levels are never compared
+  across different backgrounds, and levels outside that set show no data.
+- **Reliability budget use:** each plan's share of the SAIFI cap spent on
+  fast-trip and on test-year PSPS.
+- **Planning decisions map** (first in the picker): circuits colored by
+  decision (sectionalized, with fast-trip, shut off in the test year) for one
+  method and replication, or by how many of the 5 replications sectionalize
+  them.
+- **Planning study summary:** the proposed method's results for the setup and
+  its paired win rates across the whole grid.
+- **As solved / Budget filled:** the grid's optimal plans often leave
+  sectionalization budget unused, which is free in the model. Budget filled
+  completes it by predicted exposure and re-solves the test-year PSPS response
+  (`analysis/sectionalization/model.py`), which separates the value of the
+  uncertainty set from how many circuits a plan sectionalized. Metrics that
+  describe only the solved plan (shutoff counts, PSPS SAIFI, planned exposure)
+  are not offered for filled plans.
+
+The page footer has a **Citation** fold beside Data sources & coverage with the
+study's reference, its BibTeX, and a copy button (`src/citation.ts`).
+
+Method colors are CSS tokens (`--method-N`); the three methods shown by default
+hold the palette's first three slots, which validate as an all-pairs set in
+both themes, and the decision and replication colors were validated against the
+panel and map surfaces.
 
 **Risk model performance** reads the risk service's `GET /metrics` (`VITE_RISK_URL`) and shows
 HPP, NHPP and cNHPP side by side: log-likelihood, AUC, top 5% and top 1% precision, and top 5%
@@ -289,7 +350,8 @@ clears it. Incomplete/inconsistent pagination fails instead of reporting a
 partial total. Runtime API failures do not fall back to synthetic data.
 
 Ask uses the deployed SSE endpoint and preserves the answer's qualifications.
-It can append the supported harness-planned views, and can open each of the 18
+It can add the supported harness-planned views at the front of the workspace,
+in the answer's order, and can open each of the 18
 workspace views; it does not execute render
 instructions from model prose. A four-minute timeout or Cancel leaves the data
 panels usable. Generated scalar answers are not saved across page refreshes.
@@ -373,7 +435,9 @@ partial totals. Stat CSV downloads include every displayed metric and its unit.
 Panel settings use `wildfire-workspace-v1` in browser local storage; the workspace
 year uses `wildfire-workspace-global-v1`. Storage
 failure is visible; no chat text, credentials, or fetched datasets are saved.
-Panel order is saved in the same workspace. Drag an overview panel by its title
+Panel order is saved in the same workspace. New panels, from Add panel, an Ask
+answer or an inline answer view, open first; Duplicate places its copy right after
+the original. Drag an overview panel by its title
 bar or grip; release it to insert at the closest grid slot while the intervening
 panels shift in order. The page scrolls near the viewport edges during a drag.
 Escape cancels the move. A simple title click still renames the panel, and header

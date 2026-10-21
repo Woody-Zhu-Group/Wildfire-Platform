@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react';
 import { DEFAULT_FILTERS, type DatasetId, type EventRecord, type Filters, type GroupBy, type Interval } from './data.ts';
 import type { PanelId, PanelInstance } from './PanelPicker';
 import type { ComparisonGrid } from './agentContracts.ts';
+import type { MetricId, ParamKey, StudyView } from './studyData.ts';
 
 export interface PanelSettings {
   dataset: DatasetId; filters: Filters; interval: Interval; groupBy: GroupBy;
@@ -19,6 +20,11 @@ export interface PanelSettings {
   seriesMode?: 'timeline' | 'yearly' | 'regional' | 'seasonal' | 'cumulative_acres' | 'customer_events'; comparisonYears?: number[]; seasonYears?: number[];
   answerStat?: { value: number | null; label: string; scope: string; period: string; unit: string; sourceDataset?: string; unavailableReason?: string };
   answerComparison?: ComparisonGrid;
+  /** Planning study panels (panel type "optimization"). */
+  studyView?: StudyView; studySetup?: string; studyMetric?: MetricId; studyParam?: ParamKey;
+  studyMode?: 'slice' | 'matched'; studyMethods?: string[]; studyMethod?: string; studyReplication?: number;
+  /** Show plans with their unused sectionalization budget filled (studyData.ts PlanVariant). */
+  studyFill?: boolean;
 }
 export function newPanel(id: number, type: PanelId): PanelInstance {
   return { id, type, settings: {

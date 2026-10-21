@@ -1,0 +1,4236 @@
+{
+  "inputs": {
+    "complete_setups": 137,
+    "runs": 5480,
+    "replications": 5,
+    "circuits": 803,
+    "skipped_setups": [
+      {
+        "slug": "a0p4__C0p2__B0p1__W0p3__ae0p7__g0p9__d1__69e22b7fab",
+        "setup_id": "C20-B10-W30-E70-G90",
+        "reason": "all_comparison.csv lacks avg_circuit_bound_width, avg_group_bound_width, eval_cost, method_slug, z_star_sum, z_sum"
+      }
+    ],
+    "audit": {
+      "max_rel_exposure_diff": 9.984932340174851e-05,
+      "exact_lower_than_recorded": 1004,
+      "exact_higher_than_recorded": 0,
+      "shutoff_count_differs": 906,
+      "max_shutoff_count_diff": 33,
+      "recourse_not_proven_optimal": 0,
+      "note": "exposure_exact re-solves the realized PSPS recourse with HiGHS at a 1e-6 relative MIP gap. The grid's eval_cost came from Gurobi at its default 1e-4 relative gap, so small differences, and different shutoff counts at the same exposure, are expected."
+    },
+    "unmitigated_exposure_by_replication": [
+      3091678.5,
+      1027005.9,
+      3812369.2,
+      1784964.5,
+      3268128.5
+    ]
+  },
+  "methods": [
+    {
+      "method": "group_conformal_random",
+      "label": "Group conformal, random groups",
+      "runs": 685,
+      "risk_reduction": {
+        "n": 685,
+        "mean": 0.4493,
+        "median": 0.4661,
+        "p10": 0.296,
+        "p90": 0.6195,
+        "min": 0.0699,
+        "max": 0.7465
+      },
+      "gain_vs_planning_only": {
+        "n": 685,
+        "mean": 0.29,
+        "median": 0.3073,
+        "p10": 0.1346,
+        "p90": 0.4271,
+        "min": -0.1047,
+        "max": 0.4967
+      },
+      "gain_vs_co_optimized": {
+        "n": 685,
+        "mean": 0.2859,
+        "median": 0.3212,
+        "p10": 0.108,
+        "p90": 0.4302,
+        "min": -0.3731,
+        "max": 0.4837
+      },
+      "mean_rank_of_8": 1.866,
+      "best_share": 0.5796,
+      "sectionalized": {
+        "n": 685,
+        "mean": 193.8,
+        "median": 181.0,
+        "p10": 109.0,
+        "p90": 321.0,
+        "min": 46.0,
+        "max": 321.0
+      },
+      "sectionalization_budget_used": {
+        "n": 685,
+        "mean": 0.774,
+        "median": 0.812,
+        "p10": 0.428,
+        "p90": 1.0,
+        "min": 0.143,
+        "max": 1.0
+      },
+      "fast_trip": {
+        "n": 685,
+        "mean": 2.5,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 5.6,
+        "min": 0.0,
+        "max": 80.0
+      },
+      "fast_trip_budget_used": {
+        "n": 685,
+        "mean": 0.017,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.029,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_fast_trip": {
+        "n": 685,
+        "mean": 0.06,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.327,
+        "min": 0.0,
+        "max": 0.732
+      },
+      "cap_share_psps_planned": {
+        "n": 685,
+        "mean": 0.695,
+        "median": 0.999,
+        "p10": 0.0,
+        "p90": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_realized": {
+        "n": 685,
+        "mean": 0.74,
+        "median": 0.776,
+        "p10": 0.393,
+        "p90": 1.0,
+        "min": 0.266,
+        "max": 1.0
+      },
+      "psps_realized_circuits": {
+        "n": 685,
+        "mean": 56.0,
+        "median": 51.0,
+        "p10": 18.0,
+        "p90": 106.0,
+        "min": 8.0,
+        "max": 170.0
+      },
+      "plan_to_realized_exposure": {
+        "n": 685,
+        "mean": 4.853,
+        "median": 3.739,
+        "p10": 1.945,
+        "p90": 10.682,
+        "min": 1.308,
+        "max": 14.886
+      },
+      "timed_out_share": 0.2803,
+      "solve_seconds": {
+        "n": 685,
+        "mean": 92.85,
+        "median": 23.23,
+        "p10": 8.9,
+        "p90": 240.03,
+        "min": 4.62,
+        "max": 241.56
+      },
+      "tier3_share_sectionalized": {
+        "n": 685,
+        "mean": 0.321,
+        "median": 0.33,
+        "p10": 0.283,
+        "p90": 0.348,
+        "min": 0.198,
+        "max": 0.37
+      },
+      "set_covered_by_replication": [
+        1,
+        1,
+        0,
+        1,
+        1
+      ],
+      "circuit_bound_width": {
+        "n": 685,
+        "mean": 7.489,
+        "median": 7.601,
+        "p10": 6.401,
+        "p90": 8.329,
+        "min": 6.401,
+        "max": 8.329
+      }
+    },
+    {
+      "method": "group_conformal_fixed",
+      "label": "Group conformal, fixed groups",
+      "runs": 685,
+      "risk_reduction": {
+        "n": 685,
+        "mean": 0.447,
+        "median": 0.4591,
+        "p10": 0.2756,
+        "p90": 0.6114,
+        "min": 0.0726,
+        "max": 0.7709
+      },
+      "gain_vs_planning_only": {
+        "n": 685,
+        "mean": 0.287,
+        "median": 0.2827,
+        "p10": 0.1345,
+        "p90": 0.4662,
+        "min": -0.1864,
+        "max": 0.5805
+      },
+      "gain_vs_co_optimized": {
+        "n": 685,
+        "mean": 0.2819,
+        "median": 0.2788,
+        "p10": 0.0954,
+        "p90": 0.4944,
+        "min": -0.0482,
+        "max": 0.6013
+      },
+      "mean_rank_of_8": 2.184,
+      "best_share": 0.2365,
+      "sectionalized": {
+        "n": 685,
+        "mean": 192.6,
+        "median": 179.0,
+        "p10": 107.0,
+        "p90": 321.0,
+        "min": 42.0,
+        "max": 321.0
+      },
+      "sectionalization_budget_used": {
+        "n": 685,
+        "mean": 0.774,
+        "median": 0.804,
+        "p10": 0.414,
+        "p90": 1.0,
+        "min": 0.131,
+        "max": 1.0
+      },
+      "fast_trip": {
+        "n": 685,
+        "mean": 3.5,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 6.0,
+        "min": 0.0,
+        "max": 80.0
+      },
+      "fast_trip_budget_used": {
+        "n": 685,
+        "mean": 0.023,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.033,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_fast_trip": {
+        "n": 685,
+        "mean": 0.061,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.282,
+        "min": 0.0,
+        "max": 0.773
+      },
+      "cap_share_psps_planned": {
+        "n": 685,
+        "mean": 0.605,
+        "median": 0.992,
+        "p10": 0.0,
+        "p90": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_realized": {
+        "n": 685,
+        "mean": 0.753,
+        "median": 0.848,
+        "p10": 0.405,
+        "p90": 1.0,
+        "min": 0.227,
+        "max": 1.0
+      },
+      "psps_realized_circuits": {
+        "n": 685,
+        "mean": 61.8,
+        "median": 57.0,
+        "p10": 19.0,
+        "p90": 104.0,
+        "min": 7.0,
+        "max": 179.0
+      },
+      "plan_to_realized_exposure": {
+        "n": 685,
+        "mean": 7.36,
+        "median": 5.099,
+        "p10": 2.063,
+        "p90": 17.339,
+        "min": 1.592,
+        "max": 22.883
+      },
+      "timed_out_share": 0.3723,
+      "solve_seconds": {
+        "n": 685,
+        "mean": 113.6,
+        "median": 47.44,
+        "p10": 10.36,
+        "p90": 240.03,
+        "min": 3.92,
+        "max": 244.64
+      },
+      "tier3_share_sectionalized": {
+        "n": 685,
+        "mean": 0.342,
+        "median": 0.343,
+        "p10": 0.312,
+        "p90": 0.375,
+        "min": 0.214,
+        "max": 0.413
+      },
+      "set_covered_by_replication": [
+        1,
+        1,
+        0,
+        0,
+        1
+      ],
+      "circuit_bound_width": {
+        "n": 685,
+        "mean": 12.947,
+        "median": 12.89,
+        "p10": 10.034,
+        "p90": 15.283,
+        "min": 10.034,
+        "max": 15.283
+      }
+    },
+    {
+      "method": "group_conformal_oracle",
+      "label": "Group conformal, oracle groups",
+      "runs": 685,
+      "risk_reduction": {
+        "n": 685,
+        "mean": 0.4262,
+        "median": 0.4253,
+        "p10": 0.2479,
+        "p90": 0.6088,
+        "min": 0.1232,
+        "max": 0.8091
+      },
+      "gain_vs_planning_only": {
+        "n": 685,
+        "mean": 0.2651,
+        "median": 0.2559,
+        "p10": 0.1305,
+        "p90": 0.4387,
+        "min": -0.2456,
+        "max": 0.6031
+      },
+      "gain_vs_co_optimized": {
+        "n": 685,
+        "mean": 0.2594,
+        "median": 0.2471,
+        "p10": 0.0851,
+        "p90": 0.4524,
+        "min": -0.285,
+        "max": 0.6298
+      },
+      "mean_rank_of_8": 2.476,
+      "best_share": 0.1693,
+      "sectionalized": {
+        "n": 685,
+        "mean": 195.8,
+        "median": 196.0,
+        "p10": 101.4,
+        "p90": 319.0,
+        "min": 77.0,
+        "max": 321.0
+      },
+      "sectionalization_budget_used": {
+        "n": 685,
+        "mean": 0.783,
+        "median": 0.85,
+        "p10": 0.389,
+        "p90": 1.0,
+        "min": 0.24,
+        "max": 1.0
+      },
+      "fast_trip": {
+        "n": 685,
+        "mean": 4.0,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 6.0,
+        "min": 0.0,
+        "max": 101.0
+      },
+      "fast_trip_budget_used": {
+        "n": 685,
+        "mean": 0.026,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.03,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_fast_trip": {
+        "n": 685,
+        "mean": 0.066,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.369,
+        "min": 0.0,
+        "max": 0.806
+      },
+      "cap_share_psps_planned": {
+        "n": 685,
+        "mean": 0.63,
+        "median": 0.986,
+        "p10": 0.0,
+        "p90": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_realized": {
+        "n": 685,
+        "mean": 0.737,
+        "median": 0.796,
+        "p10": 0.367,
+        "p90": 1.0,
+        "min": 0.193,
+        "max": 1.0
+      },
+      "psps_realized_circuits": {
+        "n": 685,
+        "mean": 58.2,
+        "median": 54.0,
+        "p10": 22.0,
+        "p90": 94.6,
+        "min": 6.0,
+        "max": 160.0
+      },
+      "plan_to_realized_exposure": {
+        "n": 685,
+        "mean": 10.166,
+        "median": 6.383,
+        "p10": 2.512,
+        "p90": 27.284,
+        "min": 1.782,
+        "max": 36.018
+      },
+      "timed_out_share": 0.3358,
+      "solve_seconds": {
+        "n": 685,
+        "mean": 107.47,
+        "median": 49.68,
+        "p10": 11.77,
+        "p90": 240.03,
+        "min": 5.82,
+        "max": 244.07
+      },
+      "tier3_share_sectionalized": {
+        "n": 685,
+        "mean": 0.311,
+        "median": 0.317,
+        "p10": 0.26,
+        "p90": 0.348,
+        "min": 0.202,
+        "max": 0.371
+      },
+      "set_covered_by_replication": [
+        1,
+        1,
+        0,
+        0,
+        1
+      ],
+      "circuit_bound_width": {
+        "n": 685,
+        "mean": 19.65,
+        "median": 21.142,
+        "p10": 15.085,
+        "p90": 22.006,
+        "min": 15.085,
+        "max": 22.006
+      }
+    },
+    {
+      "method": "bonferroni",
+      "label": "Bonferroni",
+      "runs": 685,
+      "risk_reduction": {
+        "n": 685,
+        "mean": 0.23,
+        "median": 0.2034,
+        "p10": 0.0315,
+        "p90": 0.4817,
+        "min": 0.0166,
+        "max": 0.6401
+      },
+      "gain_vs_planning_only": {
+        "n": 685,
+        "mean": 0.0082,
+        "median": 0.0317,
+        "p10": -0.2285,
+        "p90": 0.1523,
+        "min": -0.3574,
+        "max": 0.5166
+      },
+      "gain_vs_co_optimized": {
+        "n": 685,
+        "mean": 0.0044,
+        "median": 0.0303,
+        "p10": -0.2673,
+        "p90": 0.1751,
+        "min": -0.3367,
+        "max": 0.2636
+      },
+      "mean_rank_of_8": 5.708,
+      "best_share": 0.0015,
+      "sectionalized": {
+        "n": 685,
+        "mean": 151.1,
+        "median": 148.0,
+        "p10": 55.4,
+        "p90": 234.0,
+        "min": 55.0,
+        "max": 319.0
+      },
+      "sectionalization_budget_used": {
+        "n": 685,
+        "mean": 0.617,
+        "median": 0.617,
+        "p10": 0.229,
+        "p90": 1.0,
+        "min": 0.171,
+        "max": 1.0
+      },
+      "fast_trip": {
+        "n": 685,
+        "mean": 15.2,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 67.6,
+        "min": 0.0,
+        "max": 240.0
+      },
+      "fast_trip_budget_used": {
+        "n": 685,
+        "mean": 0.09,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.379,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_fast_trip": {
+        "n": 685,
+        "mean": 0.096,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.588,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_planned": {
+        "n": 685,
+        "mean": 0.903,
+        "median": 1.0,
+        "p10": 0.412,
+        "p90": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_realized": {
+        "n": 685,
+        "mean": 0.329,
+        "median": 0.297,
+        "p10": 0.109,
+        "p90": 0.66,
+        "min": 0.0,
+        "max": 0.815
+      },
+      "psps_realized_circuits": {
+        "n": 685,
+        "mean": 50.7,
+        "median": 37.0,
+        "p10": 17.0,
+        "p90": 92.0,
+        "min": 0.0,
+        "max": 138.0
+      },
+      "plan_to_realized_exposure": {
+        "n": 685,
+        "mean": 28.939,
+        "median": 18.416,
+        "p10": 9.826,
+        "p90": 70.922,
+        "min": 8.887,
+        "max": 74.583
+      },
+      "timed_out_share": 0.0,
+      "solve_seconds": {
+        "n": 685,
+        "mean": 0.31,
+        "median": 0.32,
+        "p10": 0.22,
+        "p90": 0.39,
+        "min": 0.21,
+        "max": 0.97
+      },
+      "tier3_share_sectionalized": {
+        "n": 685,
+        "mean": 0.341,
+        "median": 0.344,
+        "p10": 0.273,
+        "p90": 0.407,
+        "min": 0.214,
+        "max": 0.461
+      },
+      "set_covered_by_replication": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "circuit_bound_width": {
+        "n": 685,
+        "mean": 15.452,
+        "median": 15.024,
+        "p10": 11.223,
+        "p90": 18.729,
+        "min": 11.223,
+        "max": 18.729
+      }
+    },
+    {
+      "method": "maxrank",
+      "label": "Max-rank",
+      "runs": 685,
+      "risk_reduction": {
+        "n": 685,
+        "mean": 0.2126,
+        "median": 0.2151,
+        "p10": 0.0135,
+        "p90": 0.5442,
+        "min": 0.0112,
+        "max": 0.6393
+      },
+      "gain_vs_planning_only": {
+        "n": 685,
+        "mean": -0.0092,
+        "median": -0.0131,
+        "p10": -0.1658,
+        "p90": 0.1563,
+        "min": -0.5381,
+        "max": 0.3577
+      },
+      "gain_vs_co_optimized": {
+        "n": 685,
+        "mean": -0.0127,
+        "median": -0.0105,
+        "p10": -0.1755,
+        "p90": 0.189,
+        "min": -0.7607,
+        "max": 0.2727
+      },
+      "mean_rank_of_8": 6.083,
+      "best_share": 0.0131,
+      "sectionalized": {
+        "n": 685,
+        "mean": 142.1,
+        "median": 143.0,
+        "p10": 48.0,
+        "p90": 240.0,
+        "min": 36.0,
+        "max": 308.0
+      },
+      "sectionalization_budget_used": {
+        "n": 685,
+        "mean": 0.579,
+        "median": 0.558,
+        "p10": 0.2,
+        "p90": 1.0,
+        "min": 0.115,
+        "max": 1.0
+      },
+      "fast_trip": {
+        "n": 685,
+        "mean": 14.3,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 57.0,
+        "min": 0.0,
+        "max": 240.0
+      },
+      "fast_trip_budget_used": {
+        "n": 685,
+        "mean": 0.086,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.338,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_fast_trip": {
+        "n": 685,
+        "mean": 0.093,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.54,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_planned": {
+        "n": 685,
+        "mean": 0.907,
+        "median": 1.0,
+        "p10": 0.46,
+        "p90": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_realized": {
+        "n": 685,
+        "mean": 0.329,
+        "median": 0.285,
+        "p10": 0.049,
+        "p90": 0.717,
+        "min": 0.0,
+        "max": 0.893
+      },
+      "psps_realized_circuits": {
+        "n": 685,
+        "mean": 43.8,
+        "median": 35.0,
+        "p10": 3.0,
+        "p90": 89.0,
+        "min": 0.0,
+        "max": 127.0
+      },
+      "plan_to_realized_exposure": {
+        "n": 685,
+        "mean": 15.876,
+        "median": 10.415,
+        "p10": 5.035,
+        "p90": 42.928,
+        "min": 4.192,
+        "max": 47.829
+      },
+      "timed_out_share": 0.0,
+      "solve_seconds": {
+        "n": 685,
+        "mean": 0.31,
+        "median": 0.32,
+        "p10": 0.22,
+        "p90": 0.37,
+        "min": 0.2,
+        "max": 1.46
+      },
+      "tier3_share_sectionalized": {
+        "n": 685,
+        "mean": 0.331,
+        "median": 0.313,
+        "p10": 0.26,
+        "p90": 0.449,
+        "min": 0.229,
+        "max": 0.509
+      },
+      "set_covered_by_replication": [
+        1,
+        1,
+        0,
+        0,
+        1
+      ],
+      "circuit_bound_width": {
+        "n": 685,
+        "mean": 8.097,
+        "median": 8.172,
+        "p10": 6.313,
+        "p90": 10.325,
+        "min": 6.313,
+        "max": 10.325
+      }
+    },
+    {
+      "method": "ci",
+      "label": "Normal CI",
+      "runs": 685,
+      "risk_reduction": {
+        "n": 685,
+        "mean": 0.2173,
+        "median": 0.1549,
+        "p10": 0.0274,
+        "p90": 0.5427,
+        "min": 0.0166,
+        "max": 0.5674
+      },
+      "gain_vs_planning_only": {
+        "n": 685,
+        "mean": -0.0048,
+        "median": 0.0061,
+        "p10": -0.2004,
+        "p90": 0.1526,
+        "min": -0.4114,
+        "max": 0.378
+      },
+      "gain_vs_co_optimized": {
+        "n": 685,
+        "mean": -0.0083,
+        "median": 0.0091,
+        "p10": -0.1883,
+        "p90": 0.1919,
+        "min": -0.4131,
+        "max": 0.2509
+      },
+      "mean_rank_of_8": 5.607,
+      "best_share": 0.0,
+      "sectionalized": {
+        "n": 685,
+        "mean": 147.7,
+        "median": 145.0,
+        "p10": 57.0,
+        "p90": 240.0,
+        "min": 54.0,
+        "max": 302.0
+      },
+      "sectionalization_budget_used": {
+        "n": 685,
+        "mean": 0.603,
+        "median": 0.598,
+        "p10": 0.233,
+        "p90": 1.0,
+        "min": 0.168,
+        "max": 1.0
+      },
+      "fast_trip": {
+        "n": 685,
+        "mean": 15.4,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 75.2,
+        "min": 0.0,
+        "max": 240.0
+      },
+      "fast_trip_budget_used": {
+        "n": 685,
+        "mean": 0.092,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.354,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_fast_trip": {
+        "n": 685,
+        "mean": 0.099,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.648,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_planned": {
+        "n": 685,
+        "mean": 0.9,
+        "median": 1.0,
+        "p10": 0.352,
+        "p90": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_realized": {
+        "n": 685,
+        "mean": 0.33,
+        "median": 0.249,
+        "p10": 0.085,
+        "p90": 0.693,
+        "min": 0.0,
+        "max": 0.845
+      },
+      "psps_realized_circuits": {
+        "n": 685,
+        "mean": 46.6,
+        "median": 37.0,
+        "p10": 11.0,
+        "p90": 85.0,
+        "min": 0.0,
+        "max": 139.0
+      },
+      "plan_to_realized_exposure": {
+        "n": 685,
+        "mean": 14.567,
+        "median": 9.135,
+        "p10": 4.542,
+        "p90": 37.021,
+        "min": 3.967,
+        "max": 43.324
+      },
+      "timed_out_share": 0.0,
+      "solve_seconds": {
+        "n": 685,
+        "mean": 0.31,
+        "median": 0.32,
+        "p10": 0.22,
+        "p90": 0.37,
+        "min": 0.19,
+        "max": 1.96
+      },
+      "tier3_share_sectionalized": {
+        "n": 685,
+        "mean": 0.319,
+        "median": 0.314,
+        "p10": 0.25,
+        "p90": 0.44,
+        "min": 0.208,
+        "max": 0.455
+      },
+      "set_covered_by_replication": [
+        0,
+        1,
+        0,
+        1,
+        1
+      ],
+      "circuit_bound_width": {
+        "n": 685,
+        "mean": 7.129,
+        "median": 7.384,
+        "p10": 5.47,
+        "p90": 8.507,
+        "min": 5.47,
+        "max": 8.507
+      }
+    },
+    {
+      "method": "co_optimized",
+      "label": "Co-optimized (no uncertainty set)",
+      "runs": 685,
+      "risk_reduction": {
+        "n": 685,
+        "mean": 0.2234,
+        "median": 0.2115,
+        "p10": 0.0219,
+        "p90": 0.4189,
+        "min": 0.0119,
+        "max": 0.6114
+      },
+      "gain_vs_planning_only": {
+        "n": 685,
+        "mean": -0.0011,
+        "median": 0.0,
+        "p10": -0.1143,
+        "p90": 0.1069,
+        "min": -0.3965,
+        "max": 0.4938
+      },
+      "gain_vs_co_optimized": {
+        "n": 685,
+        "mean": 0.0,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "mean_rank_of_8": 6.082,
+      "best_share": 0.0,
+      "sectionalized": {
+        "n": 685,
+        "mean": 144.3,
+        "median": 141.0,
+        "p10": 60.0,
+        "p90": 254.0,
+        "min": 46.0,
+        "max": 311.0
+      },
+      "sectionalization_budget_used": {
+        "n": 685,
+        "mean": 0.585,
+        "median": 0.571,
+        "p10": 0.201,
+        "p90": 1.0,
+        "min": 0.143,
+        "max": 1.0
+      },
+      "fast_trip": {
+        "n": 685,
+        "mean": 15.9,
+        "median": 1.0,
+        "p10": 0.0,
+        "p90": 75.8,
+        "min": 0.0,
+        "max": 240.0
+      },
+      "fast_trip_budget_used": {
+        "n": 685,
+        "mean": 0.094,
+        "median": 0.004,
+        "p10": 0.0,
+        "p90": 0.355,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_fast_trip": {
+        "n": 685,
+        "mean": 0.107,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.847,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_planned": {
+        "n": 685,
+        "mean": 0.893,
+        "median": 1.0,
+        "p10": 0.153,
+        "p90": 1.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "cap_share_psps_realized": {
+        "n": 685,
+        "mean": 0.366,
+        "median": 0.251,
+        "p10": 0.084,
+        "p90": 0.8,
+        "min": 0.0,
+        "max": 0.875
+      },
+      "psps_realized_circuits": {
+        "n": 685,
+        "mean": 51.4,
+        "median": 45.0,
+        "p10": 14.0,
+        "p90": 93.0,
+        "min": 0.0,
+        "max": 143.0
+      },
+      "plan_to_realized_exposure": {
+        "n": 685,
+        "mean": 0.497,
+        "median": 0.387,
+        "p10": 0.176,
+        "p90": 1.188,
+        "min": 0.15,
+        "max": 1.312
+      },
+      "timed_out_share": 0.0,
+      "solve_seconds": {
+        "n": 685,
+        "mean": 0.09,
+        "median": 0.08,
+        "p10": 0.05,
+        "p90": 0.13,
+        "min": 0.04,
+        "max": 0.89
+      },
+      "tier3_share_sectionalized": {
+        "n": 685,
+        "mean": 0.247,
+        "median": 0.247,
+        "p10": 0.203,
+        "p90": 0.287,
+        "min": 0.159,
+        "max": 0.318
+      }
+    },
+    {
+      "method": "planning_only",
+      "label": "Planning only",
+      "runs": 685,
+      "risk_reduction": {
+        "n": 685,
+        "mean": 0.2213,
+        "median": 0.1946,
+        "p10": 0.0576,
+        "p90": 0.4441,
+        "min": 0.0113,
+        "max": 0.5884
+      },
+      "gain_vs_planning_only": {
+        "n": 685,
+        "mean": 0.0,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "gain_vs_co_optimized": {
+        "n": 685,
+        "mean": -0.0095,
+        "median": 0.0,
+        "p10": -0.1197,
+        "p90": 0.1025,
+        "min": -0.9756,
+        "max": 0.2839
+      },
+      "mean_rank_of_8": 5.994,
+      "best_share": 0.0,
+      "sectionalized": {
+        "n": 685,
+        "mean": 255.0,
+        "median": 240.0,
+        "p10": 160.0,
+        "p90": 321.0,
+        "min": 160.0,
+        "max": 321.0
+      },
+      "sectionalization_budget_used": {
+        "n": 685,
+        "mean": 1.0,
+        "median": 1.0,
+        "p10": 1.0,
+        "p90": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "fast_trip": {
+        "n": 685,
+        "mean": 174.5,
+        "median": 160.0,
+        "p10": 80.0,
+        "p90": 240.0,
+        "min": 80.0,
+        "max": 240.0
+      },
+      "fast_trip_budget_used": {
+        "n": 685,
+        "mean": 1.0,
+        "median": 1.0,
+        "p10": 1.0,
+        "p90": 1.0,
+        "min": 0.996,
+        "max": 1.0
+      },
+      "cap_share_fast_trip": {
+        "n": 685,
+        "mean": 0.861,
+        "median": 0.977,
+        "p10": 0.575,
+        "p90": 1.0,
+        "min": 0.31,
+        "max": 1.0
+      },
+      "cap_share_psps_planned": {
+        "n": 685,
+        "mean": 0.0,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "cap_share_psps_realized": {
+        "n": 685,
+        "mean": 0.107,
+        "median": 0.023,
+        "p10": 0.0,
+        "p90": 0.339,
+        "min": 0.0,
+        "max": 0.563
+      },
+      "psps_realized_circuits": {
+        "n": 685,
+        "mean": 27.5,
+        "median": 5.0,
+        "p10": 0.0,
+        "p90": 80.0,
+        "min": 0.0,
+        "max": 125.0
+      },
+      "plan_to_realized_exposure": {
+        "n": 0
+      },
+      "timed_out_share": 0.0,
+      "solve_seconds": {
+        "n": 685,
+        "mean": 0.04,
+        "median": 0.04,
+        "p10": 0.02,
+        "p90": 0.06,
+        "min": 0.02,
+        "max": 0.7
+      },
+      "tier3_share_sectionalized": {
+        "n": 685,
+        "mean": 0.285,
+        "median": 0.292,
+        "p10": 0.237,
+        "p90": 0.327,
+        "min": 0.212,
+        "max": 0.342
+      }
+    }
+  ],
+  "proposed_vs_each_method": {
+    "group_conformal_fixed": {
+      "gain": {
+        "n": 685,
+        "mean": -0.0133,
+        "median": 0.0366,
+        "p10": -0.2952,
+        "p90": 0.1576,
+        "min": -0.7049,
+        "max": 0.2667
+      },
+      "share_of_runs_better": 0.6569,
+      "share_of_runs_tied": 0.0,
+      "share_of_setups_better_on_average": 0.7518,
+      "median_gain_by_replication": [
+        0.0763,
+        0.0196,
+        0.0953,
+        -0.2691,
+        0.0368
+      ]
+    },
+    "group_conformal_oracle": {
+      "gain": {
+        "n": 685,
+        "mean": 0.0135,
+        "median": 0.0595,
+        "p10": -0.2761,
+        "p90": 0.2306,
+        "min": -0.78,
+        "max": 0.368
+      },
+      "share_of_runs_better": 0.6934,
+      "share_of_runs_tied": 0.0,
+      "share_of_setups_better_on_average": 0.8613,
+      "median_gain_by_replication": [
+        0.1029,
+        -0.1641,
+        0.1386,
+        -0.049,
+        0.0411
+      ]
+    },
+    "bonferroni": {
+      "gain": {
+        "n": 685,
+        "mean": 0.2703,
+        "median": 0.2786,
+        "p10": 0.0874,
+        "p90": 0.4781,
+        "min": -0.4281,
+        "max": 0.6029
+      },
+      "share_of_runs_better": 0.9693,
+      "share_of_runs_tied": 0.0,
+      "share_of_setups_better_on_average": 1.0,
+      "median_gain_by_replication": [
+        0.4791,
+        0.2205,
+        0.3279,
+        0.2125,
+        0.2336
+      ]
+    },
+    "maxrank": {
+      "gain": {
+        "n": 685,
+        "mean": 0.2807,
+        "median": 0.3107,
+        "p10": 0.0572,
+        "p90": 0.4642,
+        "min": -0.3075,
+        "max": 0.5486
+      },
+      "share_of_runs_better": 0.9182,
+      "share_of_runs_tied": 0.0,
+      "share_of_setups_better_on_average": 1.0,
+      "median_gain_by_replication": [
+        0.4407,
+        0.1641,
+        0.395,
+        0.3549,
+        0.2212
+      ]
+    },
+    "ci": {
+      "gain": {
+        "n": 685,
+        "mean": 0.2787,
+        "median": 0.3043,
+        "p10": 0.0563,
+        "p90": 0.4598,
+        "min": -0.3046,
+        "max": 0.5827
+      },
+      "share_of_runs_better": 0.9168,
+      "share_of_runs_tied": 0.0,
+      "share_of_setups_better_on_average": 1.0,
+      "median_gain_by_replication": [
+        0.446,
+        0.1607,
+        0.3804,
+        0.33,
+        0.2188
+      ]
+    },
+    "co_optimized": {
+      "gain": {
+        "n": 685,
+        "mean": 0.2859,
+        "median": 0.3212,
+        "p10": 0.108,
+        "p90": 0.4302,
+        "min": -0.3731,
+        "max": 0.4837
+      },
+      "share_of_runs_better": 0.9898,
+      "share_of_runs_tied": 0.0,
+      "share_of_setups_better_on_average": 1.0,
+      "median_gain_by_replication": [
+        0.3308,
+        0.2999,
+        0.3917,
+        0.3293,
+        0.1971
+      ]
+    },
+    "planning_only": {
+      "gain": {
+        "n": 685,
+        "mean": 0.29,
+        "median": 0.3073,
+        "p10": 0.1346,
+        "p90": 0.4271,
+        "min": -0.1047,
+        "max": 0.4967
+      },
+      "share_of_runs_better": 0.9898,
+      "share_of_runs_tied": 0.0,
+      "share_of_setups_better_on_average": 1.0,
+      "median_gain_by_replication": [
+        0.3303,
+        0.2691,
+        0.3931,
+        0.2989,
+        0.2452
+      ]
+    }
+  },
+  "main_effects": {
+    "setups": 108,
+    "runs": 4320,
+    "parameters": {
+      "C": [
+        0.3,
+        0.4
+      ],
+      "B": [
+        0.2,
+        0.3
+      ],
+      "W": [
+        0.1,
+        0.2,
+        0.3
+      ],
+      "E": [
+        0.7,
+        0.8,
+        0.9
+      ],
+      "G": [
+        0.8,
+        0.9,
+        0.95
+      ]
+    },
+    "risk_reduction": {
+      "group_conformal_random": {
+        "C": {
+          "levels": {
+            "0.3": 0.4515,
+            "0.4": 0.4726
+          },
+          "range": 0.0211
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.4616,
+            "0.3": 0.4625
+          },
+          "range": 0.0009
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.3159,
+            "0.2": 0.4765,
+            "0.3": 0.5936
+          },
+          "range": 0.2777
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.4751,
+            "0.8": 0.46,
+            "0.9": 0.451
+          },
+          "range": 0.0241
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.4488,
+            "0.9": 0.4641,
+            "0.95": 0.4731
+          },
+          "range": 0.0243
+        }
+      },
+      "group_conformal_fixed": {
+        "C": {
+          "levels": {
+            "0.3": 0.4567,
+            "0.4": 0.4657
+          },
+          "range": 0.0091
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.4622,
+            "0.3": 0.4602
+          },
+          "range": 0.002
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.3234,
+            "0.2": 0.4937,
+            "0.3": 0.5665
+          },
+          "range": 0.2432
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.4675,
+            "0.8": 0.4659,
+            "0.9": 0.4501
+          },
+          "range": 0.0174
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.4473,
+            "0.9": 0.4677,
+            "0.95": 0.4686
+          },
+          "range": 0.0212
+        }
+      },
+      "group_conformal_oracle": {
+        "C": {
+          "levels": {
+            "0.3": 0.4311,
+            "0.4": 0.4447
+          },
+          "range": 0.0136
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.4367,
+            "0.3": 0.4391
+          },
+          "range": 0.0024
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.3038,
+            "0.2": 0.496,
+            "0.3": 0.5139
+          },
+          "range": 0.2101
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.44,
+            "0.8": 0.445,
+            "0.9": 0.4287
+          },
+          "range": 0.0162
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.4293,
+            "0.9": 0.4396,
+            "0.95": 0.4448
+          },
+          "range": 0.0155
+        }
+      },
+      "bonferroni": {
+        "C": {
+          "levels": {
+            "0.3": 0.2365,
+            "0.4": 0.2363
+          },
+          "range": 0.0002
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.2366,
+            "0.3": 0.2361
+          },
+          "range": 0.0005
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.113,
+            "0.2": 0.2339,
+            "0.3": 0.3622
+          },
+          "range": 0.2492
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.2321,
+            "0.8": 0.2332,
+            "0.9": 0.2439
+          },
+          "range": 0.0118
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.2442,
+            "0.9": 0.2329,
+            "0.95": 0.232
+          },
+          "range": 0.0122
+        }
+      },
+      "maxrank": {
+        "C": {
+          "levels": {
+            "0.3": 0.2175,
+            "0.4": 0.2174
+          },
+          "range": 0.0001
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.2175,
+            "0.3": 0.2174
+          },
+          "range": 0.0001
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.1121,
+            "0.2": 0.2263,
+            "0.3": 0.314
+          },
+          "range": 0.2018
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.214,
+            "0.8": 0.214,
+            "0.9": 0.2244
+          },
+          "range": 0.0104
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.2243,
+            "0.9": 0.2141,
+            "0.95": 0.2141
+          },
+          "range": 0.0102
+        }
+      },
+      "ci": {
+        "C": {
+          "levels": {
+            "0.3": 0.2222,
+            "0.4": 0.2222
+          },
+          "range": 0.0
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.2221,
+            "0.3": 0.2222
+          },
+          "range": 0.0001
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.1159,
+            "0.2": 0.2314,
+            "0.3": 0.3192
+          },
+          "range": 0.2034
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.2187,
+            "0.8": 0.2191,
+            "0.9": 0.2287
+          },
+          "range": 0.01
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.2289,
+            "0.9": 0.2189,
+            "0.95": 0.2186
+          },
+          "range": 0.0103
+        }
+      },
+      "co_optimized": {
+        "C": {
+          "levels": {
+            "0.3": 0.2299,
+            "0.4": 0.2293
+          },
+          "range": 0.0006
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.2295,
+            "0.3": 0.2297
+          },
+          "range": 0.0002
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.1111,
+            "0.2": 0.2272,
+            "0.3": 0.3505
+          },
+          "range": 0.2395
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.226,
+            "0.8": 0.225,
+            "0.9": 0.2379
+          },
+          "range": 0.0129
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.2385,
+            "0.9": 0.2242,
+            "0.95": 0.2261
+          },
+          "range": 0.0143
+        }
+      },
+      "planning_only": {
+        "C": {
+          "levels": {
+            "0.3": 0.217,
+            "0.4": 0.2453
+          },
+          "range": 0.0283
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.2373,
+            "0.3": 0.2251
+          },
+          "range": 0.0122
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.1176,
+            "0.2": 0.2322,
+            "0.3": 0.3438
+          },
+          "range": 0.2262
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.2138,
+            "0.8": 0.2312,
+            "0.9": 0.2485
+          },
+          "range": 0.0347
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.2521,
+            "0.9": 0.2241,
+            "0.95": 0.2173
+          },
+          "range": 0.0348
+        }
+      }
+    },
+    "fast_trip": {
+      "group_conformal_random": {
+        "C": {
+          "levels": {
+            "0.3": 2.5593,
+            "0.4": 2.1519
+          },
+          "range": 0.4074
+        },
+        "B": {
+          "levels": {
+            "0.2": 2.4444,
+            "0.3": 2.2667
+          },
+          "range": 0.1778
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.8556,
+            "0.2": 1.7556,
+            "0.3": 4.4556
+          },
+          "range": 3.6
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0,
+            "0.8": 0.2389,
+            "0.9": 6.8278
+          },
+          "range": 6.8278
+        },
+        "G": {
+          "levels": {
+            "0.8": 6.8167,
+            "0.9": 0.2444,
+            "0.95": 0.0056
+          },
+          "range": 6.8111
+        }
+      },
+      "group_conformal_fixed": {
+        "C": {
+          "levels": {
+            "0.3": 3.6222,
+            "0.4": 3.3556
+          },
+          "range": 0.2667
+        },
+        "B": {
+          "levels": {
+            "0.2": 3.4778,
+            "0.3": 3.5
+          },
+          "range": 0.0222
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.8667,
+            "0.2": 2.0111,
+            "0.3": 7.5889
+          },
+          "range": 6.7222
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0333,
+            "0.8": 0.25,
+            "0.9": 10.1833
+          },
+          "range": 10.15
+        },
+        "G": {
+          "levels": {
+            "0.8": 10.1778,
+            "0.9": 0.2667,
+            "0.95": 0.0222
+          },
+          "range": 10.1556
+        }
+      },
+      "group_conformal_oracle": {
+        "C": {
+          "levels": {
+            "0.3": 4.3148,
+            "0.4": 3.9259
+          },
+          "range": 0.3889
+        },
+        "B": {
+          "levels": {
+            "0.2": 4.2111,
+            "0.3": 4.0296
+          },
+          "range": 0.1815
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.8222,
+            "0.2": 1.6833,
+            "0.3": 9.8556
+          },
+          "range": 9.0333
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0,
+            "0.8": 0.5,
+            "0.9": 11.8611
+          },
+          "range": 11.8611
+        },
+        "G": {
+          "levels": {
+            "0.8": 12.0056,
+            "0.9": 0.3556,
+            "0.95": 0.0
+          },
+          "range": 12.0056
+        }
+      },
+      "bonferroni": {
+        "C": {
+          "levels": {
+            "0.3": 16.8296,
+            "0.4": 17.5778
+          },
+          "range": 0.7481
+        },
+        "B": {
+          "levels": {
+            "0.2": 15.7259,
+            "0.3": 18.6815
+          },
+          "range": 2.9556
+        },
+        "W": {
+          "levels": {
+            "0.1": 10.8,
+            "0.2": 19.4556,
+            "0.3": 21.3556
+          },
+          "range": 10.5556
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0,
+            "0.8": 0.8944,
+            "0.9": 50.7167
+          },
+          "range": 50.7167
+        },
+        "G": {
+          "levels": {
+            "0.8": 50.7778,
+            "0.9": 0.8,
+            "0.95": 0.0333
+          },
+          "range": 50.7444
+        }
+      },
+      "maxrank": {
+        "C": {
+          "levels": {
+            "0.3": 15.6741,
+            "0.4": 16.4593
+          },
+          "range": 0.7852
+        },
+        "B": {
+          "levels": {
+            "0.2": 14.7926,
+            "0.3": 17.3407
+          },
+          "range": 2.5481
+        },
+        "W": {
+          "levels": {
+            "0.1": 9.3333,
+            "0.2": 17.9667,
+            "0.3": 20.9
+          },
+          "range": 11.5667
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0444,
+            "0.8": 0.3889,
+            "0.9": 47.7667
+          },
+          "range": 47.7222
+        },
+        "G": {
+          "levels": {
+            "0.8": 47.4222,
+            "0.9": 0.7222,
+            "0.95": 0.0556
+          },
+          "range": 47.3667
+        }
+      },
+      "ci": {
+        "C": {
+          "levels": {
+            "0.3": 17.1852,
+            "0.4": 17.4111
+          },
+          "range": 0.2259
+        },
+        "B": {
+          "levels": {
+            "0.2": 15.4963,
+            "0.3": 19.1
+          },
+          "range": 3.6037
+        },
+        "W": {
+          "levels": {
+            "0.1": 10.3111,
+            "0.2": 19.4389,
+            "0.3": 22.1444
+          },
+          "range": 11.8333
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.2,
+            "0.8": 0.5167,
+            "0.9": 51.1778
+          },
+          "range": 50.9778
+        },
+        "G": {
+          "levels": {
+            "0.8": 50.95,
+            "0.9": 0.7556,
+            "0.95": 0.1889
+          },
+          "range": 50.7611
+        }
+      },
+      "co_optimized": {
+        "C": {
+          "levels": {
+            "0.3": 17.8,
+            "0.4": 17.9333
+          },
+          "range": 0.1333
+        },
+        "B": {
+          "levels": {
+            "0.2": 15.763,
+            "0.3": 19.9704
+          },
+          "range": 4.2074
+        },
+        "W": {
+          "levels": {
+            "0.1": 9.7111,
+            "0.2": 20.8667,
+            "0.3": 23.0222
+          },
+          "range": 13.3111
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.3,
+            "0.8": 1.2389,
+            "0.9": 52.0611
+          },
+          "range": 51.7611
+        },
+        "G": {
+          "levels": {
+            "0.8": 51.8722,
+            "0.9": 1.35,
+            "0.95": 0.3778
+          },
+          "range": 51.4944
+        }
+      },
+      "planning_only": {
+        "C": {
+          "levels": {
+            "0.3": 199.8556,
+            "0.4": 200.0
+          },
+          "range": 0.1444
+        },
+        "B": {
+          "levels": {
+            "0.2": 160.0,
+            "0.3": 239.8556
+          },
+          "range": 79.8556
+        },
+        "W": {
+          "levels": {
+            "0.1": 199.7833,
+            "0.2": 200.0,
+            "0.3": 200.0
+          },
+          "range": 0.2167
+        },
+        "E": {
+          "levels": {
+            "0.7": 199.9278,
+            "0.8": 199.9278,
+            "0.9": 199.9278
+          },
+          "range": 0.0
+        },
+        "G": {
+          "levels": {
+            "0.8": 199.95,
+            "0.9": 199.9167,
+            "0.95": 199.9167
+          },
+          "range": 0.0333
+        }
+      }
+    },
+    "cap_share_fast_trip": {
+      "group_conformal_random": {
+        "C": {
+          "levels": {
+            "0.3": 0.0618,
+            "0.4": 0.0582
+          },
+          "range": 0.0036
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.0608,
+            "0.3": 0.0592
+          },
+          "range": 0.0016
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.0803,
+            "0.2": 0.0495,
+            "0.3": 0.0502
+          },
+          "range": 0.0309
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0,
+            "0.8": 0.0055,
+            "0.9": 0.1745
+          },
+          "range": 0.1745
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.1642,
+            "0.9": 0.0158,
+            "0.95": 0.0
+          },
+          "range": 0.1642
+        }
+      },
+      "group_conformal_fixed": {
+        "C": {
+          "levels": {
+            "0.3": 0.0645,
+            "0.4": 0.0606
+          },
+          "range": 0.004
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.0614,
+            "0.3": 0.0637
+          },
+          "range": 0.0024
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.0729,
+            "0.2": 0.0475,
+            "0.3": 0.0673
+          },
+          "range": 0.0253
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0001,
+            "0.8": 0.0032,
+            "0.9": 0.1843
+          },
+          "range": 0.1843
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.1855,
+            "0.9": 0.0021,
+            "0.95": 0.0
+          },
+          "range": 0.1855
+        }
+      },
+      "group_conformal_oracle": {
+        "C": {
+          "levels": {
+            "0.3": 0.067,
+            "0.4": 0.069
+          },
+          "range": 0.002
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.0683,
+            "0.3": 0.0677
+          },
+          "range": 0.0006
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.0833,
+            "0.2": 0.0482,
+            "0.3": 0.0725
+          },
+          "range": 0.0351
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0,
+            "0.8": 0.0042,
+            "0.9": 0.1998
+          },
+          "range": 0.1998
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.19,
+            "0.9": 0.014,
+            "0.95": 0.0
+          },
+          "range": 0.19
+        }
+      },
+      "bonferroni": {
+        "C": {
+          "levels": {
+            "0.3": 0.1011,
+            "0.4": 0.102
+          },
+          "range": 0.0008
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.0998,
+            "0.3": 0.1033
+          },
+          "range": 0.0035
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.1117,
+            "0.2": 0.1038,
+            "0.3": 0.0891
+          },
+          "range": 0.0226
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0,
+            "0.8": 0.0026,
+            "0.9": 0.302
+          },
+          "range": 0.302
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.3011,
+            "0.9": 0.0035,
+            "0.95": 0.0
+          },
+          "range": 0.3011
+        }
+      },
+      "maxrank": {
+        "C": {
+          "levels": {
+            "0.3": 0.0966,
+            "0.4": 0.097
+          },
+          "range": 0.0004
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.0954,
+            "0.3": 0.0982
+          },
+          "range": 0.0028
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.1115,
+            "0.2": 0.0935,
+            "0.3": 0.0853
+          },
+          "range": 0.0262
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0,
+            "0.8": 0.0006,
+            "0.9": 0.2897
+          },
+          "range": 0.2897
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.2887,
+            "0.9": 0.0015,
+            "0.95": 0.0001
+          },
+          "range": 0.2886
+        }
+      },
+      "ci": {
+        "C": {
+          "levels": {
+            "0.3": 0.1046,
+            "0.4": 0.1046
+          },
+          "range": 0.0
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.1026,
+            "0.3": 0.1065
+          },
+          "range": 0.0039
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.1133,
+            "0.2": 0.0998,
+            "0.3": 0.1006
+          },
+          "range": 0.0135
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0001,
+            "0.8": 0.0052,
+            "0.9": 0.3085
+          },
+          "range": 0.3084
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.3076,
+            "0.9": 0.0061,
+            "0.95": 0.0001
+          },
+          "range": 0.3075
+        }
+      },
+      "co_optimized": {
+        "C": {
+          "levels": {
+            "0.3": 0.1117,
+            "0.4": 0.1104
+          },
+          "range": 0.0014
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.1085,
+            "0.3": 0.1136
+          },
+          "range": 0.0051
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.1157,
+            "0.2": 0.113,
+            "0.3": 0.1045
+          },
+          "range": 0.0112
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.0002,
+            "0.8": 0.0036,
+            "0.9": 0.3294
+          },
+          "range": 0.3292
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.3276,
+            "0.9": 0.0053,
+            "0.95": 0.0003
+          },
+          "range": 0.3273
+        }
+      },
+      "planning_only": {
+        "C": {
+          "levels": {
+            "0.3": 0.9075,
+            "0.4": 0.9073
+          },
+          "range": 0.0002
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.8691,
+            "0.3": 0.9456
+          },
+          "range": 0.0765
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.9991,
+            "0.2": 0.9728,
+            "0.3": 0.7503
+          },
+          "range": 0.2488
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.9074,
+            "0.8": 0.9074,
+            "0.9": 0.9074
+          },
+          "range": 0.0
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.8694,
+            "0.9": 0.919,
+            "0.95": 0.9337
+          },
+          "range": 0.0643
+        }
+      }
+    },
+    "sectionalized": {
+      "group_conformal_random": {
+        "C": {
+          "levels": {
+            "0.3": 186.3407,
+            "0.4": 229.9704
+          },
+          "range": 43.6296
+        },
+        "B": {
+          "levels": {
+            "0.2": 208.1667,
+            "0.3": 208.1444
+          },
+          "range": 0.0222
+        },
+        "W": {
+          "levels": {
+            "0.1": 148.2722,
+            "0.2": 195.7111,
+            "0.3": 280.4833
+          },
+          "range": 132.2111
+        },
+        "E": {
+          "levels": {
+            "0.7": 227.35,
+            "0.8": 202.0389,
+            "0.9": 195.0778
+          },
+          "range": 32.2722
+        },
+        "G": {
+          "levels": {
+            "0.8": 199.1278,
+            "0.9": 208.0944,
+            "0.95": 217.2444
+          },
+          "range": 18.1167
+        }
+      },
+      "group_conformal_fixed": {
+        "C": {
+          "levels": {
+            "0.3": 194.1074,
+            "0.4": 218.9667
+          },
+          "range": 24.8593
+        },
+        "B": {
+          "levels": {
+            "0.2": 206.637,
+            "0.3": 206.437
+          },
+          "range": 0.2
+        },
+        "W": {
+          "levels": {
+            "0.1": 135.1611,
+            "0.2": 203.9833,
+            "0.3": 280.4667
+          },
+          "range": 145.3056
+        },
+        "E": {
+          "levels": {
+            "0.7": 215.8111,
+            "0.8": 208.0722,
+            "0.9": 195.7278
+          },
+          "range": 20.0833
+        },
+        "G": {
+          "levels": {
+            "0.8": 200.5444,
+            "0.9": 208.3222,
+            "0.95": 210.7444
+          },
+          "range": 10.2
+        }
+      },
+      "group_conformal_oracle": {
+        "C": {
+          "levels": {
+            "0.3": 196.3259,
+            "0.4": 226.3407
+          },
+          "range": 30.0148
+        },
+        "B": {
+          "levels": {
+            "0.2": 211.5,
+            "0.3": 211.1667
+          },
+          "range": 0.3333
+        },
+        "W": {
+          "levels": {
+            "0.1": 130.9667,
+            "0.2": 223.1333,
+            "0.3": 279.9
+          },
+          "range": 148.9333
+        },
+        "E": {
+          "levels": {
+            "0.7": 216.3278,
+            "0.8": 212.4167,
+            "0.9": 205.2556
+          },
+          "range": 11.0722
+        },
+        "G": {
+          "levels": {
+            "0.8": 203.6,
+            "0.9": 211.5944,
+            "0.95": 218.8056
+          },
+          "range": 15.2056
+        }
+      },
+      "bonferroni": {
+        "C": {
+          "levels": {
+            "0.3": 157.3667,
+            "0.4": 160.4778
+          },
+          "range": 3.1111
+        },
+        "B": {
+          "levels": {
+            "0.2": 158.6222,
+            "0.3": 159.2222
+          },
+          "range": 0.6
+        },
+        "W": {
+          "levels": {
+            "0.1": 77.0889,
+            "0.2": 166.6444,
+            "0.3": 233.0333
+          },
+          "range": 155.9444
+        },
+        "E": {
+          "levels": {
+            "0.7": 156.2444,
+            "0.8": 156.5056,
+            "0.9": 164.0167
+          },
+          "range": 7.7722
+        },
+        "G": {
+          "levels": {
+            "0.8": 164.0944,
+            "0.9": 156.3111,
+            "0.95": 156.3611
+          },
+          "range": 7.7833
+        }
+      },
+      "maxrank": {
+        "C": {
+          "levels": {
+            "0.3": 147.9259,
+            "0.4": 151.9333
+          },
+          "range": 4.0074
+        },
+        "B": {
+          "levels": {
+            "0.2": 149.663,
+            "0.3": 150.1963
+          },
+          "range": 0.5333
+        },
+        "W": {
+          "levels": {
+            "0.1": 64.9556,
+            "0.2": 145.5333,
+            "0.3": 239.3
+          },
+          "range": 174.3444
+        },
+        "E": {
+          "levels": {
+            "0.7": 147.0556,
+            "0.8": 146.8778,
+            "0.9": 155.8556
+          },
+          "range": 8.9778
+        },
+        "G": {
+          "levels": {
+            "0.8": 156.0056,
+            "0.9": 146.9667,
+            "0.95": 146.8167
+          },
+          "range": 9.1889
+        }
+      },
+      "ci": {
+        "C": {
+          "levels": {
+            "0.3": 153.9222,
+            "0.4": 156.3333
+          },
+          "range": 2.4111
+        },
+        "B": {
+          "levels": {
+            "0.2": 154.7148,
+            "0.3": 155.5407
+          },
+          "range": 0.8259
+        },
+        "W": {
+          "levels": {
+            "0.1": 75.5556,
+            "0.2": 155.1778,
+            "0.3": 234.65
+          },
+          "range": 159.0944
+        },
+        "E": {
+          "levels": {
+            "0.7": 151.9889,
+            "0.8": 152.5222,
+            "0.9": 160.8722
+          },
+          "range": 8.8833
+        },
+        "G": {
+          "levels": {
+            "0.8": 160.8722,
+            "0.9": 152.3722,
+            "0.95": 152.1389
+          },
+          "range": 8.7333
+        }
+      },
+      "co_optimized": {
+        "C": {
+          "levels": {
+            "0.3": 149.3556,
+            "0.4": 156.5926
+          },
+          "range": 7.237
+        },
+        "B": {
+          "levels": {
+            "0.2": 152.4333,
+            "0.3": 153.5148
+          },
+          "range": 1.0815
+        },
+        "W": {
+          "levels": {
+            "0.1": 62.9444,
+            "0.2": 146.7333,
+            "0.3": 249.2444
+          },
+          "range": 186.3
+        },
+        "E": {
+          "levels": {
+            "0.7": 149.5667,
+            "0.8": 149.9,
+            "0.9": 159.4556
+          },
+          "range": 9.8889
+        },
+        "G": {
+          "levels": {
+            "0.8": 159.4722,
+            "0.9": 149.6333,
+            "0.95": 149.8167
+          },
+          "range": 9.8389
+        }
+      },
+      "planning_only": {
+        "C": {
+          "levels": {
+            "0.3": 240.0,
+            "0.4": 321.0
+          },
+          "range": 81.0
+        },
+        "B": {
+          "levels": {
+            "0.2": 280.5,
+            "0.3": 280.5
+          },
+          "range": 0.0
+        },
+        "W": {
+          "levels": {
+            "0.1": 280.5,
+            "0.2": 280.5,
+            "0.3": 280.5
+          },
+          "range": 0.0
+        },
+        "E": {
+          "levels": {
+            "0.7": 280.5,
+            "0.8": 280.5,
+            "0.9": 280.5
+          },
+          "range": 0.0
+        },
+        "G": {
+          "levels": {
+            "0.8": 280.5,
+            "0.9": 280.5,
+            "0.95": 280.5
+          },
+          "range": 0.0
+        }
+      }
+    },
+    "proposed_gains": {
+      "gain_vs_co_optimized": {
+        "C": {
+          "levels": {
+            "0.3": 0.2835,
+            "0.4": 0.3144
+          },
+          "range": 0.031
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.2981,
+            "0.3": 0.2998
+          },
+          "range": 0.0017
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.2248,
+            "0.2": 0.3056,
+            "0.3": 0.3664
+          },
+          "range": 0.1417
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.3193,
+            "0.8": 0.3028,
+            "0.9": 0.2747
+          },
+          "range": 0.0445
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.2721,
+            "0.9": 0.3082,
+            "0.95": 0.3166
+          },
+          "range": 0.0445
+        }
+      },
+      "gain_vs_planning_only": {
+        "C": {
+          "levels": {
+            "0.3": 0.2999,
+            "0.4": 0.2984
+          },
+          "range": 0.0015
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.291,
+            "0.3": 0.3073
+          },
+          "range": 0.0163
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.2237,
+            "0.2": 0.302,
+            "0.3": 0.3718
+          },
+          "range": 0.1481
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.3325,
+            "0.8": 0.298,
+            "0.9": 0.2671
+          },
+          "range": 0.0654
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.2619,
+            "0.9": 0.3091,
+            "0.95": 0.3266
+          },
+          "range": 0.0646
+        }
+      },
+      "gain_vs_bonferroni": {
+        "C": {
+          "levels": {
+            "0.3": 0.2659,
+            "0.4": 0.2988
+          },
+          "range": 0.0328
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.2809,
+            "0.3": 0.2838
+          },
+          "range": 0.003
+        },
+        "W": {
+          "levels": {
+            "0.1": 0.2234,
+            "0.2": 0.2915,
+            "0.3": 0.3321
+          },
+          "range": 0.1087
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.303,
+            "0.8": 0.2849,
+            "0.9": 0.2591
+          },
+          "range": 0.0439
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.2556,
+            "0.9": 0.2903,
+            "0.95": 0.3012
+          },
+          "range": 0.0455
+        }
+      },
+      "filled_gain_vs_co_optimized": {
+        "C": {
+          "levels": {
+            "0.3": 0.1447,
+            "0.4": 0.0523
+          },
+          "range": 0.0924
+        },
+        "B": {
+          "levels": {
+            "0.2": 0.0983,
+            "0.3": 0.0986
+          },
+          "range": 0.0003
+        },
+        "W": {
+          "levels": {
+            "0.1": -0.0004,
+            "0.2": 0.0772,
+            "0.3": 0.2186
+          },
+          "range": 0.219
+        },
+        "E": {
+          "levels": {
+            "0.7": 0.053,
+            "0.8": 0.0893,
+            "0.9": 0.1531
+          },
+          "range": 0.1001
+        },
+        "G": {
+          "levels": {
+            "0.8": 0.138,
+            "0.9": 0.0768,
+            "0.95": 0.0806
+          },
+          "range": 0.0612
+        }
+      }
+    },
+    "gain_vs_planning_only_by_W_and_E": {
+      "W=0.1": {
+        "E=0.7": 0.2735,
+        "E=0.8": 0.212,
+        "E=0.9": 0.1857
+      },
+      "W=0.2": {
+        "E=0.7": 0.3389,
+        "E=0.8": 0.3065,
+        "E=0.9": 0.2607
+      },
+      "W=0.3": {
+        "E=0.7": 0.3851,
+        "E=0.8": 0.3754,
+        "E=0.9": 0.3549
+      }
+    }
+  },
+  "budget_value": {
+    "C_0.3_to_0.4": {
+      "group_conformal_random": {
+        "n": 270,
+        "mean": 0.0211,
+        "median": 0.0095,
+        "p10": -0.0057,
+        "p90": 0.0636,
+        "min": -0.059,
+        "max": 0.1992
+      },
+      "group_conformal_fixed": {
+        "n": 270,
+        "mean": 0.0091,
+        "median": 0.0,
+        "p10": -0.0326,
+        "p90": 0.0636,
+        "min": -0.1703,
+        "max": 0.1328
+      },
+      "group_conformal_oracle": {
+        "n": 270,
+        "mean": 0.0136,
+        "median": 0.0038,
+        "p10": -0.0273,
+        "p90": 0.0601,
+        "min": -0.1338,
+        "max": 0.2198
+      },
+      "bonferroni": {
+        "n": 270,
+        "mean": -0.0002,
+        "median": 0.0,
+        "p10": -0.0007,
+        "p90": 0.0009,
+        "min": -0.0095,
+        "max": 0.0065
+      },
+      "maxrank": {
+        "n": 270,
+        "mean": -0.0001,
+        "median": 0.0,
+        "p10": -0.0008,
+        "p90": 0.0,
+        "min": -0.0278,
+        "max": 0.0149
+      },
+      "ci": {
+        "n": 270,
+        "mean": -0.0,
+        "median": 0.0,
+        "p10": -0.0017,
+        "p90": 0.0004,
+        "min": -0.0172,
+        "max": 0.0475
+      },
+      "co_optimized": {
+        "n": 270,
+        "mean": -0.0006,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.0038,
+        "min": -0.0269,
+        "max": 0.0256
+      },
+      "planning_only": {
+        "n": 270,
+        "mean": 0.0283,
+        "median": 0.0053,
+        "p10": -0.0011,
+        "p90": 0.0731,
+        "min": -0.0136,
+        "max": 0.2505
+      }
+    },
+    "B_0.2_to_0.3": {
+      "group_conformal_random": {
+        "n": 270,
+        "mean": 0.0009,
+        "median": 0.0,
+        "p10": -0.0248,
+        "p90": 0.0326,
+        "min": -0.2304,
+        "max": 0.1654
+      },
+      "group_conformal_fixed": {
+        "n": 270,
+        "mean": -0.002,
+        "median": 0.0,
+        "p10": -0.0292,
+        "p90": 0.0214,
+        "min": -0.0881,
+        "max": 0.0724
+      },
+      "group_conformal_oracle": {
+        "n": 270,
+        "mean": 0.0024,
+        "median": 0.0,
+        "p10": -0.0207,
+        "p90": 0.0292,
+        "min": -0.2027,
+        "max": 0.1958
+      },
+      "bonferroni": {
+        "n": 270,
+        "mean": -0.0005,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.0,
+        "min": -0.0243,
+        "max": 0.0074
+      },
+      "maxrank": {
+        "n": 270,
+        "mean": -0.0001,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.0,
+        "min": -0.0355,
+        "max": 0.0134
+      },
+      "ci": {
+        "n": 270,
+        "mean": 0.0001,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.0,
+        "min": -0.0098,
+        "max": 0.0335
+      },
+      "co_optimized": {
+        "n": 270,
+        "mean": 0.0002,
+        "median": 0.0,
+        "p10": 0.0,
+        "p90": 0.0,
+        "min": -0.0262,
+        "max": 0.0495
+      },
+      "planning_only": {
+        "n": 270,
+        "mean": -0.0122,
+        "median": -0.0176,
+        "p10": -0.0607,
+        "p90": 0.0464,
+        "min": -0.103,
+        "max": 0.0903
+      }
+    }
+  },
+  "reliability_allocation": {
+    "group_conformal_random": {
+      "0.1": {
+        "cap_share_fast_trip": 0.075,
+        "cap_share_psps_planned": 0.881,
+        "cap_share_psps_realized": 0.808
+      },
+      "0.2": {
+        "cap_share_fast_trip": 0.046,
+        "cap_share_psps_planned": 0.887,
+        "cap_share_psps_realized": 0.743
+      },
+      "0.3": {
+        "cap_share_fast_trip": 0.058,
+        "cap_share_psps_planned": 0.254,
+        "cap_share_psps_realized": 0.657
+      }
+    },
+    "group_conformal_fixed": {
+      "0.1": {
+        "cap_share_fast_trip": 0.067,
+        "cap_share_psps_planned": 0.894,
+        "cap_share_psps_realized": 0.864
+      },
+      "0.2": {
+        "cap_share_fast_trip": 0.042,
+        "cap_share_psps_planned": 0.664,
+        "cap_share_psps_realized": 0.764
+      },
+      "0.3": {
+        "cap_share_fast_trip": 0.077,
+        "cap_share_psps_planned": 0.199,
+        "cap_share_psps_realized": 0.611
+      }
+    },
+    "group_conformal_oracle": {
+      "0.1": {
+        "cap_share_fast_trip": 0.077,
+        "cap_share_psps_planned": 0.886,
+        "cap_share_psps_realized": 0.859
+      },
+      "0.2": {
+        "cap_share_fast_trip": 0.044,
+        "cap_share_psps_planned": 0.663,
+        "cap_share_psps_realized": 0.764
+      },
+      "0.3": {
+        "cap_share_fast_trip": 0.079,
+        "cap_share_psps_planned": 0.292,
+        "cap_share_psps_realized": 0.563
+      }
+    },
+    "bonferroni": {
+      "0.1": {
+        "cap_share_fast_trip": 0.104,
+        "cap_share_psps_planned": 0.896,
+        "cap_share_psps_realized": 0.303
+      },
+      "0.2": {
+        "cap_share_fast_trip": 0.094,
+        "cap_share_psps_planned": 0.906,
+        "cap_share_psps_realized": 0.327
+      },
+      "0.3": {
+        "cap_share_fast_trip": 0.09,
+        "cap_share_psps_planned": 0.909,
+        "cap_share_psps_realized": 0.361
+      }
+    },
+    "maxrank": {
+      "0.1": {
+        "cap_share_fast_trip": 0.104,
+        "cap_share_psps_planned": 0.895,
+        "cap_share_psps_realized": 0.29
+      },
+      "0.2": {
+        "cap_share_fast_trip": 0.085,
+        "cap_share_psps_planned": 0.915,
+        "cap_share_psps_realized": 0.358
+      },
+      "0.3": {
+        "cap_share_fast_trip": 0.088,
+        "cap_share_psps_planned": 0.912,
+        "cap_share_psps_realized": 0.342
+      }
+    },
+    "ci": {
+      "0.1": {
+        "cap_share_fast_trip": 0.106,
+        "cap_share_psps_planned": 0.894,
+        "cap_share_psps_realized": 0.312
+      },
+      "0.2": {
+        "cap_share_fast_trip": 0.091,
+        "cap_share_psps_planned": 0.909,
+        "cap_share_psps_realized": 0.347
+      },
+      "0.3": {
+        "cap_share_fast_trip": 0.103,
+        "cap_share_psps_planned": 0.897,
+        "cap_share_psps_realized": 0.331
+      }
+    },
+    "co_optimized": {
+      "0.1": {
+        "cap_share_fast_trip": 0.108,
+        "cap_share_psps_planned": 0.891,
+        "cap_share_psps_realized": 0.371
+      },
+      "0.2": {
+        "cap_share_fast_trip": 0.103,
+        "cap_share_psps_planned": 0.897,
+        "cap_share_psps_realized": 0.368
+      },
+      "0.3": {
+        "cap_share_fast_trip": 0.109,
+        "cap_share_psps_planned": 0.891,
+        "cap_share_psps_realized": 0.359
+      }
+    },
+    "planning_only": {
+      "0.1": {
+        "cap_share_fast_trip": 0.992,
+        "cap_share_psps_planned": 0.0,
+        "cap_share_psps_realized": 0.008
+      },
+      "0.2": {
+        "cap_share_fast_trip": 0.868,
+        "cap_share_psps_planned": 0.0,
+        "cap_share_psps_realized": 0.098
+      },
+      "0.3": {
+        "cap_share_fast_trip": 0.701,
+        "cap_share_psps_planned": 0.0,
+        "cap_share_psps_realized": 0.234
+      }
+    }
+  },
+  "computation": {
+    "group_conformal_random": {
+      "C": {
+        "0.2": 0.241,
+        "0.3": 0.407,
+        "0.4": 0.174
+      },
+      "B": {
+        "0.1": 0.241,
+        "0.2": 0.289,
+        "0.3": 0.293
+      },
+      "W": {
+        "0.1": 0.108,
+        "0.2": 0.104,
+        "0.3": 0.688
+      }
+    },
+    "group_conformal_fixed": {
+      "C": {
+        "0.2": 0.614,
+        "0.3": 0.407,
+        "0.4": 0.207
+      },
+      "B": {
+        "0.1": 0.614,
+        "0.2": 0.307,
+        "0.3": 0.307
+      },
+      "W": {
+        "0.1": 0.104,
+        "0.2": 0.333,
+        "0.3": 0.732
+      }
+    },
+    "group_conformal_oracle": {
+      "C": {
+        "0.2": 0.621,
+        "0.3": 0.407,
+        "0.4": 0.111
+      },
+      "B": {
+        "0.1": 0.621,
+        "0.2": 0.259,
+        "0.3": 0.259
+      },
+      "W": {
+        "0.1": 0.104,
+        "0.2": 0.333,
+        "0.3": 0.61
+      }
+    },
+    "proposed_gain_vs_co_optimized_when_timed_out": {
+      "n": 192,
+      "mean": 0.2803,
+      "median": 0.3217,
+      "p10": 0.0689,
+      "p90": 0.4074,
+      "min": -0.3731,
+      "max": 0.4677
+    },
+    "proposed_gain_vs_co_optimized_when_solved": {
+      "n": 493,
+      "mean": 0.2881,
+      "median": 0.3212,
+      "p10": 0.1083,
+      "p90": 0.4395,
+      "min": 0.0217,
+      "max": 0.4837
+    }
+  },
+  "stability": {
+    "across_replications": {
+      "group_conformal_random": {
+        "x": 0.717,
+        "y": 0.087
+      },
+      "group_conformal_fixed": {
+        "x": 0.669,
+        "y": 0.1
+      },
+      "group_conformal_oracle": {
+        "x": 0.703,
+        "y": 0.126
+      },
+      "bonferroni": {
+        "x": 0.153,
+        "y": 0.045
+      },
+      "maxrank": {
+        "x": 0.214,
+        "y": 0.051
+      },
+      "ci": {
+        "x": 0.219,
+        "y": 0.042
+      },
+      "co_optimized": {
+        "x": 0.708,
+        "y": 0.133
+      },
+      "planning_only": {
+        "x": 0.8,
+        "y": 0.76
+      }
+    },
+    "overlap_with_proposed": {
+      "group_conformal_fixed": 0.5,
+      "group_conformal_oracle": 0.458,
+      "bonferroni": 0.15,
+      "maxrank": 0.153,
+      "ci": 0.157,
+      "co_optimized": 0.215,
+      "planning_only": 0.211
+    }
+  },
+  "core_circuits": {
+    "runs": 685,
+    "core_threshold": 0.9,
+    "core_circuits": 71,
+    "core_tier3_share": 0.324,
+    "all_circuits_tier3_share": 0.387,
+    "core_population_share": 0.313,
+    "core_top_divisions": {
+      "San Jose": 16,
+      "Central Coast": 8,
+      "Mission": 8,
+      "Los Padres": 7,
+      "Sierra": 7,
+      "North Valley": 6
+    },
+    "never_sectionalized": 140,
+    "sectionalization_share_quantiles": {
+      "0.25": 0.003,
+      "0.5": 0.111,
+      "0.75": 0.309,
+      "0.9": 0.881
+    },
+    "fast_trip_ever_share": 0.265,
+    "psps_ever_share": 0.643
+  },
+  "budget_fill": {
+    "note": "Sectionalization has no cost in the model besides its budget and only adds     PSPS options, so a plan that leaves budget unused can be completed for free     (``model.fill_sectionalization``, run by ``ingest``: circuits in order of the     predicted exposure ``p_i * mu_i``, then the realized PSPS response re-solved).",
+    "group_conformal_random": {
+      "runs_with_unused_budget": 439,
+      "share_of_runs": 0.641,
+      "circuits_added": {
+        "n": 439,
+        "mean": 95.6,
+        "median": 84.0,
+        "p10": 24.0,
+        "p90": 190.8,
+        "min": 1.0,
+        "max": 275.0
+      },
+      "exposure_cut": {
+        "n": 439,
+        "mean": 0.1444,
+        "median": 0.0738,
+        "p10": 0.0104,
+        "p90": 0.3707,
+        "min": -0.0,
+        "max": 0.5653
+      }
+    },
+    "group_conformal_fixed": {
+      "runs_with_unused_budget": 404,
+      "share_of_runs": 0.59,
+      "circuits_added": {
+        "n": 404,
+        "mean": 105.7,
+        "median": 102.0,
+        "p10": 25.9,
+        "p90": 210.7,
+        "min": 1.0,
+        "max": 279.0
+      },
+      "exposure_cut": {
+        "n": 404,
+        "mean": 0.1422,
+        "median": 0.1076,
+        "p10": 0.0188,
+        "p90": 0.3413,
+        "min": -0.0,
+        "max": 0.5513
+      }
+    },
+    "group_conformal_oracle": {
+      "runs_with_unused_budget": 424,
+      "share_of_runs": 0.619,
+      "circuits_added": {
+        "n": 424,
+        "mean": 95.7,
+        "median": 74.0,
+        "p10": 6.0,
+        "p90": 211.4,
+        "min": 1.0,
+        "max": 244.0
+      },
+      "exposure_cut": {
+        "n": 424,
+        "mean": 0.1389,
+        "median": 0.123,
+        "p10": 0.0164,
+        "p90": 0.2981,
+        "min": 0.0,
+        "max": 0.5243
+      }
+    },
+    "bonferroni": {
+      "runs_with_unused_budget": 615,
+      "share_of_runs": 0.898,
+      "circuits_added": {
+        "n": 615,
+        "mean": 115.7,
+        "median": 101.0,
+        "p10": 15.0,
+        "p90": 241.0,
+        "min": 1.0,
+        "max": 266.0
+      },
+      "exposure_cut": {
+        "n": 615,
+        "mean": 0.298,
+        "median": 0.3191,
+        "p10": 0.0336,
+        "p90": 0.5436,
+        "min": 0.0,
+        "max": 0.6326
+      }
+    },
+    "maxrank": {
+      "runs_with_unused_budget": 610,
+      "share_of_runs": 0.891,
+      "circuits_added": {
+        "n": 610,
+        "mean": 126.8,
+        "median": 112.0,
+        "p10": 17.0,
+        "p90": 255.0,
+        "min": 1.0,
+        "max": 284.0
+      },
+      "exposure_cut": {
+        "n": 610,
+        "mean": 0.3059,
+        "median": 0.3226,
+        "p10": 0.0646,
+        "p90": 0.5532,
+        "min": 0.0,
+        "max": 0.6648
+      }
+    },
+    "ci": {
+      "runs_with_unused_budget": 612,
+      "share_of_runs": 0.893,
+      "circuits_added": {
+        "n": 612,
+        "mean": 120.1,
+        "median": 103.0,
+        "p10": 16.0,
+        "p90": 244.9,
+        "min": 1.0,
+        "max": 267.0
+      },
+      "exposure_cut": {
+        "n": 612,
+        "mean": 0.2981,
+        "median": 0.3165,
+        "p10": 0.0288,
+        "p90": 0.5182,
+        "min": 0.0,
+        "max": 0.6346
+      }
+    },
+    "co_optimized": {
+      "runs_with_unused_budget": 590,
+      "share_of_runs": 0.861,
+      "circuits_added": {
+        "n": 590,
+        "mean": 128.6,
+        "median": 107.0,
+        "p10": 19.0,
+        "p90": 255.0,
+        "min": 1.0,
+        "max": 275.0
+      },
+      "exposure_cut": {
+        "n": 590,
+        "mean": 0.2983,
+        "median": 0.298,
+        "p10": 0.0577,
+        "p90": 0.5459,
+        "min": 0.0,
+        "max": 0.6295
+      }
+    },
+    "planning_only": {
+      "runs_with_unused_budget": 0,
+      "share_of_runs": 0.0
+    },
+    "after_fill": {
+      "group_conformal_random": {
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.5056,
+          "median": 0.5216,
+          "p10": 0.3255,
+          "p90": 0.6449,
+          "min": 0.2064,
+          "max": 0.7465
+        }
+      },
+      "group_conformal_fixed": {
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.4965,
+          "median": 0.5174,
+          "p10": 0.3115,
+          "p90": 0.6619,
+          "min": 0.15,
+          "max": 0.7709
+        },
+        "proposed_gain": {
+          "n": 685,
+          "mean": 0.0064,
+          "median": 0.0055,
+          "p10": -0.1362,
+          "p90": 0.1515,
+          "min": -1.0326,
+          "max": 0.3125
+        },
+        "proposed_better_share": 0.5723,
+        "share_of_setups_better_on_average": 0.7299
+      },
+      "group_conformal_oracle": {
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.4779,
+          "median": 0.49,
+          "p10": 0.3031,
+          "p90": 0.6534,
+          "min": 0.159,
+          "max": 0.8091
+        },
+        "proposed_gain": {
+          "n": 685,
+          "mean": 0.0319,
+          "median": 0.0202,
+          "p10": -0.1292,
+          "p90": 0.2432,
+          "min": -1.0055,
+          "max": 0.368
+        },
+        "proposed_better_share": 0.6088,
+        "share_of_setups_better_on_average": 0.7883
+      },
+      "bonferroni": {
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.4375,
+          "median": 0.4575,
+          "p10": 0.18,
+          "p90": 0.6772,
+          "min": 0.0171,
+          "max": 0.7727
+        },
+        "proposed_gain": {
+          "n": 685,
+          "mean": 0.0691,
+          "median": 0.0367,
+          "p10": -0.1207,
+          "p90": 0.3458,
+          "min": -0.9821,
+          "max": 0.6492
+        },
+        "proposed_better_share": 0.6774,
+        "share_of_setups_better_on_average": 0.8759
+      },
+      "maxrank": {
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.4348,
+          "median": 0.4596,
+          "p10": 0.1513,
+          "p90": 0.6636,
+          "min": 0.015,
+          "max": 0.7708
+        },
+        "proposed_gain": {
+          "n": 685,
+          "mean": 0.0828,
+          "median": 0.0487,
+          "p10": -0.1632,
+          "p90": 0.3699,
+          "min": -0.9662,
+          "max": 0.6858
+        },
+        "proposed_better_share": 0.692,
+        "share_of_setups_better_on_average": 0.8613
+      },
+      "ci": {
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.4284,
+          "median": 0.4262,
+          "p10": 0.1534,
+          "p90": 0.6663,
+          "min": 0.0166,
+          "max": 0.7783
+        },
+        "proposed_gain": {
+          "n": 685,
+          "mean": 0.0879,
+          "median": 0.0583,
+          "p10": -0.1642,
+          "p90": 0.373,
+          "min": -1.0282,
+          "max": 0.6669
+        },
+        "proposed_better_share": 0.7153,
+        "share_of_setups_better_on_average": 0.9124
+      },
+      "co_optimized": {
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.4317,
+          "median": 0.4575,
+          "p10": 0.2329,
+          "p90": 0.6321,
+          "min": 0.0222,
+          "max": 0.7711
+        },
+        "proposed_gain": {
+          "n": 685,
+          "mean": 0.1025,
+          "median": 0.0645,
+          "p10": -0.0527,
+          "p90": 0.3513,
+          "min": -0.9683,
+          "max": 0.6846
+        },
+        "proposed_better_share": 0.727,
+        "share_of_setups_better_on_average": 0.8759
+      },
+      "planning_only": {
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.2213,
+          "median": 0.1946,
+          "p10": 0.0576,
+          "p90": 0.4441,
+          "min": 0.0113,
+          "max": 0.5884
+        },
+        "proposed_gain": {
+          "n": 685,
+          "mean": 0.3609,
+          "median": 0.3699,
+          "p10": 0.1986,
+          "p90": 0.5033,
+          "min": -0.0721,
+          "max": 0.7077
+        },
+        "proposed_better_share": 0.9971,
+        "share_of_setups_better_on_average": 1.0
+      }
+    },
+    "lead_over_co_optimized_kept_after_fill": 0.201
+  },
+  "ranking_baselines": {
+    "note": "Fill the whole sectionalization budget by a predicted ranking, no fast-trip, same test-year PSPS response.",
+    "rules": {
+      "rank_exposure": {
+        "ranks_by": "predicted population-weighted exposure p_i * mu_i",
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.5434,
+          "median": 0.5493,
+          "p10": 0.3359,
+          "p90": 0.7361,
+          "min": 0.2946,
+          "max": 0.7669
+        },
+        "risk_reduction_by_W": {
+          "0.1": 0.4342,
+          "0.2": 0.5662,
+          "0.3": 0.6445
+        },
+        "cap_share_psps": 0.868
+      },
+      "rank_rate": {
+        "ranks_by": "predicted ignition rate mu_i",
+        "risk_reduction": {
+          "n": 685,
+          "mean": 0.3262,
+          "median": 0.3192,
+          "p10": 0.1132,
+          "p90": 0.5126,
+          "min": 0.0576,
+          "max": 0.5884
+        },
+        "risk_reduction_by_W": {
+          "0.1": 0.294,
+          "0.2": 0.3349,
+          "0.3": 0.3536
+        },
+        "cap_share_psps": 0.617
+      }
+    },
+    "methods_vs_rank_exposure": {
+      "group_conformal_random": {
+        "solved": {
+          "gain": {
+            "n": 685,
+            "mean": -0.257,
+            "median": -0.1488,
+            "p10": -0.6407,
+            "p90": 0.003,
+            "min": -1.3375,
+            "max": 0.1627
+          },
+          "better_share": 0.1051
+        },
+        "filled": {
+          "gain": {
+            "n": 685,
+            "mean": -0.1077,
+            "median": -0.0397,
+            "p10": -0.3274,
+            "p90": 0.0239,
+            "min": -1.0326,
+            "max": 0.1627
+          },
+          "better_share": 0.1591
+        }
+      },
+      "group_conformal_fixed": {
+        "solved": {
+          "gain": {
+            "n": 685,
+            "mean": -0.2482,
+            "median": -0.1526,
+            "p10": -0.6095,
+            "p90": -0.0275,
+            "min": -1.3633,
+            "max": 0.173
+          },
+          "better_share": 0.0453
+        },
+        "filled": {
+          "gain": {
+            "n": 685,
+            "mean": -0.1247,
+            "median": -0.0609,
+            "p10": -0.3778,
+            "p90": 0.0046,
+            "min": -0.8653,
+            "max": 0.173
+          },
+          "better_share": 0.1431
+        }
+      },
+      "group_conformal_oracle": {
+        "solved": {
+          "gain": {
+            "n": 685,
+            "mean": -0.2956,
+            "median": -0.2198,
+            "p10": -0.7148,
+            "p90": -0.0255,
+            "min": -1.3483,
+            "max": 0.3422
+          },
+          "better_share": 0.0701
+        },
+        "filled": {
+          "gain": {
+            "n": 685,
+            "mean": -0.1756,
+            "median": -0.0563,
+            "p10": -0.5374,
+            "p90": 0.0096,
+            "min": -1.3483,
+            "max": 0.3422
+          },
+          "better_share": 0.1212
+        }
+      },
+      "bonferroni": {
+        "solved": {
+          "gain": {
+            "n": 685,
+            "mean": -0.772,
+            "median": -0.6692,
+            "p10": -1.4202,
+            "p90": -0.2406,
+            "min": -2.0035,
+            "max": 0.057
+          },
+          "better_share": 0.0015
+        },
+        "filled": {
+          "gain": {
+            "n": 685,
+            "mean": -0.2548,
+            "median": -0.1034,
+            "p10": -0.8117,
+            "p90": 0.0064,
+            "min": -1.8963,
+            "max": 0.0635
+          },
+          "better_share": 0.1416
+        }
+      },
+      "maxrank": {
+        "solved": {
+          "gain": {
+            "n": 685,
+            "mean": -0.8177,
+            "median": -0.7133,
+            "p10": -1.5722,
+            "p90": -0.2413,
+            "min": -2.4359,
+            "max": 0.0674
+          },
+          "better_share": 0.0088
+        },
+        "filled": {
+          "gain": {
+            "n": 685,
+            "mean": -0.2653,
+            "median": -0.1358,
+            "p10": -0.7456,
+            "p90": 0.0009,
+            "min": -2.2345,
+            "max": 0.0893
+          },
+          "better_share": 0.1182
+        }
+      },
+      "ci": {
+        "solved": {
+          "gain": {
+            "n": 685,
+            "mean": -0.8075,
+            "median": -0.7096,
+            "p10": -1.5725,
+            "p90": -0.2908,
+            "min": -2.3602,
+            "max": -0.0128
+          },
+          "better_share": 0.0
+        },
+        "filled": {
+          "gain": {
+            "n": 685,
+            "mean": -0.2793,
+            "median": -0.126,
+            "p10": -0.7703,
+            "p90": 0.0059,
+            "min": -2.0502,
+            "max": 0.1336
+          },
+          "better_share": 0.1212
+        }
+      },
+      "co_optimized": {
+        "solved": {
+          "gain": {
+            "n": 685,
+            "mean": -0.8079,
+            "median": -0.7553,
+            "p10": -1.5482,
+            "p90": -0.2516,
+            "min": -2.4751,
+            "max": 0.035
+          },
+          "better_share": 0.0015
+        },
+        "filled": {
+          "gain": {
+            "n": 685,
+            "mean": -0.2839,
+            "median": -0.1183,
+            "p10": -0.8515,
+            "p90": -0.0073,
+            "min": -2.2219,
+            "max": 0.035
+          },
+          "better_share": 0.0847
+        }
+      },
+      "planning_only": {
+        "solved": {
+          "gain": {
+            "n": 685,
+            "mean": -0.7948,
+            "median": -0.7633,
+            "p10": -1.3632,
+            "p90": -0.2961,
+            "min": -2.4336,
+            "max": -0.1008
+          },
+          "better_share": 0.0
+        },
+        "filled": {
+          "gain": {
+            "n": 685,
+            "mean": -0.7948,
+            "median": -0.7633,
+            "p10": -1.3632,
+            "p90": -0.2961,
+            "min": -2.4336,
+            "max": -0.1008
+          },
+          "better_share": 0.0
+        }
+      }
+    }
+  },
+  "fast_trip_threshold": {
+    "note": "One fast-trip setting removes ``E`` of a circuit's exposure for ``G`` units of     SAIFI; one PSPS shutoff removes all of it for ``delta`` units, but only where     and when it is used. The ratio ``E / (G / delta)`` is fast-trip's exposure     removed per unit of reliability relative to a shutoff.",
+    "methods": {
+      "group_conformal_random": [
+        {
+          "E": 0.6,
+          "G": 0.8,
+          "ratio": 0.75,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.6,
+          "G": 0.9,
+          "ratio": 0.667,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.6,
+          "G": 0.95,
+          "ratio": 0.632,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.7,
+          "G": 0.8,
+          "ratio": 0.875,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.7,
+          "G": 0.9,
+          "ratio": 0.778,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.7,
+          "G": 0.95,
+          "ratio": 0.737,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.8,
+          "G": 0.8,
+          "ratio": 1.0,
+          "mean_fast_trip": 0.68,
+          "share_of_runs_using": 0.56
+        },
+        {
+          "E": 0.8,
+          "G": 0.9,
+          "ratio": 0.889,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.8,
+          "G": 0.95,
+          "ratio": 0.842,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.9,
+          "G": 0.8,
+          "ratio": 1.125,
+          "mean_fast_trip": 21.04,
+          "share_of_runs_using": 1.0
+        },
+        {
+          "E": 0.9,
+          "G": 0.9,
+          "ratio": 1.0,
+          "mean_fast_trip": 0.73,
+          "share_of_runs_using": 0.543
+        },
+        {
+          "E": 0.9,
+          "G": 0.95,
+          "ratio": 0.947,
+          "mean_fast_trip": 0.01,
+          "share_of_runs_using": 0.014
+        }
+      ],
+      "co_optimized": [
+        {
+          "E": 0.6,
+          "G": 0.8,
+          "ratio": 0.75,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.6,
+          "G": 0.9,
+          "ratio": 0.667,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.6,
+          "G": 0.95,
+          "ratio": 0.632,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.7,
+          "G": 0.8,
+          "ratio": 0.875,
+          "mean_fast_trip": 0.47,
+          "share_of_runs_using": 0.373
+        },
+        {
+          "E": 0.7,
+          "G": 0.9,
+          "ratio": 0.778,
+          "mean_fast_trip": 0.19,
+          "share_of_runs_using": 0.186
+        },
+        {
+          "E": 0.7,
+          "G": 0.95,
+          "ratio": 0.737,
+          "mean_fast_trip": 0.16,
+          "share_of_runs_using": 0.157
+        },
+        {
+          "E": 0.8,
+          "G": 0.8,
+          "ratio": 1.0,
+          "mean_fast_trip": 2.67,
+          "share_of_runs_using": 0.867
+        },
+        {
+          "E": 0.8,
+          "G": 0.9,
+          "ratio": 0.889,
+          "mean_fast_trip": 0.44,
+          "share_of_runs_using": 0.357
+        },
+        {
+          "E": 0.8,
+          "G": 0.95,
+          "ratio": 0.842,
+          "mean_fast_trip": 0.3,
+          "share_of_runs_using": 0.3
+        },
+        {
+          "E": 0.9,
+          "G": 0.8,
+          "ratio": 1.125,
+          "mean_fast_trip": 137.41,
+          "share_of_runs_using": 1.0
+        },
+        {
+          "E": 0.9,
+          "G": 0.9,
+          "ratio": 1.0,
+          "mean_fast_trip": 3.14,
+          "share_of_runs_using": 0.971
+        },
+        {
+          "E": 0.9,
+          "G": 0.95,
+          "ratio": 0.947,
+          "mean_fast_trip": 0.61,
+          "share_of_runs_using": 0.529
+        }
+      ],
+      "bonferroni": [
+        {
+          "E": 0.6,
+          "G": 0.8,
+          "ratio": 0.75,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.6,
+          "G": 0.9,
+          "ratio": 0.667,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.6,
+          "G": 0.95,
+          "ratio": 0.632,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.7,
+          "G": 0.8,
+          "ratio": 0.875,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.7,
+          "G": 0.9,
+          "ratio": 0.778,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.7,
+          "G": 0.95,
+          "ratio": 0.737,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.8,
+          "G": 0.8,
+          "ratio": 1.0,
+          "mean_fast_trip": 2.27,
+          "share_of_runs_using": 0.827
+        },
+        {
+          "E": 0.8,
+          "G": 0.9,
+          "ratio": 0.889,
+          "mean_fast_trip": 0.09,
+          "share_of_runs_using": 0.086
+        },
+        {
+          "E": 0.8,
+          "G": 0.95,
+          "ratio": 0.842,
+          "mean_fast_trip": 0.0,
+          "share_of_runs_using": 0.0
+        },
+        {
+          "E": 0.9,
+          "G": 0.8,
+          "ratio": 1.125,
+          "mean_fast_trip": 134.64,
+          "share_of_runs_using": 1.0
+        },
+        {
+          "E": 0.9,
+          "G": 0.9,
+          "ratio": 1.0,
+          "mean_fast_trip": 2.26,
+          "share_of_runs_using": 0.886
+        },
+        {
+          "E": 0.9,
+          "G": 0.95,
+          "ratio": 0.947,
+          "mean_fast_trip": 0.11,
+          "share_of_runs_using": 0.114
+        }
+      ]
+    }
+  },
+  "reference_setup": {
+    "setup_id": "C30-B20-W20-E80-G90",
+    "parameters": {
+      "C": 0.3,
+      "B": 0.2,
+      "W": 0.2,
+      "E": 0.8,
+      "G": 0.9
+    },
+    "methods": {
+      "group_conformal_random": {
+        "risk_reduction_mean": 0.4831,
+        "risk_reduction_by_replication": [
+          0.5121,
+          0.4579,
+          0.5036,
+          0.4582,
+          0.4839
+        ],
+        "sectionalized_mean": 183.2,
+        "fast_trip_mean": 0.0,
+        "cap_share_fast_trip_mean": 0.0,
+        "cap_share_psps_realized_mean": 0.776
+      },
+      "group_conformal_fixed": {
+        "risk_reduction_mean": 0.5165,
+        "risk_reduction_by_replication": [
+          0.4686,
+          0.5836,
+          0.4477,
+          0.6222,
+          0.4606
+        ],
+        "sectionalized_mean": 235.8,
+        "fast_trip_mean": 0.0,
+        "cap_share_fast_trip_mean": 0.0,
+        "cap_share_psps_realized_mean": 0.825
+      },
+      "group_conformal_oracle": {
+        "risk_reduction_mean": 0.497,
+        "risk_reduction_by_replication": [
+          0.452,
+          0.6378,
+          0.4003,
+          0.5438,
+          0.4512
+        ],
+        "sectionalized_mean": 225.2,
+        "fast_trip_mean": 0.0,
+        "cap_share_fast_trip_mean": 0.0,
+        "cap_share_psps_realized_mean": 0.809
+      },
+      "bonferroni": {
+        "risk_reduction_mean": 0.2319,
+        "risk_reduction_by_replication": [
+          0.0315,
+          0.4392,
+          0.1279,
+          0.2532,
+          0.3078
+        ],
+        "sectionalized_mean": 164.8,
+        "fast_trip_mean": 0.2,
+        "cap_share_fast_trip_mean": 0.0,
+        "cap_share_psps_realized_mean": 0.353
+      },
+      "maxrank": {
+        "risk_reduction_mean": 0.2241,
+        "risk_reduction_by_replication": [
+          0.0951,
+          0.5442,
+          0.0699,
+          0.0932,
+          0.318
+        ],
+        "sectionalized_mean": 141.0,
+        "fast_trip_mean": 0.0,
+        "cap_share_fast_trip_mean": 0.0,
+        "cap_share_psps_realized_mean": 0.377
+      },
+      "ci": {
+        "risk_reduction_mean": 0.2292,
+        "risk_reduction_by_replication": [
+          0.0968,
+          0.5427,
+          0.0766,
+          0.1132,
+          0.3168
+        ],
+        "sectionalized_mean": 151.0,
+        "fast_trip_mean": 0.2,
+        "cap_share_fast_trip_mean": 0.0,
+        "cap_share_psps_realized_mean": 0.372
+      },
+      "co_optimized": {
+        "risk_reduction_mean": 0.2212,
+        "risk_reduction_by_replication": [
+          0.2352,
+          0.3913,
+          0.0572,
+          0.0829,
+          0.3396
+        ],
+        "sectionalized_mean": 141.8,
+        "fast_trip_mean": 0.8,
+        "cap_share_fast_trip_mean": 0.0,
+        "cap_share_psps_realized_mean": 0.404
+      },
+      "planning_only": {
+        "risk_reduction_mean": 0.211,
+        "risk_reduction_by_replication": [
+          0.2349,
+          0.3744,
+          0.0523,
+          0.0993,
+          0.2939
+        ],
+        "sectionalized_mean": 240.0,
+        "fast_trip_mean": 160.0,
+        "cap_share_fast_trip_mean": 0.987,
+        "cap_share_psps_realized_mean": 0.012
+      }
+    }
+  }
+}
