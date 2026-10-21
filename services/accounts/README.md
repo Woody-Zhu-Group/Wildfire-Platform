@@ -1,7 +1,9 @@
 # Accounts access foundation
 
 This branch adds an independent FastAPI accounts service on loopback port 8005.
-The website is not connected to it, and the gateway has not been deployed.
+The website's accounts build (`npm run build:accounts`, `website/src/access/`)
+is its frontend, including the administrator console at `/admin`; neither it nor
+the gateway has been deployed, and the GitHub Pages site stays anonymous.
 Cognito handles passwords/MFA; application membership, invitations, approval,
 sessions and audit history live in PostgreSQL's `app` schema.
 Jev and the existing business services are unchanged.
@@ -91,10 +93,25 @@ already-started flows/sessions. Used/revoked/expired/wrong-email invites fail,
 and invitations cannot restore a suspended account. Pending applications resolved
 by invitation are audited.
 
-SES invitations/review notifications happen after core transactions commit.
-Mail failure does not roll back qualification; its failed delivery is recorded.
-Resend creates a new invitation token; `/notify` retries only the stored
-review recipient/public note. Secrets never enter audit metadata or API errors.
+## Notifications
+
+Notifications follow the observer pattern (`notify.py`). Routes publish an event
+after their transaction commits; observers subscribed at startup decide who hears
+about it and how. Today every observer sends SES mail:
+
+| Event | Published by | Observer |
+|---|---|---|
+| `AccessRequested` | `POST /api/access-requests`, after the response | Mails every active administrator: who asked, organization, intended use, a link to `/admin` |
+| `AccessReviewed` | A decision and `/notify` | Mails the applicant the result and the public note |
+| `InvitationIssued` | Creating and resending an invitation | Mails the invitee the link with the token |
+
+A failing observer never undoes the event or stops the other observers. Review
+and invitation mail record their delivery (`notification_status`,
+`delivery_status`) for the console; a failed administrator alert is logged by
+kind only, and the request still appears in the console. Resend creates a new
+invitation token; `/notify` retries only the stored review recipient/public
+note. Secrets never enter audit metadata, logs or API errors. A new channel is
+one more `subscribe` call in `build_notifier`.
 
 Public login/claim limits are process-local: 100 requests per five minutes per
 transport peer, with bounded key storage. Behind loopback proxying that peer is
@@ -104,7 +121,12 @@ limiter or a per-user paid-Agent quota.
 ## API
 
 Responses are private/no-store. Redirects use 302; payloads are JSON;
-logout/revoke/internal authorization use 204.
+logout/revoke/internal authorization use 204. `/auth/login` and `/auth/callback`
+are browser navigations, so they never answer with JSON: any failure (expired or
+replayed flow, the identity provider returning an error, a rejected identity,
+the flow limit, an unsupported return path, the database being unavailable)
+redirects to `/sign-in-error?code=<error code>`, which shows the code and asks
+the person to contact an administrator.
 
 | Method | Path | Access |
 |---|---|---|
@@ -122,19 +144,23 @@ logout/revoke/internal authorization use 204.
 | GET/POST | /api/admin/invitations | Active admin, CSRF for writes |
 | POST | /api/admin/invitations/{id}/resend | Active admin, CSRF |
 | POST | /api/admin/invitations/{id}/revoke | Active admin, CSRF |
-| GET | /api/admin/users | Active admin |
+| GET | /api/admin/users | Active admin; `status` and `q` (name or email, literal text) filters |
 | PATCH | /api/admin/users/{id} | Active admin, CSRF |
 | GET | /api/admin/audit-events | Active admin |
 | GET | /internal/auth/active | Loopback, trusted original method |
 
-Lists use limit 1..100 and UUID cursors in descending creation order.
+Lists use limit 1..100 and UUID cursors in descending creation order. Each row
+carries the people its ids point to: requests add `applicant_name`,
+`applicant_email`, `applicant_status` and `reviewer_email`; invitations add
+`invited_by_email` and `accepted_by_email`; audit events add `actor_email` and
+`target_email`. Invitation token hashes never leave the service.
 Errors have `{"error":{"code":"...","message":"..."}}` shape without submitted
 credentials. 401: bad session; 403: privilege/CSRF; 409: conflict; 410: unavailable
 invitation; 422: input; 429: flow limit. DB/provider faults fail closed.
 Health checks the DB, not the full deployment.
 
-No frontend, private-static-resource delivery, conversation memory, cloud
-workspace persistence or per-user Agent budget is added here.
+No private-static-resource delivery, conversation memory, cloud workspace
+persistence or per-user Agent budget is added here.
 
 ## Verification
 
@@ -165,6 +191,41 @@ Checks cover four service prefixes, original-method CSRF, denial before dispatch
 identity-header replacement, credential stripping, no-store and internal paths.
 Without an explicit harness URL these optional tests are skipped. Stop with
 SIGTERM and remove only the owned temporary directory.
+
+To rehearse the whole signed-in site, run the local staging harness on Linux
+(WSL works). It serves `website/dist/accounts` on https://localhost:8443 (a
+self-signed stand-in for CloudFront) and forwards `/auth/*` and `/api/*` to the
+real `deploy/nginx` gateway, which admits requests through this service on a
+throwaway PostgreSQL. A development sign-in page stands in for Cognito, mail is
+listed at `/dev-idp/mail`, the data APIs are read-only relays to the public
+services, and the agent is a stub that calls no model:
+
+```sh
+(cd website && npm run build:accounts)
+PYTHONPATH=<linux site-packages>:. python3 tests/accounts/staging_harness.py \
+  --nginx /path/to/nginx --postgres-bin /path/to/postgresql/16/bin \
+  --site website/dist/accounts --directory /tmp/TASK/staging
+ACCOUNTS_STAGING_URL=https://localhost:8443 pytest tests/accounts/test_staging_flow.py
+```
+
+Every response carries the CloudFront security headers from
+`deploy/cloudfront/security-headers.json`, and the browser test fails on any
+Content-Security-Policy violation. `--relay stub` answers the data APIs without
+the network (CI uses it); the default relays to the public services.
+
+The browser test needs Python Playwright with Chromium and a fresh harness. It
+walks sign-in, applying, review in the console, live data under the verified
+user id, Ask with and without CSRF, invitations for the right and wrong
+address, member changes, suspension, the audit history and sign-out. Without
+`ACCOUNTS_STAGING_URL` it is skipped.
+
+CI (`.github/workflows/accounts.yml`) runs on pull requests and pushes to `main`
+that touch the accounts service, its migrations, `deploy/nginx`,
+`deploy/cloudfront`, `tests/accounts` or `website`: ruff and these service tests
+on a PostgreSQL 16 container, the Nginx contract tests on the runner's Nginx, and
+the browser test against the staging harness with stub relays. It installs only
+`services/accounts/requirements.txt`, which `tests/accounts/test_requirements.py`
+keeps identical to the matching lines of the root `requirements.txt`.
 
 Local acceptance uses PostgreSQL 16.15 and Nginx 1.24.0 from maintained Ubuntu
 packages. Production provider/CDN/network acceptance remains required.

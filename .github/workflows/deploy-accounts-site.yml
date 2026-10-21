@@ -1,0 +1,72 @@
+# Builds the accounts version of the website and publishes it to the S3 bucket
+# behind the CloudFront distribution. Manual only. AWS access comes from a
+# GitHub OIDC role; no AWS keys are stored. Setup: deploy/cloudfront/README.md.
+name: Deploy accounts site
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: GitHub environment holding AWS_REGION, AWS_DEPLOY_ROLE_ARN, SITE_BUCKET and CLOUDFRONT_DISTRIBUTION_ID
+        type: environment
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-accounts-site-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    env:
+      SITE_BUCKET: ${{ vars.SITE_BUCKET }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+    steps:
+      - name: Production deploys only from main
+        if: inputs.environment == 'production' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Deploy production from main, not ${GITHUB_REF}."
+          exit 1
+      - name: Environment settings are present
+        run: |
+          for name in AWS_REGION AWS_DEPLOY_ROLE_ARN SITE_BUCKET CLOUDFRONT_DISTRIBUTION_ID; do
+            [ -n "${!name}" ] || { echo "::error::Set the variable $name on the ${{ inputs.environment }} environment."; exit 1; }
+          done
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+        working-directory: website
+      - run: npm test
+        working-directory: website
+      - run: npm run build:accounts
+        working-directory: website
+      - name: The CSP allows every inline script of the built page
+        run: node deploy/cloudfront/check-csp.mjs website/dist/accounts/index.html
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      # Hashed files first, then the page that names them, so no visitor gets a page
+      # whose files are missing. Old hashed files stay for pages still open elsewhere.
+      - name: Upload hashed files
+        run: aws s3 sync website/dist/accounts/assets "s3://$SITE_BUCKET/assets" --cache-control "public, max-age=31536000, immutable" --no-progress
+      - name: Upload the page
+        run: aws s3 cp website/dist/accounts/index.html "s3://$SITE_BUCKET/index.html" --cache-control "no-cache" --content-type "text/html; charset=utf-8" --no-progress
+      # The site-rewrite function maps every page path to /index.html before the cache.
+      - name: Invalidate the page
+        run: aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths /index.html --query Invalidation.Id --output text
+      - name: Summary
+        run: echo "Deployed ${GITHUB_SHA} to ${{ inputs.environment }} (s3://$SITE_BUCKET)." >> "$GITHUB_STEP_SUMMARY"

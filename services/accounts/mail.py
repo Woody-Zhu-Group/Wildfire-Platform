@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
-import boto3
 
 from services.accounts.config import Settings
 
@@ -20,6 +20,11 @@ class Mailer:
     def invite(self, email: str, raw: str) -> None:
         self.send(email, "Your Wildfire Platform invitation", "You have been invited to Wildfire Platform.\n\n"
                   + self.settings.public_origin + "/invite#token=" + raw)
+
+    def access_requested(self, email: str, event) -> None:
+        self.send(email, "New Wildfire Platform access request",
+                  f"{event.name} ({event.email}) from {event.organization} asked for access.\n\n"
+                  f"Intended use:\n{event.purpose}\n\nReview it in the console: {self.settings.public_origin}/admin")
 
     def review(self, email: str, status: str, note: str) -> None:
         self.send(email, "Your Wildfire Platform access request",

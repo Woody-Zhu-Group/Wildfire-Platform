@@ -1,0 +1,50 @@
+# Cutover only: replaces the anonymous GitHub Pages site with a page that sends
+# visitors to the signed-in origin. Requires the repository's Pages source to be
+# "GitHub Actions" (an administrator setting); until then the deploy step fails
+# and the current Pages site is untouched. See deploy/cloudfront/README.md.
+name: Pages redirect
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_origin:
+        description: The signed-in site's origin, for example https://wildfire.example.edu
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Only from main, only to an HTTPS origin
+        env:
+          TARGET: ${{ inputs.target_origin }}
+        run: |
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::Run from main."; exit 1; }
+          [[ "$TARGET" =~ ^https://[a-z0-9.-]+(:[0-9]+)?$ ]] || { echo "::error::Give an origin like https://wildfire.example.edu, without a path."; exit 1; }
+      - uses: actions/checkout@v4
+      - name: Fill in the origin
+        env:
+          TARGET: ${{ inputs.target_origin }}
+        run: |
+          mkdir -p _site
+          sed "s#__TARGET_ORIGIN__#${TARGET}#g" deploy/pages-redirect/index.html > _site/index.html
+          cp _site/index.html _site/404.html
+          ! grep -q __TARGET_ORIGIN__ _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

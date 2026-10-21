@@ -25,6 +25,7 @@ htmlcov/
 !.env.example
 !website/.env.development
 !website/.env.production
+!website/.env.accounts
 
 # OS
 .DS_Store

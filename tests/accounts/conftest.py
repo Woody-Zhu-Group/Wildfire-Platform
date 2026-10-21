@@ -7,9 +7,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import psycopg
-from psycopg.conninfo import make_conninfo
 import pytest
 from fastapi.testclient import TestClient
+from psycopg.conninfo import make_conninfo
 
 from services.accounts.app import create_app
 from services.accounts.cli import grant_runtime
@@ -65,6 +65,7 @@ class MailSink:
     def __init__(self):
         self.messages = []
         self.notifications = []
+        self.alerts = []
         self.fail = False
 
     def invite(self, email, raw):
@@ -76,6 +77,11 @@ class MailSink:
         if self.fail:
             raise MailUnavailable("test_failure")
         self.notifications.append((email, status, note))
+
+    def access_requested(self, email, event):
+        if self.fail:
+            raise MailUnavailable("test_failure")
+        self.alerts.append((email, event))
 
 
 @pytest.fixture
