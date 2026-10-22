@@ -26,8 +26,10 @@ Jev is a TypeSafe System One model. `off` and `shadow` do not change answers, to
 | `AGENT_JEV_SAMPLE_RATE` | `1.0` | Fraction of questions sent to Jev |
 | `AGENT_JEV_MAX_CONCURRENCY` | `4` | Extra calls are dropped and counted |
 | `AGENT_JEV_DAILY_CALL_CAP` | `5000` | Jev API calls per process per UTC day, not questions. One question makes three calls in decide mode and up to four in shadow mode. A question whose calls do not all fit sends none: shadow logs it as `dropped` with reason `daily_cap`, decide falls back to the router with `decision_source.why` = `jev_daily_cap` |
-| `AGENT_JEV_LOG_PATH` | `services/agent/logs/jev_shadow.jsonl` | Append-only JSONL. Each write holds a lock on `<path>.lock`, so several uvicorn workers may share one log |
+| `AGENT_JEV_LOG_PATH` | OS runtime directory, `logs/jev_shadow.jsonl` | Empty selects the default; use an absolute path to override. Writes hold `<path>.lock` across workers |
 | `AGENT_JEV_LOG_MAX_MB` | `50` | Rotate, keep 5 files |
+| `AGENT_JEV_LOG_RAW` | `false` | Explicitly capture prompts and raw replies for a controlled evaluation |
+| `AGENT_JEV_LOG_RETENTION_DAYS` | `7` | Expire active/rotated segments by their oldest logged timestamp |
 | `AGENT_JEV_ABLATION` | `v3_hybrid` | Question layout: `v2_full`, `v3_split`, `v3_single`, `v3_no_glossary`, `v3_policy_context`, or `v3_hybrid` |
 | `TYPESAFE_API_KEY` | unset | Read by the SDK for the `typesafe` backend. Required at startup when Jev is on with that backend. Never commit it |
 | `OPENROUTER_API_KEY` | unset | Required at startup when `AGENT_JEV_BACKEND=openrouter`. Never commit it |
@@ -54,7 +56,38 @@ Turning it on: set `AGENT_JEV_MODE=shadow`, provide the key, restart the agent. 
 
 ## Logs and reports
 
-Logs live at `AGENT_JEV_LOG_PATH` (gitignored). Each line is a `routing`, `tool_pick`, `outcome`, `dropped`, or `wiring_error` record from shadow mode, or a `tool_pick_decision` record from `tool_pick` and `tool_pick_template`. `routing` and `tool_pick` store the exact request payload and the unmodified raw response.
+Logs default outside the checkout, under `%LOCALAPPDATA%/Wildfire-Platform/logs`
+on Windows or `${XDG_STATE_HOME:-~/.local/state}/Wildfire-Platform/logs` on Unix.
+The former in-repo log directory remains ignored for old deployments. Each
+line is a routing/decision, tool-pick, outcome, dropped or wiring-error record.
+Default writes keep hashes, request IDs, routes, confidence, timing and error
+presence. They exclude question text, slots, prompt payloads, raw provider
+responses and arbitrary error messages. Stdout always uses metadata, including
+when raw file logging is enabled. Tool stdout omits arguments and geographic/time
+correction values while retaining correction event/field/rule metadata. Provider
+warnings record exception types.
+
+Only `AGENT_JEV_LOG_RAW=true` records exact question/payload/response content.
+It still redacts both backend keys and follows the same seven-day retention
+and 50 MB segment rotation (active file plus at most five backups). Expiration
+runs under the process lock at construction, read and write; a segment whose
+oldest record exceeds the retention is discarded, even if it has recent rows.
+On an idle/stopped service no code runs, so use the deployment cleanup below
+for an independent idle retention bound. Log timestamps are UTC.
+
+Detailed replay, calibration and disagreement examples require an explicit
+raw evaluation capture. Metadata logs cannot reconstruct the original query.
+This policy does not add cross-query chat memory. Evaluation archives have a
+separate lifecycle described in [the eval guide](../services/agent/eval/README.md).
+
+For systemd deployment, choose `/var/log/wildfire-agent/jev_shadow.jsonl` as
+`AGENT_JEV_LOG_PATH`, writable by the service user. Set `RuntimeMaxUse` and
+`MaxRetentionSec` in the host's journald policy as appropriate; application
+stdout cannot control journal retention. A `tmpfiles.d` entry such as
+`e /var/log/wildfire-agent - - - 7d` expires idle files via the standard daily
+cleanup timer. Apply those host settings during deployment; this PR does not
+change the running host. Existing stdout/journal records are not retroactively
+erased by changing application logging.
 
 ```bash
 python -m services.agent.eval.jev_offline_eval --dry-run --limit 5

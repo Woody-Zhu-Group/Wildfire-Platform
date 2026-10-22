@@ -418,3 +418,25 @@ def uncovered_entities(
             if key not in covered[kind]:
                 missing.append(f"{kind}:{value}")
     return missing
+
+
+def _period_arguments(tool: str, args: dict[str, Any]) -> list[dict[str, Any]]:
+    if tool == "comparison_run" and args.get("kind") == "periods":
+        return [{"start_date": args.get(f"{prefix}_start"), "end_date": args.get(f"{prefix}_end")}
+                for prefix in ("period_a", "period_b")]
+    return [args]
+
+
+def uncovered_periods(
+    periods: frozenset[tuple[str, str]], calls: list[tuple[str, dict[str, Any]]],
+) -> list[str]:
+    """A comparison needs separate period values, not one encompassing total."""
+    covered: set[tuple[str, str]] = set()
+    for tool, args in calls:
+        for period_args in _period_arguments(tool, args):
+            window = call_window(period_args)
+            if window:
+                covered.add(window)
+                if tool == "visualization_create" and args.get("kind") == "time_series":
+                    covered.update(period for period in periods if window[0] <= period[0] and window[1] >= period[1])
+    return [f"period:{start}/{end}" for start, end in sorted(periods - covered)]

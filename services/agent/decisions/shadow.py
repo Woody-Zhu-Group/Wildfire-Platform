@@ -85,6 +85,8 @@ class ShadowRunner:
         self.log = log or ShadowLog(
             settings.jev_log_path,
             max_bytes=int(settings.jev_log_max_mb * 1024 * 1024),
+            raw=settings.jev_log_raw,
+            retention_days=settings.jev_log_retention_days,
         )
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         workers = max(1, int(settings.jev_max_concurrency))
@@ -541,7 +543,7 @@ class ShadowRunner:
                 ),
             )
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Jev backend raised %s: %s", type(exc).__name__, exc)
+            logger.warning("Jev backend raised %s", type(exc).__name__)
             return DecisionResult(
                 answers={},
                 model_version=None,
@@ -653,7 +655,7 @@ class ShadowRunner:
         try:
             self.log.write(record)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Jev shadow log write failed: %s: %s", type(exc).__name__, exc)
+            logger.warning("Jev shadow log write failed: %s", type(exc).__name__)
 
 
 def _payload(

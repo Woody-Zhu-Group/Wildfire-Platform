@@ -191,15 +191,11 @@ def test_executor_holds_model_range_and_logs_the_correction(capsys):
     ]
     corrections = [e for e in events if e.get("event") == "harness_time_correction"]
     assert len(corrections) == 1
-    assert corrections[0]["requested"] == {"year": 2023}
+    assert corrections[0]["rule"] == "hold_resolved_window"
+    assert "requested" not in corrections[0] and "applied" not in corrections[0]
     attempts = [e for e in events if e.get("event") == "tool_attempt"]
-    logged = attempts[-1]["time_corrections"]
-    assert len(logged) == 1
-    assert logged[0]["requested"] == {"year": 2023}
-    assert logged[0]["applied"] == {
-        "start_date": "2021-01-01",
-        "end_date": "2025-12-31",
-    }
+    assert "time_corrections" not in attempts[-1]
+    assert "arguments" not in attempts[-1] and "requested_arguments" not in attempts[-1]
 
 
 def test_executor_leaves_router_calls_alone(capsys):

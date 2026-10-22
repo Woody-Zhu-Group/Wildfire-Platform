@@ -9,7 +9,7 @@ source:
             mode a topic keyword rule, routing.TOPIC_JUDGMENT_RULES); rule is its id
   jev       decide mode applied Jev's disposition; disposition and confidence
   router    the router's decision stands; why says why Jev did not decide
-mode: the AGENT_JEV_MODE in force (off, shadow, tool_pick, tool_pick_template, decide).
+mode: the AGENT_JEV_MODE in force (off, shadow, tool_pick, tool_pick_template, decide, v4).
 """
 
 from __future__ import annotations
@@ -66,6 +66,8 @@ def decision_source(
         return {"source": "backstop", "rule": router_rule, "mode": mode}
     if decide is not None:
         if decide.get("winner") == "jev":
+            if path == "error":
+                return {"source": "jev", "why": "jev_error", "mode": mode}
             return {
                 "source": "jev",
                 "disposition": ROUTER_DISPOSITION.get(path, "answer"),
@@ -78,7 +80,7 @@ def decision_source(
             out["jev_disposition"] = decide.get("jev_disposition")
             out["jev_confidence"] = _confidence(decide.get("jev_confidence"))
         return out
-    if mode == "decide":
+    if mode in {"decide", "v4"}:
         # Decide mode skipped this request (forced-model evaluation).
         return {"source": "router", "why": "jev_skipped", "mode": mode}
     return {"source": "router", "why": _MODE_WHY.get(mode, "jev_off"), "mode": mode}
