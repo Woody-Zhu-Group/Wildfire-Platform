@@ -1,6 +1,11 @@
-"""Invitation delivery, with no credentials or invitation token in logs."""
+"""Account mail through SES or SMTP, with no credentials or invitation token in logs."""
 
 from __future__ import annotations
+
+import smtplib
+import ssl
+from contextlib import suppress
+from email.message import EmailMessage
 
 import boto3
 from botocore.config import Config
@@ -33,6 +38,40 @@ class Mailer:
     def send(self, email: str, subject: str, content: str) -> None:
         if not self.settings.mail_from:
             raise MailUnavailable("mail_not_configured")
+        if self.settings.mail_transport == "smtp":
+            self.send_smtp(email, subject, content)
+        else:
+            self.send_ses(email, subject, content)
+
+    def send_smtp(self, email: str, subject: str, content: str) -> None:
+        """Encrypted SMTP only: implicit TLS on port 465, otherwise STARTTLS or nothing is sent."""
+        settings = self.settings
+        context = ssl.create_default_context()
+        server = None
+        try:
+            message = EmailMessage()
+            message["From"] = settings.mail_from
+            message["To"] = email
+            message["Subject"] = subject
+            message.set_content(content)
+            if settings.smtp_port == 465:
+                server = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10, context=context)
+            else:
+                server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10)
+                server.starttls(context=context)
+            if settings.smtp_username:
+                server.login(settings.smtp_username, settings.smtp_password)
+            server.send_message(message)
+        except (smtplib.SMTPException, OSError, ValueError) as exc:
+            raise MailUnavailable("mail_delivery_failed") from exc
+        finally:
+            if server is not None:
+                # A failed goodbye must not turn an accepted message into a reported failure.
+                with suppress(smtplib.SMTPException, OSError):
+                    server.quit()
+                server.close()
+
+    def send_ses(self, email: str, subject: str, content: str) -> None:
         try:
             client = boto3.client(
                 "sesv2", region_name=self.settings.aws_region,
