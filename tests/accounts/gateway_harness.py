@@ -13,7 +13,7 @@ import signal
 import ssl
 import subprocess
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Event, Thread
@@ -86,7 +86,7 @@ def relay_certificates(root: Path) -> ssl.SSLContext:
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     def name(text: str) -> x509.Name:
         return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, text)])

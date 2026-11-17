@@ -70,13 +70,13 @@ def test_relay_upstream_verifies_tls_and_keeps_account_data_home():
 def test_relay_targets_the_api_origin_the_public_website_uses():
     relay_host = re.search(r"default ([a-z0-9.-]+);", read("accounts-relay.conf")).group(1)
     production = (ROOT / "website/.env.production").read_text(encoding="utf-8")
-    hosts = {urlsplit(url).hostname for url in re.findall(r"^VITE_\w+_URL=(\S+)$", production, re.M)}
+    hosts = {urlsplit(url).hostname for url in re.findall(r"^VITE_\w+_URL=(\S+)$", production, re.MULTILINE)}
     assert hosts == {relay_host}
 
 
 def test_accounts_build_calls_only_protected_prefixes():
     build = (ROOT / "website/.env.accounts").read_text(encoding="utf-8")
-    paths = set(re.findall(r"^VITE_\w+_URL=(\S+)$", build, re.M))
+    paths = set(re.findall(r"^VITE_\w+_URL=(\S+)$", build, re.MULTILINE))
     assert paths == set(protected_routes().values())
 
 

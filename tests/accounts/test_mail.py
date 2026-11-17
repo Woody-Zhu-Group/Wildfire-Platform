@@ -3,6 +3,7 @@
 import os
 import smtplib
 import ssl
+from typing import ClassVar
 
 import pytest
 
@@ -19,8 +20,8 @@ BASE = {
 
 
 class FakeSMTP:
-    calls: list = []
-    sent: list = []
+    calls: ClassVar[list] = []
+    sent: ClassVar[list] = []
     fail_on: str | None = None
     tls_offered = True
 
