@@ -65,7 +65,7 @@ jobs:
       - name: Service tests (real PostgreSQL)
         env:
           ACCOUNTS_TEST_DATABASE_URL: postgresql://postgres@localhost:5432/accounts_test_ci
-        run: pytest tests/accounts/test_accounts.py tests/accounts/test_identity.py tests/accounts/test_requirements.py -q
+        run: pytest tests/accounts/test_accounts.py tests/accounts/test_identity.py tests/accounts/test_mail.py tests/accounts/test_nginx_templates.py tests/accounts/test_requirements.py -q
 
   gateway:
     name: Nginx gateway contract
@@ -94,6 +94,18 @@ jobs:
         run: |
           [ -n "${HARNESS:-}" ] && kill -TERM "$HARNESS" 2>/dev/null && wait "$HARNESS" 2>/dev/null || true
           cat "$RUNNER_TEMP/gateway.log" 2>/dev/null || true
+      # Sign-in-only deployment: the same contract, then the relay to the API origin over verified TLS.
+      - name: Contract and relay tests through accounts-relay.conf
+        run: |
+          python tests/accounts/gateway_harness.py --relay --nginx "$(command -v nginx)" --directory "$RUNNER_TEMP/gateway-relay" > "$RUNNER_TEMP/gateway-relay.log" 2>&1 &
+          echo "RELAY_HARNESS=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:18080/ && break; sleep 1; done
+          ACCOUNTS_GATEWAY_TEST_URL=http://127.0.0.1:18080 ACCOUNTS_GATEWAY_RELAY=1 pytest tests/accounts/test_gateway.py -q
+      - name: Stop the relay harness
+        if: always()
+        run: |
+          [ -n "${RELAY_HARNESS:-}" ] && kill -TERM "$RELAY_HARNESS" 2>/dev/null && wait "$RELAY_HARNESS" 2>/dev/null || true
+          cat "$RUNNER_TEMP/gateway-relay.log" "$RUNNER_TEMP/gateway-relay/relay.log" 2>/dev/null || true
 
   staging-flow:
     name: Signed-in website in a browser
