@@ -6,6 +6,8 @@ enable commands. Configure the dedicated account settings, run migrations and
 runtime grants, and verify provider/frontend/gateway integration before enabling
 them. The timer deletes only expired flows and old invalid sessions, preserving
 user, application and audit history. See [accounts](../../services/accounts/README.md).
+A sign-in-only server outside AWS installs only these two accounts units
+([`deploy/SIGN_IN_ONLY.md`](../SIGN_IN_ONLY.md)).
 
 Install these on the backend instance (`ubuntu@`, repo at
 `/home/ubuntu/Wildfire-Services`). The agent's model tier is OpenRouter; there

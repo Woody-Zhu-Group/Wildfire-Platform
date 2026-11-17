@@ -4,9 +4,16 @@ This branch adds an independent FastAPI accounts service on loopback port 8005.
 The website's accounts build (`npm run build:accounts`, `website/src/access/`)
 is its frontend, including the administrator console at `/admin`; neither it nor
 the gateway has been deployed, and the GitHub Pages site stays anonymous.
-Cognito handles passwords/MFA; application membership, invitations, approval,
+An OpenID Connect provider handles passwords/MFA: Cognito in the AWS layout, or
+any standard provider; application membership, invitations, approval,
 sessions and audit history live in PostgreSQL's `app` schema.
 Jev and the existing business services are unchanged.
+
+Two layouts use it. The AWS layout puts the gateway in front of the business
+services on the backend host (`deploy/nginx/ACCOUNTS_GATEWAY.md`,
+`deploy/cloudfront/README.md`). The sign-in-only layout runs the site, this
+service and the gateway on one server outside AWS and relays admitted requests
+to the public API origin, which stays open (`deploy/SIGN_IN_ONLY.md`).
 
 ## Provisioning
 
@@ -29,7 +36,33 @@ expired sessions/flows may also be deleted. Audit permits only SELECT/INSERT.
 Warehouse loaders must not receive app privileges; migrations do not touch
 warehouse schemas or tables.
 
-Initial administrators first sign in with verified Cognito identities, becoming
+Sign-in settings: `ACCOUNTS_OIDC_ISSUER` exactly as the provider publishes it
+(a trailing `/` included), `ACCOUNTS_OIDC_CLIENT_ID` and, for a confidential
+client, `ACCOUNTS_OIDC_CLIENT_SECRET` (sent with HTTP Basic). For Cognito, set
+`ACCOUNTS_OIDC_DOMAIN` to the hosted UI domain; its `/oauth2/authorize` and
+`/oauth2/token` and the issuer's `/.well-known/jwks.json` are the endpoints. For
+another provider, leave the domain empty and copy `ACCOUNTS_OIDC_AUTHORIZATION_URL`,
+`ACCOUNTS_OIDC_TOKEN_URL` and `ACCOUNTS_OIDC_JWKS_URL` from its discovery
+document. Every endpoint must be HTTPS. Check them against the provider with:
+
+```sh
+python -m services.accounts.cli check-oidc
+```
+
+It reads `<issuer>/.well-known/openid-configuration` and fails on any mismatch,
+on a provider without RS256 ID tokens or PKCE S256, and, with a client secret,
+on one that does not accept HTTP Basic client authentication.
+
+Mail settings: `ACCOUNTS_MAIL_FROM` and `ACCOUNTS_MAIL_TRANSPORT`, either `ses`
+(the default; `AWS_REGION` and the host's AWS role) or `smtp` with
+`ACCOUNTS_SMTP_HOST`, `ACCOUNTS_SMTP_PORT` (587 by default) and, when the
+service needs them, both `ACCOUNTS_SMTP_USERNAME` and `ACCOUNTS_SMTP_PASSWORD`.
+SMTP is always encrypted: implicit TLS on port 465, STARTTLS on any other port,
+with the server certificate verified; a server without STARTTLS gets neither
+credentials nor mail. Without `ACCOUNTS_MAIL_FROM` no mail is sent and the
+console shows the delivery as failed.
+
+Initial administrators first sign in with verified identities, becoming
 pending members. A trusted operator selects each verified user UUID:
 
 ```sh
@@ -40,17 +73,20 @@ Bootstrap is audited. There is no public bootstrap API, first-user admin rule,
 email-domain admin rule or production test-login flag. Later administrator
 assignment uses the authenticated management API after membership approval.
 
-Configure the Cognito pool/federation policy to enforce MFA. JWT signature
-verification is not an MFA-policy check. Real Cognito, MFA, mail and HTTPS/CDN
-acceptance require configuration; local tests do not establish those conditions.
+Configure the identity provider (for Cognito, the pool/federation policy) to
+enforce MFA. JWT signature verification is not an MFA-policy check. Real
+provider, MFA, mail and HTTPS/CDN acceptance require configuration; local tests
+do not establish those conditions.
 
 ## Identity and session
 
 Login issues a short-lived encrypted transaction and uses authorization code,
 PKCE S256, state and nonce. Callback consumes it only when its browser cookie
 matches, exchanges the code, and validates RS256 ID-token signatures against the
-configured issuer's JWKS. Issuer, audience, expiry, issued-at, nonce, subject,
-`token_use=id` and a boolean verified-email claim are required.
+configured JWKS (for Cognito, the issuer's). The exact issuer, audience, expiry,
+issued-at, nonce, subject and a boolean verified-email claim are required;
+`token_use` must be `id` when present (Cognito sets it, so a Cognito access
+token is refused; other providers leave it out).
 Identity tokens cannot supply application roles.
 
 Identity is keyed by issuer + subject. Email matches do not automatically merge
@@ -97,7 +133,8 @@ by invitation are audited.
 
 Notifications follow the observer pattern (`notify.py`). Routes publish an event
 after their transaction commits; observers subscribed at startup decide who hears
-about it and how. Today every observer sends SES mail:
+about it and how. Today every observer sends mail, through SES or SMTP
+(`ACCOUNTS_MAIL_TRANSPORT`, Provisioning):
 
 | Event | Published by | Observer |
 |---|---|---|
@@ -169,9 +206,17 @@ Set `ACCOUNTS_TEST_DATABASE_URL` to a dedicated loopback database named
 reset its app data. Do not point this command at real users:
 
 ```sh
-pytest tests/accounts/test_accounts.py tests/accounts/test_identity.py
+pytest tests/accounts/test_accounts.py tests/accounts/test_identity.py tests/accounts/test_mail.py tests/accounts/test_nginx_templates.py
 ruff check services/accounts tests/accounts
 ```
+
+`test_identity.py`, `test_mail.py` and `test_nginx_templates.py` need no
+database: identity covers Cognito and a standard provider (configured
+endpoints, an issuer ending in `/`, no `token_use`) and the `check-oidc`
+comparison; mail covers SMTP against a fake client (STARTTLS before any
+credentials, certificate verification, port 465, stable failure codes); the
+template tests keep the gateway, the relay, the single-host site and the
+website's API paths naming the same ports and prefixes.
 
 Tests use real PostgreSQL and RSA signatures, with mocked OIDC HTTP/mail.
 No paid Agent/Jev calls run. Cases include concurrent review, last-admin races,
@@ -192,6 +237,15 @@ identity-header replacement, credential stripping, no-store and internal paths.
 Without an explicit harness URL these optional tests are skipped. Stop with
 SIGTERM and remove only the owned temporary directory.
 
+`--relay` puts `deploy/nginx/accounts-relay.conf` (the sign-in-only layout)
+between the gateway and the stub, which then answers over HTTPS with a
+certificate from a throwaway CA that only the harness trusts. Run the same
+tests with `ACCOUNTS_GATEWAY_RELAY=1` to add the relay checks: each prefix
+reaches its public `/api/...` path with the API host name, no cookie,
+authorization or CSRF token leaves the host, upstream cookies are dropped, and
+agent events stream through without buffering. It also uses loopback
+18100-18104 and 18443.
+
 To rehearse the whole signed-in site, run the local staging harness on Linux
 (WSL works). It serves `website/dist/accounts` on https://localhost:8443 (a
 self-signed stand-in for CloudFront) and forwards `/auth/*` and `/api/*` to the
@@ -208,8 +262,10 @@ PYTHONPATH=<linux site-packages>:. python3 tests/accounts/staging_harness.py \
 ACCOUNTS_STAGING_URL=https://localhost:8443 pytest tests/accounts/test_staging_flow.py
 ```
 
-Every response carries the CloudFront security headers from
-`deploy/cloudfront/security-headers.json`, and the browser test fails on any
+The HTTPS server is `deploy/nginx/accounts-site.conf`, the single-host
+layout's own template, and every response carries the CloudFront security
+headers from `deploy/cloudfront/security-headers.json` (written as Nginx lines
+by `deploy/nginx/security_headers.py`), and the browser test fails on any
 Content-Security-Policy violation. `--relay stub` answers the data APIs without
 the network (CI uses it); the default relays to the public services.
 
@@ -222,8 +278,9 @@ address, member changes, suspension, the audit history and sign-out. Without
 CI (`.github/workflows/accounts.yml`) runs on pull requests and pushes to `main`
 that touch the accounts service, its migrations, `deploy/nginx`,
 `deploy/cloudfront`, `tests/accounts` or `website`: ruff and these service tests
-on a PostgreSQL 16 container, the Nginx contract tests on the runner's Nginx, and
-the browser test against the staging harness with stub relays. It installs only
+on a PostgreSQL 16 container, the Nginx contract tests on the runner's Nginx
+(directly, then again through the relay with `--relay`), and the browser test
+against the staging harness with stub relays. It installs only
 `services/accounts/requirements.txt`, which `tests/accounts/test_requirements.py`
 keeps identical to the matching lines of the root `requirements.txt`.
 

@@ -22,6 +22,13 @@ headers and the manual deploy and Pages-redirect workflows are in
 `deploy/cloudfront/README.md`; none of it is applied.
 Regenerate the Try it snapshot with `node scripts/access-snapshot.ts` in
 `website/` after a warehouse reload.
+A second, sign-in-only layout runs the site, the accounts service and the
+gateway on one server outside AWS and relays admitted requests to the public
+API origin, which stays open (`deploy/SIGN_IN_ONLY.md`, `deploy/nginx/accounts-relay*.conf`,
+`accounts-site*.conf`); it is not applied anywhere. Sign-in works with Cognito or
+any OpenID Connect provider (`ACCOUNTS_OIDC_*`, checked by
+`python -m services.accounts.cli check-oidc`), and mail goes through SES or SMTP
+(`ACCOUNTS_MAIL_TRANSPORT`).
 
 - Never use em dashes in code comments, docs, commit messages, or reports.
 - Push only to the `platform` remote (Woody-Zhu-Group/Wildfire-Platform). `origin` is Michael's old fork (ByteMasterMike/Wildfire-Services); nothing should live only there.
