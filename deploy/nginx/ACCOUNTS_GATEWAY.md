@@ -3,6 +3,14 @@
 These are staged templates, not the live origin configuration.
 Do not enable them while the website uses anonymous cross-origin API calls.
 
+This page is the AWS layout: the gateway in front of the business services on
+the backend host. The sign-in-only layout runs the same gateway on a separate
+server and relays admitted requests to the public API origin
+(`accounts-relay.conf`, `accounts-relay-upstream.conf`, `accounts-site.conf`,
+`accounts-site-http.conf`, `security_headers.py`); its steps are in
+`deploy/SIGN_IN_ONLY.md`. Do not install the relay files on the backend host:
+their servers take the business service ports.
+
 First configure real Cognito/MFA, verified initial administrator IDs, SES and the
 restricted accounts DB role. Serve the website's accounts build
 (`npm run build:accounts`: landing, sign-in dialog, status, invitation and

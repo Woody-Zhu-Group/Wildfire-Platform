@@ -4,7 +4,9 @@ This branch also contains an invitation/approval accounts foundation and the
 website's accounts build that uses it; neither is deployed, and the GitHub Pages
 site stays anonymous. See the [accounts service](services/accounts/README.md),
 [gateway rollout](deploy/nginx/ACCOUNTS_GATEWAY.md) and
-[CloudFront origin and deploy](deploy/cloudfront/README.md) before enabling routing.
+[CloudFront origin and deploy](deploy/cloudfront/README.md) before enabling routing,
+or the [sign-in-only deployment](deploy/SIGN_IN_ONLY.md) on one server outside
+AWS, which leaves the public API origin open.
 
 A wildfire research platform combining an interactive analysis website, a PostGIS event warehouse, modular FastAPI services, and a historical **cNHPP** (convolutional non-homogeneous Poisson process) ignition-risk model. The website supports recorded fire and outage exploration, weather playback, modeled risk and residual maps, regional and seasonal analysis, and result exports.
 
@@ -444,5 +446,5 @@ Historical dates only for years with local covariate files. No live HRRR ingesti
 | [`services/agent/eval/HARNESS_GUARDS.md`](services/agent/eval/HARNESS_GUARDS.md), [`services/agent/eval/ROUTING_EXPERIMENT.md`](services/agent/eval/ROUTING_EXPERIMENT.md) | Harness guards and the routing experiment |
 | [`docs/OPENROUTER.md`](docs/OPENROUTER.md) | OpenRouter LLM and Jev backends, prices, measurements, and the production switch |
 | [`docs/JEV_SHADOW.md`](docs/JEV_SHADOW.md), [`docs/JEV_DECIDE.md`](docs/JEV_DECIDE.md), [`docs/JEV_MULTI_TOOL.md`](docs/JEV_MULTI_TOOL.md), [`docs/JEV_DETERMINISM.md`](docs/JEV_DETERMINISM.md), [`docs/JEV_BACKLOG.md`](docs/JEV_BACKLOG.md) | Jev modes and flags, decide mode, the slot planner, determinism, and deferred Jev work |
-| [`services/accounts/README.md`](services/accounts/README.md), [`deploy/nginx/ACCOUNTS_GATEWAY.md`](deploy/nginx/ACCOUNTS_GATEWAY.md), [`deploy/cloudfront/README.md`](deploy/cloudfront/README.md) | Accounts service, gateway rollout, and the CloudFront origin, security headers, deploy workflow and cutover |
+| [`services/accounts/README.md`](services/accounts/README.md), [`deploy/nginx/ACCOUNTS_GATEWAY.md`](deploy/nginx/ACCOUNTS_GATEWAY.md), [`deploy/cloudfront/README.md`](deploy/cloudfront/README.md), [`deploy/SIGN_IN_ONLY.md`](deploy/SIGN_IN_ONLY.md) | Accounts service, gateway rollout, the CloudFront origin, security headers, deploy workflow and cutover, and the sign-in-only deployment on one non-AWS server |
 | [`docs/HANDOFF_SINCE_PR4.md`](docs/HANDOFF_SINCE_PR4.md) | Handoff: every PR, rule, tool, caveat, endpoint, env var, view, eval set, and open item since PR #4 |

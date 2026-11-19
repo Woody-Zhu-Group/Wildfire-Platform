@@ -1,6 +1,7 @@
 """Run against an isolated real Nginx with contract stubs, never production."""
 
 import os
+import time
 from urllib.parse import urlsplit
 
 import httpx
@@ -55,3 +56,43 @@ def test_public_accounts_routes_keep_their_original_method(gateway):
     assert response.status_code == 200
     assert response.json()["path"] == "/api/access-requests"
     assert response.json()["method"] == "POST"
+
+
+# The sign-in-only relay (deploy/nginx/accounts-relay.conf): run the harness with --relay.
+
+@pytest.fixture(scope="module")
+def relay(gateway):
+    if os.environ.get("ACCOUNTS_GATEWAY_RELAY") != "1":
+        pytest.skip("Start the gateway harness with --relay and set ACCOUNTS_GATEWAY_RELAY=1")
+    return gateway
+
+
+@pytest.mark.parametrize("prefix", ["agent", "data-query", "visualization", "risk-forecasting"])
+def test_relay_forwards_to_the_public_api_path_over_verified_tls(relay, prefix):
+    response = relay.get(f"/api/{prefix}/probe?year=2024", headers={
+        "Cookie": "session=active", "Authorization": "Bearer secret", "X-CSRF-Token": "csrf-test", "X-Account-User-Id": "attacker",
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert body["path"] == f"/api/{prefix}/probe?year=2024"
+    assert body["host"] == "relay.test"
+    assert body["user"] == "verified-user"
+    assert body["cookie"] is None and body["authorization"] is None and body["csrf"] is None
+
+
+def test_relay_does_not_pass_on_upstream_cookies(relay):
+    response = relay.get("/api/data-query/set-cookie", headers={"Cookie": "session=active"})
+    assert response.status_code == 200
+    assert "set-cookie" not in response.headers
+
+
+def test_relay_streams_each_agent_event_as_it_arrives(relay):
+    started = time.monotonic()
+    with relay.stream("GET", "/api/agent/stream", headers={"Cookie": "session=active"}, timeout=10) as response:
+        assert response.status_code == 200
+        chunks = response.iter_raw()
+        first = next(chunks)
+        waited = time.monotonic() - started
+        rest = b"".join(chunks)
+    assert first.startswith(b"data: first") and waited < 2
+    assert b"data: second" in first + rest

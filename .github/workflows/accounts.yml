@@ -65,7 +65,7 @@ jobs:
       - name: Service tests (real PostgreSQL)
         env:
           ACCOUNTS_TEST_DATABASE_URL: postgresql://postgres@localhost:5432/accounts_test_ci
-        run: pytest tests/accounts/test_accounts.py tests/accounts/test_identity.py tests/accounts/test_requirements.py -q
+        run: pytest tests/accounts/test_accounts.py tests/accounts/test_identity.py tests/accounts/test_mail.py tests/accounts/test_nginx_templates.py tests/accounts/test_requirements.py -q
 
   gateway:
     name: Nginx gateway contract
@@ -83,17 +83,49 @@ jobs:
         run: |
           command -v nginx >/dev/null || { sudo apt-get update && sudo apt-get install -y nginx-core; }
           nginx -V 2>&1 | grep -q http_auth_request_module
+      # Each step runs in a new shell, so `wait` cannot see a harness started by an
+      # earlier step. Start steps check that their own harness is up (its ready
+      # line, and it is still running); stop steps poll until it has exited, so
+      # the next harness never finds the ports still taken.
       - name: Contract tests against the harness
         run: |
           python tests/accounts/gateway_harness.py --nginx "$(command -v nginx)" --directory "$RUNNER_TEMP/gateway" > "$RUNNER_TEMP/gateway.log" 2>&1 &
-          echo "HARNESS=$!" >> "$GITHUB_ENV"
-          for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:18080/ && break; sleep 1; done
+          pid=$!
+          echo "HARNESS=$pid" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do
+            kill -0 "$pid" 2>/dev/null || { cat "$RUNNER_TEMP/gateway.log"; exit 1; }
+            grep -q 'Nginx contract harness' "$RUNNER_TEMP/gateway.log" && curl -s -o /dev/null http://127.0.0.1:18080/ && break
+            sleep 1
+          done
           ACCOUNTS_GATEWAY_TEST_URL=http://127.0.0.1:18080 pytest tests/accounts/test_gateway.py -q
       - name: Stop the harness
         if: always()
         run: |
-          [ -n "${HARNESS:-}" ] && kill -TERM "$HARNESS" 2>/dev/null && wait "$HARNESS" 2>/dev/null || true
+          if [ -n "${HARNESS:-}" ]; then
+            kill -TERM "$HARNESS" 2>/dev/null || true
+            for i in $(seq 1 60); do kill -0 "$HARNESS" 2>/dev/null || break; sleep 0.5; done
+          fi
           cat "$RUNNER_TEMP/gateway.log" 2>/dev/null || true
+      # Sign-in-only deployment: the same contract, then the relay to the API origin over verified TLS.
+      - name: Contract and relay tests through accounts-relay.conf
+        run: |
+          python tests/accounts/gateway_harness.py --relay --nginx "$(command -v nginx)" --directory "$RUNNER_TEMP/gateway-relay" > "$RUNNER_TEMP/gateway-relay.log" 2>&1 &
+          pid=$!
+          echo "RELAY_HARNESS=$pid" >> "$GITHUB_ENV"
+          for i in $(seq 1 30); do
+            kill -0 "$pid" 2>/dev/null || { cat "$RUNNER_TEMP/gateway-relay.log"; exit 1; }
+            grep -q 'Nginx contract harness' "$RUNNER_TEMP/gateway-relay.log" && curl -s -o /dev/null http://127.0.0.1:18080/ && break
+            sleep 1
+          done
+          ACCOUNTS_GATEWAY_TEST_URL=http://127.0.0.1:18080 ACCOUNTS_GATEWAY_RELAY=1 pytest tests/accounts/test_gateway.py -q
+      - name: Stop the relay harness
+        if: always()
+        run: |
+          if [ -n "${RELAY_HARNESS:-}" ]; then
+            kill -TERM "$RELAY_HARNESS" 2>/dev/null || true
+            for i in $(seq 1 60); do kill -0 "$RELAY_HARNESS" 2>/dev/null || break; sleep 0.5; done
+          fi
+          cat "$RUNNER_TEMP/gateway-relay.log" "$RUNNER_TEMP/gateway-relay/relay.log" 2>/dev/null || true
 
   staging-flow:
     name: Signed-in website in a browser
