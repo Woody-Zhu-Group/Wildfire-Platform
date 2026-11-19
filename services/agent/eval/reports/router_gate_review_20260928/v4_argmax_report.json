@@ -1,0 +1,62 @@
+{
+  "variant": "v4_argmax_without_confidence_gate",
+  "network_calls": 0,
+  "extra_cost_usd": 0,
+  "set_status": "Development comparison set, adapted from the 36-case v4 review set. Not a clean holdout. Router-fit labels were written before live gate capture.",
+  "metrics": {
+    "gated": {
+      "correct": 94,
+      "routes": {
+        "model": 40,
+        "clarification": 106,
+        "deterministic": 4,
+        "unsupported": 30
+      },
+      "rules": {
+        "jev_intent": 40,
+        "jev_uncertain": 106,
+        "jev_model_metrics": 4,
+        "unsupported_advice": 15,
+        "unsupported_cost": 5,
+        "unsupported_live_web": 5,
+        "unsupported_future_prediction": 5
+      },
+      "n": 180,
+      "accuracy": 0.5222222222222223
+    },
+    "argmax": {
+      "correct": 169,
+      "routes": {
+        "model": 106,
+        "deterministic": 13,
+        "clarification": 27,
+        "unsupported": 34
+      },
+      "rules": {
+        "jev_intent": 106,
+        "jev_model_metrics": 10,
+        "undefined_region": 7,
+        "jev_risk_surface": 3,
+        "unsupported_cpz": 4,
+        "unsupported_advice": 15,
+        "unsupported_cost": 5,
+        "unsupported_live_web": 5,
+        "records_missing_year": 5,
+        "forecast_missing_date": 5,
+        "unsupported_future_prediction": 5,
+        "unexpressed_filter_constraints": 10
+      },
+      "n": 180,
+      "accuracy": 0.9388888888888889
+    }
+  },
+  "choice_label_changes": 0,
+  "choice_ties": 0,
+  "all_labeled_intent": {
+    "correct": 155,
+    "n": 155
+  },
+  "improved": 75,
+  "regressed": 0,
+  "limitations": "Paired policy replay on existing development captures, not a new live run or final-answer evaluation. Choice ties retain the provider-selected maximum. Binary facts use p >= 0.5. Structural constraints and error handling remain enabled."
+}

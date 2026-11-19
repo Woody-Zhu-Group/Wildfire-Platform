@@ -41,7 +41,7 @@ def _settings(tmp_path, **overrides) -> AgentSettings:
 
 
 def _runner(settings: AgentSettings, backend) -> ShadowRunner:
-    log = ShadowLog(settings.jev_log_path, max_bytes=int(settings.jev_log_max_mb * 1024 * 1024))
+    log = ShadowLog(settings.jev_log_path, max_bytes=int(settings.jev_log_max_mb * 1024 * 1024), raw=True)
     return ShadowRunner(settings, backend, log=log)
 
 
@@ -341,12 +341,12 @@ def test_log_records_are_json_and_hide_the_api_key(monkeypatch, tmp_path):
 
 
 def test_log_rotation(tmp_path):
-    log = ShadowLog(str(tmp_path / "jev_shadow.jsonl"), max_bytes=180, backups=5)
+    log = ShadowLog(str(tmp_path / "jev_shadow.jsonl"), max_bytes=180, backups=5, raw=True)
     for index in range(8):
         log.write({"type": "dropped", "n": index, "pad": "x" * 40})
     assert (tmp_path / "jev_shadow.jsonl").exists()
     assert (tmp_path / "jev_shadow.jsonl.1").exists()
-    kept = list(tmp_path.glob("jev_shadow.jsonl*"))
+    kept = [path for path in tmp_path.glob("jev_shadow.jsonl*") if path.suffix != ".lock"]
     assert len(kept) <= 6
 
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -40,7 +41,6 @@ from services.agent.decisions.jev_policy import (
 )
 from services.agent.eval.jev_decide_replay import (
     SMOKE_CHECKS,
-    STORE,
     _answers,
     smoke_route_matches,
     stored_row,
@@ -296,7 +296,7 @@ def _adverse_answers() -> dict[str, dict]:
 
 @pytest.fixture(scope="module")
 def decide_store():
-    return json.loads(STORE.read_text(encoding="utf-8"))
+    return json.loads((Path(__file__).parent / "fixtures/decide_readings.json").read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("check", SMOKE_CHECKS, ids=[check["id"] for check in SMOKE_CHECKS])

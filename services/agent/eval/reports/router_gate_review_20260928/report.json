@@ -1,0 +1,64 @@
+{
+  "set_status": "Development comparison set, adapted from the 36-case v4 review set. Not a clean holdout. Router-fit labels were written before live gate capture.",
+  "router": {
+    "disposition_correct": 31,
+    "intent_correct": 14,
+    "intent_n": 24
+  },
+  "modes": {
+    "decide_v3": {
+      "runs": 180,
+      "errors": 0,
+      "intent_n": 120,
+      "intent_correct": 120,
+      "disposition_correct": 170,
+      "routes": {
+        "deterministic": 100,
+        "model": 40,
+        "unsupported": 25,
+        "clarification": 15
+      },
+      "mean_intent_confidence": 0.989
+    },
+    "prior_v4": {
+      "runs": 180,
+      "errors": 0,
+      "intent_n": 120,
+      "intent_correct": 120,
+      "disposition_correct": 94,
+      "routes": {
+        "model": 40,
+        "clarification": 106,
+        "deterministic": 4,
+        "unsupported": 30
+      },
+      "mean_intent_confidence": 0.9625
+    },
+    "router_gate": {
+      "runs": 180,
+      "errors": 0,
+      "intent_n": 120,
+      "intent_correct": 120,
+      "disposition_correct": 155,
+      "routes": {
+        "model": 129,
+        "deterministic": 21,
+        "unsupported": 15,
+        "clarification": 15
+      },
+      "mean_intent_confidence": 0.9704999999999999
+    }
+  },
+  "router_fit": {
+    "n": 180,
+    "correct": 139,
+    "eligible_n": 150,
+    "eligible_correct": 129,
+    "mean_confidence": 0.68
+  },
+  "caveat": "Pre-execution classification only. An agent handoff is not proof of a correct final answer. Repeats measure consistency, not independent sample size.",
+  "stopped": null,
+  "input_tokens": 2007760,
+  "estimated_input_cost": 0.08432592,
+  "model": "typesafe/jev-1.13-20260917"
+}

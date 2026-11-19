@@ -1,0 +1,606 @@
+{
+  "schema_version": "v4",
+  "set_status": "Development regression set. Written during the Jev-first implementation; not a clean holdout.",
+  "today": "2026-09-27",
+  "cases": [
+    {
+      "id": "v4_001",
+      "group": "comparison",
+      "question": "How did the number of PG&E ignitions change from 2019 to 2023?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_002",
+      "group": "comparison",
+      "question": "What happened to SCE's CPUC ignition count between 2020 and 2023?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_003",
+      "group": "comparison",
+      "question": "How much did SDG&E's ignition tally move from 2020 to 2024?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_004",
+      "group": "comparison",
+      "question": "Give the numerical difference between PG&E's 2020 and 2023 ignition counts.",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_005",
+      "group": "comparison",
+      "question": "Compare Butte and Shasta County ignition counts for 2023.",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_006",
+      "group": "month_endpoints",
+      "question": "Did EPSS outages go up from September 2023 to September 2024?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_007",
+      "group": "month_endpoints",
+      "question": "How did PG&E's ignition count change from March 2021 to November 2022?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_008",
+      "group": "month_endpoints",
+      "question": "By how much did PG&E ignitions differ from July to August 2024?",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_009",
+      "group": "month_endpoints",
+      "question": "Compare EPSS counts in February and June 2024.",
+      "expected": {
+        "intent": [
+          "compare"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_010",
+      "group": "count_controls",
+      "question": "How many PG&E ignitions were there from 2020 through 2023?",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_011",
+      "group": "count_controls",
+      "question": "Total EPSS outages from September 2023 through September 2024.",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_012",
+      "group": "count_controls",
+      "question": "Count all SCE ignitions in 2024.",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_013",
+      "group": "count_controls",
+      "question": "For our budget meeting, how many PG&E ignitions were recorded in 2024?",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_014",
+      "group": "views",
+      "question": "Plot monthly PG&E ignition counts from 2020 through 2023.",
+      "expected": {
+        "intent": [
+          "trend"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_015",
+      "group": "views",
+      "question": "Show where CAL FIRE incidents occurred in Butte County in 2024.",
+      "expected": {
+        "intent": [
+          "map"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_016",
+      "group": "views",
+      "question": "List the individual EPSS outages in July 2024.",
+      "expected": {
+        "intent": [
+          "records_list"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_017",
+      "group": "views",
+      "question": "Rank California counties by CPUC ignition count in 2024.",
+      "expected": {
+        "intent": [
+          "rank"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_018",
+      "group": "views",
+      "question": "Map CPUC ignitions and plot their monthly counts for 2024.",
+      "expected": {
+        "intent": [
+          "map_plus_trend",
+          "multi_intent"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": "Either composite label is valid; both requested results must remain available."
+    },
+    {
+      "id": "v4_019",
+      "group": "special_tools",
+      "question": "How well does the fitted ignition model perform?",
+      "expected": {
+        "intent": [
+          "model_metrics"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "deterministic"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_020",
+      "group": "special_tools",
+      "question": "Compare the held-out evaluation scores of HPP, NHPP and cNHPP.",
+      "expected": {
+        "intent": [
+          "model_metrics"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "deterministic"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_021",
+      "group": "special_tools",
+      "question": "Show the statewide fitted ignition risk surface for 2024-08-15.",
+      "expected": {
+        "intent": [
+          "risk_surface"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "deterministic"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_022",
+      "group": "special_tools",
+      "question": "Map the model residuals across California for 2024-08-15.",
+      "expected": {
+        "intent": [
+          "risk_surface"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "deterministic"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_023",
+      "group": "special_tools",
+      "question": "What was the fitted ignition risk in Butte County on 2024-08-15?",
+      "expected": {
+        "intent": [
+          "risk"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_024",
+      "group": "lookups",
+      "question": "Which utility territory and HFTD tier contain 38.5, -121.5?",
+      "expected": {
+        "intent": [
+          "spatial_context"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_025",
+      "group": "lookups",
+      "question": "Show the PG&E utility service-area boundary.",
+      "expected": {
+        "intent": [
+          "territory_boundary"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_026",
+      "group": "lookups",
+      "question": "Inspect circuit 043371102.",
+      "expected": {
+        "intent": [
+          "circuit_detail"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "model"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_027",
+      "group": "unsupported_advice",
+      "question": "Should PG&E be held responsible for its 2023 ignitions?",
+      "expected": {
+        "off_topic": [
+          "advice_or_judgment"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_028",
+      "group": "unsupported_advice",
+      "question": "Which utility should the CPUC penalize based on its wildfire record?",
+      "expected": {
+        "off_topic": [
+          "advice_or_judgment"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_029",
+      "group": "unsupported_advice",
+      "question": "What should SCE do about its ignition history?",
+      "expected": {
+        "off_topic": [
+          "advice_or_judgment"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_030",
+      "group": "unsupported_topics",
+      "question": "What were PG&E wildfire mitigation costs in 2024?",
+      "expected": {
+        "off_topic": [
+          "cost_or_budget"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_031",
+      "group": "unsupported_topics",
+      "question": "Which fires are burning currently?",
+      "expected": {
+        "off_topic": [
+          "live_or_web"
+        ],
+        "path": [
+          "unsupported"
+        ]
+      },
+      "expectation_note": "Only off_topic and refusal are scored here; an out-of-domain question has no required in-domain intent label."
+    },
+    {
+      "id": "v4_032",
+      "group": "constraints",
+      "question": "How many PG&E ignitions were there?",
+      "expected": {
+        "intent": [
+          "count"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "clarification"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_033",
+      "group": "constraints",
+      "question": "What was the fitted ignition risk in Butte County in 2024?",
+      "expected": {
+        "intent": [
+          "risk"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "clarification"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_034",
+      "group": "constraints",
+      "question": "Show the statewide risk surface for 2027-08-15.",
+      "expected": {
+        "intent": [
+          "risk_surface"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "unsupported",
+          "clarification"
+        ]
+      },
+      "expectation_note": "The date cannot be scored; either a refusal or a request for a supported past day is safe."
+    },
+    {
+      "id": "v4_035",
+      "group": "constraints",
+      "question": "Show model evaluation scores just for Butte County.",
+      "expected": {
+        "intent": [
+          "model_metrics"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "clarification"
+        ]
+      },
+      "expectation_note": ""
+    },
+    {
+      "id": "v4_036",
+      "group": "constraints",
+      "question": "Show the statewide risk grid restricted to SCE territory on 2024-08-15.",
+      "expected": {
+        "intent": [
+          "risk_surface"
+        ],
+        "off_topic": [
+          "on_topic"
+        ],
+        "path": [
+          "clarification"
+        ]
+      },
+      "expectation_note": ""
+    }
+  ]
+}

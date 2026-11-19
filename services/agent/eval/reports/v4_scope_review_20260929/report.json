@@ -1,0 +1,122 @@
+{
+  "metrics": {
+    "original_36:old": {
+      "n": 180,
+      "correct": 171,
+      "routes": {
+        "model": 107,
+        "deterministic": 14,
+        "clarification": 27,
+        "unsupported": 32
+      },
+      "rules": {
+        "jev_intent": 107,
+        "jev_model_metrics": 10,
+        "undefined_region": 6,
+        "jev_risk_surface": 4,
+        "undefined_spatial_scope": 1,
+        "unsupported_cpz": 2,
+        "unsupported_advice": 15,
+        "unsupported_cost": 5,
+        "unsupported_live_web": 5,
+        "records_missing_year": 5,
+        "forecast_missing_date": 5,
+        "unsupported_future_prediction": 5,
+        "unexpressed_filter_constraints": 10
+      },
+      "accuracy": 0.95,
+      "mean_scope_confidence": 0.8826666666666668
+    },
+    "original_36:new": {
+      "n": 180,
+      "correct": 177,
+      "routes": {
+        "model": 107,
+        "deterministic": 20,
+        "clarification": 21,
+        "unsupported": 32
+      },
+      "rules": {
+        "jev_intent": 107,
+        "jev_model_metrics": 10,
+        "jev_risk_surface": 10,
+        "undefined_spatial_scope": 1,
+        "unsupported_cpz": 2,
+        "unsupported_advice": 15,
+        "unsupported_cost": 5,
+        "unsupported_live_web": 5,
+        "records_missing_year": 5,
+        "forecast_missing_date": 5,
+        "unsupported_future_prediction": 5,
+        "unexpressed_filter_constraints": 10
+      },
+      "accuracy": 0.9833333333333333,
+      "mean_scope_confidence": 0.7937222222222221
+    },
+    "scope_controls_14:old": {
+      "n": 70,
+      "correct": 55,
+      "routes": {
+        "deterministic": 10,
+        "clarification": 35,
+        "model": 25
+      },
+      "rules": {
+        "jev_risk_surface": 10,
+        "undefined_region": 10,
+        "jev_intent": 25,
+        "risk_missing_place": 5,
+        "undefined_spatial_scope": 20
+      },
+      "accuracy": 0.7857142857142857,
+      "mean_scope_confidence": 0.803142857142857
+    },
+    "scope_controls_14:new": {
+      "n": 70,
+      "correct": 65,
+      "routes": {
+        "deterministic": 15,
+        "model": 20,
+        "clarification": 35
+      },
+      "rules": {
+        "jev_risk_surface": 15,
+        "jev_intent": 20,
+        "missing_geographic_scope": 23,
+        "undefined_spatial_scope": 12
+      },
+      "accuracy": 0.9285714285714286,
+      "mean_scope_confidence": 0.8574285714285713
+    }
+  },
+  "paired_changes": {
+    "improved": 17,
+    "regressed": 1
+  },
+  "missing_scope_controls": {
+    "n": 70,
+    "correct": 63,
+    "true_positive": 23,
+    "false_positive": 0,
+    "false_negative": 7,
+    "true_negative": 40,
+    "mean_confidence": 0.8574285714285713
+  },
+  "method": "Fresh paired facts calls with identical shared topic/places answers; argmax without confidence rejection. Development data, not an independent holdout or final-answer evaluation.",
+  "stopped": null,
+  "input_tokens": 1196660,
+  "estimated_input_cost": 0.05025972,
+  "unchanged_question_label_flips": {
+    "names_specific_place": 2,
+    "names_risk_metric": 5,
+    "vague_time": 4,
+    "has_time_scope": 5,
+    "vague_proximity": 2
+  },
+  "offline_scope_only_swap": {
+    "n": 250,
+    "correct": 242,
+    "improved": 16,
+    "regressed": 0
+  }
+}

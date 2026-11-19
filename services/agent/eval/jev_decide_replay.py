@@ -50,11 +50,12 @@ from services.agent.eval.jev_metrics import INPUT_USD_PER_MILLION
 from services.agent.eval.jev_offline_eval import expected_for
 from services.agent.routing import route_question
 from shared.db import REPO_ROOT
+from services.agent.runtime_paths import eval_runs_dir
 
 HERE = Path(__file__).resolve().parent
-STORE = HERE / "runs" / "jev_decide_store.json"
-REPORT = HERE / "runs" / "jev_decide_replay.json"
-LIVE = HERE / "runs" / "jev_decide_live_dev.json"
+STORE = eval_runs_dir() / "jev_decide_store.json"
+REPORT = eval_runs_dir() / "jev_decide_replay.json"
+LIVE = eval_runs_dir() / "jev_decide_live_dev.json"
 TUNED = {
     "dev": "used for tuning",
     "v1": "seen, now development data",
@@ -371,7 +372,7 @@ def sweep(args: argparse.Namespace) -> int:
                 for name in SWEEP_SETS
             )
         )
-    (HERE / "runs" / "jev_decide_answer_gate_sweep.json").write_text(
+    (eval_runs_dir() / "jev_decide_answer_gate_sweep.json").write_text(
         json.dumps({"gate": args.gate, "sets": SWEEP_SETS, "v3_used": False, "rows": rows}, indent=1),
         encoding="utf-8",
     )
@@ -433,7 +434,7 @@ def sweep_gate(args: argparse.Namespace) -> int:
                 question = next(item["question"] for item in sets[set_name] if item["id"] == item_id)
                 changes.append({"from_gate": lower, "to_gate": upper, "set": set_name, "id": item_id, "question": question, "before": list(before), "after": list(after)})
     out = {"answer_gate": args.answer_gate, "sets": GATE_SWEEP_SETS, "status": {name: TUNED[name] for name in GATE_SWEEP_SETS}, "rows": rows, "changes": changes}
-    (HERE / "runs" / "jev_decide_gate_sweep.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+    (eval_runs_dir() / "jev_decide_gate_sweep.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
     header = "| Gate | " + " | ".join(f"{name} acc | {name} fixed / broken | {name} Jev decided" for name in GATE_SWEEP_SETS) + " |"
     print(header)
     print("|" + "---|" * (1 + 3 * len(GATE_SWEEP_SETS)))

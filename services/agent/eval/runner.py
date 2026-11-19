@@ -18,6 +18,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from services.agent.runtime_paths import eval_runs_dir
+
 import httpx
 
 from services.agent.artifacts import ArtifactStore
@@ -29,7 +31,7 @@ from shared.db import REPO_ROOT
 
 HERE = Path(__file__).resolve().parent
 CASES_FILE = HERE / "cases.json"
-RUNS_DIR = HERE / "runs"
+RUNS_DIR = eval_runs_dir()
 REPORT_FILE = HERE / "REPORT.md"
 SUMMARY_FILE = HERE / "summary.json"
 CSV_FILE = HERE / "summary.csv"

@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -23,7 +24,7 @@ from services.agent.clarify_missing import RULE_ITEM, complete_clarification, mi
 from services.agent.decisions import decide_mode
 from services.agent.decisions.decide_mode import _REASON_TEXT, decide_from_answers
 from services.agent.decisions.jev_policy import DerivedOutcome
-from services.agent.eval.jev_decide_replay import STORE, _answers
+from services.agent.eval.jev_decide_replay import HERE, _answers
 from services.agent.routing import route_question
 from services.shared.dataset_registry import (
     CLARIFY_DATASET_LABELS,
@@ -143,7 +144,7 @@ def test_jevs_year_question_keeps_the_grouping_the_router_knew_was_missing(quest
 
 
 def _stored_decision(key: str, question: str):
-    store = json.loads(STORE.read_text(encoding="utf-8"))
+    store = json.loads((Path(__file__).parent / "fixtures/decide_readings.json").read_text(encoding="utf-8"))
     stored = store["rows"][key]
     return decide_from_answers(
         question,
@@ -211,7 +212,7 @@ def test_a_county_comparison_offers_the_compare_measures_datasets():
 
 
 def test_hv3_013_a_lookup_naming_several_cities_is_not_asked_for_a_year():
-    rows = json.loads((STORE.parents[1] / "jev_holdout_v3_questions.json").read_text(encoding="utf-8"))
+    rows = json.loads((HERE / "jev_holdout_v3_questions.json").read_text(encoding="utf-8"))
     question = next(row["question"] for row in rows if row.get("id") == "hv3_013")
     decision = route_question(question)
     assert decision.rule == "city_needs_place"

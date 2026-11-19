@@ -47,11 +47,12 @@ from services.agent.eval.jev_metrics import (
 )
 from services.agent.routing import candidate_tools, route_question
 from shared.db import REPO_ROOT
+from services.agent.runtime_paths import eval_runs_dir
 
 HERE = Path(__file__).resolve().parent
 CASES_FILE = HERE / "cases.json"
 PARAPHRASE_FILE = HERE / "jev_paraphrases.json"
-RUNS = HERE / "runs"
+RUNS = eval_runs_dir()
 
 
 def load_cases(path: Path) -> list[dict[str, Any]]:

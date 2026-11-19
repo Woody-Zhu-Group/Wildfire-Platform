@@ -1,0 +1,526 @@
+{
+  "set_status": "Frozen before new V4 API capture. Original 80 questions unchanged; 52 have reviewed fixed plans, 28 require clarify/refuse, plus 8 new beyond-template agent controls. Development benchmark, not a blind holdout.",
+  "router": {
+    "disposition_correct": 73,
+    "intent_correct": 27,
+    "intent_n": 44
+  },
+  "modes": {
+    "decide_v3": {
+      "runs": 440,
+      "errors": 0,
+      "intent_n": 220,
+      "intent_correct": 220,
+      "disposition_correct": 390,
+      "disposition_confusion": {
+        "answer->answer": 285,
+        "unsupported->unsupported": 45,
+        "clarification->clarification": 50,
+        "clarification|unsupported->clarification": 10,
+        "clarification->answer": 35,
+        "answer->clarification": 10,
+        "answer->unsupported": 5
+      },
+      "routes": {
+        "deterministic": 215,
+        "model": 105,
+        "unsupported": 50,
+        "clarification": 70
+      },
+      "mean_intent_confidence": 0.9913181818181819
+    },
+    "v4_router": {
+      "runs": 440,
+      "errors": 0,
+      "intent_n": 220,
+      "intent_correct": 220,
+      "disposition_correct": 398,
+      "disposition_confusion": {
+        "answer->answer": 260,
+        "answer->clarification": 40,
+        "unsupported->unsupported": 45,
+        "clarification->clarification": 83,
+        "clarification|unsupported->unsupported": 10,
+        "clarification->unsupported": 2
+      },
+      "routes": {
+        "deterministic": 223,
+        "clarification": 123,
+        "unsupported": 57,
+        "model": 37
+      },
+      "mean_intent_confidence": 0.9770909090909091
+    }
+  },
+  "router_fit": {
+    "n": 0,
+    "correct": 0,
+    "eligible_n": 0,
+    "eligible_correct": 0,
+    "mean_confidence": null
+  },
+  "by_group": {
+    "decide_v3:split:regression": {
+      "n": 250,
+      "correct": 225
+    },
+    "decide_v3:group:comparison": {
+      "n": 25,
+      "correct": 25
+    },
+    "v4_router:split:regression": {
+      "n": 250,
+      "correct": 225
+    },
+    "v4_router:group:comparison": {
+      "n": 25,
+      "correct": 21
+    },
+    "decide_v3:group:month_endpoints": {
+      "n": 20,
+      "correct": 20
+    },
+    "v4_router:group:month_endpoints": {
+      "n": 20,
+      "correct": 20
+    },
+    "decide_v3:group:count_controls": {
+      "n": 20,
+      "correct": 20
+    },
+    "v4_router:group:count_controls": {
+      "n": 20,
+      "correct": 20
+    },
+    "decide_v3:group:views": {
+      "n": 25,
+      "correct": 25
+    },
+    "v4_router:group:views": {
+      "n": 25,
+      "correct": 25
+    },
+    "decide_v3:group:special_tools": {
+      "n": 25,
+      "correct": 25
+    },
+    "v4_router:group:special_tools": {
+      "n": 25,
+      "correct": 25
+    },
+    "decide_v3:group:lookups": {
+      "n": 15,
+      "correct": 15
+    },
+    "v4_router:group:lookups": {
+      "n": 15,
+      "correct": 5
+    },
+    "decide_v3:group:unsupported_advice": {
+      "n": 15,
+      "correct": 15
+    },
+    "v4_router:group:unsupported_advice": {
+      "n": 15,
+      "correct": 15
+    },
+    "decide_v3:group:unsupported_topics": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:unsupported_topics": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:constraints": {
+      "n": 25,
+      "correct": 15
+    },
+    "v4_router:group:constraints": {
+      "n": 25,
+      "correct": 25
+    },
+    "decide_v3:group:geographic_scope": {
+      "n": 70,
+      "correct": 55
+    },
+    "v4_router:group:geographic_scope": {
+      "n": 70,
+      "correct": 59
+    },
+    "decide_v3:split:new_challenge": {
+      "n": 150,
+      "correct": 125
+    },
+    "decide_v3:group:total_vs_change": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:split:new_challenge": {
+      "n": 150,
+      "correct": 136
+    },
+    "v4_router:group:total_vs_change": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:span_vs_endpoint_months": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:span_vs_endpoint_months": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:defined_vs_undefined_region": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:defined_vs_undefined_region": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:named_vs_missing_county": {
+      "n": 10,
+      "correct": 5
+    },
+    "v4_router:group:named_vs_missing_county": {
+      "n": 10,
+      "correct": 8
+    },
+    "decide_v3:group:point_vs_missing_location": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:point_vs_missing_location": {
+      "n": 10,
+      "correct": 3
+    },
+    "decide_v3:group:circuit_vs_cpz": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:circuit_vs_cpz": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:map_vs_two_outputs": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:map_vs_two_outputs": {
+      "n": 10,
+      "correct": 6
+    },
+    "decide_v3:group:metrics_vs_scoped_metrics": {
+      "n": 10,
+      "correct": 5
+    },
+    "v4_router:group:metrics_vs_scoped_metrics": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:surface_vs_filtered_surface": {
+      "n": 10,
+      "correct": 0
+    },
+    "v4_router:group:surface_vs_filtered_surface": {
+      "n": 10,
+      "correct": 9
+    },
+    "decide_v3:group:risk_day_vs_year": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:risk_day_vs_year": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:historical_vs_live": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:historical_vs_live": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:budget_context_vs_budget_request": {
+      "n": 10,
+      "correct": 5
+    },
+    "v4_router:group:budget_context_vs_budget_request": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:count_vs_blame": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:count_vs_blame": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:time_present_vs_absent": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:time_present_vs_absent": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:group:past_vs_future_surface": {
+      "n": 10,
+      "correct": 10
+    },
+    "v4_router:group:past_vs_future_surface": {
+      "n": 10,
+      "correct": 10
+    },
+    "decide_v3:split:agent_controls": {
+      "n": 40,
+      "correct": 40
+    },
+    "decide_v3:group:beyond_fixed_templates": {
+      "n": 40,
+      "correct": 40
+    },
+    "v4_router:split:agent_controls": {
+      "n": 40,
+      "correct": 37
+    },
+    "v4_router:group:beyond_fixed_templates": {
+      "n": 40,
+      "correct": 37
+    }
+  },
+  "executor_scoring": {
+    "metrics": {
+      "decide_v3": {
+        "n": 440,
+        "correct": 290,
+        "router_capable": 260,
+        "router_retained_correctly": 160,
+        "unnecessary_handoff": 60,
+        "agent_handoffs": 105,
+        "agent_required": 40,
+        "correct_agent_handoff": 30,
+        "incorrect_plan_acceptance": 55
+      },
+      "decide_v3:regression": {
+        "n": 250,
+        "correct": 170,
+        "router_capable": 170,
+        "router_retained_correctly": 110,
+        "unnecessary_handoff": 35,
+        "agent_handoffs": 45,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 30
+      },
+      "decide_v3:router_template_normalization_gap": {
+        "n": 50,
+        "correct": 0,
+        "router_capable": 50,
+        "router_retained_correctly": 0,
+        "unnecessary_handoff": 25,
+        "agent_handoffs": 25,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 15
+      },
+      "v4_router": {
+        "n": 440,
+        "correct": 398,
+        "router_capable": 260,
+        "router_retained_correctly": 223,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 37,
+        "agent_required": 40,
+        "correct_agent_handoff": 37,
+        "incorrect_plan_acceptance": 0
+      },
+      "v4_router:regression": {
+        "n": 250,
+        "correct": 225,
+        "router_capable": 170,
+        "router_retained_correctly": 145,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 0,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 0
+      },
+      "v4_router:router_template_normalization_gap": {
+        "n": 50,
+        "correct": 43,
+        "router_capable": 50,
+        "router_retained_correctly": 43,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 0,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 0
+      },
+      "decide_v3:new_fixed_template": {
+        "n": 45,
+        "correct": 0,
+        "router_capable": 45,
+        "router_retained_correctly": 0,
+        "unnecessary_handoff": 35,
+        "agent_handoffs": 35,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 10
+      },
+      "v4_router:new_fixed_template": {
+        "n": 45,
+        "correct": 41,
+        "router_capable": 45,
+        "router_retained_correctly": 41,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 0,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 0
+      },
+      "decide_v3:router_direct": {
+        "n": 155,
+        "correct": 155,
+        "router_capable": 155,
+        "router_retained_correctly": 155,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 0,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 0
+      },
+      "v4_router:router_direct": {
+        "n": 155,
+        "correct": 129,
+        "router_capable": 155,
+        "router_retained_correctly": 129,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 0,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 0
+      },
+      "decide_v3:router_existing_topic_recovery": {
+        "n": 10,
+        "correct": 5,
+        "router_capable": 10,
+        "router_retained_correctly": 5,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 0,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 0
+      },
+      "v4_router:router_existing_topic_recovery": {
+        "n": 10,
+        "correct": 10,
+        "router_capable": 10,
+        "router_retained_correctly": 10,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 0,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 0
+      },
+      "decide_v3:clarify_or_refuse": {
+        "n": 140,
+        "correct": 100,
+        "router_capable": 0,
+        "router_retained_correctly": 0,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 15,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 20
+      },
+      "v4_router:clarify_or_refuse": {
+        "n": 140,
+        "correct": 138,
+        "router_capable": 0,
+        "router_retained_correctly": 0,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 0,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 0
+      },
+      "decide_v3:new_challenge": {
+        "n": 150,
+        "correct": 90,
+        "router_capable": 90,
+        "router_retained_correctly": 50,
+        "unnecessary_handoff": 25,
+        "agent_handoffs": 30,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 15
+      },
+      "v4_router:new_challenge": {
+        "n": 150,
+        "correct": 136,
+        "router_capable": 90,
+        "router_retained_correctly": 78,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 0,
+        "agent_required": 0,
+        "correct_agent_handoff": 0,
+        "incorrect_plan_acceptance": 0
+      },
+      "decide_v3:agent_controls": {
+        "n": 40,
+        "correct": 30,
+        "router_capable": 0,
+        "router_retained_correctly": 0,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 30,
+        "agent_required": 40,
+        "correct_agent_handoff": 30,
+        "incorrect_plan_acceptance": 10
+      },
+      "decide_v3:requires_agent": {
+        "n": 40,
+        "correct": 30,
+        "router_capable": 0,
+        "router_retained_correctly": 0,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 30,
+        "agent_required": 40,
+        "correct_agent_handoff": 30,
+        "incorrect_plan_acceptance": 10
+      },
+      "v4_router:agent_controls": {
+        "n": 40,
+        "correct": 37,
+        "router_capable": 0,
+        "router_retained_correctly": 0,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 37,
+        "agent_required": 40,
+        "correct_agent_handoff": 37,
+        "incorrect_plan_acceptance": 0
+      },
+      "v4_router:requires_agent": {
+        "n": 40,
+        "correct": 37,
+        "router_capable": 0,
+        "router_retained_correctly": 0,
+        "unnecessary_handoff": 0,
+        "agent_handoffs": 37,
+        "agent_required": 40,
+        "correct_agent_handoff": 37,
+        "incorrect_plan_acceptance": 0
+      }
+    },
+    "method": "Frozen executor labels and required tool arguments/selectors; extra scope filters fail. Router and agent are never collapsed. Static plan check, not final-answer execution."
+  },
+  "caveat": "Pre-execution classification only. An agent handoff is not proof of a correct final answer. Repeats measure consistency, not independent sample size.",
+  "stopped": null,
+  "input_tokens": 4742637,
+  "estimated_input_cost": 0.19919075400000003,
+  "model": "typesafe/jev-1.13-20260917"
+}

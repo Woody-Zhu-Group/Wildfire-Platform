@@ -54,7 +54,8 @@ def test_a_model_county_with_the_word_county_is_sent_as_the_canonical_name(capsy
     assert result.summary["total"] == 9
     assert result.arguments["county"] == "Butte"
     events = [json.loads(line) for line in capsys.readouterr().out.splitlines() if "harness_county_correction" in line]
-    assert events and events[0]["from"] == "Butte County" and events[0]["to"] == "Butte"
+    assert events and events[0]["field"] == "county"
+    assert "from" not in events[0] and "to" not in events[0]
 
 
 def test_an_unknown_county_is_a_recoverable_error_with_the_backend_suggestions():

@@ -7,8 +7,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from services.agent.runtime_paths import eval_runs_dir
+
 HERE = Path(__file__).resolve().parent
-RUNS_DIR = HERE / "runs"
+RUNS_DIR = eval_runs_dir()
 OUT_FILE = HERE / "ROUTING_EXPERIMENT.md"
 
 

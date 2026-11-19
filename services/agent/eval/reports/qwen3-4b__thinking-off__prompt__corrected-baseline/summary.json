@@ -1,0 +1,39 @@
+{
+  "cell": {
+    "model": "qwen3:4b",
+    "thinking": "off",
+    "mode": "prompt"
+  },
+  "model_tier_cases": 6,
+  "routing_accuracy_all": 0.9259259259259259,
+  "routing_accuracy_deterministic_tier": 1.0,
+  "routing_accuracy_model_tier": 0.6666666666666666,
+  "caveat_surfacing_rate": 0.8333333333333334,
+  "caveat_surfacing_rate_deterministic_tier": 1.0,
+  "caveat_surfacing_rate_model_tier": 0.5,
+  "caveat_cases": 12,
+  "status_accuracy": 0.9259259259259259,
+  "refusal_clarification_accuracy": 1.0,
+  "schema_validity_first_pass": 0.0,
+  "schema_validity_eventual": 0.6666666666666666,
+  "recovery_rate": 0.6666666666666666,
+  "recovery_cases": 3,
+  "direct_answer_without_tool_attempts": 0,
+  "no_tool_response_attempts_before_evidence": 11,
+  "direct_answer_without_tool_rate_per_model_turn": 0.0,
+  "no_tool_response_rate_per_model_turn": 0.4230769230769231,
+  "model_turns": 26,
+  "latency_ms": {
+    "request_p50": 328.58,
+    "request_p95": 1462388.29,
+    "model_call_p50": 258521.4,
+    "model_call_p95": 375373.89,
+    "warmup": 817.07
+  },
+  "runtime_seconds": 6659.92,
+  "runner_segment_runtime_seconds": 6673.78,
+  "planned_cases": 27,
+  "planned_model_tier_cases": 6,
+  "stopped_within_cell": false,
+  "run_tag": "corrected-baseline"
+}
